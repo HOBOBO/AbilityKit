@@ -170,7 +170,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
             harness.AssertActorEntity(casterId).ReplaceTransform(
                 new Transform3(new Vec3(20, 0, 20), Quat.Identity, Vec3.One));
             var enemy = SpawnScenarioActor(harness, "restore_enemy", 9_911_006, 23, 20, teamId: 2);
-            var transforms = new MobaActorTransformRollbackProvider(harness.World.Services.Resolve<MobaActorRegistry>());
+            var transforms = new MobaEntitasComponentRollbackProvider(
+                ((global::Contexts)((AbilityKit.Ability.World.IEntitasWorld)harness.World).Contexts).actor);
             var frame = new FrameIndex(100);
             var snapshot = transforms.ExportState(frame);
             var effects = harness.World.Services.Resolve<MobaEffectExecutionService>();

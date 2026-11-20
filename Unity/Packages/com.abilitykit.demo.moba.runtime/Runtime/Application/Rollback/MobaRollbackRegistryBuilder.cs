@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Combat.Navigation;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Buffs;
+using AbilityKit.Demo.Moba.Services.Navigation;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Services.Passive;
 using AbilityKit.Demo.Moba.Services.Projectile;
@@ -73,7 +75,34 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// </summary>
     public static class MobaRollbackRegistryBuilder
     {
+        /// <summary>
+        /// 为客户端预测装配常规世界状态与静态导航依赖，并冻结实际 Path 消费的导航服务。
+        /// 只能在预测会话装配时调用，普通世界使用 <see cref="Create"/>。
+        /// </summary>
+        public static RollbackRegistry CreateForPrediction(IWorld world)
+        {
+            if (world?.Services == null)
+                throw new ArgumentException("Rollback world and services are required.", nameof(world));
+            if (!world.Services.TryResolve<INavigationService>(out var queries) ||
+                !(queries is MobaNavigationService navigation) ||
+                !world.Services.TryResolve<MobaNavigationService>(out var builder) || !ReferenceEquals(navigation, builder))
+                throw new InvalidOperationException("Prediction requires the same standard navigation service for map build and Path queries.");
+
+            var registry = Create(world, restorePathSlots: true);
+            if (world.Services.TryResolve<MobaEntityManager>(out var entities) &&
+                entities.TryGetActorRollbackCommands(out var commands) &&
+                world.Services.TryResolve<MobaBrainService>(out var brains))
+                commands.EnableNaturalExpiryRetention(brains);
+            navigation.EnablePredictionNavigation();
+            registry.Register(new MobaPredictionNavigationRollbackProvider(navigation));
+            registry.RequireState(MobaPredictionNavigationRollbackProvider.DefaultKey);
+            return registry;
+        }
+
         public static RollbackRegistry Create(IWorld world)
+            => Create(world, restorePathSlots: false);
+
+        private static RollbackRegistry Create(IWorld world, bool restorePathSlots)
         {
             var registry = new RollbackRegistry();
             if (world?.Services == null)
@@ -142,7 +171,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 world.Services.TryResolve<MobaAreaRuntimeService>(out _);
             if (jointLifecycle)
             {
-                registry.Register(new MobaSkillLifecycleRollbackProvider(world, ownerProvider));
+                registry.Register(new MobaSkillLifecycleRollbackProvider(world, ownerProvider, restorePathSlots));
                 if (componentProvider != null && world.Services.TryResolve<MobaPassiveSkillLifecycleService>(out var restoredPassives))
                     componentProvider.PassiveRollbackRebind = restoredPassives;
             }
@@ -187,9 +216,13 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (world.Services.TryResolve<MobaActorRegistry>(out var actorRegistry) &&
                 actorRegistry != null)
             {
-                registry.Register(new MobaActorTransformRollbackProvider(actorRegistry));
+                registry.Register(new MobaActorMotionRollbackProvider(actorRegistry));
+                /*
+                 * 运行依赖和策略值独立归属，不复制 ActorMotion 或来源生命周期的状态。
+                 */
+                if (world.Services.TryResolve<AbilityKit.Demo.Moba.Services.Motion.MobaMotionRuntimeDependencyService>(out var motionDependencies) && motionDependencies != null)
+                    registry.Register(new MobaMotionRuntimeDependencyRollbackProvider(actorRegistry, motionDependencies));
                 registry.Register(new MobaActorHpRollbackProvider(actorRegistry));
-                registry.Register(new MobaActorResourceRollbackProvider(actorRegistry));
                 if (!jointLifecycle && world.Services.TryResolve<MobaBuffStateRecoveryProvider>(out var buffRecovery) && buffRecovery != null)
                     registry.Register(new MobaBuffLifecycleRollbackProvider(buffRecovery));
                 else if (!jointLifecycle)
@@ -313,9 +346,9 @@ namespace AbilityKit.Demo.Moba.Rollback
             {
                 MobaEntitasEntityRollbackProvider.DefaultKey,
                 MobaEntitasComponentRollbackProvider.DefaultKey,
-                MobaActorTransformRollbackProvider.DefaultKey,
+                MobaActorMotionRollbackProvider.DefaultKey,
+                MobaMotionRuntimeDependencyRollbackProvider.DefaultKey,
                 MobaActorHpRollbackProvider.DefaultKey,
-                MobaActorResourceRollbackProvider.DefaultKey,
                 MobaSkillLifecycleRollbackProvider.DefaultKey,
                 MobaSkillCooldownRollbackProvider.DefaultKey,
                 MobaCharacterHfsmRollbackProvider.DefaultKey,
@@ -348,9 +381,27 @@ namespace AbilityKit.Demo.Moba.Rollback
                 throw new InvalidOperationException(
                     $"Battle rollback registry is incomplete. Missing provider keys: {string.Join(", ", missing)}");
 
-            // Old local checkpoints must not silently keep predicted clock/combat facts.
+            /*
+             * 显式结构顺序与状态键身份解耦；三个结构载荷均必须提供，不能从预测态补缺。
+             * Motion 运行依赖仍为普通提供者，后续结构绑定方案另行确认。
+             */
+            registry.SetStructureRestoreOrder(
+                MobaEntitasEntityRollbackProvider.DefaultKey,
+                MobaActorRollbackCommandRuntime.RollbackProviderKey,
+                MobaSkillLifecycleRollbackProvider.DefaultKey);
+            registry.RequireState(MobaEntitasEntityRollbackProvider.DefaultKey);
+            registry.RequireState(MobaActorRollbackCommandRuntime.RollbackProviderKey);
+            registry.RequireState(MobaSkillLifecycleRollbackProvider.DefaultKey);
+
+            /*
+             * 旧检查点不得静默保留预测态的世界时钟或战斗事实。
+             */
             registry.RequireState(MobaCombatActivityRollbackProvider.DefaultKey);
             registry.RequireState(MobaWorldClockRollbackProvider.DefaultKey);
+            /*
+             * 缺少独立依赖载荷的旧快照不能静默沿用预测态策略。
+             */
+            registry.RequireState(MobaMotionRuntimeDependencyRollbackProvider.DefaultKey);
 
             if (!registry.TryGet(MobaSkillLifecycleRollbackProvider.DefaultKey, out var lifecycle) ||
                 !(lifecycle is MobaSkillLifecycleRollbackProvider))

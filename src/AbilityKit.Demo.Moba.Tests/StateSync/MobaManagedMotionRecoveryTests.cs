@@ -19,6 +19,7 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests
     [InlineData(3, 92002)]
     public void Managed_motion_restores_raw_time_same_source_and_final_step_without_activation(int actorId, int configId)
     {
+        PrepareManagedOnlyMotionPipeline(actorId);
         var source = ExactSource(10);
         var runtime = AddMotion(actorId, configId, source);
         var initial = source.CaptureExactState();
@@ -51,6 +52,7 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests
     [Fact]
     public void Managed_motion_recovery_preserves_arbitration_and_other_source_until_explicit_revoke()
     {
+        PrepareManagedOnlyMotionPipeline(1);
         var low = ExactSource(1);
         var high = ExactSource(20);
         AddMotion(1, 91001, low);
@@ -79,10 +81,46 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests
         Assert.True(low.CaptureExactState().TimeLeftRaw < lowTime);
     }
 
+    [Fact]
+    public void Managed_motion_identity_allows_same_owner_and_config_with_distinct_source_ids()
+    {
+        PrepareManagedOnlyMotionPipeline(1);
+        AddMotion(1, 91001, ExactSource(10));
+        AddMotion(1, 91001, ExactSource(20));
+        var target = _preparation.Capture(_frame);
+        var envelope = Decode(target);
+        var entries = JArray.Parse(Encoding.UTF8.GetString(Find(envelope, "continuous-local").Payload));
+        var ids = entries.Where(e => e["Motion"]?.Type == JTokenType.Object)
+            .Select(e => (int)e["ModifierSourceId"]!).ToArray();
+        Assert.Equal(2, ids.Length);
+        Assert.NotEqual(ids[0], ids[1]);
+        _preparation.Commit(_preparation.Prepare(_frame, target));
+        Assert.Equal(target, _preparation.Capture(_frame));
+    }
+
+    [Fact]
+    public void Managed_motion_rejects_changed_frozen_source_configuration_without_mutation()
+    {
+        PrepareManagedOnlyMotionPipeline(1);
+        var source = ExactSource(10);
+        AddMotion(1, 91001, source);
+        var target = _preparation.Capture(_frame);
+        var saved = source.CaptureExactState();
+        source.Configure(new Vec3(-4, 2, 1), 3f, 50, MotionGroups.Control,
+            MotionStacking.Additive, hasCollisionPolicy: false, hasCompletionCollisionPolicy: false);
+        var changed = _preparation.Capture(_frame);
+
+        Assert.Throws<InvalidOperationException>(() => _preparation.Prepare(_frame, target));
+
+        Assert.NotEqual(saved, source.CaptureExactState());
+        Assert.Equal(changed, _preparation.Capture(_frame));
+    }
+
     [Theory]
     [InlineData("v3")]
     [InlineData("missing-motion")]
     [InlineData("missing-raw")]
+    [InlineData("missing-duration")]
     [InlineData("null-source")]
     [InlineData("source-type")]
     [InlineData("instance-source")]
@@ -100,6 +138,8 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests
     [InlineData("duplicate")]
     public void Invalid_late_motion_entry_rejects_world_preflight_with_zero_imports(string defect)
     {
+        PrepareManagedOnlyMotionPipeline(1);
+        PrepareManagedOnlyMotionPipeline(3);
         AddMotion(1, 91001, ExactSource(10));
         AddMotion(3, 92002, ExactSource(20));
         var coordinator = new RollbackCoordinator(MobaRollbackRegistryBuilder.Create(_world), new RollbackSnapshotRingBuffer(2));
@@ -115,6 +155,7 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests
             case "v3": envelope.Version = 3; break;
             case "missing-motion": last.Remove("Motion"); break;
             case "missing-raw": value.Remove("TimeLeftRaw"); break;
+            case "missing-duration": value.Remove("DurationRaw"); break;
             case "null-source": motion["FixedDelta"] = null; break;
             case "source-type": motion["SourceType"] = "unregistered"; break;
             case "instance-source": motion["ModifierSourceId"] = int.MaxValue; break;
@@ -153,6 +194,8 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests
     [InlineData("multiple-owners")]
     public void Missing_or_unsupported_motion_binding_rejects_before_import(string defect)
     {
+        PrepareManagedOnlyMotionPipeline(1);
+        PrepareManagedOnlyMotionPipeline(3);
         var source = ExactSource(10);
         IMotionSource actual = defect == "unsupported" ? new MobaCollisionDashMotionSource(source, default) : source;
         var runtime = AddMotion(1, 91001, actual);
@@ -181,6 +224,8 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests
     [InlineData(6)]
     public void Managed_motion_stage_failure_compensates_raw_time_activity_and_original_bindings(int stage)
     {
+        PrepareManagedOnlyMotionPipeline(1);
+        PrepareManagedOnlyMotionPipeline(3);
         var first = ExactSource(10);
         var second = ExactSource(20);
         var firstRuntime = AddMotion(1, 91001, first);
@@ -212,6 +257,23 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests
         _preparation.RestoreStageCompleted = null;
     }
 
+    private MotionPipeline PrepareManagedOnlyMotionPipeline(int actorId)
+    {
+        Assert.True(Get<MobaActorRegistry>().TryGet(actorId, out var actor));
+        var pipeline = actor.motion.Pipeline;
+        /*
+         * 此专项测试隔离全受管 FixedDelta 子集；普通角色默认的 Locomotion
+         * 与受管来源共存在另一个专项和真实到达组合中保留并验收。
+         * 经正式 System 退役默认槽位，同时清除业务绑定，不手工留下过期来源缓存。
+         */
+        var locomotion = Assert.Single(pipeline.CaptureSourceOrder());
+        Assert.IsType<LocomotionMotionSource>(locomotion);
+        actor.RemoveMoveInput();
+        LocomotionSystem().Execute();
+        Assert.False(pipeline.ContainsSource(locomotion));
+        return pipeline;
+    }
+
     private MobaMotionContinuousRuntime AddMotion(int actor, int config, IMotionSource source)
     {
         var identity = new MobaMotionContinuousIdentity("acceptance-motion", config, actor, actor, actor, 0, default);
@@ -229,7 +291,7 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests
         new MotionCollisionConstraints(true, false, MotionEndOverlapPolicy.ProjectAlongDirection, .4f, .02f, 3, 4,
             false, 2, .2f, 0), true);
 
-    private static FixedDeltaMotionExactState WithTime(FixedDeltaMotionExactState value, long raw) => new(raw,
+    private static FixedDeltaMotionExactState WithTime(FixedDeltaMotionExactState value, long raw) => new(value.DurationRaw, raw,
         true, value.Velocity, value.GroupId, value.Priority, value.Stacking, value.HasCollisionPolicy, value.CollisionPolicy,
         value.HasCompletionCollisionPolicy, value.CompletionCollisionPolicy);
 

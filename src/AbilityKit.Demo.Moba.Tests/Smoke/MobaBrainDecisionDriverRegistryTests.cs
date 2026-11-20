@@ -5,6 +5,7 @@ using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.Behavior.AI;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using Xunit;
+using Newtonsoft.Json.Linq;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
@@ -206,6 +207,41 @@ public sealed class MobaBrainDecisionDriverRegistryTests
         Assert.Equal(2, policy.DecisionCount);
         snapshots.RestoreSnapshot(payload);
         Assert.Equal(1, policy.DecisionCount);
+
+        var corrupted = JObject.Parse(System.Text.Encoding.UTF8.GetString(payload));
+        corrupted["MovementKind"] = 99;
+        corrupted["PolicySnapshot"] = Convert.ToBase64String(BitConverter.GetBytes(27));
+        var invalid = System.Text.Encoding.UTF8.GetBytes(corrupted.ToString());
+        var validator = Assert.IsAssignableFrom<IBehaviorSnapshotValidator>(snapshots);
+        Assert.Throws<InvalidOperationException>(() => validator.ValidateSnapshot(invalid));
+        Assert.Throws<InvalidOperationException>(() => snapshots.RestoreSnapshot(invalid));
+        Assert.Equal(1, policy.DecisionCount);
+        Assert.Equal(payload, snapshots.CaptureSnapshot());
+    }
+
+    [Fact]
+    public void Ordinary_policy_runs_without_rollback_declarations_but_capture_explains_missing_contract()
+    {
+        var driver = new MobaMlBrainDecisionDriver();
+        var policy = new OrdinaryPolicy();
+        driver.Register("ordinary", (in MobaBrainDecisionCreateContext _) => policy);
+        var actors = new MobaActorRegistry();
+        var actor = new ActorContext().CreateEntity();
+        actor.AddActorId(1700);
+        actors.Register(1700, actor);
+        var catalog = new MobaActorBrainCatalog();
+        catalog.Register(new MobaActorBrainDefinition(17, MobaBrainDriverKeys.MachineLearning, "ordinary"));
+        using var service = new MobaBrainService(actors, catalog, null,
+            new MobaBrainDecisionDriverRegistry(new[] { driver }));
+        Assert.True(service.ActivateBrain(actor, 17, 1, 2));
+        service.Tick(.03f, 1);
+        Assert.Equal(1, policy.Calls);
+        var runtime = service.EnsureBehavior(actor);
+        var snapshot = Assert.IsAssignableFrom<IBehaviorRuntimeSnapshot>(runtime.Decision);
+        var error = Assert.Throws<InvalidOperationException>(() => snapshot.CaptureSnapshot());
+        Assert.Contains("explicitly declare", error.Message);
+        service.Tick(.03f, 2);
+        Assert.Equal(2, policy.Calls);
     }
 
     [Fact]
@@ -240,7 +276,7 @@ public sealed class MobaBrainDecisionDriverRegistryTests
         }
     }
 
-    private sealed class StatefulTestPolicy : IAiPolicy, IAiPolicyRuntimeSnapshot
+    private sealed class StatefulTestPolicy : IAiPolicy, IAiPolicySnapshotValidator
     {
         public AiActionSpec ActionSpec => MobaBrainActionCodec.ActionSpec;
         public string SnapshotType => "test.policy.v1";
@@ -256,10 +292,23 @@ public sealed class MobaBrainDecisionDriverRegistryTests
 
         public byte[] CaptureSnapshot() => BitConverter.GetBytes(DecisionCount);
 
+        public void ValidateSnapshot(byte[] payload)
+        {
+            if (payload == null || payload.Length != 4 || BitConverter.ToInt32(payload, 0) < 0)
+                throw new InvalidOperationException("Invalid policy count.");
+        }
+
         public void RestoreSnapshot(byte[] payload)
         {
             DecisionCount = BitConverter.ToInt32(payload, 0);
         }
+    }
+
+    private sealed class OrdinaryPolicy : IAiPolicy
+    {
+        public AiActionSpec ActionSpec => MobaBrainActionCodec.ActionSpec;
+        public int Calls { get; private set; }
+        public void Decide(in AiObservationBuffer observation, AiActionBuffer action) => Calls++;
     }
 
     private sealed class GoapTestDriver :

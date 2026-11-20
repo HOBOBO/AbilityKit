@@ -59,9 +59,11 @@ public sealed class GoldenBaselineTests
     {
         var sink = new Diagnostics.CapturingConsoleSink();
         var exit = CodeGenRunner.Run(new RunOptions(Project: "moba", ValidateOnly: true), sink);
+        var actorCount = PinFile.LoadOrEmpty(Path.Combine(TestRepo.Root(), "tools", "entitas-codegen.moba.pin.json"))
+            .Contexts["Actor"].Components.Count(component => component.Generate);
 
         Assert.Equal(Diagnostics.ExitCodes.Ok, exit);
-        Assert.Contains(sink.Lines, l => l.Contains("Actor: 43 组件"));
+        Assert.Contains(sink.Lines, l => l.Contains($"Actor: {actorCount} 组件"));
     }
 
     [Fact]
@@ -71,9 +73,11 @@ public sealed class GoldenBaselineTests
         var sink = new Diagnostics.CapturingConsoleSink();
 
         var exit = CodeGenRunner.Run(new RunOptions(ConfigPath: configPath, ValidateOnly: true), sink);
+        var actorCount = PinFile.LoadOrEmpty(Path.Combine(TestRepo.Root(), "tools", "entitas-codegen.moba.pin.json"))
+            .Contexts["Actor"].Components.Count(component => component.Generate);
 
         Assert.Equal(Diagnostics.ExitCodes.Ok, exit);
-        Assert.Contains(sink.Lines, l => l.Contains("Actor: 43 组件"));
+        Assert.Contains(sink.Lines, l => l.Contains($"Actor: {actorCount} 组件"));
         Assert.Contains(sink.Lines, l => l.Contains("1 custom 手写"));
         Assert.Contains(sink.Lines, l => l.Contains("guard=UNITY_EDITOR"));
     }
@@ -201,6 +205,92 @@ public sealed class CoverageAuditTests
         var generated = File.ReadAllText(Path.Combine(sandbox.Abs("generated"), "Actor", "ActorComponentSerialization.cs"));
         Assert.Contains("new AbilityKit.Core.Mathematics.Vec3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle())", generated);
         Assert.Contains("w.Write(p.Pos.X);", generated);
+    }
+
+    [Fact]
+    public void Transform3KnownType_GeneratesCompleteConstructorCodec()
+    {
+        using var sandbox = new TempSandbox(config =>
+        {
+            config["typeIndex"] = new Dictionary<string, object>
+            {
+                ["roots"] = new[] { Path.Combine(TestRepo.Root(), "Unity", "Packages", "com.abilitykit.core") },
+            };
+        });
+        sandbox.WriteFile("PoseComponent.cs", """
+            using Entitas;
+            using AbilityKit.Core.Mathematics;
+            namespace Sandbox.Components
+            {
+                [Actor]
+                public sealed class PoseComponent : IComponent
+                {
+                    public Transform3 Value;
+                }
+            }
+            """);
+        var pin = JsonSerializer.Deserialize<PinFile>(File.ReadAllText(sandbox.PinPath), TempSandbox.Json)!;
+        pin.Contexts["Actor"].Components.Add(new PinFile.PinComponent { Name = "Pose", Serialize = true });
+        File.WriteAllText(sandbox.PinPath, JsonSerializer.Serialize(pin, TempSandbox.Json));
+
+        CodeGenRunner.Run(new RunOptions(ConfigPath: sandbox.ConfigPath, Write: true,
+            OutDir: sandbox.Abs("generated"), ForceGeneratedDir: true), sandbox.Sink);
+        var exit = sandbox.Run(out var sink);
+
+        Assert.Equal(Diagnostics.ExitCodes.Ok, exit);
+        var generated = File.ReadAllText(Path.Combine(sandbox.Abs("generated"), "Actor", "ActorComponentSerialization.cs"));
+        Assert.Contains("w.Write(p.Value.Position.X);", generated);
+        Assert.Contains("w.Write(p.Value.Rotation.W);", generated);
+        Assert.Contains("w.Write(p.Value.Scale.Z);", generated);
+        Assert.Contains("new AbilityKit.Core.Mathematics.Transform3(", generated);
+        Assert.Contains("new AbilityKit.Core.Mathematics.Quat(", generated);
+        Assert.Contains("new AbilityKit.Core.Mathematics.Vec3(", generated);
+        Assert.Equal(Diagnostics.ExitCodes.Ok, exit);
+        Assert.NotEmpty(sink.Lines);
+    }
+
+    [Theory]
+    [InlineData("public readonly struct Frozen\n{\n    public readonly int Value;\n}")]
+    [InlineData("public struct Frozen\n{\n    public int Value { get; }\n}")]
+    public void UnsupportedReadonlyOrPropertyDataShape_FailsBeforeGeneration(string declaration)
+    {
+        using var sandbox = new TempSandbox(config =>
+        {
+            config["typeIndex"] = new Dictionary<string, object>
+            {
+                ["roots"] = new[] { "components" },
+            };
+        });
+        sandbox.WriteFile("FrozenComponent.cs", "using Entitas;\nnamespace Sandbox.Components\n{\n" + declaration + "\n[Actor]\npublic sealed class FrozenComponent : IComponent\n{\npublic Frozen Value;\n}\n}");
+        var pin = JsonSerializer.Deserialize<PinFile>(File.ReadAllText(sandbox.PinPath), TempSandbox.Json)!;
+        pin.Contexts["Actor"].Components.Add(new PinFile.PinComponent { Name = "Frozen", Serialize = true });
+        File.WriteAllText(sandbox.PinPath, JsonSerializer.Serialize(pin, TempSandbox.Json));
+
+        var exit = sandbox.Run(out var sink);
+
+        Assert.Equal(Diagnostics.ExitCodes.SourceValidation, exit);
+        Assert.Contains(sink.Lines, line => line.Contains("readonly data types") || line.Contains("readonly field") || line.Contains("properties are not included"));
+    }
+
+    [Fact]
+    public void NonIntEnumUnderlyingType_IsRejectedBeforeGeneration()
+    {
+        using var sandbox = new TempSandbox(config =>
+        {
+            config["typeIndex"] = new Dictionary<string, object>
+            {
+                ["roots"] = new[] { "components" },
+            };
+        });
+        sandbox.WriteFile("WideComponent.cs", "using Entitas;\nnamespace Sandbox.Components\n{\npublic enum Wide : long { Value = 1L << 40 }\n[Actor]\npublic sealed class WideComponent : IComponent\n{\npublic Wide Value;\n}\n}");
+        var pin = JsonSerializer.Deserialize<PinFile>(File.ReadAllText(sandbox.PinPath), TempSandbox.Json)!;
+        pin.Contexts["Actor"].Components.Add(new PinFile.PinComponent { Name = "Wide", Serialize = true });
+        File.WriteAllText(sandbox.PinPath, JsonSerializer.Serialize(pin, TempSandbox.Json));
+
+        var exit = sandbox.Run(out var sink);
+
+        Assert.Equal(Diagnostics.ExitCodes.SourceValidation, exit);
+        Assert.Contains(sink.Lines, line => line.Contains("枚举底层类型必须为 int") || line.Contains("Unresolved type reference"));
     }
 }
 

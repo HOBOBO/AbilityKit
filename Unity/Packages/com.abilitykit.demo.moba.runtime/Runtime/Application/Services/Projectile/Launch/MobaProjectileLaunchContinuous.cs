@@ -162,6 +162,24 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             return source.IsValid;
         }
 
+        /// <summary>
+        /// 静默构造已经启动的发射运行时，不重新激活、不创建发射任务或发布历史通知。
+        /// </summary>
+        internal static MobaProjectileLaunchContinuous RestoreRollbackState(
+            in MobaProjectileLaunchRequest request,
+            IMobaProjectileLaunchExecutor executor,
+            MobaConfigDatabase configs,
+            IMobaContinuousTagTemplateRegistry tagTemplates,
+            in MobaProjectileLaunchResult result)
+        {
+            var runtime = new MobaProjectileLaunchContinuous(in request, executor, configs, tagTemplates)
+            {
+                _result = result,
+                _started = true,
+            };
+            return runtime;
+        }
+
         private void StopLaunch(ContinuousEndReason reason)
         {
             if (_stopped) return;

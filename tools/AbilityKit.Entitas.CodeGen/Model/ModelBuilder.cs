@@ -44,7 +44,7 @@ public static class ModelBuilder
         foreach (var t in scannerImpl.ScanPlainTypes(sourceDirs))
         {
             var fields = new List<FieldInfo>();
-            foreach (var f in t.Fields)
+            foreach (var f in t.UnsupportedShape == null ? t.Fields : new List<Scanner.RawField>())
             {
                 fields.Add(new FieldInfo(
                     scannerImpl.ProvidesResolvedFieldTypes
@@ -53,7 +53,7 @@ public static class ModelBuilder
                     f.Name));
             }
             var fqn = t.Namespace.Length == 0 ? t.Name : t.Namespace + "." + t.Name;
-            plainTypes[fqn] = new PlainTypeInfo(t.Kind, fields);
+            plainTypes[fqn] = new PlainTypeInfo(t.Kind, fields, t.EnumUnderlyingType, t.UnsupportedShape);
         }
 
         var definitions = new List<ComponentInfo>();
@@ -88,7 +88,8 @@ public static class ModelBuilder
             }
 
             var classFqn = raw.Namespace.Length == 0 ? raw.Class : raw.Namespace + "." + raw.Class;
-            definitions.Add(new ComponentInfo(raw.ComponentName, classFqn, fields, contexts, raw.SourceFile));
+            definitions.Add(new ComponentInfo(raw.ComponentName, classFqn, fields, contexts, raw.SourceFile,
+                raw.Attributes.Contains("EntitasBlob")));
         }
         sink.Info($"      发现 {definitions.Count} 个组件（{config.Contexts.Count} 个 context）。");
 
@@ -231,55 +232,50 @@ public static class ModelBuilder
         Dictionary<string, PlainTypeInfo> plainTypes)
     {
         var errors = new List<string>();
-        CheckFields(ctx, def.ComponentName, def.Fields, plainTypes, errors, depth: 0);
+        foreach (var f in def.Fields)
+        {
+            var reason = CheckType(f.TypeFqn, plainTypes, def.IsBlob, new HashSet<string>(), 0);
+            if (reason != null) errors.Add($"{def.ComponentName}.{f.Name} ({f.TypeFqn}): {reason}");
+        }
         return errors;
     }
 
-    private static void CheckFields(string ctx, string owner, List<FieldInfo> fields,
-        Dictionary<string, PlainTypeInfo> plainTypes, List<string> errors, int depth)
+    private static string? CheckType(string t, Dictionary<string, PlainTypeInfo> plainTypes,
+        bool managed, HashSet<string> path, int depth)
     {
-        if (depth > 4)
-        {
-            errors.Add($"{owner} 嵌套层级超过 4，不支持生成序列化");
-            return;
-        }
-
-        foreach (var f in fields)
-        {
-            var reason = CheckField(f, plainTypes, depth);
-            if (reason is not null) errors.Add($"{owner}.{f.Name} ({f.TypeFqn}): {reason}");
-        }
-    }
-
-    private static string? CheckField(FieldInfo f, Dictionary<string, PlainTypeInfo> plainTypes, int depth)
-    {
-        var t = f.TypeFqn;
+        if (depth > 4) return "嵌套层级超过 4，不支持生成序列化";
         if (SerializablePrimitives.Contains(t)) return null;
-
-        // 框架定点/向量类型：字段形状固定（RawValue / XYZ float），生成器内置展开规则。
         if (SerializationTemplates.KnownLeafTypes.Contains(t)) return null;
-
         if (t.EndsWith("[]", StringComparison.Ordinal))
         {
             var elem = t[..^2];
-            return plainTypes.TryGetValue(elem, out var info) && !info.IsEnum
-                ? CheckNested(elem, info, plainTypes, depth)
-                : $"数组元素类型不支持: {elem}";
+            if (elem.EndsWith("[]", StringComparison.Ordinal)) return "交错数组不在有限数据形状内";
+            return CheckType(elem, plainTypes, managed, path, depth + 1);
         }
-
+        if (SerializationTemplates.TryDictionary(t, out var key, out var value))
+        {
+            if (!managed) return "Dictionary 托管数据需要组件显式声明 [EntitasBlob]";
+            if (key != "int" && (!plainTypes.TryGetValue(key, out var keyInfo) || !keyInfo.IsEnum))
+                return "Dictionary 键仅支持 int 或 int 底层枚举";
+            return CheckType(key, plainTypes, managed, path, depth + 1)
+                ?? CheckType(value, plainTypes, managed, path, depth + 1);
+        }
         if (plainTypes.TryGetValue(t, out var single))
         {
-            return single.IsEnum ? null : CheckNested(t, single, plainTypes, depth);
+            if (single.IsEnum)
+                return single.EnumUnderlyingType == "int" ? null : $"枚举底层类型必须为 int，实际为 {single.EnumUnderlyingType}";
+            if (single.UnsupportedShape is not null) return single.UnsupportedShape;
+            if (single.Fields.Count == 0) return "空数据类型不支持集合长度校验";
+            if (!managed && depth > 1) return $"多层嵌套数据类型需要 [EntitasBlob]: {t}";
+            if (!path.Add(t)) return $"不支持循环数据图: {t}";
+            foreach (var field in single.Fields)
+            {
+                var reason = CheckType(field.TypeFqn, plainTypes, managed, path, depth + 1);
+                if (reason != null) return $"{t}.{field.Name}: {reason}";
+            }
+            path.Remove(t);
+            return null;
         }
-
-        return "类型不支持（基元/枚举/平值数据类/内置定点向量类型及其数组之外）";
-    }
-
-    private static string? CheckNested(string fqn, PlainTypeInfo info,
-        Dictionary<string, PlainTypeInfo> plainTypes, int depth)
-    {
-        var nestedErrors = new List<string>();
-        CheckFields("", fqn, info.Fields, plainTypes, nestedErrors, depth + 1);
-        return nestedErrors.Count == 0 ? null : string.Join("; ", nestedErrors);
+        return $"类型不支持: {t}（仅允许已知叶类型、有限纯字段数据类型、数组及显式托管字典）";
     }
 }

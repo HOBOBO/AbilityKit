@@ -5,7 +5,7 @@ using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Game.Flow.Battle.FrameSync
 {
-    public sealed class ClientPredictionDriverStatsFramesSource : IWorldAuthorityFramesSource
+    public sealed class ClientPredictionDriverStatsFramesSource : IWorldAuthorityFramesSource, IWorldRestoreFloorSource
     {
         private readonly IClientPredictionDriverStats _stats;
 
@@ -20,6 +20,15 @@ namespace AbilityKit.Game.Flow.Battle.FrameSync
             predicted = default;
             if (_stats == null) return false;
             return _stats.TryGetFrames(worldId, out confirmed, out predicted);
+        }
+
+        /// <summary>
+        /// 只经预测驱动的显式恢复边界读取，不复用统计确认帧。
+        /// </summary>
+        public bool TryGetRestoreFloor(WorldId worldId, out FrameIndex frame)
+        {
+            frame = default;
+            return _stats is IClientPredictionRestoreFloor boundary && boundary.TryGetRestoreFloor(worldId, out frame);
         }
     }
 }

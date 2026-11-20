@@ -6,6 +6,7 @@ AbilityKit 整体仍处于开发期，0.x 版本不承诺向后兼容；重大�
 ## [Unreleased]
 
 ### 变更
+- **可选显式结构恢复顺序**：新增 `RollbackRegistry.SetStructureRestoreOrder(params int[] keys)`，Seal 验证完整结构名单，配置复制、幂等声明、冲突拒绝及 Clear 重置。新增只读 `RollbackSnapshotPreflightContext.StructureRestoreKeys`，预检与实际导入共享本次有效计划；普通项保留输入相对次序，每项一次。未配置时保留原输入结构次序和部分快照合同，必需载荷仍由 `RequireState` 独立控制；不改 Capture、Key、payload 或编码版本，不扩大对象重建及事务保证。
 - **命令式回滚移除闭包 API**：删除 `IRollbackCommand`、`DelegateRollbackCommand`、
   `Record(FrameIndex, Action)`、`RollbackAfter/From`，改为 `CommandType + PayloadVersion + byte[] Payload`
   的纯数据 Journal。新增 `RollbackCommandHandlerRegistry`、`IRollbackCommandHandler` 和

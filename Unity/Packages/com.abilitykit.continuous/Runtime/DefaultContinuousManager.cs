@@ -232,7 +232,8 @@ namespace AbilityKit.Continuous
         }
 
         /// <summary>
-        /// 获取所有已注册持续体快照。
+        /// 按注册顺序返回已注册对象的引用列表副本。
+        /// 后续生命周期变化仍会反映在对象上，此列表不用于备份实例状态。
         /// </summary>
         public IReadOnlyList<IContinuous> GetAllContinuous()
         {
@@ -240,9 +241,8 @@ namespace AbilityKit.Continuous
         }
 
         /// <summary>
-        /// Rebuilds registration indices from an already validated recovery plan. Does not
-        /// invoke admission, runtime lifecycle methods, binders, or public gameplay events.
-        /// The caller owns restoring binder state and compensating a failed recovery.
+        /// 根据调用方已验证的恢复名单重建索引和管理器内部的结束订阅。
+        /// 此入口不调用准入、生命周期操作、绑定器或公开事件；绑定器状态及失败补偿由调用方处理。
         /// </summary>
         protected void RestoreRegistrationForRollback(IReadOnlyList<IContinuous> instances)
         {
@@ -268,7 +268,7 @@ namespace AbilityKit.Continuous
         }
 
         /// <summary>
-        /// 获取所有活跃持续体快照。
+        /// 按注册顺序返回当前活跃对象的引用列表副本，不复制实例状态。
         /// </summary>
         public IReadOnlyList<IContinuous> GetAllActiveContinuous()
         {

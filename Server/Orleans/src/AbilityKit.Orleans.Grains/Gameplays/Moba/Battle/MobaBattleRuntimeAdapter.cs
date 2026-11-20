@@ -3,7 +3,6 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Diagnostics;
-using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
@@ -37,7 +36,8 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         return new MobaBattleRuntimeSession(battleId, _worldManager, _protocolMapper);
     }
 
-    private sealed class MobaBattleRuntimeSession : IBattleRuntimeSession, IBattleRuntimeInputDiagnostics
+    private sealed class MobaBattleRuntimeSession : IBattleRuntimeSession, IBattleRuntimeInputDiagnostics,
+        IBattleRuntimeFrameCompletion, IBattleRuntimeExternalFrameClock
     {
         private readonly string _battleId;
         private readonly ServerBattleWorldManager _worldManager;
@@ -45,6 +45,11 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         private IWorld? _battleWorld;
         private IWorldStateSnapshotProvider? _snapshotProvider;
         private IMobaBattleRuntimePort? _runtimePort;
+        private MobaCombatFrameGuard? _frameGuard;
+        private IFrameTime? _frameTime;
+        private int _nextExternalFrame = 1;
+        private int? _completedSettlementFrame;
+        private bool _hasUnrecordedPlayerJoin;
         private ulong _worldId;
         private MobaDeterministicCheckpointCoordinator? _checkpointCoordinator;
         private List<ActorProjectionData>? _projectionBuffer;
@@ -115,6 +120,8 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             // 解析确定性检查点协调器（用于每帧 hash 对账）。
             // 如果 MOBA 世界装配未注册此服务（例如测试场景），优雅降级为 null。
             _battleWorld.Services.TryResolve(out _checkpointCoordinator);
+            _battleWorld.Services.TryResolve(out _frameGuard);
+            _battleWorld.Services.TryResolve(out _frameTime);
 
             return BattleRuntimeStartResult.Success();
         }
@@ -136,6 +143,7 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             var spawnResult = _battleWorld.Services.TryResolve<MobaGameplayService>(out var gameplay) && gameplay != null
                 ? TrySpawnBotPlayer(gameplay, request.Player)
                 : false;
+            _hasUnrecordedPlayerJoin |= spawnResult;
 
             return spawnResult
                 ? new BattlePlayerJoinResult(true, request.Player.PlayerId, currentFrame, "Joined", string.Empty)
@@ -168,6 +176,22 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             return new BattleBotAiMountResult(true, request.PlayerId, currentFrame, "Mounted", string.Empty);
         }
 
+        public bool HasInitialFrameCheckpoint => true;
+
+        public bool TryPrepareExternalFrame(int frame, float fixedDeltaTime)
+        {
+            _completedSettlementFrame = null;
+            if (frame != _nextExternalFrame || _frameGuard?.CanAdvance != true || _frameTime is not FrameTime time ||
+                !float.IsFinite(fixedDeltaTime) || fixedDeltaTime <= 0f ||
+                !time.AlignTo(new FrameIndex(frame), fixedDeltaTime))
+            {
+                return false;
+            }
+
+            _nextExternalFrame++;
+            return true;
+        }
+
         public int SubmitInputs(int frame, IReadOnlyList<BattleInputItem> inputs)
         {
             if (inputs.Count == 0 || _runtimePort == null)
@@ -192,6 +216,7 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
 
         public bool Tick(int frame, int tickRate, float deltaTime)
         {
+            _completedSettlementFrame = null;
             if (_battleWorld == null)
             {
                 return false;
@@ -216,9 +241,19 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
                 }
             }
 
+            var completedTicks = _frameGuard?.CompletedTickCount;
             _battleWorld.Tick(deltaTime);
+            if (_bots.Count == 0 && !_hasUnrecordedPlayerJoin && completedTicks.HasValue &&
+                _frameGuard!.CompletedTickCount == completedTicks.Value + 1 && _frameGuard.CanCommit &&
+                _frameTime is { DeltaTime: > 0f } && _frameTime.Frame.Value == frame)
+            {
+                _completedSettlementFrame = frame;
+            }
+
             return true;
         }
+
+        public bool CanFinalizeFrame(int frame) => _completedSettlementFrame == frame;
 
         public BattleSnapshot? GetSnapshot(int frame)
         {

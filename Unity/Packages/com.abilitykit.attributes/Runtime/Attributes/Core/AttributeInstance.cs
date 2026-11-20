@@ -255,7 +255,18 @@ namespace AbilityKit.Attributes.Core
 
             if (System.Math.Abs(old - v) > 0.00001f)
             {
-                Changed?.Invoke(_id, old, v);
+                if (_ctx.IsEvaluatingSilently)
+                {
+                    /*
+                     * 从实例层阻止通知沿组和上下文向外传播，
+                     * 但保留依赖失效，避免静默读取留下过期的派生缓存。
+                     */
+                    _ctx.OnAttributeValueChanged(_id);
+                }
+                else
+                {
+                    Changed?.Invoke(_id, old, v);
+                }
             }
         }
 

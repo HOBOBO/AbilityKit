@@ -5,15 +5,8 @@ using AbilityKit.Pipeline;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>Value-only state for one skill phase instance.</summary>
-    public sealed class PipelinePhaseRollbackState
+    public sealed class PipelinePhaseRollbackState : PipelinePhaseProgress<PipelinePhaseRollbackState>
     {
-        public string PhaseId { get; set; } = string.Empty;
-        public string PhaseType { get; set; } = string.Empty;
-        public bool IsComplete { get; set; }
-        public int[] Integers { get; set; } = Array.Empty<int>();
-        public long[] Longs { get; set; } = Array.Empty<long>();
-        public double[] Numbers { get; set; } = Array.Empty<double>();
-        public PipelinePhaseRollbackState[] Children { get; set; } = Array.Empty<PipelinePhaseRollbackState>();
     }
 
     internal sealed class PipelineRunRollbackState
@@ -28,6 +21,13 @@ namespace AbilityKit.Demo.Moba.Services
         public bool IsPaused { get; set; }
         public bool IsCancelled { get; set; }
         public PipelinePhaseRollbackState[] Phases { get; set; } = Array.Empty<PipelinePhaseRollbackState>();
+
+        public PipelineRunProgress<PipelinePhaseRollbackState> ToProgress()
+        {
+            if (Version != CurrentVersion) throw new InvalidOperationException("Invalid skill run state version.");
+            return new PipelineRunProgress<PipelinePhaseRollbackState>(ConfigId, ConfigName,
+                CurrentPhaseIndex, HasCurrentPhase, IsPaused, IsCancelled, Phases);
+        }
     }
 
     /// <summary>Implemented by phase instances whose progress can survive a rollback.</summary>

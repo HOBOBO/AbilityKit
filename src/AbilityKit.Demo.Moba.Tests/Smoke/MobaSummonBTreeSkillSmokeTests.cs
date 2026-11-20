@@ -48,7 +48,11 @@ public sealed class MobaSummonBTreeSkillSmokeTests
         actor.ReplaceTransform(new Transform3(before, Quat.LookRotation(sideways, Vec3.Up), actor.transform.Value.Scale));
         var oldBrain = actor.actorBrain;
         Assert.True(brains.ActivateBrain(actor, oldBrain.BrainId, oldBrain.SourceKind, oldBrain.SourceId));
-        Assert.True(brains.TryRestoreBehaviorSnapshot(actor, snapshot.SnapshotType, payload));
+        Assert.True(brains.TryGetBehavior(actor.actorBrain.BehaviorInstanceId, out var replacement));
+        var replacementSnapshot = Assert.IsAssignableFrom<IBehaviorSnapshotValidator>(replacement.Decision);
+        Assert.Equal(snapshot.SnapshotType, replacementSnapshot.SnapshotType);
+        replacementSnapshot.ValidateSnapshot(payload);
+        replacementSnapshot.RestoreSnapshot(payload);
         for (var i = 0; i < 6; i++) battle.Tick();
         var displacement = actor.transform.Value.Position - before;
         Assert.True(Vec3.Dot(displacement, heading) > .05f, $"Expected movement along launch heading, got {displacement}.");

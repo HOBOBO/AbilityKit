@@ -19,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Services
     /// BrainId 只通过战斗模板 Brain 目录解析；解析或驱动创建失败时不创建运行时。
     /// </summary>
     [WorldService(typeof(MobaBrainService), WorldLifetime.Scoped)]
-    public sealed class MobaBrainService : IService
+    public sealed partial class MobaBrainService : IService
     {
         private const string DefaultBehaviorKind = "moba.actor.brain";
         private readonly MobaActorRegistry _registry;
@@ -70,14 +70,7 @@ namespace AbilityKit.Demo.Moba.Services
             _config = config;
             _decisionDrivers = decisionDrivers ?? MobaBrainDecisionDriverRegistry.CreateDefault();
             _stateMachineProfiles = stateMachineProfiles;
-            _worldQuery = new MobaWorldQuery(
-                new MobaBrainEntityManager(registry, actorId => _combatRules == null || _combatRules.CanTurn(actorId)),
-                new MobaBrainBuffManager(registry, () => _effectiveTags),
-                new MobaBrainAttributeSystem(registry),
-                allowMutations: false,
-                tagResults: actorId => _tagResults?.GetResultFlags(actorId),
-                tagGate: (actorId, gateId) => _tagGates != null &&
-                    _tagGates.TryIsBlocked(actorId, gateId, out var blocked) ? blocked : null);
+            _worldQuery = new BrainWorldQuery(this);
         }
 
         public BehaviorRuntime EnsureBehavior(global::ActorEntity actor)
@@ -88,7 +81,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (brain.BrainId <= 0) return null;
 
             var existing = brain.BehaviorInstanceId > 0 ? _behaviors.GetBehavior(brain.BehaviorInstanceId) : null;
-            if (existing != null && existing.Phase == BehaviorPhase.Running)
+            if (existing != null && (existing.Phase == BehaviorPhase.Running || existing.Phase == BehaviorPhase.Paused))
             {
                 _failedCreations.Remove(actor.actorId.Value);
                 return existing;
@@ -232,31 +225,6 @@ namespace AbilityKit.Demo.Moba.Services
             return behavior != null;
         }
 
-        public bool TryRestoreBehaviorSnapshot(
-            global::ActorEntity actor,
-            string snapshotType,
-            byte[] payload)
-        {
-            if (actor == null || !actor.hasActorBrain || actor.actorBrain.BehaviorInstanceId <= 0
-                || string.IsNullOrWhiteSpace(snapshotType) || payload == null || payload.Length == 0)
-                return false;
-            if (!(_behaviors.GetBehavior(actor.actorBrain.BehaviorInstanceId) is { } behavior)
-                || behavior.Decision is not IBehaviorRuntimeSnapshot snapshot
-                || !string.Equals(snapshot.SnapshotType, snapshotType, StringComparison.Ordinal))
-                return false;
-
-            try
-            {
-                snapshot.RestoreSnapshot(payload);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, $"[MobaBrain] behavior snapshot restore failed. actor={actor.actorId.Value}");
-                return false;
-            }
-        }
-
         public void Tick(float deltaTimeSeconds, long frame)
         {
             if (deltaTimeSeconds <= 0f) return;
@@ -375,6 +343,13 @@ namespace AbilityKit.Demo.Moba.Services
 
         private readonly struct BrainCreationIdentity : IEquatable<BrainCreationIdentity>
         {
+            internal BrainCreationIdentity(BrainRecoveryFailure value)
+            {
+                BrainId = value.BrainId; OwnerActorId = value.OwnerActorId;
+                SourceKind = value.SourceKind; SourceId = value.SourceId;
+                DriverKind = value.DriverKind; DecisionName = value.DecisionName;
+            }
+
             public BrainCreationIdentity(
                 in AbilityKit.Demo.Moba.Components.ActorBrainComponent brain,
                 in MobaActorBrainDefinition definition)

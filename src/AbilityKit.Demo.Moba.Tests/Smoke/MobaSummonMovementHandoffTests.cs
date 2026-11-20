@@ -1,8 +1,10 @@
 using System.Linq;
+using AbilityKit.Combat.MotionSystem.Generic;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
+using AbilityKit.Demo.Moba.Events.Summon;
 using AbilityKit.Demo.Moba.Input;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
@@ -13,6 +15,58 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
 public sealed class MobaSummonMovementHandoffTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Path_cleanup_detaches_only_its_source_when_brain_or_actor_is_removed(bool despawn)
+    {
+        var start = BattleStartConfig.CreateDefault();
+        foreach (var player in start.Players) player.EnableBrainOnSpawn = false;
+        using var battle = new ConsoleBattleBootstrapper(start);
+        battle.Initialize();
+        battle.Start();
+        for (var i = 0; i < 8 && battle.Context.EcsWorld == null; i++) battle.Tick();
+        battle.SetupBattle();
+        for (var i = 0; i < 10; i++) battle.Tick();
+
+        var services = battle.RuntimeServices!;
+        var actors = services.Resolve<MobaActorRegistry>();
+        var owner = actors.Entries.First(p => p.Value.hasTeam && p.Value.hasTransform).Value;
+        foreach (var pair in actors.Entries)
+            if (pair.Value.hasTransform) Place(pair.Value, new Vec3(40f + pair.Key, 0f, 40f));
+        Place(owner, new Vec3(4f, 0f, -10f));
+        var spawn = new Vec3(-10f, 0f, -10f);
+        Assert.True(services.Resolve<MobaSummonService>().TrySummon(owner.actorId.Value, 30030502,
+            in spawn, Vec3.Right, default, out var id));
+        for (var i = 0; i < 8; i++) battle.Tick();
+        Assert.True(actors.TryGet(id, out var summon));
+        var pipeline = summon.motion.Pipeline;
+        var path = Assert.Single(pipeline.CaptureSourceOrder().OfType<PathFollowerMotionSource>());
+        Assert.True(path.IsActive);
+        var otherSources = pipeline.CaptureSourceOrder().Where(source => !ReferenceEquals(source, path)).ToArray();
+        var stoppedAt = summon.transform.Value.Position;
+
+        if (despawn)
+        {
+            Assert.True(services.Resolve<MobaSummonService>().TryDespawn(id, SummonDespawnReason.ManualRemove));
+            for (var i = 0; i < 8 && actors.TryGet(id, out _); i++) battle.Tick();
+            Assert.False(actors.TryGet(id, out _));
+        }
+        else
+        {
+            Assert.True(services.Resolve<MobaBrainService>().DeactivateBrain(summon));
+        }
+        battle.Tick();
+
+        Assert.False(pipeline.ContainsSource(path));
+        if (!despawn)
+        {
+            Assert.Same(pipeline, summon.motion.Pipeline);
+            Assert.Equal(otherSources, pipeline.CaptureSourceOrder());
+            Assert.Equal(stoppedAt, summon.transform.Value.Position);
+        }
+    }
+
     [Theory]
     [InlineData(.4f)]
     [InlineData(7.5f)]

@@ -46,13 +46,15 @@ namespace AbilityKit.Demo.Moba.Rollback
         }
 
         internal List<MobaTriggerIntervalContinuousService.RollbackEntry> PrepareLifecycleIntervals(byte[] payload,
-            IReadOnlyList<BuffContinuousRuntime> targetBuffs, out int nextSourceId)
+            IReadOnlyList<BuffContinuousRuntime> targetBuffs, out int nextSourceId,
+            IReadOnlyList<IContinuous> targetLaunches = null)
         {
             if (targetBuffs == null) throw new ArgumentNullException(nameof(targetBuffs));
             var planned = Collect();
             var remove = new List<Identity>();
             foreach (var pair in planned)
-                if (pair.Value is BuffContinuousRuntime) remove.Add(pair.Key);
+                if (pair.Value is BuffContinuousRuntime || targetLaunches != null &&
+                    pair.Value is Services.Projectile.Launch.MobaProjectileLaunchContinuous) remove.Add(pair.Key);
             foreach (var key in remove) planned.Remove(key);
             foreach (var buff in targetBuffs)
             {
@@ -63,6 +65,17 @@ namespace AbilityKit.Demo.Moba.Rollback
                 if (projection.ModifierSourceId <= 0 || planned.ContainsKey(key))
                     throw new InvalidOperationException("Planned Buff modifier source collides with another continuous.");
                 planned.Add(key, buff);
+            }
+            foreach (var instance in targetLaunches ?? Array.Empty<IContinuous>())
+            {
+                var runtime = (MobaContinuousRuntimeBase)instance;
+                var projection = (IMobaContinuousProjectionConfig)runtime.Config;
+                var specs = (IMobaContinuousModifierConfig)runtime.Config;
+                if (specs.Modifiers == null || specs.Modifiers.Count == 0) continue;
+                var key = new Identity(projection.OwnerActorId, projection.ModifierSourceId, projection.TargetActorId);
+                if (projection.ModifierSourceId <= 0 || planned.ContainsKey(key))
+                    throw new InvalidOperationException("Planned projectile launch modifier source collides with another continuous.");
+                planned.Add(key, runtime);
             }
             var captures = ReadAndValidate(payload, planned, out nextSourceId, out var intervals, preflight: true,
                 plannedMembership: true);

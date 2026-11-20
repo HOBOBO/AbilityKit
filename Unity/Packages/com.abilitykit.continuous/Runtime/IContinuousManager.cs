@@ -4,14 +4,8 @@ using System.Collections.Generic;
 namespace AbilityKit.Continuous
 {
     /// <summary>
-    /// 持续体管理器接口
-    /// 
-    /// 业务层可以实现此接口来管理 IContinuous 的生命周期。
-    /// 核心包不提供默认实现，具体的互斥、标签、暂停/恢复逻辑由业务层决定。
-    /// 
-    /// 使用方式：
-    /// 1. 业务层实现 IContinuousManager 接口
-    /// 2. 或继承/组合 DefaultContinuousManager（如果提供了默认实现）
+    /// 管理持续体的注册、生命周期推进及按所有者查询。
+    /// 本包提供 <see cref="DefaultContinuousManager"/>；领域计时和玩法规则由使用方决定。
     /// </summary>
     public interface IContinuousManager
     {

@@ -3,16 +3,22 @@ using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Logging;
 using AbilityKit.Combat.Projectile;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.Triggering;
 
 namespace AbilityKit.Demo.Moba.Systems.EntityManager
 {
+    /// <summary>
+    /// 在确认门限满足后，按每轮 ActorId 升序消费移除请求；派生请求最多继续处理八轮。
+    /// 普通运行与回滚重演使用相同顺序，不依赖 Entitas 对象枚举顺序。
+    /// </summary>
     [WorldSystem(order: MobaSystemOrder.ActorDespawnCleanup, Phase = WorldSystemPhase.PostExecute)]
     public sealed class MobaActorDespawnCleanupSystem : WorldSystemBase
     {
@@ -41,7 +47,14 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         private global::Entitas.IGroup<global::ActorEntity> _group;
         private readonly System.Collections.Generic.List<MobaProjectileLinkDiagnostics> _projectileDiagnostics =
             new System.Collections.Generic.List<MobaProjectileLinkDiagnostics>(32);
+        private readonly System.Collections.Generic.List<(global::ActorEntity Entity, int ActorId, int CreationIndex, int Index)> _cleanupCandidates =
+            new System.Collections.Generic.List<(global::ActorEntity, int, int, int)>(32);
+        private static readonly System.Comparison<(global::ActorEntity Entity, int ActorId, int CreationIndex, int Index)> CleanupCandidateComparison =
+            CompareCleanupCandidates;
 
+        /// <summary>
+        /// 使用世界上下文和服务解析器创建清理系统，由正式 System 树统一驱动。
+        /// </summary>
         public MobaActorDespawnCleanupSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
@@ -76,6 +89,12 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         protected override void OnExecute()
         {
             if (_group == null) return;
+
+            if (_registry != null && _brains != null && _authority != null && _authority.TryGetRestoreFloor(out var floor))
+            {
+                Services.TryResolve<MobaLocomotionRuntimeService>(out var locomotion);
+                _registry.ReclaimExpiredActors(floor.Value, _brains, locomotion);
+            }
 
             if (!TryGetConfirmedFrame(out var confirmed))
             {
@@ -120,21 +139,73 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             var entities = _group.GetEntities();
             if (entities == null || entities.Length == 0) return 0;
 
-            var processed = 0;
-            for (int i = 0; i < entities.Length; i++)
+            try
             {
-                var entity = entities[i];
-                if (entity == null || !entity.hasActorDespawnRequest) continue;
+                /*
+                 * 只排序本轮已到确认门限的候选副本，不改写 Entitas 缓存数组。
+                 * 清理回调产生的请求留给后续轮；无有效身份的异常候选排在末尾，保持原相对顺序。
+                 */
+                for (var i = 0; i < entities.Length; i++)
+                {
+                    var entity = entities[i];
+                    if (entity == null || !entity.isEnabled || !entity.hasActorDespawnRequest ||
+                        !IsReadyToDespawn(entity, confirmed)) continue;
 
-                var request = entity.actorDespawnRequest;
-                if (confirmed < request.MinConfirmedFrame) continue;
+                    _cleanupCandidates.Add((entity, entity.hasActorId ? entity.actorId.Value : 0, entity.creationIndex, i));
+                }
+                _cleanupCandidates.Sort(CleanupCandidateComparison);
 
-                entity.RemoveActorDespawnRequest();
-                CleanupActor(entity, request);
-                processed++;
+                var processed = 0;
+                for (var i = 0; i < _cleanupCandidates.Count; i++)
+                {
+                    var candidate = _cleanupCandidates[i];
+                    var entity = candidate.Entity;
+                    /*
+                     * 前序清理可能移除后续候选，甚至让池对象用于新实体；新身份不能借用本轮位置。
+                     * 创建序号仅用于检测引用失效，不参与业务排序，也不写入回滚快照。
+                     */
+                    if (!entity.isEnabled || entity.creationIndex != candidate.CreationIndex ||
+                        (entity.hasActorId ? entity.actorId.Value : 0) != candidate.ActorId ||
+                        !entity.hasActorDespawnRequest) continue;
+
+                    var request = entity.actorDespawnRequest;
+                    if (!IsReadyToDespawn(entity, confirmed)) continue;
+
+                    entity.RemoveActorDespawnRequest();
+                    CleanupActor(entity, request);
+                    processed++;
+                }
+
+                return processed;
+            }
+            finally
+            {
+                _cleanupCandidates.Clear();
+            }
+        }
+
+        private static int CompareCleanupCandidates(
+            (global::ActorEntity Entity, int ActorId, int CreationIndex, int Index) left,
+            (global::ActorEntity Entity, int ActorId, int CreationIndex, int Index) right)
+        {
+            var leftValid = left.ActorId > 0;
+            var rightValid = right.ActorId > 0;
+            if (leftValid != rightValid) return leftValid ? -1 : 1;
+            if (leftValid)
+            {
+                var order = left.ActorId.CompareTo(right.ActorId);
+                if (order != 0) return order;
             }
 
-            return processed;
+            return left.Index.CompareTo(right.Index);
+        }
+
+        private bool IsReadyToDespawn(global::ActorEntity entity, int confirmed)
+        {
+            var request = entity.actorDespawnRequest;
+            if (_registry != null && _registry.IsRetainedShell(entity)) return false;
+            return confirmed >= request.MinConfirmedFrame ||
+                   request.Reason == ActorDespawnReason.SummonTimeout && _summons?.CanRetainExpired(entity) == true;
         }
 
         private void CleanupActor(global::ActorEntity entity, ActorDespawnRequestComponent request)
@@ -151,7 +222,19 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
                 _projectileLinks.TryGetProjectileId(actorId, out _));
             CleanupProjectile(actorId, request);
             StopOwnerBoundTriggers(entity);
-            _brains?.DeactivateBrain(entity);
+            var retainExpired = !isLinkedProjectile && request.Reason == ActorDespawnReason.SummonTimeout &&
+                                _summons?.CanRetainExpired(entity) == true;
+            if (!retainExpired) _brains?.DeactivateBrain(entity);
+            else
+            {
+                if (Services.TryResolve<MobaPathFollowingRuntimeService>(out var path)) path.Remove(actorId);
+                if (Services.TryResolve<MobaLocomotionRuntimeService>(out var locomotion)) locomotion.Remove(actorId);
+                if (entity.hasCollisionId && Services.TryResolve<ICollisionService>(out var collisions))
+                {
+                    collisions.World.Remove(entity.collisionId.Value);
+                    entity.RemoveCollisionId();
+                }
+            }
             ReclaimActorState(actorId, ToExecutionEndReason(request.Reason));
 
             // Projectile actors may carry the generic summon metadata used by the

@@ -16,7 +16,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
     //   2. host.extension/Client/FrameSync/* Generic primitives (used by ConfirmedAuthority path)
     //   3. ShooterClientPredictionRuntimeAdapter + ShooterPackedSnapshotRollbackProvider (shooter demo)
     // See: Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/
-    public sealed class ClientPredictionDriverModule : IHostRuntimeModule, IHostRuntimeTickGate, IClientPredictionDriverStats, IClientPredictionTuningControl, IClientPredictionReconcileTarget, IClientPredictionReconcileControl, IClientPredictionBaselineControl
+    public sealed class ClientPredictionDriverModule : IHostRuntimeModule, IHostRuntimeTickGate, IClientPredictionDriverStats, IClientPredictionTuningControl, IClientPredictionReconcileTarget, IClientPredictionReconcileControl, IClientPredictionBaselineControl, IClientPredictionRestoreFloor
     {
         private const int ReplayWaitTimeoutTicks = 120;
 
@@ -444,6 +444,39 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             return false;
         }
 
+        /// <summary>
+        /// 读取已提交的恢复门槛。未启用回滚或尚无有效权威锚点时返回 false。
+        /// </summary>
+        public bool TryGetRestoreFloor(WorldId worldId, out FrameIndex frame)
+        {
+            frame = default;
+            return _contexts.TryGetValue(worldId, out var ctx) && ctx?.Rollback != null &&
+                   ctx.Rollback.TryGetRestoreFloor(out frame);
+        }
+
+        /// <summary>
+        /// 在宿主帧结束后提交已由权威适配器验真的结算锚点。
+        /// 调用方保证锚点属于当前战局、摘要匹配并已排空在途旧纠偏。
+        /// 迟到锚点须对应当前分支仍保有完整快照、且已消费权威输入的帧。
+        /// 不接受未来帧或纠偏重演期间的提交。
+        /// </summary>
+        public bool TryCommitVerifiedRestoreAnchor(WorldId worldId, FrameIndex frame)
+        {
+            if (!_contexts.TryGetValue(worldId, out var ctx) || ctx?.Rollback == null || ctx.RollbackFaulted ||
+                ctx.Mode != ReplayMode.Normal || ctx.InputReplayActive ||
+                frame.Value > ctx.LastProcessedRollbackFrame.Value || frame.Value > ctx.PredictedFrame.Value ||
+                (frame.Value < ctx.PredictedFrame.Value && frame.Value > ctx.ConfirmedFrame.Value))
+                return false;
+
+            if (ctx.World?.Services?.TryResolve<IWorldFrameGuard>(out var guard) == true && !guard.CanCommit)
+                return false;
+
+            return ctx.Rollback.TryAdvanceRestoreFloor(frame);
+        }
+
+        /// <summary>
+        /// 用已导入的权威基线重建预测历史。生效的不可回滚边界不会随历史重置。
+        /// </summary>
         public bool TryRebase(WorldId worldId, FrameIndex baselineFrame)
         {
             if (baselineFrame.Value < 0 ||
@@ -452,6 +485,10 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             {
                 return false;
             }
+
+            if (ctx.Rollback != null && ctx.Rollback.TryGetRestoreFloor(out var floor) &&
+                baselineFrame.Value < floor.Value)
+                return false;
 
             ctx.PendingLocalInputs?.Clear();
             ctx.AppliedInputs?.Clear();
@@ -516,6 +553,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             runtime.Features.RegisterFeature<IClientPredictionReconcileTarget>(this);
             runtime.Features.RegisterFeature<IClientPredictionReconcileControl>(this);
             runtime.Features.RegisterFeature<IClientPredictionBaselineControl>(this);
+            runtime.Features.RegisterFeature<IClientPredictionRestoreFloor>(this);
             runtime.Features.RegisterFeature<IHostRuntimeTickGate>(this);
         }
 
@@ -534,6 +572,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             runtime.Features.UnregisterFeature<IClientPredictionReconcileTarget>();
             runtime.Features.UnregisterFeature<IClientPredictionReconcileControl>();
             runtime.Features.UnregisterFeature<IClientPredictionBaselineControl>();
+            runtime.Features.UnregisterFeature<IClientPredictionRestoreFloor>();
             runtime.Features.UnregisterFeature<IHostRuntimeTickGate>();
 
             foreach (var entry in _contexts)
@@ -757,7 +796,11 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         private static bool TryRestoreState(WorldContext ctx, FrameIndex frame)
         {
             if (ctx == null || ctx.Rollback == null) return false;
-            if (ctx.Rollback.TryRestore(frame, out var result)) return true;
+            if (ctx.Rollback.TryRestoreAndDiscardFuture(frame, out var result))
+            {
+                ctx.PredictedHashes?.DiscardAfter(frame);
+                return true;
+            }
             ctx.RollbackFaulted = true;
             Log.Warning($"[ClientPredictionDriverModule] Rollback restore failed; world tick paused. result={result}");
             return false;

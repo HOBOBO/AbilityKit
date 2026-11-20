@@ -96,7 +96,7 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
                 }
 
                 _entries.Sort(CompareEntriesByActorId);
-                hash.AddInt(MobaActorTransformRollbackProvider.DefaultKey);
+                hash.AddInt(MobaActorMotionRollbackProvider.DefaultKey);
                 hash.AddInt(_entries.Count);
 
                 for (var index = 0; index < _entries.Count; index++)

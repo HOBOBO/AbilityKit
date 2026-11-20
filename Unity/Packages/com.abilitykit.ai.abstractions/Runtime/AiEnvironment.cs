@@ -161,6 +161,25 @@ namespace AbilityKit.AI.Abstractions
         void RestoreSnapshot(byte[] payload);
     }
 
+    /// <summary>
+    /// 可选有状态策略的只读快照验证；仅接入回滚时要求，不影响普通推理。
+    /// </summary>
+    public interface IAiPolicySnapshotValidator : IAiPolicyRuntimeSnapshot
+    {
+        /// <summary>
+        /// 验证完整快照和配置兼容性，不调用恢复或推理。
+        /// </summary>
+        void ValidateSnapshot(byte[] payload);
+    }
+
+    /// <summary>
+    /// 显式声明策略没有会影响后续推理的自有跨帧状态。
+    /// 包装委托或模型执行器时也必须保证其无隐藏状态。
+    /// </summary>
+    public interface IAiStatelessPolicy : IAiPolicy
+    {
+    }
+
     public interface IAiEnvironment
     {
         AiObservationSpec ObservationSpec { get; }

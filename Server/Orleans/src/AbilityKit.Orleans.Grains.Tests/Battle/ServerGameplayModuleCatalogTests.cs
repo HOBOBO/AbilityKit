@@ -1,9 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
 using AbilityKit.Orleans.Contracts.Battle;
@@ -206,6 +209,141 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.Equal(-12f, actor.X, 3);
         Assert.Equal(0f, actor.Z, 3);
         Assert.True(session.Tick(1, 30, 1f / 30f));
+    }
+
+    [Fact]
+    public void MobaBattleRuntimeSession_RequiresFreshGuardCompletionAndTheMatchingWorldFrame()
+    {
+        const string battleId = "moba-runtime-settlement-guard";
+        const float fixedDelta = 1f / 30f;
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new MobaBattleRuntimeAdapter(worldManager, DefaultOrleansBattleProtocolMapper.Instance);
+        using var session = adapter.CreateSession(battleId);
+        var result = session.Start(CreateMobaWorldInitParams());
+        Assert.True(result.Succeeded, result.Error);
+        var completion = Assert.IsAssignableFrom<IBattleRuntimeFrameCompletion>(session);
+        var world = worldManager.CreateBattleWorld(battleId, 30);
+        Assert.True(world.Services.TryResolve<IFrameTime>(out var worldTime));
+        var time = Assert.IsType<FrameTime>(worldTime);
+        Assert.True(world.Services.TryResolve<MobaCombatFrameGuard>(out var guard));
+
+        var ticks = guard!.CompletedTickCount;
+        Assert.False(completion.CanFinalizeFrame(0));
+        Assert.True(session.Tick(0, 30, fixedDelta));
+        Assert.Equal(ticks + 1, guard.CompletedTickCount);
+        Assert.Equal(0, time.Frame.Value);
+        Assert.Equal(0f, time.DeltaTime);
+        Assert.False(completion.CanFinalizeFrame(0));
+
+        time.StepTo(new FrameIndex(1), fixedDelta);
+        Assert.True(session.Tick(1, 30, fixedDelta));
+        Assert.True(completion.CanFinalizeFrame(1));
+        time.StepTo(new FrameIndex(2), fixedDelta);
+        Assert.True(session.Tick(2, 30, fixedDelta));
+        Assert.False(completion.CanFinalizeFrame(1));
+        Assert.True(completion.CanFinalizeFrame(2));
+
+        Assert.True(session.Tick(3, 30, fixedDelta));
+        Assert.False(completion.CanFinalizeFrame(2));
+        Assert.False(completion.CanFinalizeFrame(3));
+
+        time.StepTo(new FrameIndex(4), fixedDelta);
+        guard.FailFrame(new InvalidOperationException("Test guard fault."));
+        Assert.Throws<InvalidOperationException>(() => session.Tick(4, 30, fixedDelta));
+        Assert.False(completion.CanFinalizeFrame(4));
+    }
+
+    [Fact]
+    public void MobaExternalFrameClock_DrivesPublishedSummonExpiryAtTheExpectedFrame()
+    {
+        const string battleId = "moba-runtime-external-frame-clock";
+        const float fixedDelta = 1f / 30f;
+        const int pressFrame = 3;
+        const int summonConfig = 30030502;
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new MobaBattleRuntimeAdapter(worldManager, DefaultOrleansBattleProtocolMapper.Instance);
+        using var session = adapter.CreateSession(battleId);
+        var init = CreateMobaWorldInitParams();
+        var player = Assert.Single(init.Players!);
+        player.HeroId = 3003;
+        player.AttributeTemplateId = 3003;
+        player.BasicAttackSkillId = 30030101;
+        player.SkillIds = new List<int> { 30030201, 30030301, 30030401, 30030501 };
+        var start = session.Start(init);
+        Assert.True(start.Succeeded, start.Error);
+
+        var externalClock = Assert.IsAssignableFrom<IBattleRuntimeExternalFrameClock>(session);
+        var completion = Assert.IsAssignableFrom<IBattleRuntimeFrameCompletion>(session);
+        var world = worldManager.CreateBattleWorld(battleId, 30);
+        Assert.True(world.Services.TryResolve<IFrameTime>(out var worldTime));
+        var time = Assert.IsType<FrameTime>(worldTime);
+        Assert.True(world.Services.TryResolve<MobaCombatFrameGuard>(out var guard));
+        Assert.True(world.Services.TryResolve<MobaSummonService>(out var summons));
+        Assert.True(world.Services.TryResolve<MobaActorLookupService>(out var actors));
+        Assert.True(world.Services.TryResolve<MobaActorRegistry>(out var actorRegistry));
+        var caster = Assert.Single(session.CreateStateSyncPush(1, 0, isFullSnapshot: true).Actors);
+        var expectedReplayClock = new FrameTime();
+        var summonedActors = new List<int>();
+        var spawnFrame = -1;
+        var expiryFrame = -1;
+        long deadlineMs = 0;
+        Assert.True(externalClock.HasInitialFrameCheckpoint);
+        Assert.False(externalClock.TryPrepareExternalFrame(0, fixedDelta));
+        Assert.False(externalClock.TryPrepareExternalFrame(2, fixedDelta));
+        Assert.Equal(0, time.Frame.Value);
+        Assert.Equal(0f, time.Time);
+
+        for (var frame = 1; frame <= 1200; frame++)
+        {
+            Assert.True(externalClock.TryPrepareExternalFrame(frame, fixedDelta));
+            Assert.True(expectedReplayClock.AlignTo(new FrameIndex(frame), fixedDelta));
+            Assert.Equal(frame, time.Frame.Value);
+            Assert.Equal(expectedReplayClock.TimeMilliseconds, time.TimeMilliseconds);
+            Assert.Equal(expectedReplayClock.Time, time.Time);
+
+            if (frame is pressFrame or pressFrame + 1)
+            {
+                var aim = new Vec3(caster.X + 2f, caster.Y, caster.Z);
+                var phase = frame == pressFrame ? SkillInputPhase.Press : SkillInputPhase.Release;
+                var input = new SkillInputEvent(4, phase, aimPos: in aim, targetFrame: frame,
+                    inputSequence: frame, predictionKey: frame, entityVersion: actorRegistry!.GetEntityVersion(1));
+                Assert.Equal(1, session.SubmitInputs(frame, new[]
+                {
+                    new BattleInputItem { PlayerId = 1, OpCode = MobaOpCodes.Input.SkillInput, Payload = SkillInputCodec.Serialize(in input) }
+                }));
+            }
+
+            Assert.True(session.Tick(frame, 30, fixedDelta));
+            Assert.True(completion.CanFinalizeFrame(frame));
+            if (spawnFrame < 0 && summons!.TryGetSummons(1, summonedActors, summonConfig))
+            {
+                Assert.True(actors!.TryGetActorEntity(Assert.Single(summonedActors), out var summon));
+                Assert.True(summon.hasLifetime);
+                deadlineMs = summon.lifetime.EndTimeMs;
+                spawnFrame = frame;
+                Assert.Equal(pressFrame, spawnFrame);
+                Assert.True(deadlineMs > MathF.Round(time.Time * 1000f));
+            }
+
+            if (spawnFrame >= 0)
+            {
+                var expired = MathF.Round(time.Time * 1000f) >= deadlineMs;
+                Assert.Equal(expired ? 0 : 1, summons!.GetAliveCount(1, summonConfig));
+                if (expired)
+                {
+                    expiryFrame = frame;
+                    break;
+                }
+            }
+        }
+
+        Assert.True(spawnFrame == pressFrame && expiryFrame > spawnFrame,
+            $"Missing press-frame spawn or natural expiry (spawn={spawnFrame}, expiry={expiryFrame}).");
+        Assert.False(externalClock.TryPrepareExternalFrame(expiryFrame, fixedDelta));
+        Assert.False(externalClock.TryPrepareExternalFrame(expiryFrame + 2, fixedDelta));
+        guard!.FailFrame(new InvalidOperationException("Test guard fault."));
+        Assert.False(externalClock.TryPrepareExternalFrame(expiryFrame + 1, fixedDelta));
+        Assert.Equal(expiryFrame, time.Frame.Value);
     }
 
     [Fact]

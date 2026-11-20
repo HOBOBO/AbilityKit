@@ -84,14 +84,14 @@
           "generate": true,
           "custom": false,
           "serialize": false,
-          "coverage": "provider:MobaActorTransformRollbackProvider"
+          "coverage": "provider:MobaActorMotionRollbackProvider"
         },
         {
           "name": "MoveInput",
           "generate": true,
           "custom": false,
           "serialize": false,
-          "coverage": "provider:MobaActorTransformRollbackProvider"
+          "coverage": null
         },
         {
           "name": "OngoingTriggerPlans",
@@ -140,7 +140,7 @@
           "generate": true,
           "custom": false,
           "serialize": false,
-          "coverage": "provider:MobaActorResourceRollbackProvider"
+          "coverage": null
         },
         {
           "name": "SkillCastAim",
@@ -266,7 +266,7 @@
           "generate": true,
           "custom": false,
           "serialize": false,
-          "coverage": "provider:MobaActorTransformRollbackProvider"
+          "coverage": null
         },
         {
           "name": "UnitSubType",

@@ -449,7 +449,7 @@ public sealed class MobaRollbackSnapshotSemanticPreflightTests
             Nodes = MemoryPackSerializer.Serialize(new[] { node }),
         };
         var runtimeState = MemoryPackSerializer.Serialize(new MobaSkillRuntimeRollbackPayload(
-            3, 1, 1, 1, Array.Empty<MobaSkillRuntimeRollbackEntry>(),
+            MobaSkillRuntimeRollbackProvider.RuntimePayloadVersion, 1, 1, 1, Array.Empty<MobaSkillRuntimeRollbackEntry>(),
             Array.Empty<MobaSkillRuntimeRetainRollbackEntry>()));
         var local = new MobaSkillRuntimeLocalRollbackPayload(
             1, runtimeState, new[] { node }, contextId + 1);
@@ -472,6 +472,8 @@ public sealed class MobaRollbackSnapshotSemanticPreflightTests
                 new MobaSkillLifecycleSection { Name = "pipelines", Payload = new byte[] { 1 } },
                 new MobaSkillLifecycleSection { Name = "owner-blackboards", Payload = new byte[] { 1 } },
                 new MobaSkillLifecycleSection { Name = "continuous-local", Payload = new byte[] { 1 } },
+                new MobaSkillLifecycleSection { Name = "locomotion-local", Payload = new byte[] { 1 } },
+                new MobaSkillLifecycleSection { Name = "motion-pipelines", Payload = new byte[] { 1 } },
             },
         };
         return MobaSkillLifecycleCheckpointCodec.Encode(checkpoint);

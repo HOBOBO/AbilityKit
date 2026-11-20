@@ -1,0 +1,12 @@
+<Project>
+  <!--
+    保留 src 下共享的稳定包策略，再仅为 Core 收紧已完成整理的 XML 文档诊断。
+    此文件由 Core 工程目录自动导入，不改变其他包或 Deterministic 的警告基线。
+  -->
+  <Import Project="../Directory.Build.targets" />
+
+  <PropertyGroup>
+    <WarningsNotAsErrors>$([System.Text.RegularExpressions.Regex]::Replace('$(WarningsNotAsErrors)', '(?i)(^|;)\s*(CS1570|CS1573|CS1574|CS1587|CS1591)\s*(?=;|$)', '$1'))</WarningsNotAsErrors>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1570;CS1573;CS1574;CS1587;CS1591</WarningsAsErrors>
+  </PropertyGroup>
+</Project>

@@ -322,9 +322,12 @@ public sealed class MobaModifierRealObjectSmokeTests
         Assert.True(continuous.TryActivate(source));
 
         var providers = new RollbackRegistry();
-        providers.Register(new MobaActorTransformRollbackProvider(registry));
+        providers.Register(new MobaActorMotionRollbackProvider(registry));
         providers.Register(new MobaActorHpRollbackProvider(registry));
-        providers.Register(new MobaActorResourceRollbackProvider(registry));
+        var runtimeWorld = (AbilityKit.Ability.World.IEntitasWorld)typeof(ConsoleBattleBootstrapper)
+            .GetField("_runtimeWorld", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(battle)!;
+        providers.Register(new MobaEntitasComponentRollbackProvider(((Contexts)runtimeWorld.Contexts).actor));
         if (frameTime is FrameTime mutableFrameTime)
             providers.Register(new FrameTimeRollbackStateProvider(mutableFrameTime));
         var parameterProvider = new MobaSkillParamModifierRollbackProvider(modifiers);

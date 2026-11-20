@@ -71,6 +71,16 @@ namespace AbilityKit.Combat.Projectile
         }
 
         /// <summary>
+        /// 只读校验完整服务载荷并返回目标帧的弹体物理状态，供关系 Provider 核对归属与数量。
+        /// 不写入世界，不调用策略工厂、过滤器解析器或历史通知。
+        /// </summary>
+        public static ProjectileWorldSnapshotPayload ReadProjectileSnapshot(byte[] payload, FrameIndex frame)
+        {
+            var service = ProjectileService.ReadRollbackSnapshot(frame, payload);
+            return ProjectileWorld.ReadRollbackSnapshot(service.Projectiles, frame);
+        }
+
+        /// <summary>
         /// 在隔离数据中读取目标帧的区域名单，供跨 provider 预检核对生命周期归属。
         /// 不修改物理世界，也不产生区域通知；沿用区域恢复支持的快照版本。
         /// </summary>

@@ -178,6 +178,46 @@
       ]
     },
     {
+      "name": "moba-ecs-rollback",
+      "level": "P1",
+      "owner": "MOBA Runtime/FrameSync",
+      "description": "Verify generated components, resources, optional Brain full-state recovery and formal frame replay, Motion order, lifecycle preflight and local compensation.",
+      "scope": [
+        "ecs-component-rollback",
+        "managed-motion-rollback",
+        "moba-state-recovery"
+      ],
+      "requiredBefore": [
+        "merge-moba-component-rollback-change",
+        "change-moba-rollback-ownership-or-payload"
+      ],
+      "failurePolicy": "Block related changes on generated baseline drift, incomplete component restoration, preflight mutation, or Motion recovery regressions.",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Entitas generated contracts",
+          "kind": "gate",
+          "gate": "entitas-codegen"
+        },
+        {
+          "name": "MOBA ECS rollback runtime contracts",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+          "filter": "FullyQualifiedName~MobaGeneratedComponentRollbackContractTests|FullyQualifiedName~MobaResourceComponentRecoveryTests|FullyQualifiedName~MobaRecordedInputReplayTests|FullyQualifiedName~MobaEntitasRollbackTests|FullyQualifiedName~MobaSkillLifecycleRollbackPreparationTests|FullyQualifiedName~MobaCastRetentionRollbackTests|FullyQualifiedName~MobaRollbackSnapshotSemanticPreflightTests|FullyQualifiedName~MobaDeterministicCheckpointTests|FullyQualifiedName~MobaLogicWorldStateImportSmokeTests|FullyQualifiedName~MobaProjectileAreaMotionCompositionTests|FullyQualifiedName~BehaviorRecoveryTests|FullyQualifiedName~MobaBrainRollbackProviderTests|FullyQualifiedName~MobaBrainFrameReplayTests|FullyQualifiedName~MobaBrainDecisionDriverRegistryTests|FullyQualifiedName~MobaEntityRollbackBrainLifecycleTests|FullyQualifiedName~MobaPathFollowingStateTests|FullyQualifiedName~MobaPathFollowingSystemStateTests|FullyQualifiedName~MobaMotionRuntimeDependencyTests|FullyQualifiedName~MobaMotionRebuildBoundaryTests"
+        },
+        {
+          "name": "Attribute silent evaluation contracts",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Attributes.Tests/AbilityKit.Attributes.Tests.csproj"
+        }
+      ]
+    },
+    {
       "name": "runtime-contracts",
       "level": "P1",
       "owner": "Runtime Platform",
@@ -428,6 +468,20 @@
           "name": "Core tests and Public API compatibility",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Core.Tests/AbilityKit.Core.Tests.csproj"
+        },
+        {
+          "name": "Core XML documentation compiler gate tests",
+          "kind": "powershell-script",
+          "script": "tools/test_core_documentation_gate.ps1",
+          "arguments": ["-EvidenceDirectory", "{GateOutputDirectory}/core-xml-documentation-probes"],
+          "timeoutSeconds": 120
+        },
+        {
+          "name": "Release plan dependency and failure tests",
+          "kind": "powershell-script",
+          "script": "tools/test_release_plan.ps1",
+          "arguments": ["-EvidenceDirectory", "{GateOutputDirectory}/release-plan-probes"],
+          "timeoutSeconds": 300
         },
         {
           "name": "Deterministic math package tests",
@@ -693,6 +747,11 @@
           "name": "MOBA CodeGen contracts",
           "kind": "gate",
           "gate": "moba-codegen"
+        },
+        {
+          "name": "MOBA ECS rollback contracts",
+          "kind": "gate",
+          "gate": "moba-ecs-rollback"
         },
         {
           "name": "Moba console smoke gate",

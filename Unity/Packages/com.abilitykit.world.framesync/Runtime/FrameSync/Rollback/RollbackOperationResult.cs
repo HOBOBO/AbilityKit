@@ -17,7 +17,11 @@ namespace AbilityKit.Ability.FrameSync.Rollback
         UnsupportedVersion = 2,
         ProviderMissing = 3,
         ProviderFailed = 4,
-        Failed = 5
+        Failed = 5,
+        /// <summary>
+        /// 请求早于已生效的最早可恢复帧，未进入 Provider 预检或导入。
+        /// </summary>
+        BeforeRestoreFloor = 6
     }
 
     public readonly struct RollbackOperationResult

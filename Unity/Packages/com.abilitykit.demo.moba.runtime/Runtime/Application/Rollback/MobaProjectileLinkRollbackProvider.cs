@@ -207,6 +207,8 @@ namespace AbilityKit.Demo.Moba.Rollback
             return actual;
         }
 
+        internal static MobaProjectileLauncherLinkRollbackEntry[] ReadLauncherSnapshot(byte[] payload) => Read(payload).Launchers;
+
         private static State Read(byte[] payload)
         {
             if (payload == null || payload.Length == 0) throw new InvalidOperationException("Missing Projectile link rollback payload.");

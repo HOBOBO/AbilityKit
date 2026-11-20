@@ -22,6 +22,8 @@ public sealed class MobaTriggerSchedulerRollbackPreflightTests
         Assert.Equal(1, executable.Count);
         var frame = new FrameIndex(1);
         var payload = service.Export(frame);
+        Assert.Equal(MemoryPackSerializer.Serialize(new MobaTriggerExecutionRuntimePayload(1, 2,
+            new[] { new MobaTriggerScheduledExecutionEntry(first.Id, 0, 100d, 100d, 1, string.Empty) })), payload);
 
         service.Tick(100f);
         Assert.Equal(0, service.ActiveCount);
@@ -35,6 +37,7 @@ public sealed class MobaTriggerSchedulerRollbackPreflightTests
         service.Tick(100f);
         Assert.Equal(3, executable.Count);
         Assert.Equal(0, service.ActiveCount);
+        Assert.Empty(MemoryPackSerializer.Deserialize<MobaTriggerExecutionRuntimePayload>(service.Export(frame)).Entries);
         var reused = service.Schedule(new CountingExecutable(), null, in context,
             EScheduleMode.Timed, 10f, 1, true);
         Assert.Equal(later.Id, reused.Id);

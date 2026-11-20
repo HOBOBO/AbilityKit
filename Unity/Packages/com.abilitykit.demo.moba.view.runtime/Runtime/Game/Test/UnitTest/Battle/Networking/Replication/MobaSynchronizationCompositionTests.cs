@@ -134,9 +134,8 @@ namespace AbilityKit.Game.Tests
             var wrapperRegistry = new MobaRollbackRegistryFactory().Create(world);
             var expectedKeys = new[]
             {
-                MobaActorTransformRollbackProvider.DefaultKey,
+                MobaActorMotionRollbackProvider.DefaultKey,
                 MobaActorHpRollbackProvider.DefaultKey,
-                MobaActorResourceRollbackProvider.DefaultKey,
                 MobaBuffTimerRollbackProvider.DefaultKey,
                 MobaSkillCooldownRollbackProvider.DefaultKey,
                 MobaCharacterHfsmRollbackProvider.DefaultKey,
@@ -307,7 +306,7 @@ namespace AbilityKit.Game.Tests
         {
             var keys = new[]
             {
-                MobaActorTransformRollbackProvider.DefaultKey,
+                MobaActorMotionRollbackProvider.DefaultKey,
                 MobaActorHpRollbackProvider.DefaultKey,
                 MobaBuffTimerRollbackProvider.DefaultKey,
                 MobaSkillCooldownRollbackProvider.DefaultKey,

@@ -17,6 +17,9 @@ namespace AbilityKit.Attributes.Core
     {
         private readonly Dictionary<string, AttributeGroup> _groups = new Dictionary<string, AttributeGroup>(StringComparer.Ordinal);
         private int _nextSourceId = 1;
+        private int _silentEvaluationDepth;
+
+        internal bool IsEvaluatingSilently => _silentEvaluationDepth > 0;
 
         /// <summary>
         /// 注册表引用（可注入）
@@ -219,7 +222,7 @@ namespace AbilityKit.Attributes.Core
             return value;
         }
 
-        private void OnAttributeValueChanged(AttributeId id)
+        internal void OnAttributeValueChanged(AttributeId id)
         {
             var reg = Registry;
             if (reg == null) return;
@@ -263,6 +266,28 @@ namespace AbilityKit.Attributes.Core
         public float GetValue(AttributeId id)
         {
             return GetGroupFor(id).GetValue(id);
+        }
+
+        /// <summary>
+        /// 求取实时属性值并更新缓存，抑制此次同步调用内本上下文的属性变化通知。
+        /// 同上下文的嵌套求值同样静默，依赖属性仍会标脏；退出后不补发历史通知。
+        /// </summary>
+        /// <remarks>
+        /// 与正常求值共用公式、修改器和约束。异常向调用方传播并恢复求值模式，
+        /// 已完成的缓存更新不撤销。上下文不支持并发访问；静默范围不传播到其他上下文，
+        /// 也不屏蔽自定义公式内部的外部副作用。
+        /// </remarks>
+        public float GetValueSilently(AttributeId id)
+        {
+            _silentEvaluationDepth++;
+            try
+            {
+                return GetValue(id);
+            }
+            finally
+            {
+                _silentEvaluationDepth--;
+            }
         }
 
         /// <summary>

@@ -12,11 +12,10 @@
   </PropertyGroup>
 
   <!--
-    0.1.0 Beta 发版时，可空性标注未全覆盖，以下 CS8xxx 按核心包范围单独列为 NoWarn。
-    每条注释为当前剩余数量；随对应代码依次修复后，从本列表移除对应条目。
-    本列表解决后，根 Directory.Build.props 的 WarningsNotAsErrors 即可移除对应 CS8xxx。
+    纯运行时源码复用 Unity Package，Unity 专属桥接由 UPM asmdef 编译。
+    警告基线来自 src/Directory.Build.targets；本目录的同名文件在继承后收紧 XML 文档诊断。
+    可空性等其他历史警告仍遵循共享基线，此处没有逐项可空警告抑制列表。
   -->
-  <!-- 引用 Unity Package 中的纯运行时源码，Unity 专属桥接代码由 UPM asmdef 编译。 -->
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.core/Runtime/**/*.cs" Exclude="../../Unity/Packages/com.abilitykit.core/Runtime/Unity/**/*.cs" />
   </ItemGroup>

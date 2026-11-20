@@ -317,7 +317,8 @@ public sealed class MobaLogicWorldStateImportSmokeTests
             var originalMoveDx = moveActor.moveInput.Dx;
             var originalMoveDz = moveActor.moveInput.Dz;
             moveActor.ReplaceMoveInput(0.75f, -0.25f);
-            var rollbackProvider = new MobaActorTransformRollbackProvider(registry);
+            Assert.True(rollbackRegistry.TryGet(MobaEntitasComponentRollbackProvider.DefaultKey, out var provider));
+            var rollbackProvider = Assert.IsType<MobaEntitasComponentRollbackProvider>(provider);
             var rollbackFrame = new FrameIndex(bootstrapper.Context.LastFrame);
             var rollbackPayload = rollbackProvider.Export(rollbackFrame);
             moveActor.ReplaceMoveInput(0f, 0f);

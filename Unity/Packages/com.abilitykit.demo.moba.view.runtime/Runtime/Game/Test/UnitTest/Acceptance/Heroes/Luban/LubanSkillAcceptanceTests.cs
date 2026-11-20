@@ -58,7 +58,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 actor.ReplaceTransform(new Transform3(before, Quat.LookRotation(sideways, Vec3.Up), actor.transform.Value.Scale));
                 var brain = actor.actorBrain;
                 Assert.IsTrue(brains.ActivateBrain(actor, brain.BrainId, brain.SourceKind, brain.SourceId));
-                Assert.IsTrue(brains.TryRestoreBehaviorSnapshot(actor, snapshot.SnapshotType, payload));
+                Assert.IsTrue(brains.TryGetBehavior(actor.actorBrain.BehaviorInstanceId, out var replacement));
+                var replacementSnapshot = replacement.Decision as IBehaviorSnapshotValidator;
+                Assert.IsNotNull(replacementSnapshot);
+                Assert.AreEqual(snapshot.SnapshotType, replacementSnapshot.SnapshotType);
+                replacementSnapshot.ValidateSnapshot(payload);
+                replacementSnapshot.RestoreSnapshot(payload);
                 harness.Tick(6);
                 var delta = actor.transform.Value.Position - before;
                 Assert.Greater(Vec3.Dot(delta, heading), .05f,

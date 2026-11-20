@@ -299,6 +299,7 @@ namespace AbilityKit.Demo.Moba.Services
                     throw new InvalidDataException("Invalid skill shared-data value.");
                 shared[i] = new SkillSharedDataRollbackEntry(key, kind, integer, longValue,
                     number, text, vector, handle);
+                SkillPipelineContext.TryReadPreparedParameterRollbackEntry(in shared[i], out _, out _);
             }
             if (elapsed < 0 || frame < 0 || target < 0 || sequence < 0 || nextEvent < 0 ||
                 cooldown < 0 || flowId < 0 || skillId < 0 || skillLevel < 0 || cost < 0 ||
@@ -424,6 +425,17 @@ namespace AbilityKit.Demo.Moba.Services
             entry.Context = new SkillPipelineContext();
             entry.Context.Initialize(abilityInstance, in request, trigger);
             entry.Context.RestoreRollbackState(in state.Context);
+            /*
+             * 恢复入口按运行身份装配请求，冻结值由旧阶段的快照还原。
+             * PreCast 结束后会用该请求新建 Cast 上下文，因此在此补齐阶段交接所需的值。
+             */
+            if (entry.Stage == EntryStage.PreCast)
+            {
+                var samples = entry.Context.GetPreparedParameterSnapshots();
+                entry.Request = new SkillCastRequest(request.SkillId, request.SkillSlot, request.CasterActorId,
+                    request.TargetActorId, in request.AimPos, in request.AimDir, request.WorldServices,
+                    request.EventBus, request.CasterUnit, request.TargetUnit, samples, request.SummonInputIdentity);
+            }
             if (!TryBindPipelineContinuous(ref entry, config, out var bindError, localRollback))
                 throw new InvalidOperationException(bindError);
             try

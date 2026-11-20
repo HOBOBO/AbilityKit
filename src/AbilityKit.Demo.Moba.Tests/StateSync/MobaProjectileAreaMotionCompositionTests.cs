@@ -17,6 +17,7 @@ using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Game.Test.UnitTest;
 using AbilityKit.Trace;
@@ -31,8 +32,29 @@ namespace AbilityKit.Demo.Moba.Tests.StateSync;
 /// 在正式 Console 世界组合已发布内容，验证帧末结算及正式回滚注册表。
 /// </summary>
 [Collection("Moba lifecycle preparation")]
-public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper output)
+public sealed partial class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper output)
 {
+    [Fact]
+    public void Ordinary_locomotion_moves_and_cleans_up_without_rollback_coordinator()
+    {
+        using var b = new Battle(1001, "locomotion-without-rollback", enableRollback: false);
+        var actor = b.Actor(b.Caster);
+        var pipeline = actor.motion.Pipeline;
+        var source = Assert.Single(pipeline.CaptureSourceOrder().OfType<LocomotionMotionSource>());
+        actor.ReplaceMoveInput(1, 0);
+        var before = b.Setup.GetActorPosition(b.Caster);
+        b.Setup.Tick(1);
+        Assert.Same(source, Assert.Single(pipeline.CaptureSourceOrder().OfType<LocomotionMotionSource>()));
+        Assert.True(b.Setup.GetActorPosition(b.Caster).X > before.X);
+        Assert.Equal(new Vec3(1, 0, 0), source.Input);
+        actor.ReplaceMoveInput(0, 0);
+        b.Setup.Tick(1);
+        Assert.Equal(Vec3.Zero, source.Input);
+        actor.RemoveMoveInput();
+        b.Setup.Tick(1);
+        Assert.DoesNotContain(source, pipeline.CaptureSourceOrder());
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -55,12 +77,16 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
         b.VerifyLastEmitReplay(afterLastEmit, output);
     }
 
-    [Fact]
-    public void Last_projectile_exit_releases_source_and_cleanup_rejects_missing_target_before_import()
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 0)]
+    [InlineData(false, 30060010)]
+    [InlineData(true, 30060010)]
+    public void Last_projectile_exit_restores_cleaned_launcher_and_replays_twice(bool beforeEmit, int processId)
     {
-        using var b = new Battle(1001, "last-projectile-exit");
-        b.SpawnTestRepeatLauncher(durationMs: 0, endPipeline: true);
-        b.VerifyLastExitAndSettledReplay(output);
+        using var b = new Battle(1001, "last-projectile-exit-" + beforeEmit + "-" + processId);
+        b.SpawnTestRepeatLauncher(durationMs: 0, endPipeline: true, processId: processId);
+        b.VerifyLastExitAndSettledReplay(output, beforeEmit: beforeEmit);
     }
 
     [Fact]
@@ -140,7 +166,7 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
         {
             b.Until(b.HasLauncher);
             b.RejectMismatchedLauncherTemplates();
-            b.AssertCleanupRejectsReplay(() => b.Until(() => b.Count(MobaExecutionKind.DamageApply, 30050501) != 0));
+            b.AssertArrivalMotionRejectsReplay(() => b.Until(() => b.Count(MobaExecutionKind.DamageApply, 30050501) != 0));
         }
         b.Until(() => b.Count(MobaExecutionKind.DamageApply, 30050501) != 0);
 
@@ -162,16 +188,17 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
         if (checkpointOffset > 0)
             Assert.Contains(areaEvents, e => e.TemplateId == 42050501 && e.EventId == "area.enter" && e.Frame == arrivalFrame + 1);
         b.AssertNoPendingEnter();
+        var verifyMotion = b.ObserveSurvivingMotionBindings(new[] { left, right, center });
         /*
          * 到达当帧完成发射器清理。第零帧可原地恢复；跨后续帧仍遵守
          * 存活 Continuous 的既有恢复范围，不能偷偷扩大成对象重建。
          */
         if (checkpointOffset == 0)
         {
-            b.VerifyReplay(0, output);
+            b.VerifyReplay(0, output, verifyMotion: verifyMotion);
             b.AssertRecoveryRejectedAfterAdvance(8);
         }
-        else b.VerifyReplay(8, output);
+        else b.VerifyReplay(8, output, verifyMotion: verifyMotion);
         Assert.True(b.Setup.GetActorPosition(left).X < positions[0].X);
         Assert.True(b.Setup.GetActorPosition(right).X > positions[1].X);
         Assert.True(b.Setup.GetActorPosition(center).Z > positions[2].Z);
@@ -207,12 +234,12 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
         Assert.NotEmpty(b.Areas(42060301));
         Assert.Equal(0, b.Setup.CountActorBuffs(target, 30060391));
 
-        // A normal Motion source drives the production Motion system.
-        // No transform teleport or direct AreaEnter/claim call is used in this test.
-        // Checkpoints precede the command; each branch submits the same movement again.
-        // This verifies Area claims and input replay, not active Motion source recovery.
-        b.VerifyReplay(4, output, () => b.Move(target, 80));
-        Assert.InRange(b.Setup.GetActorPosition(target).Z, 109.99f, 110.01f);
+        /*
+         * 通过正式 MoveInput 和原服务持有的普通来源穿墙；每次重演提交相同输入。
+         * 墙体减速真实参与后续位移，不再直接挂接无恢复所有者的强制位移来源。
+         */
+        b.VerifyWalkReplay(target, 80, output);
+        Assert.InRange(b.Setup.GetActorPosition(target).Z, 108f, 110.01f);
         Assert.Equal(eligible ? 1 : 0, b.Setup.CountActorBuffs(target, 30060391));
         Assert.Equal(eligible ? 75f : 100f, new MobaAttrs(b.Actor(target)).MagicDefense, 3);
 
@@ -223,8 +250,8 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
             b.Actor(target).ReplaceTeam((Team)2);
         }
         var applications = b.Count(MobaExecutionKind.BuffApply, 30060391);
-        b.VerifyReplay(4, output, () => b.Move(target, -80));
-        Assert.InRange(b.Setup.GetActorPosition(target).Z, 101.99f, 102.01f);
+        b.VerifyWalkReplay(target, -80, output);
+        Assert.InRange(b.Setup.GetActorPosition(target).Z, 101.99f, 105.99f);
         Assert.Equal(1, b.Setup.CountActorBuffs(target, 30060391));
         Assert.Equal(75f, new MobaAttrs(b.Actor(target)).MagicDefense, 3);
         // Trace nodes reuse their execution identity; actual Buff/projection state is compared on every replay.
@@ -232,7 +259,7 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
 
         // A third physical crossing after restoring a claimed checkpoint cannot reapply.
         applications = b.Count(MobaExecutionKind.BuffApply, 30060391);
-        b.VerifyReplay(4, output, () => b.Move(target, 80));
+        b.VerifyWalkReplay(target, 80, output);
         Assert.Equal(applications, b.Count(MobaExecutionKind.BuffApply, 30060391));
     }
 
@@ -798,7 +825,7 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
         b.AssertNoPendingAreaEvents();
     }
 
-    private sealed class Battle : IDisposable
+    private sealed partial class Battle : IDisposable
     {
         private readonly ConsoleBattleBootstrapper bootstrap;
         private readonly RollbackCoordinator rollback;
@@ -809,7 +836,7 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
         public int Caster { get; }
         private AbilityKit.Ability.World.DI.IWorldResolver Services => bootstrap.RuntimeServices!;
 
-        public Battle(int hero, string scenario)
+        public Battle(int hero, string scenario, bool enableRollback = true)
         {
             artifactDirectory = Path.Combine(AppContext.BaseDirectory, "artifacts", "composition", scenario);
             bootstrap = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault(),
@@ -824,8 +851,8 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
             Setup.Tick(2);
             var world = (IWorld)typeof(ConsoleBattleBootstrapper)
                 .GetField("_runtimeWorld", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(bootstrap)!;
-            rollbackRegistry = MobaRollbackRegistryBuilder.Create(world);
-            rollback = new RollbackCoordinator(rollbackRegistry, new RollbackSnapshotRingBuffer(2));
+            rollbackRegistry = enableRollback ? MobaRollbackRegistryBuilder.Create(world) : null!;
+            rollback = enableRollback ? new RollbackCoordinator(rollbackRegistry, new RollbackSnapshotRingBuffer(2)) : null!;
         }
 
         public int Spawn(string alias, int team, float x, float z, int hero = 1001)
@@ -864,9 +891,31 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
             Services.Resolve<MobaAreaRuntimeService>().TryGetAreas(result, Caster, template);
             return result;
         }
-        public void Move(int actor, float speed) => Actor(actor).motion.Pipeline.AddSource(
-            new FixedDeltaMotionSource(new Vec3(0, 0, speed), .1f, 100,
-                MotionGroups.Ability, MotionStacking.ExclusiveHighestPriority));
+        public void Move(int actor, float speed) => Actor(actor).ReplaceMoveInput(0, Math.Sign(speed));
+
+        public void VerifyWalkReplay(int actorId, float speed, ITestOutputHelper output)
+        {
+            Set(actorId, "MOVE_SPEED", Math.Abs(speed));
+            var origin = Setup.GetActorPosition(actorId);
+            var expectedZ = origin.Z;
+            VerifyReplay(4, output,
+                frameInput: i => Move(actorId, i < 3 ? speed : 0),
+                frameResult: i =>
+                {
+                    if (i == 0) expectedZ = origin.Z;
+                    var actor = Actor(actorId);
+                    var pipeline = actor.motion.Pipeline;
+                    var registry = Services.Resolve<MobaActorRegistry>();
+                    Assert.True(Services.Resolve<MobaLocomotionRuntimeService>().TryGetBinding(
+                        actorId, actor, registry.GetEntityVersion(actorId), pipeline, out var source));
+                    Assert.Equal(i < 3 ? Math.Sign(speed) : 0, source.Input.Z);
+                    if (i < 3) expectedZ += Math.Sign(speed) * source.Speed / 30f;
+                    var actual = Setup.GetActorPosition(actorId);
+                    Assert.Equal(origin.X, actual.X, 3);
+                    Assert.Equal(expectedZ, actual.Z, 3);
+                });
+            Assert.Equal(0f, Actor(actorId).moveInput.Dz);
+        }
         public void Until(Func<bool> condition)
         {
             for (var i = 0; i < 120 && !condition(); i++) Setup.Tick(1);
@@ -891,19 +940,56 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
                 actor.ReplaceProjectileLauncher(launcherId, projectileId, p.RootActorId, p.EndTimeMs,
                     p.ActiveBullets, p.ScheduleId, p.IntervalFrames, p.TotalCount);
                 Assert.False(rollback.TryRestore(in invalid, out var rejected));
-                Assert.Equal(MobaProjectileLinkRollbackProvider.DefaultKey, rejected.ProviderKey);
+                Assert.Equal(MobaSkillLifecycleRollbackProvider.DefaultKey, rejected.ProviderKey);
                 Assert.Equal(0, rejected.ProviderCount);
                 EqualState(before, rollback.Capture(frame));
             }
         }
 
-        public void VerifyReplay(int ticks, ITestOutputHelper output, Action? command = null, Action? restored = null)
+        public Action ObserveSurvivingMotionBindings(int[] ids)
+        {
+            var registry = Services.Resolve<MobaActorRegistry>();
+            var locomotion = Services.Resolve<MobaLocomotionRuntimeService>();
+            var saved = ids.Select(id =>
+            {
+                var actor = Actor(id);
+                var pipeline = actor.motion.Pipeline;
+                var version = registry.GetEntityVersion(id);
+                Assert.True(locomotion.TryGetBinding(id, actor, version, pipeline, out var source));
+                Assert.Contains(source, pipeline.CaptureSourceOrder());
+                Assert.Contains(pipeline.CaptureSourceOrder(), s => s is FixedDeltaMotionSource);
+                return (Id: id, Actor: actor, Version: version, Pipeline: pipeline,
+                    Sources: pipeline.CaptureSourceOrder(), Locomotion: source);
+            }).ToArray();
+            return () =>
+            {
+                foreach (var item in saved)
+                {
+                    Assert.Same(item.Actor, Actor(item.Id));
+                    Assert.Same(item.Pipeline, item.Actor.motion.Pipeline);
+                    Assert.Equal(item.Sources, item.Pipeline.CaptureSourceOrder());
+                    Assert.True(locomotion.TryGetBinding(item.Id, item.Actor, item.Version, item.Pipeline, out var source));
+                    Assert.Same(item.Locomotion, source);
+                }
+            };
+        }
+
+        public void VerifyReplay(int ticks, ITestOutputHelper output, Action? command = null, Action? restored = null,
+            Action? verifyMotion = null, Action<int>? frameInput = null, Action<int>? frameResult = null)
         {
             var checkpoint = new FrameIndex(bootstrap.Context.LastFrame);
             Assert.True(rollback.CaptureAndStore(checkpoint));
             var before = rollback.Capture(checkpoint);
             command?.Invoke();
-            Setup.Tick(ticks);
+            var expectedFrames = new List<WorldRollbackSnapshot>();
+            for (var i = 0; i < ticks; i++)
+            {
+                frameInput?.Invoke(i);
+                Setup.Tick(1);
+                frameResult?.Invoke(i);
+                verifyMotion?.Invoke();
+                expectedFrames.Add(rollback.Capture(new(bootstrap.Context.LastFrame)));
+            }
             var end = new FrameIndex(bootstrap.Context.LastFrame);
             var expected = rollback.Capture(end);
             Save("checkpoint", before);
@@ -915,8 +1001,16 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
                 Assert.Equal(notifications, areaNotifications);
                 EqualState(before, rollback.Capture(checkpoint));
                 restored?.Invoke();
+                verifyMotion?.Invoke();
                 command?.Invoke();
-                Setup.Tick(ticks);
+                for (var i = 0; i < ticks; i++)
+                {
+                    frameInput?.Invoke(i);
+                    Setup.Tick(1);
+                    frameResult?.Invoke(i);
+                    verifyMotion?.Invoke();
+                    EqualState(expectedFrames[i], rollback.Capture(new(bootstrap.Context.LastFrame)));
+                }
                 Assert.Equal(end.Value, bootstrap.Context.LastFrame);
                 var actual = rollback.Capture(end);
                 EqualState(expected, actual);
@@ -977,8 +1071,10 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
 
         public void VerifySettledWallCrossing(int targetActorId, ITestOutputHelper output)
         {
+            Set(targetActorId, "MOVE_SPEED", 80);
             Move(targetActorId, 80);
             Until(() => Setup.CountActorBuffs(targetActorId, 30060391) == 1);
+            Move(targetActorId, 0);
             Assert.InRange(Setup.GetActorPosition(targetActorId).Z, 109.99f, 110.01f);
             Assert.Equal(75f, new MobaAttrs(Actor(targetActorId)).MagicDefense, 3);
             AssertNoPendingEnter();
@@ -994,7 +1090,7 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
             Assert.Equal(1, Setup.CountActorBuffs(targetActorId, 30060391));
             Assert.Equal(75f, new MobaAttrs(Actor(targetActorId)).MagicDefense, 3);
             var applications = Count(MobaExecutionKind.BuffApply, 30060391);
-            VerifyReplay(4, output, () => Move(targetActorId, -80));
+            VerifyWalkReplay(targetActorId, -80, output);
             Assert.Equal(applications, Count(MobaExecutionKind.BuffApply, 30060391));
             Assert.Equal(1, Setup.CountActorBuffs(targetActorId, 30060391));
             AssertNoPendingEnter();
@@ -1226,7 +1322,7 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
         /// 使用正式发布模板创建测试发射请求，允许选择发射次数和弹型并标记父技能已结束。
         /// </summary>
         public void SpawnTestRepeatLauncher(int durationMs = 3000, bool endPipeline = false,
-            int bulletsPerShot = 2, float fanAngleDeg = 30)
+            int bulletsPerShot = 2, float fanAngleDeg = 30, int processId = 0)
         {
             var configs = Services.Resolve<MobaConfigDatabase>();
             Assert.True(configs.TryGetProjectileLauncher(2, out var launcher));
@@ -1240,7 +1336,7 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
             var source = new ProjectileSourceContext(Caster, 0, projectile.Id, sourceNode.ContextId,
                 sourceNode.ContextId, sourceNode.ContextId, skill.Handle, default);
             Assert.True(Services.Resolve<MobaProjectileService>().LaunchFromSpawn(Caster, launcher, projectile,
-                bulletsPerShot, fanAngleDeg, durationMs, in point, Vec3.Forward, in source));
+                bulletsPerShot, fanAngleDeg, durationMs, processId, in point, Vec3.Forward, in source));
             Assert.True(HasLauncher());
             if (endPipeline)
                 Assert.True(skills.MarkPipelineEnded(skill.Handle, MobaSkillRuntimeEndReason.PipelineCompleted));
@@ -1269,10 +1365,10 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
         }
 
         /// <summary>
-        /// 验证最后弹体退出时来源仍有效，帧末完成释放；跨已销毁对象恢复须零导入拒绝。
+        /// 验证最后弹体退出时来源仍有效，帧末完成释放；跨 Launcher 清理可完整恢复。
         /// 区分 Actor 清理当帧和 Continuous 也已移除的稳定检查点，后者重演不重发通知。
         /// </summary>
-        public void VerifyLastExitAndSettledReplay(ITestOutputHelper output, int expectedCount = 2, int? hitTarget = null)
+        public void VerifyLastExitAndSettledReplay(ITestOutputHelper output, int expectedCount = 2, int? hitTarget = null, bool beforeEmit = false)
         {
             var links = Services.Resolve<MobaProjectileLinkService>();
             var skills = Services.Resolve<MobaSkillCastRuntimeService>();
@@ -1298,11 +1394,40 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
                 Assert.True(skills.TryGet(child.SkillRuntimeHandle, out _));
                 hits.Add((evt, target));
             });
-            WorldRollbackSnapshot beforeExit = default;
+            var checkpoint = new FrameIndex(Frame);
+            Assert.True(rollback.CaptureAndStore(checkpoint));
+            var beforeExit = rollback.Capture(checkpoint);
+            var beforeJournal = ReadActorJournal();
+            var checkpointNotifications = spawns + exits.Count + hits.Count;
+            var checkpointSpawns = spawns;
+            var checkpointExits = exits.Count;
+            var checkpointHits = hits.Count;
+            var expected = new List<WorldRollbackSnapshot>();
+            var projectileStates = new List<(int, int, Vec3)[]>();
+            var notificationDeltas = new List<int>();
+            var journals = new List<string[]>();
             for (var i = 0; i < 120 && HasLauncher(); i++)
             {
-                beforeExit = rollback.Capture(new(Frame));
+                if (!beforeEmit)
+                {
+                    checkpoint = new FrameIndex(Frame);
+                    Assert.True(rollback.CaptureAndStore(checkpoint));
+                    beforeExit = rollback.Capture(checkpoint);
+                    beforeJournal = ReadActorJournal();
+                    checkpointNotifications = spawns + exits.Count + hits.Count;
+                    checkpointSpawns = spawns;
+                    checkpointExits = exits.Count;
+                    checkpointHits = hits.Count;
+                    expected.Clear();
+                    projectileStates.Clear();
+                    notificationDeltas.Clear();
+                    journals.Clear();
+                }
                 Setup.Tick(1);
+                expected.Add(rollback.Capture(new(Frame)));
+                projectileStates.Add(ReadProjectileResults());
+                notificationDeltas.Add(spawns + exits.Count + hits.Count - checkpointNotifications);
+                journals.Add(ReadActorJournal());
             }
             Assert.False(HasLauncher());
             Assert.Equal(expectedCount, spawns);
@@ -1322,14 +1447,41 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
             Assert.True(contexts.TryGet(source.RootContextId, out var endedRoot));
             Assert.True(endedRoot.IsEnded);
             Assert.Equal(0, PendingNotifications);
-            AssertRejectedWithoutMutation(beforeExit, "missing target actor is not a flying projectile");
             var launcherCleanup = rollback.Capture(new(Frame));
             Setup.Tick(1);
+            expected.Add(rollback.Capture(new(Frame)));
+            projectileStates.Add(ReadProjectileResults());
+            notificationDeltas.Add(spawns + exits.Count + hits.Count - checkpointNotifications);
+            journals.Add(ReadActorJournal());
+            for (var replay = 0; replay < 2; replay++)
+            {
+                var seen = spawns + exits.Count + hits.Count;
+                Assert.True(bootstrap.TryRestoreSimulationFrame(rollback, checkpoint, out var result), result.ToString());
+                Assert.Equal(seen, spawns + exits.Count + hits.Count);
+                Assert.Equal(0, PendingNotifications);
+                EqualState(beforeExit, rollback.Capture(checkpoint));
+                Assert.Equal(beforeJournal, ReadActorJournal());
+                var restoredLauncher = Assert.Single(links.CaptureRollbackState().Launchers);
+                Assert.Equal(launcher.ActorId, restoredLauncher.ActorId);
+                Assert.Equal(source, restoredLauncher.Source);
+                Assert.True(skills.TryGet(source.SkillRuntimeHandle, out var restoredRuntime));
+                Assert.True(restoredRuntime.PendingChildren > 0);
+                for (var i = 0; i < expected.Count; i++)
+                {
+                    Setup.Tick(1);
+                    EqualState(expected[i], rollback.Capture(new(Frame)));
+                    Assert.Equal(projectileStates[i], ReadProjectileResults());
+                    Assert.Equal(notificationDeltas[i], spawns + exits.Count + hits.Count - seen);
+                    Assert.Equal(journals[i], ReadActorJournal());
+                }
+            }
             AssertRejectedWithoutMutation(launcherCleanup, "Local Continuous membership is outside declared recovery ownership");
             VerifyProjectileBoundaryReplay(4, output);
-            Assert.Equal(expectedCount, spawns);
-            Assert.Equal(expectedCount, exits.Count);
-            Assert.Equal(hitTarget.HasValue ? 1 : 0, hits.Count);
+            Assert.Equal(expectedCount + 2 * (expectedCount - checkpointSpawns), spawns);
+            Assert.Equal(expectedCount + 2 * (expectedCount - checkpointExits), exits.Count);
+            var expectedHits = hitTarget.HasValue ? 1 : 0;
+            Assert.Equal(expectedHits + 2 * (expectedHits - checkpointHits), hits.Count);
+            output.WriteLine($"cleaned Launcher checkpoint={checkpoint.Value}, beforeEmit={beforeEmit}, frames={expected.Count}, replays=2");
             Assert.False(skills.TryGet(source.SkillRuntimeHandle, out _));
         }
 
@@ -1467,7 +1619,7 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
                 p.ScheduleId = original;
                 Assert.False(rollback.TryRestore(invalid, out var result));
                 Assert.Equal(0, result.ProviderCount);
-                Assert.Equal(MobaProjectileLinkRollbackProvider.DefaultKey, result.ProviderKey);
+                Assert.Equal(MobaSkillLifecycleRollbackProvider.DefaultKey, result.ProviderKey);
                 EqualState(live, rollback.Capture(new(Frame)));
             }
             finally { p.ScheduleId = original; }
@@ -1744,16 +1896,18 @@ public sealed class MobaProjectileAreaMotionCompositionTests(ITestOutputHelper o
         public bool HasLauncher() => Services.Resolve<MobaProjectileLinkService>().CaptureRollbackState().Launchers.Length != 0;
 
         /// <summary>
-        /// 在正式到达导致发射器清理后，验证旧检查点零导入拒绝且当前世界完整保持不变。
+        /// 正式到达后产生额外 Motion Continuous，验证其仍不在本批 Launcher 恢复所有权内。
         /// </summary>
-        public void AssertCleanupRejectsReplay(Action advance)
+        public void AssertArrivalMotionRejectsReplay(Action advance)
         {
             var checkpoint = new FrameIndex(bootstrap.Context.LastFrame);
             Assert.True(rollback.CaptureAndStore(checkpoint));
             var before = rollback.Capture(checkpoint);
             advance();
             Assert.False(HasLauncher());
-            AssertRejectedWithoutMutation(before, "missing target actor is not a flying projectile");
+            Assert.Contains(Services.Resolve<MobaContinuousManager>().GetAllContinuous(),
+                c => c is AbilityKit.Demo.Moba.Services.Motion.MobaMotionContinuousRuntime);
+            AssertRejectedWithoutMutation(before, "Local Continuous membership is incomplete");
         }
 
         private void EqualState(WorldRollbackSnapshot expected, WorldRollbackSnapshot actual)

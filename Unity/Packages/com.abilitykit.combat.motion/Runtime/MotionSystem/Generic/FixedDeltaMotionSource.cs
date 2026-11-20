@@ -142,24 +142,24 @@ namespace AbilityKit.Combat.MotionSystem.Generic
         public MotionCollisionConstraints CompletionCollisionPolicy => _completionCollisionPolicy;
 
         public FixedDeltaMotionExactState CaptureExactState() => new FixedDeltaMotionExactState(
-            _timeLeftRaw, _active, _deltaPerSecond, _groupId, _priority, _stacking,
+            _durationRaw, _timeLeftRaw, _active, _deltaPerSecond, _groupId, _priority, _stacking,
             _hasCollisionPolicy, _collisionPolicy, _hasCompletionCollisionPolicy, _completionCollisionPolicy);
 
         public void ValidateExactState(in FixedDeltaMotionExactState state)
         {
-            if (state.TimeLeftRaw < 0 || state.TimeLeftRaw > _durationRaw ||
+            if (state.DurationRaw < 0 || state.TimeLeftRaw < 0 || state.TimeLeftRaw > state.DurationRaw ||
                 state.Active != (state.TimeLeftRaw > 0) ||
                 !Finite(state.Velocity.X) || !Finite(state.Velocity.Y) || !Finite(state.Velocity.Z) ||
                 !Enum.IsDefined(typeof(MotionStacking), state.Stacking) ||
-                state.GroupId != _groupId || state.Priority != _priority || state.Stacking != _stacking ||
-                !state.Velocity.Equals(_deltaPerSecond) ||
+                state.DurationRaw != _durationRaw || state.GroupId != _groupId || state.Priority != _priority ||
+                state.Stacking != _stacking || !state.Velocity.Equals(_deltaPerSecond) ||
                 state.HasCollisionPolicy != _hasCollisionPolicy || !state.CollisionPolicy.Equals(_collisionPolicy) ||
                 state.HasCompletionCollisionPolicy != _hasCompletionCollisionPolicy ||
                 !state.CompletionCollisionPolicy.Equals(_completionCollisionPolicy))
                 throw new InvalidOperationException("Invalid FixedDelta exact state or changed frozen source configuration.");
         }
 
-        /// <summary>Restores values on the same configured source without any lifecycle callback.</summary>
+        /// <summary>Restores exact time state on the same frozen source without lifecycle callbacks.</summary>
         public void RestoreExactState(in FixedDeltaMotionExactState state)
         {
             ValidateExactState(in state);
@@ -230,15 +230,16 @@ namespace AbilityKit.Combat.MotionSystem.Generic
     /// <summary>Exact in-process value state. Unlike MotionSourceSnapshot, time never crosses float.</summary>
     public readonly struct FixedDeltaMotionExactState
     {
-        public FixedDeltaMotionExactState(long timeLeftRaw, bool active, Vec3 velocity, int groupId,
+        public FixedDeltaMotionExactState(long durationRaw, long timeLeftRaw, bool active, Vec3 velocity, int groupId,
             int priority, MotionStacking stacking, bool hasCollisionPolicy, MotionCollisionConstraints collisionPolicy,
             bool hasCompletionCollisionPolicy, MotionCollisionConstraints completionCollisionPolicy)
         {
-            TimeLeftRaw = timeLeftRaw; Active = active; Velocity = velocity; GroupId = groupId;
+            DurationRaw = durationRaw; TimeLeftRaw = timeLeftRaw; Active = active; Velocity = velocity; GroupId = groupId;
             Priority = priority; Stacking = stacking; HasCollisionPolicy = hasCollisionPolicy;
             CollisionPolicy = collisionPolicy; HasCompletionCollisionPolicy = hasCompletionCollisionPolicy;
             CompletionCollisionPolicy = completionCollisionPolicy;
         }
+        public long DurationRaw { get; }
         public long TimeLeftRaw { get; }
         public bool Active { get; }
         public Vec3 Velocity { get; }

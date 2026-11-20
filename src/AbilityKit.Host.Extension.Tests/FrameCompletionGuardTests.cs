@@ -80,6 +80,40 @@ public sealed class FrameCompletionGuardTests
     }
 
     [Fact]
+    public void Prediction_restore_floor_preserves_boundary_after_rebase()
+    {
+        var options = new HostRuntimeOptions();
+        var runtime = new HostRuntime(new GuardedWorldManager(), options);
+        var prediction = new ClientPredictionDriverModule(_ => null!, _ => null!,
+            maxPredictionAheadFrames: 8, minPredictionWindow: 8, enableRollback: true,
+            buildRollbackRegistry: world =>
+            {
+                var registry = new RollbackRegistry();
+                registry.Register(new GuardedProvider((GuardedWorld)world, () => { }));
+                return registry;
+            });
+        prediction.Install(runtime, options);
+        var world = runtime.CreateWorld(new WorldCreateOptions(new WorldId("prediction-floor"), "test"));
+        Assert.True(runtime.Features.TryGetFeature<IClientPredictionRestoreFloor>(out var boundary));
+        Assert.False(boundary.TryGetRestoreFloor(world.Id, out _));
+        Assert.False(prediction.TryCommitVerifiedRestoreAnchor(world.Id, new FrameIndex(1)));
+
+        runtime.Tick(.033f);
+        var frame = new FrameIndex(1);
+        Assert.True(prediction.TryCommitVerifiedRestoreAnchor(world.Id, frame));
+        Assert.True(boundary.TryGetRestoreFloor(world.Id, out var committed));
+        Assert.Equal(frame, committed);
+        Assert.False(prediction.TryRebase(world.Id, new FrameIndex(0)));
+        Assert.True(prediction.TryGetFrames(world.Id, out _, out var predicted));
+        Assert.Equal(frame, predicted);
+
+        Assert.True(prediction.TryRebase(world.Id, frame));
+        Assert.True(boundary.TryGetRestoreFloor(world.Id, out committed));
+        Assert.Equal(frame, committed);
+        Assert.False(prediction.TryRebase(world.Id, new FrameIndex(0)));
+    }
+
+    [Fact]
     public void Catch_up_does_not_feed_or_advance_failed_frame()
     {
         var manager = new GuardedWorldManager();

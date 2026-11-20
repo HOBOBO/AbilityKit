@@ -16,9 +16,12 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             collectionCheck: false);
 
         private readonly object _operationSync = new object();
+        private readonly object _restoreSync = new object();
         private readonly RollbackRegistry _registry;
         private readonly RollbackSnapshotRingBuffer _buffer;
         private RollbackOperationResult _lastOperationResult;
+        private FrameIndex? _restoreFloor;
+        private int _restoreDepth;
 
         public event Action<RollbackOperationResult> OperationCompleted;
 
@@ -39,6 +42,39 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
 
             _registry.Seal();
+        }
+
+        /// <summary>
+        /// 读取本协调器已生效的最早可恢复帧。未安装权威结算边界时返回 false。
+        /// </summary>
+        public bool TryGetRestoreFloor(out FrameIndex frame)
+        {
+            lock (_restoreSync)
+            {
+                frame = _restoreFloor.GetValueOrDefault();
+                return _restoreFloor.HasValue;
+            }
+        }
+
+        /// <summary>
+        /// 提交已验证的权威锚点。调用方必须在会话帧边界确认锚点位于有效轨迹，
+        /// 并排除正在等待或重演的旧纠偏；协调器只验证本地快照存在性和恢复准入。
+        /// </summary>
+        public bool TryAdvanceRestoreFloor(FrameIndex frame)
+        {
+            lock (_restoreSync)
+            {
+                if (_restoreDepth != 0 || frame.Value < 0) return false;
+                if (_restoreFloor is FrameIndex current)
+                {
+                    if (frame.Value < current.Value) return false;
+                    if (frame.Value == current.Value) return true;
+                }
+
+                if (!_buffer.Contains(frame)) return false;
+                _restoreFloor = frame;
+                return true;
+            }
         }
 
         public bool CaptureAndStore(FrameIndex frame)
@@ -163,32 +199,51 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             return TryRestore(frame, out _);
         }
 
-        public bool TryRestore(FrameIndex frame, out RollbackOperationResult result)
+        public bool TryRestore(FrameIndex frame, out RollbackOperationResult result) =>
+            TryRestore(frame, discardFuture: false, out result);
+
+        /// <summary>
+        /// 恢复预测分支并在发布结果前丢弃恢复点之后的历史；失败时保留已有快照。
+        /// </summary>
+        public bool TryRestoreAndDiscardFuture(FrameIndex frame, out RollbackOperationResult result) =>
+            TryRestore(frame, discardFuture: true, out result);
+
+        private bool TryRestore(FrameIndex frame, bool discardFuture, out RollbackOperationResult result)
         {
-            if (!_buffer.TryGet(frame, out var snapshot))
+            bool restored;
+            lock (_restoreSync)
             {
-                result = RollbackOperationResult.Failure(
-                    RollbackOperationKind.Restore,
-                    RollbackOperationStatus.SnapshotNotFound,
-                    frame,
-                    $"Rollback snapshot not found. frame={frame.Value}");
-                Publish(result);
-                return false;
+                if (IsBelowRestoreFloor(frame, out result)) restored = false;
+                else if (_buffer.TryGet(frame, out var snapshot))
+                {
+                    restored = RestoreAdmittedSnapshot(snapshot, out result);
+                    if (restored && discardFuture) _buffer.DiscardAfter(frame);
+                }
+                else
+                {
+                    result = RollbackOperationResult.Failure(
+                        RollbackOperationKind.Restore,
+                        RollbackOperationStatus.SnapshotNotFound,
+                        frame,
+                        $"Rollback snapshot not found. frame={frame.Value}");
+                    restored = false;
+                }
             }
 
-            return TryRestore(snapshot, out result);
+            Publish(result);
+            return restored;
         }
 
         public bool TryRestore(in WorldRollbackSnapshot snapshot, out RollbackOperationResult result)
         {
-            var restored = TryRestoreCore(snapshot, out result);
+            var restored = RestoreWithAdmission(snapshot, out result);
             Publish(result);
             return restored;
         }
 
         public void Restore(in WorldRollbackSnapshot snapshot)
         {
-            if (TryRestoreCore(snapshot, out var result)) return;
+            if (RestoreWithAdmission(snapshot, out var result)) return;
 
             if (result.Exception != null)
             {
@@ -200,8 +255,38 @@ namespace AbilityKit.Ability.FrameSync.Rollback
 
         public void ClearHistory()
         {
-            _buffer.Clear();
+            lock (_restoreSync) _buffer.Clear();
             Publish(RollbackOperationResult.Success(RollbackOperationKind.Clear, default));
+        }
+
+        private bool RestoreWithAdmission(in WorldRollbackSnapshot snapshot, out RollbackOperationResult result)
+        {
+            lock (_restoreSync)
+            {
+                if (IsBelowRestoreFloor(snapshot.Frame, out result)) return false;
+                return RestoreAdmittedSnapshot(snapshot, out result);
+            }
+        }
+
+        private bool IsBelowRestoreFloor(FrameIndex frame, out RollbackOperationResult result)
+        {
+            if (_restoreFloor is FrameIndex floor && frame.Value < floor.Value)
+            {
+                result = RollbackOperationResult.Failure(
+                    RollbackOperationKind.Restore, RollbackOperationStatus.BeforeRestoreFloor, frame,
+                    $"Rollback frame is before the restore floor. frame={frame.Value} floor={floor.Value}");
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        private bool RestoreAdmittedSnapshot(in WorldRollbackSnapshot snapshot, out RollbackOperationResult result)
+        {
+            _restoreDepth++;
+            try { return TryRestoreCore(snapshot, out result); }
+            finally { _restoreDepth--; }
         }
 
         private bool TryRestoreCore(
@@ -268,7 +353,7 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                 try
                 {
                     snapshotContext = new RollbackSnapshotPreflightContext(
-                        snapshot.Frame, entries, providerMap);
+                        snapshot.Frame, entries, providerMap, _registry.StructureRestoreOrder);
                 }
                 catch (Exception ex)
                 {
@@ -338,6 +423,7 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                         snapshot,
                         entries,
                         providers,
+                        snapshotContext.StructureRestoreEntryIndices,
                         structuralPhase: true,
                         ref importedCount,
                         out result))
@@ -349,6 +435,7 @@ namespace AbilityKit.Ability.FrameSync.Rollback
                         snapshot,
                         entries,
                         providers,
+                        snapshotContext.StructureRestoreEntryIndices,
                         structuralPhase: false,
                         ref importedCount,
                         out result))
@@ -373,15 +460,21 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             in WorldRollbackSnapshot snapshot,
             WorldRollbackSnapshotEntry[] entries,
             IRollbackStateProvider[] providers,
+            IReadOnlyList<int> structureRestoreEntryIndices,
             bool structuralPhase,
             ref int importedCount,
             out RollbackOperationResult result)
         {
-            for (var i = 0; i < entries.Length; i++)
+            /*
+             * 结构阶段执行预检所见的同一份有效计划；普通项继续保留输入相对次序。
+             * 导入失败沿用部分恢复的失败合同，不继续后续结构或字段导入。
+             */
+            var count = structuralPhase ? structureRestoreEntryIndices.Count : entries.Length;
+            for (var position = 0; position < count; position++)
             {
+                var i = structuralPhase ? structureRestoreEntryIndices[position] : position;
                 var provider = providers[i];
-                var isStructural = provider is IRollbackStructureRestoreProvider;
-                if (isStructural != structuralPhase) continue;
+                if (!structuralPhase && provider is IRollbackStructureRestoreProvider) continue;
 
                 var entry = entries[i];
                 try

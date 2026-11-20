@@ -684,6 +684,29 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             result.Sequence?.Stop(in result, reason);
         }
 
+        /// <summary>
+        /// 以纯检查点和当前配置准备内置 Repeat 发射运行时，仅重绑服务与稳定身份。
+        /// 不执行扩展工厂，不启动序列，不修改当前世界；其它序列没有重建资格。
+        /// </summary>
+        internal MobaProjectileLaunchContinuous PrepareRollbackLaunch(MobaProjectileLaunchContinuousRollbackState state)
+        {
+            if (state == null || _projectiles == null || !state.TryCreateRequest(_configs, out var request) ||
+                request.Launcher.EmitterType != ProjectileEmitterType.Linear || !(_emitters is MobaProjectileEmitterManager) ||
+                state.ContinuousProcessId > 0 && !_configs.TryGetContinuousProcess(state.ContinuousProcessId, out _))
+                throw new InvalidOperationException("Unsupported projectile launch rollback configuration.");
+            IMobaProjectileLaunchSequence sequence = new RepeatProjectileLaunchSequence();
+            /*
+             * Repeat 序列没有实例游标；未来任务和已发射弹体分别由物理 Provider 恢复。
+             */
+            var result = new MobaProjectileLaunchResult(true, state.LauncherActorId,
+                new AbilityKit.Combat.Projectile.ProjectileScheduleId(state.ScheduleId), state.IntervalFrames,
+                state.TotalCount, state.StartFrame, state.EndTimeMs, null, sequence, _projectiles, this, null);
+            var runtime = MobaProjectileLaunchContinuous.RestoreRollbackState(in request, this, _configs,
+                _tagTemplates, in result);
+            if (state.ModifierSourceId > 0) runtime.AssignModifierSourceId(state.ModifierSourceId);
+            return runtime;
+        }
+
         public int CurrentFrame => GetCurrentFrame();
         public long NowMs => GetNowMs();
 

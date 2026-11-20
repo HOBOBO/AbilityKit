@@ -115,8 +115,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                     foreach (var entry in entries)
                     {
                         restored.Add(entry.ActorId);
-                        if (_actors.TryGet(entry.ActorId, out _))
-                            candidate.RegisterActorProfile(entry.ActorId, ResolveDefinition(entry.ActorId));
+                        if (TryGetRecoveryActor(entry.ActorId, frame.Value, out _))
+                            candidate.RegisterActorProfile(entry.ActorId, ResolveDefinition(entry.ActorId, frame.Value));
                     }
                     foreach (var id in _actors.CopyActorIdsInOrder())
                         if (!restored.Contains(id)) candidate.ClearActorProfile(id);
@@ -137,7 +137,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     throw new InvalidOperationException("Character HFSM recovery contains a duplicate or null entry.");
                 if (entry.Machine.Frame != frame.Value)
                     throw new InvalidOperationException("Character HFSM recovery frame differs from actor snapshot frame.");
-                var definition = ResolveDefinition(entry.ActorId);
+                var definition = ResolveDefinition(entry.ActorId, frame.Value);
                 _parameters?.ValidateActorProfile(entry.ActorId, definition);
                 var snapshot = new MobaCharacterHfsmSnapshot
                 {
@@ -159,7 +159,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                      * 预检直接恢复隔离状态，不执行初始化、状态进入或退出动作，
                      * 也不绑定存活参数、诊断注册或战斗效果。
                      */
-                    if (_actors.TryGet(entry.ActorId, out var existing) && existing.hasCharacterHfsm &&
+                    if (TryGetRecoveryActor(entry.ActorId, frame.Value, out var existing) && existing.hasCharacterHfsm &&
                         (existing.characterHfsm.Runtime == null ||
                          existing.characterHfsm.Runtime.DefinitionHash != candidate.DefinitionHash))
                         throw new InvalidOperationException("Character HFSM recovery definition differs from actor machine.");
@@ -210,9 +210,14 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
         }
 
-        private StateMachineDefinition ResolveDefinition(int actorId)
+        private bool TryGetRecoveryActor(int actorId, int frame, out global::ActorEntity actor) =>
+            _actors.TryGet(actorId, out actor) || _actors.TryGetRetainedForRecovery(actorId, frame, out actor);
+
+        private StateMachineDefinition ResolveDefinition(int actorId, int? restoreFrame = null)
         {
-            if (_actors.TryGet(actorId, out var actor) && actor.hasSkillLoadout)
+            var found = restoreFrame.HasValue ? TryGetRecoveryActor(actorId, restoreFrame.Value, out var actor) :
+                _actors.TryGet(actorId, out actor);
+            if (found && actor.hasSkillLoadout)
             {
                 var heroId = actor.skillLoadout.HeroId;
                 // Match the live character system's actor-kind definition selection.

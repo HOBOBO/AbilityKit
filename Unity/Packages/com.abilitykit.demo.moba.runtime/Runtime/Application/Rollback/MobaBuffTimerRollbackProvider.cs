@@ -169,7 +169,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 var identity = BuffIdentity.FromEntry(entry);
                 if (entry.ActorId <= 0 || entry.BuffId <= 0 || entry.StackCount <= 0 ||
                     entry.RemainingRaw < 0 && entry.RemainingRaw != InfiniteRemainingRaw ||
-                    entry.IntervalRemainingRaw < 0 || entry.ContinuousMaxStack <= 0 ||
+                    entry.IntervalRemainingRaw == long.MinValue || entry.ContinuousMaxStack <= 0 ||
                     entry.HasContinuous && entry.ContinuousState != (int)ContinuousState.Active &&
                     entry.ContinuousState != (int)ContinuousState.Paused ||
                     !entry.HasContinuous && entry.ContinuousState != 0 ||
@@ -264,6 +264,12 @@ namespace AbilityKit.Demo.Moba.Rollback
                     $"Buff Continuous lifecycle state changed since capture. {identity} " +
                     $"snapshot={entry.ContinuousState} current={(int)continuous.State}.");
             }
+
+            if (entry.IntervalRemainingRaw < 0 &&
+                (!(continuous.Config is IMobaContinuousPeriodicConfig periodic) ||
+                 periodic.IntervalSeconds <= 0f || float.IsNaN(periodic.IntervalSeconds) || float.IsInfinity(periodic.IntervalSeconds) ||
+                 periodic.IntervalEffectIds == null || periodic.IntervalEffectIds.Count == 0))
+                throw new InvalidOperationException($"Non-periodic Buff Continuous cannot contain interval backlog. {identity}.");
         }
 
         private static void Apply(in MobaBuffTimerRollbackEntry entry, BuffRuntime runtime)

@@ -21,9 +21,12 @@ namespace AbilityKit.Demo.Moba.Rollback
         internal MobaOwnerBlackboardRollbackProvider OwnerBlackboards { get; }
 
         public MobaSkillLifecycleRollbackProvider(IWorld world, MobaOwnerBlackboardRollbackProvider owners)
+            : this(world, owners, false) { }
+
+        internal MobaSkillLifecycleRollbackProvider(IWorld world, MobaOwnerBlackboardRollbackProvider owners, bool restorePathSlots)
         {
             OwnerBlackboards = owners ?? throw new ArgumentNullException(nameof(owners));
-            _lifecycle = new MobaSkillLifecycleRollbackPreparation(world, owners);
+            _lifecycle = new MobaSkillLifecycleRollbackPreparation(world, owners, restorePathSlots);
             world.Services.TryResolve(out _frameGuard);
         }
 

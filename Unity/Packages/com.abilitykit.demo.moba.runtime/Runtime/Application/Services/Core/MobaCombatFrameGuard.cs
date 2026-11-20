@@ -29,6 +29,11 @@ namespace AbilityKit.Demo.Moba.Services
         public Exception Failure => _failure;
 
         /// <summary>
+        /// 当前会话完成守卫检查的 Tick 次数，不是模拟帧号，也不随回滚快照恢复。
+        /// </summary>
+        public long CompletedTickCount { get; private set; }
+
+        /// <summary>
         /// 失败和正在执行的世界均不能再次进入。
         /// </summary>
         public bool CanAdvance => _failure == null && !_executing;
@@ -61,7 +66,11 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (!_executing) throw new InvalidOperationException("MOBA frame was not started.");
             _executing = false;
-            if (CanCommit) return;
+            if (CanCommit)
+            {
+                CompletedTickCount++;
+                return;
+            }
             var error = new InvalidOperationException("MOBA frame incomplete: failed settlement or notifications produced after settlement.", _failure);
             FailFrame(error);
             throw error;

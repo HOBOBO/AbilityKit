@@ -5,15 +5,19 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services.Passive;
+using AbilityKit.Demo.Moba.Services.StateSync;
+using AbilityKit.Demo.Moba.Services.Motion;
+using AbilityKit.Demo.Moba.Services;
 using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
     [MobaRollbackProvider(DefaultKey)]
-    public sealed class MobaEntitasComponentRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider
+    public sealed class MobaEntitasComponentRollbackProvider : IRollbackStateProvider,
+        IRollbackStatePreflightProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10018;
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 4;
         private const int ComponentMetadataMagic = 0x4D434D31;
         private const byte FlyingProjectileFlag = 1;
         private const byte ProjectileLauncherFlag = 2;
@@ -31,6 +35,20 @@ namespace AbilityKit.Demo.Moba.Rollback
         }
 
         public int Key => DefaultKey;
+
+        public string Name => "EntitasComponents";
+
+        public byte[] ExportState(FrameIndex frame) => Export(frame);
+
+        public void ImportState(FrameIndex frame, byte[] payload) => Import(frame, payload);
+
+        public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)
+        {
+            var payload = Export(frame);
+            hash.AddInt(Key);
+            hash.AddInt(payload.Length);
+            for (var i = 0; i < payload.Length; i++) hash.AddByte(payload[i]);
+        }
 
         public byte[] Export(FrameIndex frame)
         {
@@ -107,7 +125,10 @@ namespace AbilityKit.Demo.Moba.Rollback
                         temporary.hasProjectileLauncher ? temporary.projectileLauncher.LauncherId : 0,
                         temporary.hasProjectileLauncher ? temporary.projectileLauncher.ScheduleId : 0,
                         temporary.hasProjectileLauncher ? temporary.projectileLauncher.RootActorId : 0,
-                        temporary.hasProjectileLauncher ? temporary.projectileLauncher.IntervalFrames : 0);
+                        temporary.hasProjectileLauncher ? temporary.projectileLauncher.IntervalFrames : 0,
+                        temporary.hasProjectileLauncher ? temporary.projectileLauncher.TotalCount : 0,
+                        temporary.hasProjectileLauncher ? temporary.projectileLauncher.EndTimeMs : 0,
+                        temporary.hasProjectileLauncher ? temporary.projectileLauncher.ActiveBullets : 0);
                 }
                 finally
                 {
@@ -121,7 +142,10 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             ValidateImport(frame, payload);
             var snapshot = Read(payload);
-            // Resolve the complete target set before mutating any entity, including direct imports.
+            /*
+             * 包括直接导入在内，写入前必须解析全部目标，
+             * 避免后续目标缺失时仅恢复部分实体。
+             */
             var targets = new List<global::ActorEntity>();
             foreach (var entry in snapshot.Entries ?? Array.Empty<MobaEntitasComponentRollbackEntry>())
             {
@@ -143,7 +167,12 @@ namespace AbilityKit.Demo.Moba.Rollback
             {
                 var metadata = Restore(targets[i], entries[i].Data);
                 targets[i].isFlyingProjectileTag = (metadata.Flags & FlyingProjectileFlag) != 0;
-                // Enabled only when the registry also restores the joint lifecycle owner.
+                if (targets[i].hasTransform)
+                    MobaMotionStateSync.SyncFromTransform(targets[i], targets[i].transform.Value);
+                MobaResourceAttributeContextProjector.RefreshRestored(targets[i]);
+                /*
+                 * 只有注册表同时恢复联合生命周期所有者时才启用被动重绑。
+                 */
                 PassiveRollbackRebind?.MarkRollbackRebind(targets[i]);
             }
         }
@@ -227,7 +256,8 @@ namespace AbilityKit.Demo.Moba.Rollback
     {
         internal MobaEntitasComponentSnapshotSummary(int actorId, long castId, bool flyingProjectile,
             bool projectileLauncher, int launcherProjectileId, bool summonMeta, int summonId, int launcherId,
-            int scheduleId = 0, int launcherRootActorId = 0, int launcherIntervalFrames = 0)
+            int scheduleId = 0, int launcherRootActorId = 0, int launcherIntervalFrames = 0, int launcherTotalCount = 0,
+            long launcherEndTimeMs = 0, int launcherActiveBullets = 0)
         {
             ActorId = actorId;
             CastId = castId;
@@ -240,6 +270,9 @@ namespace AbilityKit.Demo.Moba.Rollback
             ScheduleId = scheduleId;
             LauncherRootActorId = launcherRootActorId;
             LauncherIntervalFrames = launcherIntervalFrames;
+            LauncherTotalCount = launcherTotalCount;
+            LauncherEndTimeMs = launcherEndTimeMs;
+            LauncherActiveBullets = launcherActiveBullets;
         }
 
         internal int ActorId { get; }
@@ -251,6 +284,9 @@ namespace AbilityKit.Demo.Moba.Rollback
         internal int ScheduleId { get; }
         internal int LauncherRootActorId { get; }
         internal int LauncherIntervalFrames { get; }
+        internal int LauncherTotalCount { get; }
+        internal long LauncherEndTimeMs { get; }
+        internal int LauncherActiveBullets { get; }
         internal bool HasSummonMeta { get; }
         internal int SummonId { get; }
     }

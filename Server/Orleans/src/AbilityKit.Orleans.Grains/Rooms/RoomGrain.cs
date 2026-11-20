@@ -800,25 +800,29 @@ public sealed class RoomGrain : Grain, IRoomGrain
         var summary = RequireSummary();
         var nowUnixMs = NowUnixMs();
         var startRoute = RoomFrameSyncRoute.ResolveStartRoute(summary, battleId, initParams, _gameplayModules);
-        if (startRoute.FrameSyncOptions is { } frameSyncOptions)
-        {
-            var frameSyncGrain = GrainFactory.GetGrain<IBattleFrameSyncGrain>(frameSyncOptions.RoomId.ToString());
-            await frameSyncGrain.InitializeAsync(frameSyncOptions);
-        }
-
         WorldStartAnchor? worldStartAnchor;
+        FrameSyncInitialCheckpoint? initialCheckpoint = null;
         if (startRoute.RequiresBattleRuntime)
         {
-            worldStartAnchor = await InitializeBattleRuntimeAsync(state, battleId, initParams, initSpecHash, nowUnixMs);
+            var runtime = await InitializeBattleRuntimeAsync(state, battleId, initParams, initSpecHash, nowUnixMs);
+            worldStartAnchor = runtime?.WorldStartAnchor;
             if (worldStartAnchor is null)
             {
                 return;
             }
+
+            initialCheckpoint = runtime?.InitialCheckpoint;
         }
         else
         {
             worldStartAnchor = CreateWorldStartAnchor(initParams.TickRate);
             initParams.WorldStartAnchor = worldStartAnchor;
+        }
+
+        if (startRoute.FrameSyncOptions is { } frameSyncOptions)
+        {
+            var frameSyncGrain = GrainFactory.GetGrain<IBattleFrameSyncGrain>(frameSyncOptions.RoomId.ToString());
+            await frameSyncGrain.InitializeAsync(frameSyncOptions with { InitialCheckpoint = initialCheckpoint });
         }
 
         var syncCapabilities = RoomNetworkSyncCapabilityResolver.Resolve(summary, initParams,
@@ -843,7 +847,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
         await NotifyRoomChangedAsync();
     }
 
-    private async Task<WorldStartAnchor?> InitializeBattleRuntimeAsync(
+    private async Task<BattleInitResult?> InitializeBattleRuntimeAsync(
         RoomPersistentState state,
         string battleId,
         BattleInitParams initParams,
@@ -874,7 +878,9 @@ public sealed class RoomGrain : Grain, IRoomGrain
             return null;
         }
 
-        return initResult.WorldStartAnchor ?? await battleGrain.GetWorldStartAnchorAsync();
+        return initResult.WorldStartAnchor is not null
+            ? initResult
+            : initResult with { WorldStartAnchor = await battleGrain.GetWorldStartAnchorAsync() };
     }
 
     private async Task RollbackCommitAsync(RoomPersistentState state, string error, long nowUnixMs, bool forceMax = false)

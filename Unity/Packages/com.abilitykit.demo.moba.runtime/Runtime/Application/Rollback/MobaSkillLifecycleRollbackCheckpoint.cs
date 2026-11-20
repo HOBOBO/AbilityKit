@@ -8,13 +8,14 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Motion;
+using AbilityKit.Demo.Moba.Services.Projectile.Launch;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
     internal sealed class MobaSkillLifecycleCheckpoint
     {
         public const string FormatName = "moba-skill-lifecycle";
-        public const int CurrentVersion = 4;
+        public const int CurrentVersion = 11;
         [JsonProperty(Required = Required.Always)] public string Format;
         [JsonProperty(Required = Required.Always)] public int Version;
         [JsonProperty(Required = Required.Always)] public int Frame;
@@ -110,20 +111,29 @@ namespace AbilityKit.Demo.Moba.Rollback
         [JsonProperty(Required = Required.Always)] public int State;
         [JsonProperty(Required = Required.Always)] public long ElapsedRaw;
         [JsonProperty(Required = Required.Always)] public long IntervalRaw;
+        [JsonProperty(Required = Required.Always)] public int ModifierSourceId;
         [JsonProperty(Required = Required.Always)] public bool PausedByTags;
         [JsonProperty(Required = Required.AllowNull)] public string Configuration;
         [JsonProperty(Required = Required.AllowNull)] public MobaManagedMotionCheckpoint Motion;
+        [JsonProperty(Required = Required.AllowNull)] public MobaProjectileLaunchContinuousRollbackState ProjectileLaunch;
 
-        internal static MobaContinuousLocalCheckpoint Capture(Services.MobaContinuousRuntimeBase runtime) => new MobaContinuousLocalCheckpoint
+        internal static MobaContinuousLocalCheckpoint Capture(Services.MobaContinuousRuntimeBase runtime)
         {
-            Type = runtime.GetType().FullName, Id = runtime.Config.Id, OwnerId = runtime.Config.OwnerId,
-            State = (int)runtime.State, ElapsedRaw = runtime.ElapsedRaw, IntervalRaw = runtime.IntervalRemainingRaw,
-            // Pipeline definitions have their own complete runner schema validation.
-            Configuration = runtime is Services.SkillPipelineContinuousRuntime ? null : JsonConvert.SerializeObject(runtime.Config),
-            Motion = runtime is MobaMotionContinuousRuntime motion ? MobaManagedMotionCheckpoint.Capture(motion) : null,
-        };
+            var motion = runtime as MobaMotionContinuousRuntime;
+            return new MobaContinuousLocalCheckpoint
+            {
+                Type = runtime.GetType().FullName, Id = runtime.Config.Id, OwnerId = runtime.Config.OwnerId,
+                State = (int)runtime.State, ElapsedRaw = runtime.ElapsedRaw, IntervalRaw = runtime.IntervalRemainingRaw,
+                ModifierSourceId = motion?.ModifierSourceId ?? 0,
+                // Pipeline definitions have their own complete runner schema validation.
+                Configuration = runtime is Services.SkillPipelineContinuousRuntime ? null : JsonConvert.SerializeObject(runtime.Config),
+                Motion = motion == null ? null : MobaManagedMotionCheckpoint.Capture(motion),
+                ProjectileLaunch = runtime is MobaProjectileLaunchContinuous launch ?
+                    MobaProjectileLaunchContinuousRollbackState.Capture(launch) : null,
+            };
+        }
 
-        internal (string, long, string) Key => (Type, OwnerId, Id);
+        internal (string, long, string, int) Key => (Type, OwnerId, Id, ModifierSourceId);
     }
 
     internal static class MobaSkillLifecycleCheckpointCodec
@@ -132,7 +142,8 @@ namespace AbilityKit.Demo.Moba.Rollback
         internal static readonly string[] SectionNames =
         {
             "context-entities", "execution-contexts", "skill-runtime", "areas", "buffs", "buff-local",
-            "continuous", "trigger-modifiers", "pipelines", "owner-blackboards", "continuous-local",
+            "continuous", "trigger-modifiers", "pipelines", "owner-blackboards", "continuous-local", "locomotion-local",
+            "motion-pipelines",
         };
 
         private static JsonSerializer CreateSerializer() => JsonSerializer.Create(new JsonSerializerSettings

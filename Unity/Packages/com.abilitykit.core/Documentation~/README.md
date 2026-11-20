@@ -26,6 +26,8 @@ Core 的稳定基础面当前覆盖以下能力：
 其中 MOBA 的设置与可选模块安装已迁回所属 Demo 包；Core 中的 Config/Reflection
 类型仅用于下一主版本前的源码和二进制兼容（`Runtime/Numerics` 已于 2026-08 删除）。
 
+`Runtime/Observability` 的既有原语另列为待准入复核范围：当前缺少三个独立框架使用方的证据，注释与测试完成不代表正式纳入。
+
 ---
 
 ## 文档列表
@@ -102,6 +104,30 @@ Core 的稳定基础面当前覆盖以下能力：
 
 **内容概要**：掩码与颜色默认值、静态设置非持久化、公开但未由驱动执行的设置、实时登记遍历、异常隔离范围、形状近似及真实 Unity 验收边界。
 
+### 13. [观测关联原语契约与准入复核](./Observability.md)
+
+**阅读对象**：维护观测标识、同步接收契约或评审 Core 职责的开发者。
+
+**内容概要**：无校验构造、有效性与身份差异、哈希边界、同步接受语义、正式空接收器和独立使用方缺口。
+
+### 14. [旧 Unity 设置引导兼容契约](./UnitySettingsBootstrapCompatibility.md)
+
+**阅读对象**：维护旧 Unity 配置引导或迁移应用设置的开发者。
+
+**内容概要**：延迟执行、嵌套协程、路径拼接、首次复制、请求与落盘失败隔离、同步差异、持久层通知及真实平台验证限制。
+
+### 15. [Core 验证门禁与发布缺口](./ValidationAndReleaseReadiness.md)
+
+**阅读对象**：维护 Core 构建、验证依赖闭包或准备发布评审的开发者。
+
+**内容概要**：中文注释和 XML 文档门禁、编译器拒绝验证、Deterministic 依赖、发布计划状态/精确版本、输入与 HEAD/标签内容核对、失败边界与尚未完成的发布证据。
+
+### 16. [Core 与 Deterministic 独立消费验证](./IndependentConsumption.md)
+
+**阅读对象**：准备消费安装、候选替换、回退及平台验证的开发者。
+
+**内容概要**：独立 .NET 本地制品恢复、缺依赖拒绝、真实 Unity tarball 导入、源码归属及尚未覆盖的正式安装与平台场景。
+
 ---
 
 ## 快速入门
@@ -142,6 +168,7 @@ Foundation Starter 的第一阶段只应依赖 `core` 和 `world.di`，用于验
 | Continuous | `Runtime/Continuous` | 已弃用的兼容面；新代码使用 `com.abilitykit.continuous` |
 | Config/Reflection | 对应 Runtime 目录 | 已迁移 MOBA 消费方，仅保留弃用兼容 API |
 | DebugDraw | `Runtime/DebugDraw` | 已迁至 Diagnostics 的旧诊断兼容面 |
+| Observability | `Runtime/Observability` | 既有观测关联原语，正式发布前待准入复核 |
 
 ### Starter 推荐 API
 
@@ -179,6 +206,8 @@ com.abilitykit.core/Runtime/
 ├── Math/                    # 纯 C# 数学类型
 ├── Mathematics/             # 现有定点数学桥接
 ├── Timing/                  # 单调时间
+├── Unity/                   # 已弃用的 Unity 应用设置引导兼容入口
+├── Observability/           # 既有观测关联原语，待准入复核
 ├── Eventing/、Pooling/         # 当前兼容基础设施，后续拆薄
 └── Config/、Continuous/、Markers/、Reflection/、DebugDraw/
                               # 待迁出的兼容面（Numerics 已删除）

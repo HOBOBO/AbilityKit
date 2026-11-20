@@ -13,6 +13,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IWorldAuthorityFramesSource _authorityFrames = null;
 
         private WorldId _worldId;
+        private IWorldRestoreFloorSource _restoreFloor;
         private bool _hasWorldId;
         private int _rollbackHistoryFrames = 600;
 
@@ -28,6 +29,25 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _worldId = worldId;
             _hasWorldId = true;
+        }
+
+        /// <summary>
+        /// 绑定同世界帧同步驱动提供的回收门槛，不用本地帧兜底。
+        /// </summary>
+        public void BindRestoreFloor(WorldId worldId, IWorldRestoreFloorSource source)
+        {
+            BindWorld(worldId);
+            _restoreFloor = source ?? throw new ArgumentNullException(nameof(source));
+        }
+
+        /// <summary>
+        /// 读取已生效的最早可恢复帧；未取得权威锚点时没有回收资格。
+        /// </summary>
+        public bool TryGetRestoreFloor(out FrameIndex frame)
+        {
+            frame = default;
+            var source = _restoreFloor ?? _authorityFrames as IWorldRestoreFloorSource;
+            return _hasWorldId && source != null && source.TryGetRestoreFloor(_worldId, out frame);
         }
 
         public bool TryGetFrames(out FrameIndex confirmed, out FrameIndex predicted)

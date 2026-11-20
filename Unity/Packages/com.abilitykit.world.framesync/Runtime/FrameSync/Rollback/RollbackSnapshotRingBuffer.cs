@@ -123,6 +123,31 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             }
         }
 
+        internal bool Contains(FrameIndex frame)
+        {
+            lock (_sync)
+            {
+                var index = Mod(frame.Value, _capacity);
+                return _has[index] && _frames[index].Value == frame.Value;
+            }
+        }
+
+        internal void DiscardAfter(FrameIndex frame)
+        {
+            lock (_sync)
+            {
+                for (var index = 0; index < _capacity; index++)
+                {
+                    if (!_has[index] || _frames[index].Value <= frame.Value) continue;
+                    _entryOwners[index]?.Dispose();
+                    _entryOwners[index] = null;
+                    _frames[index] = default;
+                    _versions[index] = default;
+                    _has[index] = false;
+                }
+            }
+        }
+
         private static WorldRollbackSnapshotEntry[] CloneEntriesToArray(
             ReadOnlySpan<WorldRollbackSnapshotEntry> entries)
         {

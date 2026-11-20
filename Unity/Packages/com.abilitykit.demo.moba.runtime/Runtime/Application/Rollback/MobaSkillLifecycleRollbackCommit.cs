@@ -8,11 +8,12 @@ using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Demo.Moba.Services.Motion;
+using AbilityKit.Demo.Moba.Services.Projectile.Launch;
 using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
-    internal enum MobaLifecycleRestoreStage { Detached, Built, Registered, Bound, Projected, Reconciled, AreaRestored }
+    internal enum MobaLifecycleRestoreStage { Detached, Built, Registered, Bound, Projected, Reconciled, AreaRestored, MotionOrdered }
 
     public sealed partial class MobaSkillLifecycleRollbackPreparation
     {
@@ -27,12 +28,14 @@ namespace AbilityKit.Demo.Moba.Rollback
             internal List<TriggerModifierContinuous> Modifiers;
             internal int NextSourceId, NextProjectionId;
             internal MobaContinuousLocalCheckpoint[] Order;
+            internal List<PreparedMotionPipeline> MotionPipelines;
         }
 
         private byte[] CaptureContinuousLocal()
         {
             var entries = new List<MobaContinuousLocalCheckpoint>();
-            foreach (var instance in _continuous.GetAllContinuous())
+            var instances = _continuous.GetAllContinuous();
+            foreach (var instance in instances)
             {
                 if (!(instance is MobaContinuousRuntimeBase runtime))
                     throw new InvalidOperationException("Local lifecycle recovery requires a continuous state accessor.");
@@ -44,12 +47,14 @@ namespace AbilityKit.Demo.Moba.Rollback
         }
 
         private TargetState PrepareTarget(FrameIndex frame, Dictionary<string, byte[]> sections,
-            IReadOnlyList<BuffContinuousRuntime> stagedBuffs)
+            IReadOnlyList<BuffContinuousRuntime> stagedBuffs, int[] actorIds)
         {
             var result = new TargetState
             {
                 Order = MobaSkillLifecycleCheckpointCodec.Decode<MobaContinuousLocalCheckpoint[]>(sections["continuous-local"]),
             };
+            var launches = PrepareProjectileLaunches(frame, sections, result.Order, actorIds);
+            result.Instances.AddRange(launches);
             var metadata = MobaSkillLifecycleCheckpointCodec.Decode<MobaBuffLocalRollbackEntry[]>(sections["buff-local"]);
             var states = MemoryPackSerializer.Deserialize<MobaBuffStateRecoveryPayload>(sections["buffs"]);
             foreach (var entry in states.Entries)
@@ -71,7 +76,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 result.Buffs.Add((runtime, entry.TargetActorId));
             }
             foreach (var buff in stagedBuffs) result.Instances.Add(buff);
-            var intervalEntries = _captures.PrepareLifecycleIntervals(sections["continuous"], stagedBuffs, out result.NextSourceId);
+            var intervalEntries = _captures.PrepareLifecycleIntervals(sections["continuous"], stagedBuffs,
+                out result.NextSourceId, launches);
             result.Intervals = _intervals.PrepareLocalRollback(intervalEntries);
             var execution = MobaSkillLifecycleCheckpointCodec.Decode<MobaExecutionRegistryCheckpoint>(sections["execution-contexts"]);
             var executionIds = new HashSet<long>();
@@ -99,33 +105,41 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
             foreach (var live in _continuous.GetAllContinuous())
                 if (!(live is BuffContinuousRuntime) && !(live is TriggerModifierContinuous) &&
+                    !(live is MobaProjectileLaunchContinuous) &&
                     !(live is SkillPipelineContinuousRuntime) &&
                     !(live is MobaTriggerIntervalContinuousRuntime interval && _intervals.OwnsRuntime(interval)))
                     result.Instances.Add(live);
 
             var byIdentity = Index(result.Instances);
-            var expectedPipelines = new HashSet<(string, long, string)>();
+            var expectedPipelines = new HashSet<(string, long, string, int)>();
             foreach (var runner in SkillRunnerRollbackCodec.Deserialize(sections["pipelines"]).Entries)
             {
                 var run = PipelineRollbackStateCodec.Deserialize(runner.Run);
                 expectedPipelines.Add((typeof(SkillPipelineContinuousRuntime).FullName, runner.ActorId,
-                    $"skill_pipeline:{runner.ActorId}:{runner.SkillId}:{run.ConfigId}:{runner.Context.SourceContextId}"));
+                    $"skill_pipeline:{runner.ActorId}:{runner.SkillId}:{run.ConfigId}:{runner.Context.SourceContextId}", 0));
             }
-            var seen = new HashSet<(string, long, string)>();
+            var seen = new HashSet<(string, long, string, int)>();
             foreach (var entry in result.Order)
             {
                 if (entry == null || string.IsNullOrEmpty(entry.Type) || string.IsNullOrEmpty(entry.Id) ||
-                    entry.ElapsedRaw < 0 || entry.IntervalRaw < 0 ||
+                    entry.ElapsedRaw < 0 || entry.IntervalRaw == long.MinValue ||
                     entry.State != (int)ContinuousState.Active && entry.State != (int)ContinuousState.Paused && entry.State != (int)ContinuousState.Inactive ||
                     entry.PausedByTags && entry.State != (int)ContinuousState.Paused || !seen.Add(entry.Key))
                     throw new InvalidOperationException("Invalid local Continuous order or state.");
                 if (expectedPipelines.Remove(entry.Key))
                 {
-                    if (entry.Configuration != null || entry.Motion != null) throw new InvalidOperationException("Pipeline configuration belongs to its runner checkpoint.");
+                    if (entry.Configuration != null || entry.Motion != null || entry.ProjectileLaunch != null) throw new InvalidOperationException("Pipeline configuration belongs to its runner checkpoint.");
                     continue;
                 }
                 if (!byIdentity.TryGetValue(entry.Key, out var instance))
-                    throw new InvalidOperationException("Local Continuous membership is outside declared recovery ownership.");
+                    throw new InvalidOperationException($"Local Continuous membership is outside declared recovery ownership (type={entry.Type}, owner={entry.OwnerId}, id={entry.Id}).");
+                if (entry.ModifierSourceId != (instance is MobaMotionContinuousRuntime identifiedMotion ? identifiedMotion.ModifierSourceId : 0))
+                    throw new InvalidOperationException("Local Continuous instance identity disagrees with its surviving runtime.");
+                if (!(instance.Config is IMobaContinuousPeriodicConfig periodic) || !IsFinitePositive(periodic.IntervalSeconds))
+                {
+                    if (entry.IntervalRaw < 0)
+                        throw new InvalidOperationException("Non-periodic Continuous cannot contain interval backlog.");
+                }
                 if (instance is MobaMotionContinuousRuntime)
                 {
                     if (entry.Motion == null || entry.State != (int)ContinuousState.Active)
@@ -133,6 +147,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                     entry.Motion.Validate(instance);
                 }
                 else if (entry.Motion != null) throw new InvalidOperationException("Unexpected Motion state on another Continuous type.");
+                if (!(instance is MobaProjectileLaunchContinuous) && entry.ProjectileLaunch != null)
+                    throw new InvalidOperationException("Unexpected projectile launch state on another Continuous type.");
                 if (!string.Equals(entry.Configuration, MobaContinuousLocalCheckpoint.Capture(instance).Configuration, StringComparison.Ordinal))
                     throw new InvalidOperationException("Local continuous configuration changed since the checkpoint.");
                 if (instance is BuffContinuousRuntime || instance is MobaTriggerIntervalContinuousRuntime interval && result.Intervals.Contains(interval))
@@ -152,13 +168,16 @@ namespace AbilityKit.Demo.Moba.Rollback
                     !sources.Add((projection.OwnerActorId, projection.ModifierSourceId)))
                     throw new InvalidOperationException("Local continuous projection sources collide.");
             }
+            result.MotionPipelines = PrepareMotionPipelineOrders(result.Order, result.Instances,
+                MobaSkillLifecycleCheckpointCodec.Decode<MobaLocomotionCheckpoint[]>(sections["locomotion-local"]),
+                MobaSkillLifecycleCheckpointCodec.Decode<MobaMotionPipelineCheckpoint[]>(sections["motion-pipelines"]), actorIds, frame.Value);
             _continuous.ValidateLocalSubscriptions(result.Instances);
             return result;
         }
 
-        private static Dictionary<(string, long, string), MobaContinuousRuntimeBase> Index(IReadOnlyList<IContinuous> instances)
+        private static Dictionary<(string, long, string, int), MobaContinuousRuntimeBase> Index(IReadOnlyList<IContinuous> instances)
         {
-            var index = new Dictionary<(string, long, string), MobaContinuousRuntimeBase>();
+            var index = new Dictionary<(string, long, string, int), MobaContinuousRuntimeBase>();
             foreach (var instance in instances)
                 if (!(instance is MobaContinuousRuntimeBase runtime) ||
                     !index.TryAdd(MobaContinuousLocalCheckpoint.Capture(runtime).Key, runtime))
@@ -166,8 +185,10 @@ namespace AbilityKit.Demo.Moba.Rollback
             return index;
         }
 
+        private static bool IsFinitePositive(float value) => value > 0f && !float.IsNaN(value) && !float.IsInfinity(value);
+
         private List<IContinuous> RestoreOrder(MobaContinuousLocalCheckpoint[] order, IReadOnlyList<IContinuous> instances,
-            out List<IContinuous> tagPaused)
+            List<PreparedMotionPipeline> pipelines, bool compensate, out List<IContinuous> tagPaused)
         {
             var index = Index(instances);
             var result = new List<IContinuous>();
@@ -183,12 +204,15 @@ namespace AbilityKit.Demo.Moba.Rollback
                 result.Add(runtime);
             }
             if (index.Count != 0) throw new InvalidOperationException("Unexpected rebuilt continuous registration.");
+            RestoreMotionPipelines(pipelines, compensate);
             _continuous.RestoreLocalRegistration(result);
             return result;
         }
 
-        /// <summary>Rechecks the detached plan immediately before committing it. A failure compensates
-        /// only this group's state; the outer coordinator still owns partial World restore reporting.</summary>
+        /// <summary>
+        /// 提交前重新预检独立恢复计划；失败只补偿本组状态，
+        /// 世界级部分恢复结果仍由外层协调器报告。
+        /// </summary>
         public void Commit(MobaSkillLifecycleRestorePlan plan)
         {
             if (plan == null) throw new ArgumentNullException(nameof(plan));
@@ -205,11 +229,18 @@ namespace AbilityKit.Demo.Moba.Rollback
             var metadata = MobaSkillLifecycleCheckpointCodec.Decode<MobaBuffLocalRollbackEntry[]>(sections["buff-local"]);
             var nodes = ValidateExecutionContexts(execution, frame);
             var target = PrepareTarget(frame, sections, _buffs.PrepareLocalRollback(sections["buffs"], metadata,
-                skills, nodes, new HashSet<long>(contexts.EntityIds)));
+                skills, nodes, new HashSet<long>(contexts.EntityIds)), checkpoint.ActorIds);
 
             // Backups retain live object identities until all fallible stages have completed.
             var oldInstances = _continuous.GetAllContinuous();
             var oldOrder = MobaSkillLifecycleCheckpointCodec.Decode<MobaContinuousLocalCheckpoint[]>(CaptureContinuousLocal());
+            var oldLocomotion = CaptureLocomotionLocal();
+            /*
+             * 保留原槽位引用和值直到所有可能失败阶段结束；补偿不能用新骨架
+             * 冒充原来源引用。原 Pipeline 完整顺序也由该计划持有。
+             */
+            var oldMotionPipelines = PrepareMotionPipelineOrders(oldOrder, oldInstances, oldLocomotion,
+                CaptureMotionPipelineOrders(), checkpoint.ActorIds);
             var oldCaptures = new Dictionary<MobaContinuousRuntimeBase, Dictionary<MobaContinuousModifierCaptureKey, MobaModifierCapturedValue>>();
             var oldIntervals = new List<MobaTriggerIntervalContinuousRuntime>();
             foreach (var instance in oldInstances)
@@ -251,7 +282,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 _continuous.RestoreLocalRegistration(target.Instances);
                 RestoreStageCompleted?.Invoke(MobaLifecycleRestoreStage.Registered, false);
                 _pipelines.ImportRunnerRollbackState(sections["pipelines"], localRollback: true);
-                var ordered = RestoreOrder(target.Order, _continuous.GetAllContinuous(), out var tagPaused);
+                var ordered = RestoreOrder(target.Order, _continuous.GetAllContinuous(), target.MotionPipelines, false, out var tagPaused);
+                RestoreStageCompleted?.Invoke(MobaLifecycleRestoreStage.MotionOrdered, false);
                 _continuous.PrepareLocalSubscriptionRebind(ordered)();
                 _owners.Import(frame, sections["owner-blackboards"]);
                 RestoreStageCompleted?.Invoke(MobaLifecycleRestoreStage.Bound, false);
@@ -280,7 +312,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                     _intervals.RestoreLocalIndex(oldIntervals);
                     _triggerModifiers.RestoreLocalIndex(oldModifiers, oldProjectionId);
                     _pipelines.ImportRunnerRollbackState(oldRunners, localRollback: true);
-                    var ordered = RestoreOrder(oldOrder, _continuous.GetAllContinuous(), out var paused);
+                    var ordered = RestoreOrder(oldOrder, _continuous.GetAllContinuous(), oldMotionPipelines, true, out var paused);
+                    ReleaseDetachedPathSources(target.MotionPipelines, compensate: true);
                     restoreSubscriptions();
                     _owners.Import(frame, oldBlackboards);
                     _continuous.RestoreLocalProjectionOwners(ordered, oldSourceId);
@@ -295,6 +328,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 }
                 throw new InvalidOperationException("Local skill lifecycle restore failed; the group's previous state was restored.", failure);
             }
+            ReleaseDetachedPathSources(target.MotionPipelines, compensate: false);
             // No normal End/Removed effects or retain releases: the complete target table owns them now.
             foreach (var repository in oldRepositories)
                 foreach (var runtime in repository.Value.Items) BuffRepository.ReleaseRuntime(runtime);

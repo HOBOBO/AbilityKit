@@ -5,28 +5,26 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Core.Pooling;
-using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Attributes;
-using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
     /// <summary>
-    /// HP 回滚状态提供者。
-    ///
-    /// 在预测回滚模型下，客户端预测一帧后 HP 可能变化；回滚时需要恢复到快照时的值。
-    ///
-    /// 设计决策：
-    /// - 2026-07-24 初版只回滚 HP attribute BaseValue（不含 modifier 叠加层；modifier 由 Buff 回滚 provider 负责）。
-    /// - 2026-08-15 v2：伤害/治疗实际落地在 ResourceContainer（定点 Q32.32），BaseValue 快照覆盖不到真实血量，
-    ///   因此 v2 同时回滚 ResourceState.Current（raw long 存储）。BaseHp 字段保留 float（attribute 系统仍为 float 存储）。
+    /// 仅恢复属性组 HP BaseValue；资源 Current 与组件存在性由生成组件快照唯一恢复。
+    /// v3 拒绝旧载荷，不重放伤害或治疗事件，Modifier 仍由原生命周期所有者恢复。
     /// </summary>
     [MobaRollbackProvider(DefaultKey)]
-    public sealed class MobaActorHpRollbackProvider : IRollbackStateProvider
+    public sealed class MobaActorHpRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider
     {
+        /// <summary>
+        /// 属性 HP 基线在协调器中的稳定键。
+        /// </summary>
         public const int DefaultKey = 10002;
-        private const int CurrentPayloadVersion = 2;
+        /// <summary>
+        /// 仅包含 HP BaseValue 的载荷版本，拒绝旧资源混合布局。
+        /// </summary>
+        public const int CurrentPayloadVersion = 3;
 
         private static readonly ObjectPool<List<MobaActorHpRollbackEntry>> s_entryListPool = Pools.GetPool(
             createFunc: () => new List<MobaActorHpRollbackEntry>(16),
@@ -37,25 +35,43 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         private readonly MobaActorRegistry _registry;
 
+        /// <summary>
+        /// 使用世界内 Actor 注册表解析属性恢复目标。
+        /// </summary>
         public MobaActorHpRollbackProvider(MobaActorRegistry registry)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         }
 
+        /// <summary>
+        /// 获取稳定 Provider 键。
+        /// </summary>
         public int Key => DefaultKey;
 
+        /// <summary>
+        /// 获取恢复诊断名称。
+        /// </summary>
         public string Name => "ActorHp";
 
+        /// <summary>
+        /// 捕获当前属性 HP 基线。
+        /// </summary>
         public byte[] Export(FrameIndex frame)
         {
             return ExportState(frame);
         }
 
+        /// <summary>
+        /// 验证并恢复属性 HP 基线，不写资源 Current。
+        /// </summary>
         public void Import(FrameIndex frame, byte[] payload)
         {
             ImportState(frame, payload);
         }
 
+        /// <summary>
+        /// 按 ActorId 排序输出独立值载荷。
+        /// </summary>
         public byte[] ExportState(FrameIndex frame)
         {
             var entries = s_entryListPool.Get();
@@ -72,14 +88,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     if (group == null) continue;
 
                     var hpInst = group.GetOrCreate(MobaAttributeIds.HP);
-                    var currentRaw = 0L;
-                    if (e.hasResourceContainer && e.resourceContainer.Value?.Map != null &&
-                        e.resourceContainer.Value.Map.TryGetValue(ResourceType.Hp, out var hpState) && hpState != null)
-                    {
-                        currentRaw = hpState.Current.RawValue;
-                    }
-
-                    entries.Add(new MobaActorHpRollbackEntry(actorId, hpInst.BaseValue, currentRaw));
+                    entries.Add(new MobaActorHpRollbackEntry(actorId, hpInst.BaseValue));
                 }
 
                 entries.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
@@ -92,10 +101,17 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
         }
 
-        public void ImportState(FrameIndex frame, byte[] payload)
+        /// <summary>
+        /// 在结构回退前验证格式与字段；尚未由 Command 重建的 Actor 在导入时再解析。
+        /// </summary>
+        public void ValidateImport(FrameIndex frame, byte[] payload)
         {
-            if (payload == null || payload.Length == 0) return;
+            Read(payload);
+        }
 
+        private static MobaActorHpRollbackPayload Read(byte[] payload)
+        {
+            if (payload == null || payload.Length == 0) throw new InvalidOperationException("Missing ActorHp payload.");
             var p = MemoryPackSerializer.Deserialize<MobaActorHpRollbackPayload>(payload);
             if (p.Version != CurrentPayloadVersion)
             {
@@ -103,35 +119,58 @@ namespace AbilityKit.Demo.Moba.Rollback
                     $"Unsupported ActorHp rollback payload version: {p.Version}. Expected {CurrentPayloadVersion}.");
             }
 
-            if (p.Entries == null || p.Entries.Length == 0) return;
+            if (p.Entries == null) throw new InvalidOperationException("Missing ActorHp entries.");
+            var previous = 0;
+            foreach (var entry in p.Entries)
+            {
+                if (entry.ActorId <= previous || float.IsNaN(entry.BaseHp) || float.IsInfinity(entry.BaseHp))
+                    throw new InvalidOperationException("Invalid ActorHp entry or ordering.");
+                previous = entry.ActorId;
+            }
+            return p;
+        }
+
+        /// <summary>
+        /// 先解析全部属性目标，再恢复 HP BaseValue，不触发伤害或治疗入口。
+        /// </summary>
+        public void ImportState(FrameIndex frame, byte[] payload)
+        {
+            var p = Read(payload);
+            var targets = new AttributeGroup[p.Entries.Length];
+            for (var i = 0; i < targets.Length; i++)
+            {
+                if (!_registry.TryGet(p.Entries[i].ActorId, out var entity) || entity == null ||
+                    !entity.hasAttributeGroup || entity.attributeGroup.Group == null)
+                    throw new InvalidOperationException("ActorHp target attribute group is missing.");
+                targets[i] = entity.attributeGroup.Group;
+            }
 
             for (int i = 0; i < p.Entries.Length; i++)
             {
                 var it = p.Entries[i];
-                if (!_registry.TryGet(it.ActorId, out var e) || e == null) continue;
-
-                if (e.hasAttributeGroup && e.attributeGroup.Group != null)
-                {
-                    e.attributeGroup.Group.SetBase(MobaAttributeIds.HP, it.BaseHp);
-                }
-
-                if (e.hasResourceContainer && e.resourceContainer.Value?.Map != null)
-                {
-                    if (e.resourceContainer.Value.Map.TryGetValue(ResourceType.Hp, out var hpState) && hpState != null)
-                    {
-                        hpState.Current = Fixed64.FromRaw(it.CurrentRaw);
-                    }
-                }
+                targets[i].SetBase(MobaAttributeIds.HP, it.BaseHp);
             }
         }
     }
 
+    /// <summary>
+    /// HP 属性基线的版本化值载荷。
+    /// </summary>
     [MemoryPackable]
     public readonly partial struct MobaActorHpRollbackPayload
     {
+        /// <summary>
+        /// 载荷布局版本。
+        /// </summary>
         [MemoryPackOrder(0)] public readonly int Version;
+        /// <summary>
+        /// 按 ActorId 升序排列的基线条目。
+        /// </summary>
         [MemoryPackOrder(1)] public readonly MobaActorHpRollbackEntry[] Entries;
 
+        /// <summary>
+        /// 构造显式版本的 HP 属性载荷。
+        /// </summary>
         [MemoryPackConstructor]
         public MobaActorHpRollbackPayload(int version, MobaActorHpRollbackEntry[] entries)
         {
@@ -140,18 +179,28 @@ namespace AbilityKit.Demo.Moba.Rollback
         }
     }
 
+    /// <summary>
+    /// 一个 Actor 的 HP 属性基线，不包含资源当前值。
+    /// </summary>
     [MemoryPackable]
     public readonly partial struct MobaActorHpRollbackEntry
     {
+        /// <summary>
+        /// 稳定 Actor 身份。
+        /// </summary>
         [MemoryPackOrder(0)] public readonly int ActorId;
+        /// <summary>
+        /// 属性组中的 HP BaseValue。
+        /// </summary>
         [MemoryPackOrder(1)] public readonly float BaseHp;
-        [MemoryPackOrder(2)] public readonly long CurrentRaw;
 
-        public MobaActorHpRollbackEntry(int actorId, float baseHp, long currentRaw)
+        /// <summary>
+        /// 构造 Actor 的 HP 属性基线条目。
+        /// </summary>
+        public MobaActorHpRollbackEntry(int actorId, float baseHp)
         {
             ActorId = actorId;
             BaseHp = baseHp;
-            CurrentRaw = currentRaw;
         }
     }
 }

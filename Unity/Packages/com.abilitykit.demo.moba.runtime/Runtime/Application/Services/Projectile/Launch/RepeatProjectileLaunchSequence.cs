@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             if (currentFrame <= result.StartFrame) return false;
 
             var launcherEntity = result.LauncherEntity;
-            if (launcherEntity == null && result.LauncherActorId > 0 && runtime != null)
+            if (result.LauncherActorId > 0 && runtime != null)
             {
                 runtime.TryGetLauncherEntity(result.LauncherActorId, out launcherEntity);
             }
@@ -101,7 +101,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
 
             var runtime = result.SequenceRuntime;
             var launcherEntity = result.LauncherEntity;
-            if (launcherEntity == null && result.LauncherActorId > 0 && runtime != null)
+            if (result.LauncherActorId > 0 && runtime != null)
             {
                 runtime.TryGetLauncherEntity(result.LauncherActorId, out launcherEntity);
             }

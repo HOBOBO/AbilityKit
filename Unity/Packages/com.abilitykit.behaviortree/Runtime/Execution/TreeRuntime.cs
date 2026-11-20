@@ -1103,6 +1103,17 @@ namespace AbilityKit.BehaviorTree.Execution
             return snapshot;
         }
 
+        /// <summary>
+        /// 只读验证快照的版本、定义、节点结构和黑板类型，不调用节点恢复或推进逻辑。
+        /// 自定义节点仍须对自身状态格式和恢复副作用负责。
+        /// </summary>
+        public void ValidateState(TreeRuntimeSnapshot snapshot)
+        {
+            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+            if (!_enabled) throw new InvalidOperationException("BT runtime must be enabled before validating state.");
+            ValidateRestoreSnapshot(RuntimeSnapshotMigrationRegistry.Global.MigrateToCurrent(snapshot));
+        }
+
         public void RestoreState(TreeRuntimeSnapshot snapshot)
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
@@ -1153,7 +1164,13 @@ namespace AbilityKit.BehaviorTree.Execution
                 if (_flatNodes[i] is ParentNodeBase)
                 {
                     var childCount = _childrenIndex[i].Length;
-                    if (nodeSnapshot.RunningChildIndex < -1 || nodeSnapshot.RunningChildIndex >= childCount)
+                    /*
+                     * 这里保存的是推进游标，不是用于直接访问子节点的索引。
+                     * 顺序和选择节点耗尽末项、并行节点派发完全部分支时，游标可等于子节点数。
+                     */
+                    var allowsExhaustedCursor = _flatNodes[i] is SequenceNode or SelectorNode or ParallelNode;
+                    var cursor = nodeSnapshot.RunningChildIndex;
+                    if (cursor < -1 || cursor > childCount || cursor == childCount && !allowsExhaustedCursor)
                         throw new InvalidOperationException("BT runtime snapshot contains an invalid running child index.");
                 }
                 else if (nodeSnapshot.RunningChildIndex != -1)

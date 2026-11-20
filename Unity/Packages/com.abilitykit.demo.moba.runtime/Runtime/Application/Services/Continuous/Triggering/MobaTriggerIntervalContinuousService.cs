@@ -78,11 +78,14 @@ namespace AbilityKit.Demo.Moba.Services
             foreach (var entry in entries)
             {
                 if (entry.ProcessId <= 0 || entry.SourceActorId <= 0 || entry.TargetActorId <= 0 ||
-                    entry.OwnerContextId == 0 || entry.ElapsedRaw < 0 || entry.IntervalRemainingRaw < 0 ||
+                    entry.OwnerContextId == 0 || entry.ElapsedRaw < 0 || entry.IntervalRemainingRaw == long.MinValue ||
                     !keys.Add(new ProcessKey(entry.OwnerContextId, entry.ProcessId,
                         entry.SourceActorId, entry.TargetActorId)) ||
                     !_configs.TryGetContinuousProcess(entry.ProcessId, out var process) || process == null)
                     throw new InvalidOperationException("Invalid trigger interval rollback entry.");
+                if (entry.IntervalRemainingRaw < 0 &&
+                    (process.IntervalMs <= 0 || process.IntervalTriggerIds == null || process.IntervalTriggerIds.Count == 0))
+                    throw new InvalidOperationException("Non-periodic trigger interval cannot contain backlog.");
                 var hasModifiers = process.Modifiers != null && process.Modifiers.Count > 0;
                 if (hasModifiers != (entry.ModifierSourceId > 0) ||
                     entry.ModifierSourceId > 0 && !sourceIds.Add(entry.ModifierSourceId))

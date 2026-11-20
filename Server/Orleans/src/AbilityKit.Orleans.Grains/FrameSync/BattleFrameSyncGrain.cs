@@ -24,9 +24,13 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
     private string? _syncTemplateId;
     private int _runtimeMode = (int)ServerBattleRuntimeMode.FrameRelayOnly;
     private bool _enableRecording;
+    private bool _initialized;
     private int _minTickRate = 10;
     private int _maxTickRate = 60;
     private int _frame;
+    private FrameSyncInitialCheckpoint? _initialCheckpoint;
+    private Guid _settlementGeneration;
+    private int? _lastSettledFrame;
 
     private DateTime _tickWindowStartUtc;
     private int _tickCountInWindow;
@@ -99,6 +103,31 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
     {
         if (options is null) throw new ArgumentNullException(nameof(options));
 
+        var checkpoint = options.InitialCheckpoint;
+        if (checkpoint != null && (checkpoint.RuntimeGeneration == Guid.Empty ||
+            options.RuntimeMode != (int)ServerBattleRuntimeMode.BattleWorldWithFrameSync ||
+            options.WorldId == 0 || string.IsNullOrEmpty(options.BattleId)))
+        {
+            throw new ArgumentException("Frame zero checkpoint requires an initialized battle runtime.", nameof(options));
+        }
+
+        var changed = !_initialized || _worldId != options.WorldId || _battleId != options.BattleId ||
+            _runtimeMode != options.RuntimeMode || _syncTemplateId != options.SyncTemplateId ||
+            _initialCheckpoint != checkpoint;
+        if (changed)
+        {
+            ClearSettlement();
+            if (_initialCheckpoint != null || checkpoint != null)
+            {
+                _inputsByFrame.Clear();
+                _inputHistory.Clear();
+                _fullRecording.Clear();
+                _totalInputCount = 0;
+                _frame = 0;
+            }
+        }
+
+        _initialCheckpoint = checkpoint;
         _roomId = options.RoomId != 0 ? options.RoomId : _roomId;
         _worldId = options.WorldId;
         _battleId = options.BattleId;
@@ -108,9 +137,18 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         _minTickRate = options.MinTickRate > 0 ? options.MinTickRate : 10;
         _maxTickRate = options.MaxTickRate >= _minTickRate ? options.MaxTickRate : 60;
 
+        if (changed && checkpoint != null)
+        {
+            StoreInputHistory(0, new List<FrameInputItem>(0));
+            _frame = 1;
+            _settlementGeneration = checkpoint.RuntimeGeneration;
+            _lastSettledFrame = 0;
+        }
+
         var tickRate = options.TickRate > 0 ? options.TickRate : DefaultTickRate;
         _tickInterval = TimeSpan.FromSeconds(1.0 / tickRate);
         _nextTickDueUtc = DateTime.UtcNow + _tickInterval;
+        _initialized = true;
 
         _logger.LogInformation(
             "[BattleFrameSyncGrain] Initialized. RoomId={RoomId} WorldId={WorldId} BattleId={BattleId} TickRate={TickRate} SyncTemplate={SyncTemplate}",
@@ -406,13 +444,18 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
             TotalInputsReceived: _totalInputCount,
             CatchUpHistoryFrames: _inputHistory.Count,
             RecordingFrameCount: _enableRecording ? _fullRecording.Count : 0,
-            uptimeSeconds);
+            uptimeSeconds)
+        {
+            SettlementGeneration = _settlementGeneration,
+            LastSettledFrame = _lastSettledFrame
+        };
 
         return Task.FromResult(metrics);
     }
 
     public Task DestroyAsync()
     {
+        _initialized = false;
         _timer?.Dispose();
         _timer = null;
         _observers.Clear();
@@ -424,8 +467,32 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         _syncTemplateId = null;
         _frame = 0;
         _totalInputCount = 0;
+        _initialCheckpoint = null;
+        ClearSettlement();
         DeactivateOnIdle();
         return Task.CompletedTask;
+    }
+
+    private void ObserveSettlement(int frame, BattleTickFrameResult tick)
+    {
+        if (tick.Frame != frame || tick.RuntimeGeneration == Guid.Empty) return;
+
+        if (_settlementGeneration != tick.RuntimeGeneration)
+        {
+            _settlementGeneration = tick.RuntimeGeneration;
+            _lastSettledFrame = null;
+        }
+
+        if (tick.WorldTicked && tick.SettlementEligible && frame == (_lastSettledFrame ?? -1) + 1)
+        {
+            _lastSettledFrame = frame;
+        }
+    }
+
+    private void ClearSettlement()
+    {
+        _settlementGeneration = Guid.Empty;
+        _lastSettledFrame = null;
     }
 
     private void StoreInputHistory(int frame, List<FrameInputItem> inputs)
@@ -456,6 +523,8 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
 
     private async Task OnTickAsync()
     {
+        if (!_initialized) return;
+
         var now = DateTime.UtcNow;
         var deltaMs = (now - _lastTickUtc).TotalMilliseconds;
         _lastTickUtc = now;
@@ -502,6 +571,7 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
                 {
                     var battleHost = GrainFactory.GetGrain<IBattleLogicHostGrain>(_battleId);
                     var tick = await battleHost.TickFrameAsync(_worldId, cur, delta, inputs);
+                    ObserveSettlement(cur, tick);
                     if (tick.WorldTicked) stateHash = checked((uint)tick.StateHash);
                 }
                 catch (Exception ex)

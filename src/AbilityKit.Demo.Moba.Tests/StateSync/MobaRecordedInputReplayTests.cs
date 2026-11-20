@@ -252,8 +252,21 @@ public sealed class MobaRecordedInputReplayTests(ITestOutputHelper output)
         File.WriteAllBytes(Path.Combine(directory, name + ".bin"), bytes);
         var hp = MemoryPackSerializer.Deserialize<MobaActorHpRollbackPayload>(snapshot.Entries
             .Single(entry => entry.Key == MobaActorHpRollbackProvider.DefaultKey).Payload);
-        var resources = MemoryPackSerializer.Deserialize<MobaActorResourceRollbackPayload>(snapshot.Entries
-            .Single(entry => entry.Key == MobaActorResourceRollbackProvider.DefaultKey).Payload);
+        var components = MemoryPackSerializer.Deserialize<MobaEntitasComponentRollbackPayload>(snapshot.Entries
+            .Single(entry => entry.Key == MobaEntitasComponentRollbackProvider.DefaultKey).Payload);
+        var context = new ActorContext();
+        var resources = components.Entries.Where(entry => entry.ActorId > 0).Select(entry =>
+        {
+            var entity = context.CreateEntity();
+            using var stream = new MemoryStream(entry.Data);
+            using var reader = new BinaryReader(stream);
+            ActorComponentSerialization.Restore(entity, reader);
+            var result = new { entry.ActorId, Present = entity.hasResourceContainer,
+                Initialized = entity.hasResourceContainer && entity.resourceContainer.Initialized,
+                Value = entity.hasResourceContainer ? entity.resourceContainer.Value : null };
+            entity.Destroy();
+            return result;
+        }).ToArray();
         File.WriteAllText(Path.Combine(directory, name + "-resources.json"), JsonSerializer.Serialize(new { hp, resources }, Json));
         foreach (var entry in snapshot.Entries.Where(entry => entry.Key == MobaSkillLifecycleRollbackProvider.DefaultKey))
         {

@@ -14,7 +14,9 @@ using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Triggering.Blackboard;
+using MemoryPack;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -73,6 +75,49 @@ public sealed class MobaEntitasRollbackTests
         Assert.Equal(3, actor.skillLoadout.ActiveSkills[0].CurrentCharges);
         Assert.Equal(1, actor.skillLoadout.PassiveSkills[0].Level);
         Assert.NotSame(original, actor.skillLoadout.ActiveSkills[0]);
+    }
+
+    [Fact]
+    public void Generated_component_snapshot_is_the_unique_owner_of_transform_and_move_input()
+    {
+        var context = new ActorContext();
+        var actor = context.CreateEntity();
+        actor.AddActorId(17);
+        var transform = new Transform3(
+            new Vec3(3.25f, -2f, 8.5f),
+            new Quat(0.2f, -0.3f, 0.4f, 0.7f),
+            new Vec3(-2f, 0f, 3.5f));
+        actor.AddTransform(transform);
+        actor.AddMoveInput(0.75f, -0.25f);
+        var provider = new MobaEntitasComponentRollbackProvider(context);
+        var frame = new FrameIndex(12);
+        var payload = provider.Export(frame);
+
+        actor.RemoveTransform();
+        actor.RemoveMoveInput();
+        provider.Import(frame, payload);
+
+        Assert.True(actor.hasTransform);
+        Assert.Equal(transform, actor.transform.Value);
+        Assert.True(actor.hasMoveInput);
+        Assert.Equal(0.75f, actor.moveInput.Dx);
+        Assert.Equal(-0.25f, actor.moveInput.Dz);
+        Assert.Equal(payload, provider.Export(frame));
+        Assert.IsAssignableFrom<IMobaStateRecoveryProvider>(provider);
+
+        var legacyComponentPayload = MemoryPackSerializer.Serialize(
+            new MobaEntitasComponentRollbackPayload(2, Array.Empty<MobaEntitasComponentRollbackEntry>()));
+        Assert.Throws<InvalidOperationException>(() => provider.Import(frame, legacyComponentPayload));
+    }
+
+    [Fact]
+    public void Actor_motion_provider_rejects_the_previous_v4_layout()
+    {
+        var provider = new MobaActorMotionRollbackProvider(new MobaActorRegistry());
+        var legacyPayload = MemoryPackSerializer.Serialize(
+            new MobaActorMotionRollbackPayload(4, Array.Empty<MobaActorMotionRollbackEntry>()));
+
+        Assert.Throws<InvalidOperationException>(() => provider.Import(new FrameIndex(12), legacyPayload));
     }
 
     [Fact]
@@ -424,7 +469,7 @@ public sealed class MobaEntitasRollbackTests
             actors,
             entities,
             allowMissingActorsRestoredByCommands: true));
-        registry.Register(new MobaActorTransformRollbackProvider(actors));
+        registry.Register(new MobaActorMotionRollbackProvider(actors));
         registry.Register(new MobaEntitasComponentRollbackProvider(
             context,
             allowMissingActorsRestoredByCommands: true));

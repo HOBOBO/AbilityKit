@@ -71,7 +71,7 @@ namespace AbilityKit.Ability.Behavior
     /// - 不依赖任何业务层接口
     /// - 由业务层决定何时创建/中断行为
     /// </summary>
-    public class BehaviorManager : IDisposable
+    public partial class BehaviorManager : IDisposable
     {
         #region Private Fields
         
@@ -110,6 +110,8 @@ namespace AbilityKit.Ability.Behavior
             if (config.Decision == null)
                 throw new ArgumentNullException(nameof(config.Decision), "Decision cannot be null");
             
+            if (_retainedRecoveryRuntimes.ContainsKey(_nextInstanceId))
+                throw new InvalidOperationException("Behavior allocator cannot reuse a retained recovery identity.");
             var instanceId = _nextInstanceId++;
             
             var behavior = new BehaviorRuntime(
@@ -126,6 +128,7 @@ namespace AbilityKit.Ability.Behavior
                 config.Config);
             
             _behaviors[instanceId] = behavior;
+            _instanceGenerations.Add(instanceId, checked(++_lastInstanceGeneration));
             _orderedBehaviors.Add(behavior);
             
             // 添加到实体列表
@@ -357,7 +360,10 @@ namespace AbilityKit.Ability.Behavior
                         : BehaviorEndReason.Interrupted);
             }
 
+            foreach (var instanceId in _retainedRecoveryRuntimes.Keys.ToArray())
+                ReleaseRetainedForRecovery(instanceId);
             _behaviors.Clear();
+            _instanceGenerations.Clear();
             _orderedBehaviors.Clear();
             _entityBehaviors.Clear();
             _bindings.Clear();
@@ -403,6 +409,7 @@ namespace AbilityKit.Ability.Behavior
             
             // 从总表移除
             _behaviors.Remove(instanceId);
+            _instanceGenerations.Remove(instanceId);
             _orderedBehaviors.Remove(behavior);
             
             OnBehaviorEnded?.Invoke(behavior, reason);

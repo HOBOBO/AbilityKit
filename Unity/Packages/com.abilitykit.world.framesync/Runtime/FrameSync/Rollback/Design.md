@@ -44,6 +44,9 @@
 - `RollbackCommandHandlerRegistry` 负责 `CommandType` 的唯一映射并在运行前密封。每个 Handler 必须先声明支持的 payload 版本，再无副作用地校验 payload，最后执行逆操作。
 - `RollbackTo` 以 `NextOrder` 为精确边界并严格逆序执行，因此同一帧内的捕获也不会退错命令。
 - `CommandRollbackStateProvider` 实现 `IRollbackStructureRestoreProvider`。Coordinator 在全量 preflight 后先导入全部结构 Provider，再导入字段状态 Provider，确保被销毁对象已恢复为可寻址状态。
+- 结构执行顺序与状态 Key 分离：Registry 可在 Seal 前通过 `SetStructureRestoreOrder` 声明完整结构顺序，Seal 拒绝漏项、重复、未知或普通项。配置复制保存，相同配置可重复声明，冲突配置及 Seal 后修改拒绝，Clear 重置。未配置时保留输入条目内次序；普通字段始终保持原输入相对次序。
+- Coordinator 在任何 preflight 前生成当前不可变有效计划，显式模式只选择本次已提供的结构载荷，默认模式取输入中的结构项。Context 的公开 `StructureRestoreKeys` 与内部执行索引在同一次生成，预检与实际 Import 共享，计划不进入 payload 或帧历史。`Providers` 原输入视图及三参构造器保持兼容，Capture 仍按 Key 排序。
+- 顺序不隐含必需性；`RequireState` 独立验证每个必需载荷恰好一份。预检拒绝时零导入；实际 Import 失败保留已导入计数和故障 Key，停止后续导入，不提供全局事务或任意对象重建能力。
 - `TrimBefore` 会推进可回滚下界，跨越已裁剪记录的旧 checkpoint 必须失败；`Clear` 会推进 Epoch，使上一局或上一 World 的 checkpoint 失效。
 - Handler 必须通过 payload 中的稳定 ID/Generation 重新解析对象。`RollbackCommandContext.Services` 只提供业务服务入口，不能重新引入按条命令捕获对象的闭包。
 - 预检失败时不执行命令；如果 Handler 执行后抛异常，Journal 标记为 faulted，必须完整重建世界并清理 Journal。

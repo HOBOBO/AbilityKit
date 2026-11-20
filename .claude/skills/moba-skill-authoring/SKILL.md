@@ -10,6 +10,12 @@ description: 开发、修改或审查 AbilityKit MOBA 英雄技能及相关共�
 覆盖：**HFSM 优先的技能规划、技能扩展的落点判定、交付清单、门禁与反模式**。
 不覆盖：调用链细节 → [ability-kit](../ability-kit/SKILL.md)（`skill_buff/`、`triggering/`、`combat_*`）；包装配/配置加载链 → [moba-demo](../moba-demo/SKILL.md)。
 
+涉及机制规划、跨模块审查或投射物/区域/召唤物/移动扩展时，先读 [机制设计与原语复用工作流](references/mechanism-design-workflow.md)。该参考说明如何拆决策、数据、执行与生命周期，以及怎样核对现有消费者和组合证据；不要求普通数值修复重做整体设计。详细分析与建设建议见 [机制扩展架构分析](../../../Docs/MobaMechanismExtensionArchitecture.md)，其中待确认建议不构成机制批准。
+
+涉及框架归属、类型膨胀或包外扩展时，按该参考的“固定边界与包外扩展”核对：稳定执行契约归框架，可选算法和玩法能力优先独立扩展，已有原语的排列组合归内容；公开接口之外还要验证注册、作者化、恢复及外部程序集消费，不能因一个类可继承就宣称生产链已开放。具体新增契约仍遵守下节机制准入。
+
+复杂组合、同帧竞争、部分执行失败或批量扩展审查时，再按该参考的“复杂需求与规模增长审查”检查结果语义、测试覆盖和版本证据；普通数值/引用修改只检查受影响链。详细事实与推演见 [战斗流程规模化复核](../../../Docs/MobaCombatWorkflowScalabilityReview.md)，不把其中建议当作已批准或已实现能力。
+
 ## 机制准入：实现前必读
 
 先读 [`Docs/MobaMechanismGovernance.md`](../../../Docs/MobaMechanismGovernance.md)。本节约束下文所有“新增组件/动词/服务”“开放扩展点”和历史案例；技术落点判定不等于扩展授权。
@@ -23,6 +29,8 @@ description: 开发、修改或审查 AbilityKit MOBA 英雄技能及相关共�
 英雄技能 ID 可以出现在内容绑定、查询条件、资源映射、验收和样例装配中；区别在于由通用消费者执行已有语义，而非按身份添加算法。具体边界、机制映射及提案模板统一见上述规范。
 
 涉及模拟调度、状态或对象生命周期的回滚支持时，先读 [帧同步回滚 skill](../framesync-prediction-rollback/SKILL.md) 及其 [业务状态回滚契约](../framesync-prediction-rollback/business-state-rollback.md)。回滚是可选扩展，MOBA 帧同步所用机制须提供支持；仅开启时捕获/记录/恢复。System 统一帧驱动，非 ECS 业务和 Provider 状态恢复均允许，不要求将 Launcher 或服务状态全部迁入组件。
+
+接入回滚或修改已声明支持回滚的跨帧机制，按业务状态回滚契约第 2.1、5 节先列状态账本：充分状态应可独立备份，运行依赖可按身份重绑；正常玩法入口、Restore 与 Bind 分工明确。普通项目不因未满足回滚专用规范而限制写法；接入时诊断具体不支持项并补齐，MOBA 帧同步所用链必须完整支持。生成器支持的纯组件数据优先统一恢复，不重复手写 Provider；捕获/恢复失败不得静默漏项。既有实现逐域治理，规范收紧不自动批准新 API、状态所有权或对象重建范围。
 
 ## 生产配置归属与发布
 
@@ -78,6 +86,10 @@ Global Trigger 若由 Flow、Buff、投射物等位置显式引用，应配置�
 | 一次有明确开始/结束的技能施放 | SkillPipeline | 只编排这次施放内的校验、短暂等待/蓄力、提交点、取消和有界时序。流程结束后由 HFSM 与持续 Modifier 管理仍然存在的模式。 |
 | 命中、计数、加 Buff、伤害、召唤等事件效果 | Trigger Authoring | 事件触发器执行效果或更新可配置数据；若结果要改变角色阶段/槽位，写入对应 Modifier/参数，让 HFSM 完成状态转移。 |
 | 当前 HFSM 状态中的动画、特效、音效动作组 | 表现层 HFSM / 状态动作组 | 状态决定播放哪些动作及其循环、次数、串并行组合。表现完成事件不能作为玩法阶段转换或伤害提交的权威条件。 |
+
+一个技能可以同时组合上述机制。先明确角色阶段，不等于每个技能都要增加 HFSM 状态；普通技能可复用现有 Cast 状态。Brain/行为树负责感知、候选与意图，正式移动/Cast 入口负责执行；独立投射物等对象的阶段归自己的领域运行时/状态机。SkillPipeline、MotionPipeline、通用 Flow、角色 HFSM 和对象状态机不能因名字或图形相似而互换。
+
+参数入口还须区分角色本地记忆、系统事实、准确 Cast 的冻结贡献与外部 Modifier。已有稳定来源 `set_hfsm_parameter` Toggle、Counter 投影及其恢复合同可按规范复用；不能把所有长期数据强制包装成 Buff，也不能据此自行定义新的来源、合成或死亡重置语义。既有规则冲突时先查证提案。
 
 ### 规划与实现顺序
 
@@ -146,10 +158,10 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 | 战斗数值基线 | 通用属性（23 个，`MobaAttributeIds`） | 是所有单位共享的战斗属性 | HP/攻防/移速/暴击/穿透 |
 | 当前值 | `ResourceContainer`（Hp / Mana / Rage） | 是"会被消耗的当前值" | 廉颇怒气 |
 | 数值修正 | Buff / Continuous 的 `Modifiers[]` | 引用属性 id + 幅度来源表达式 | `MagnitudeCoefficient` + `MagnitudeContextKey` |
-| **永久能力** | **ECS 组件** | 生命周期 == 实体的生命周期 | `MotionComponent`（会动）、`FlyingProjectileTag`（是飞行物） |
-| **有起止的能力** | **continuous runtime**（`IContinuous`） | 有激活/结束；"短时间给某系统一个能力" | `MobaMotionContinuousRuntime`（dash/jump/pull/blink 共用） |
-| 一次施放的临时状态 | `SkillRuntime` / Continuous runtime 字段 | 生命周期 == 一次施放 | 技能冷却、充能 |
-| **跨实体关系** | **世界级关系服务** | 状态维度是 (A, B) 而非单实体 | 只有 `MobaPlayerActorMapService` 一个先例 |
+| 实体级能力数据/视图 | ECS 组件；领域内部状态保持既有 Service/Runtime 归属 | 由已有消费者和生命周期决定，不因恢复而强迁 ECS | `MotionComponent`、`FlyingProjectileTag` |
+| **有起止的能力** | **continuous runtime**（`IContinuous`） | 有激活/结束；"短时间给某系统一个能力" | `MobaMotionContinuousRuntime`（dash/jump/pull）；`blink` 当前为瞬时路径 |
+| 一次施放的临时状态 | Cast runtime / 阶段上下文 | 本次准备、提交和派生上下文；Flow 结束后可能因子对象 retain 继续存续 | 等级/瞄准快照、预留与提交状态；槽位冷却/充能按既有 loadout/economy 归属 |
+| **跨实体关系** | **对应领域的关系数据/服务** | 状态维度是 (A, B) 而非单实体，先复用已有归属 | PlayerActorMap、Summon owner/source、Projectile link |
 | **世界级仲裁** | **领域服务 / 系统** | 多来源叠加后的最终结果 | `MobaEffectiveTagQueryService`、`MobaContinuousTagRuleService` |
 | 内容参数 | **配置**（Excel/MO 表 → JSON） | 每个技能/等级不同、策划要改 | `DashArgs` 的 speed/duration/priority |
 | 逻辑编排 | **HFSM + Pipeline + Trigger Authoring** | 长期角色模式/阶段归 HFSM；单次施放内时序归 Pipeline；事件响应归 Trigger | 见本节 HFSM 优先规则 |
@@ -175,7 +187,7 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 **⚠ 命名陷阱**：`Parallel` 有两套不同语义——flow 级 `AbilityParallelPhase` 是**真并行**（子阶段同帧启动、未完成者逐帧推进）；触发器级 `ParallelTriggerPlanExecutable` 是**顺序遍历 + fail-fast**。按名字选用会出错。
 
-**⚠ 扩展点开放性不一致**（2026-09-15 查证）：targeting（`[MobaTargetFilter]` / `[MobaTargetOrder]`）和 PlanAction（`[PlanActionModule]`）都是**特性 + codegen 清单**的开放扩展点，项目侧加一个类即可；但投射物命中策略 `ProjectileHitPolicyFactory` 是 **`internal` 硬编码 switch**，要加命中策略/反射**必须改框架包**。判断"这个需求是便宜还是贵"时，先看它落在哪一类扩展点上。
+**扩展点先查当前消费链。** targeting（`[MobaTargetFilter]` / `[MobaTargetOrder]`）和 PlanAction（`[PlanActionModule]`）使用特性与生成清单；`ProjectileHitPolicyFactory` 当前已有公开 `RegisterFactory`、`RegisterType` 和 `Scan`。策略可注册不代表生产作者化、冻结、快照 codec 与恢复工厂已接通。判断成本须检查整链；新增语义仍先按机制准入确认，不能沿用旧的 internal switch 结论。
 
 ### 什么时候**不该**用触发器（可能需要提出代码扩展方案）
 
@@ -201,29 +213,29 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 ### 什么情况下**不开**新组件
 
-- 它只服务**一个技能**或**一个英雄**（组件类型数应跟"能力种类"走，不跟"技能数量"走）
+- 它只是给一个技能/英雄身份建类型，而没有独立领域状态语义。通用能力可以先只有一个使用者，但须说明领域输入、消费者和生命周期；新增组件仍按机制准入确认
 - 它是**内容参数**（进了组件就发不了版、改不动数值、长不了等级表）
 - 它的生命周期跟着一次施放走（用 runtime 字段）
 - 一个实体上会有**多个实例**（多层护盾、多来源标记）→ 用**容器**组件，不要让组件类型本身表示实例（见 `ShieldContainer{ List<ShieldLayer> }`）
 
-### 什么情况下**必须**开组件
+### 什么时候考虑组件或领域状态容器
 
-- 能力被多个技能/内容条目共用，且生命周期 == 实体
-- 状态跨多个来源聚合（如隐身有技能/装备/地形多个来源时的"暴露度"）
+- 有实体级数据需要被现有 ECS 消费者读取，且已有组件不能承载。
+- 多来源聚合需要明确权威容器时，先检查现有 Modifier/领域服务。是否放组件由真实消费者与所有权决定，不以使用者数量或回滚需求强制新建组件。
 
-### 开组件时的强制约束：让它是**自包含纯数据**
+### 新增组件优先使用可复制数据
 
 这直接决定它日后回滚/重连的代价。组件按形态分三档（实测自 `Application/Rollback/*.cs`）：
 
 | 组件形态 | 回滚成本 | 实证 |
 |---|---|---|
-| **自包含纯数据**（值字段 + 普通对象列表） | **低**，模板化照抄 | `MobaActorResourceRollbackProvider` 102 行 / `MobaActorHpRollbackProvider` 156 行 |
+| **自包含纯数据**（值字段 + 有限托管数据图） | 低，优先统一生成 codec | `ResourceContainer` 的组件字段与存在性归生成组件快照；非 ECS 数据仍可由原所有者 Provider 恢复 |
 | 持有句柄 / 服务引用 | 中，要写重建 + 重新绑定 | `MotionComponent` 的 `Pipeline/Solver/Events`；`BuffRuntime.SkillRuntimeHandle` |
-| 状态回滚需要**增删实体** | **高**，是生命周期问题不是字段问题 | `MobaShieldRollbackProvider` 头注释：*cannot safely create or destroy simulation entities* |
+| 状态回滚需要**增删实体** | **高**，是生命周期问题不是字段问题 | Actor 结构沿既有类型化 Command/名单恢复；HP、Shield 等字段 Provider 不能自行补造 Actor |
 
-**所以：组件里只放值和普通数据，把句柄、服务引用、实体增删挡在组件外面**（重建路径放 Provider / Factory）。这样你就把回滚成本压到最低档。
+新增组件优先使用值和可复制数据。既有运行时句柄/服务状态保持真实所有权并明确静默重绑；结构变化沿正式 Command/名单恢复链，不能让字段 Provider 调 Factory 自行补造实体。回滚不要求将领域 Service/Runtime 状态全部搬进 ECS。
 
-写 Provider 照抄这两个模板即可：`Pools.GetPool` 取临时 list + `try/finally` 归还，**绝不缓存引用**（池化与快照并存时的唯一读写真坑）。
+纯 ECS 数据先核对 pin 与生成器支持形状，不复制已删除的资源 Provider。`[EntitasBlob]` 允许有限纯字段数据图，不代表任意对象图或自动注册 Provider。非 ECS Provider 按稳定身份输出独立值载荷；临时池容器用 `try/finally` 归还，不让快照持有池化可变对象引用。资源迁移及已批准的 D2.1 静默属性投影见 `local/docs/Moba资源组件统一回滚验收.2026-11-18.md`。资源恢复使用显式 `RefreshRestored`，正常业务保持 `Refresh`；静默读取保留实时属性求值与依赖标脏，不以 LastMax 替代动态上限，不作为全局事件开关。
 
 ---
 
@@ -300,12 +312,12 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 | 给一个技能开一个组件 | 组件类型数跟着技能数膨胀；内容与代码耦合；策划改不动 | 按通用能力与生命周期建模；不能用历史组件数量或英雄 ID 搜索宣称当前已合规 |
 | 给特殊数值开新属性 | 属性表/快照/回滚对账面线性膨胀 | `MobaAttributeIds` 23 个全是通用战斗属性，无一个 per-skill |
 | 把通用抽象做成万能容器 | 抽象最终退化成几个 setter | `component_templates` 只有 2 个 op（`SetModelId`/`SetLifetimeMs`）、2 条内容、唯一召唤物的引用是空数组 |
-| 参数解析了不用 | 能力落差伪装成"已实现" | `SpawnSummonPlanActionModule` 读了 `interval_ms/duration_ms/total_count/query_template_id`，一个都没用 |
+| 参数解析了不用 | 能力落差伪装成"已实现" | `spawn_summon` 当前已消费 `duration_ms`；`interval_ms/total_count/query_template_id` 等仍需逐项对照真实消费者，不能由 Schema 存在推断周期召唤已支持 |
 | 两套引擎混用 | 事件收不到、行为不一致 | 两套触发器（旧 `MobaTriggerIndexService` 仍挂在 bootstrap 里但**零消费者**）、两套树引擎、两个 HFSM 内核、两套 Effect |
 | 只跑过滤后的门禁 | 其他技能或跨模块回归可能未执行 | 按改动范围补充六英雄冒烟、相关验收和发布一致性检查 |
 | 按英雄/技能身份在共享执行链添加算法 | 示例退化成英雄脚本集合；枚举、profile 或配置开关包装同样有问题 | 既有 Cast/Counter/HFSM/AI 专属分支须审计迁移，不能作为模板；数据绑定与验收 ID 不在此禁令范围 |
 | **以为"不支持"就自己新造** | 能力可能已在更下一层（键控/注册表）实现了 | "多来源独立标记"我判过 C，实际 `BuffRuntimeKey.MatchApplyRequest` 用的是 `MatchBuffAndSource(buffId, **sourceActorId**)`，还有更细的 `MatchInstance(..., sourceContextId)`——**一直是支持的** |
-| **给模拟创建/销毁的实体写 state provider 管增删** | 结构性做不到，provider 不能增删实体 | 见 §5.1 裁定的分档 |
+| **让 HP/Shield 等字段 Provider 补造 Actor** | 绕过结构恢复所有权和完整关系预检 | 结构变化走既有 Command/名单恢复合同；领域 Provider 按已批准范围恢复领域对象，见 §5.1 |
 | **信注释不信调用方** | 注释会过期、会描述另一条数据流 | importer 写"小兵/召唤物同样按 Unit 处理（P1 简化）"，实际那份注释描述的是**开局 roster**（`PublishSpawnPayload` 下发），战斗中召唤物根本不进快照 |
 
 ---
@@ -339,7 +351,7 @@ MOBA 战斗标签只由活跃 `IContinuous` 的 `ApplicationTags` 提供；Buff�
 
 ### 5.2 写 Provider 时最容易踩的两件事（都不是代码问题）
 
-1. **先确认哪个字段是权威源。** `MobaActorHpRollbackProvider` 的 v2 注释是现成的教训：初版快照 HP attribute 的 `BaseValue`，后来才发现真实血量落在 `ResourceContainer.Current`（定点）——**provider 跑通了，但回滚的是错的东西**。这类错误不会让测试变红，只在真实回滚时表现成数值抖动。
+1. **先确认哪个字段是权威源。** 真实血量位于 `ResourceContainer.Current`（定点），由生成组件快照恢复；`MobaActorHpRollbackProvider` v3 仅恢复属性 HP BaseValue，不重复写资源 Current。历史 v2 混写两处，不能继续作为模板。除权威字段外，还要验证资源比例等派生上下文；字节往返通过不能证明派生输入和静默恢复正确。
 2. **回滚的单位是"某一帧的整个世界"，不是"一个组件"。** `ProjectileRollbackProvider` 已由正式 builder 在 IProjectileService 可用时注册；Actor transform 不能替代其物理状态。MOBA 已按批准方案统一装配，并实施用户确认的 `plans/MobaDerivedCombatSettlementDecision.2026-11-17.md` 第 9 节 L1–L4：共同入口整轮冻结通知、有界同帧结算、来源最后消费后释放，以及失败帧推进／Capture／输出门禁。正式时序见 `Runtime/Docs/SystemOrderGuide.md`。恢复仍只处理数据和类型化 Command，不保存历史通知。活动发射 schedule 进度及有命令证明的额外弹体移除已验收；最后发射前后、完全清理稳定后的检查点也已验证。目标弹体／Launcher 已销毁及 Continuous／Cast 重建仍受原门禁限制；Launcher Actor 清理当帧与其 Continuous 下一帧移除须分别判断。当前边界见 `local/docs/Moba发射结束与来源释放边界验收.2026-11-18.md`，不因 provider 已注册或局部全量字节比较通过就认定全部覆盖。
 
 ### 门禁速查
@@ -433,7 +445,7 @@ dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj --f
 
 ---
 
-*本 skill 与 `Docs/design/09-ImplementationExamples/MOBA/{13,14,18}` 互为镜像：本文是执行手册，文档是设计理由。改动规范时两边都要动。*
+本 Skill 是执行入口；治理、领域规范与批准方案保存权威契约和设计理由。修改时同步受影响文档及引用，不维护整篇互相复制的镜像；历史案例、数量和旧缺口须结合当前消费者核对。
 ## 投射物拦截配置（2026-11-12 已批准契约）
 
 既有单位分类与静态障碍可用投射物表 `CollisionRules` 有序数组配置 Ignore/Hit/Block。Role 1 冻结追踪目标、2 其他 Actor、3 静态世界；MainType/UnitSubType/Relation 省略或 0 为任意。Relation 1 敌方、2 友方、3 中立/未分队；Response 0 Ignore、1 Hit、2 Block。首项匹配，未匹配沿用既有响应；自身忽略，Hit 不放宽友伤和 HitUnitSubType，世界只允许 Ignore/Block。规则在发射时冻结，随值快照恢复并绑定当前世界 registry；不得捕获旧世界或按英雄识别。碰撞层掩码先决定参与集合，规则再决定响应。完整契约见 `Docs/design/08-GameplayModules/04-ProjectileSystem.md` §10.1。主动拦截墙/护盾等仍须另提方案。

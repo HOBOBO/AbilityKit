@@ -12,6 +12,17 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         bool TryRebase(WorldId worldId, FrameIndex baselineFrame);
     }
 
+    /// <summary>
+    /// 预测世界的可选恢复边界。读水位不以输入确认帧或本地时钟兜底。
+    /// </summary>
+    public interface IClientPredictionRestoreFloor
+    {
+        /// <summary>
+        /// 读取对应世界已经生效的最早可恢复帧。
+        /// </summary>
+        bool TryGetRestoreFloor(WorldId worldId, out FrameIndex frame);
+    }
+
     public interface IClientPredictionDriverStats
     {
         int InputDelayFrames { get; }

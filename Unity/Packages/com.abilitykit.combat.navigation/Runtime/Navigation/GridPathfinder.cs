@@ -10,7 +10,7 @@ namespace AbilityKit.Combat.Navigation
     /// - 全程在整数 cell 空间运算，步进代价正交=10 / 对角=14，启发式为整数 octile 距离；
     /// - 决策路径不含 Sqrt / sin 等 IEEE 跨平台不确定的超越函数；
     /// - 固定邻居展开顺序 + open 堆按 (f, 插入序) tie-break；
-    /// - closed 集与 g-cost 用 searchId 计数器标记，每次查询不清零数组；
+    /// - closed 集与 g-cost 用 searchId 计数器标记，仅在序号耗尽时清零标记数组；
     /// - 无 System.Random，无基于哈希迭代的定序。
     /// 浮点仅出现在 world↔cell 边界（除以常数格距）与输出（cell 中心→Vec3）。
     /// </summary>
@@ -19,7 +19,9 @@ namespace AbilityKit.Combat.Navigation
         private const int OrthogonalCost = 10;
         private const int DiagonalCost = 14;
 
-        // 固定邻居顺序：先四邻接（代价 10），再对角（代价 14）。
+        /*
+         * 固定邻居顺序：先四邻接（代价 10），再对角（代价 14）。
+         */
         private static readonly int[] NeighborDx = { 1, 0, -1, 0, 1, -1, -1, 1 };
         private static readonly int[] NeighborDz = { 0, 1, 0, -1, 1, 1, -1, -1 };
         private static readonly int[] NeighborCost = { OrthogonalCost, OrthogonalCost, OrthogonalCost, OrthogonalCost, DiagonalCost, DiagonalCost, DiagonalCost, DiagonalCost };
@@ -33,7 +35,9 @@ namespace AbilityKit.Combat.Navigation
         private int _search;
         private int _insertCounter;
 
-        // open 堆（并行数组）：按 (f asc, insert asc) 取最小。
+        /*
+         * 开放节点堆采用并行数组，按代价、插入次序取最小值。
+         */
         private int _heapCount;
         private int[] _heapF;
         private int[] _heapOrder;
@@ -49,8 +53,21 @@ namespace AbilityKit.Combat.Navigation
             if (options == null) options = new NavigationWorldOptions();
 
             EnsureCapacity(grid.CellCount);
-            _search++;
-            if (_search <= 0) _search = 1; // 防溢出回绕
+            /*
+             * 复用序号前清除两套历史标记，避免旧查询被误认成本次查询。
+             * 在递增前处理边界，使开启溢出检查的构建也不会先抛异常。
+             * 路径代价和父节点均受标记保护，无需清除或备份整个工作区。
+             */
+            if (_search == int.MaxValue)
+            {
+                Array.Clear(_gStamp, 0, _gStamp.Length);
+                Array.Clear(_closedStamp, 0, _closedStamp.Length);
+                _search = 1;
+            }
+            else
+            {
+                _search++;
+            }
             _heapCount = 0;
             _insertCounter = 0;
 
@@ -60,7 +77,9 @@ namespace AbilityKit.Combat.Navigation
             var status = PathStatus.Found;
             var goalIndex = grid.Index(gx, gz);
 
-            // 目标 blocked：投影到最近可行 cell。
+            /*
+             * 目标格不可通行时，投影到最近可行格。
+             */
             if (grid.IsBlocked(gx, gz))
             {
                 if (TryNearestFree(grid, gx, gz, Math.Max(grid.Width, grid.Height), out var fx, out var fz))
@@ -109,7 +128,9 @@ namespace AbilityKit.Combat.Navigation
                     if (!grid.IsInBounds(nx, nz)) continue;
                     if (grid.IsBlocked(nx, nz)) continue;
 
-                    // 对角不切角：两个正交邻居必须都可行。
+                    /*
+                     * 对角不切角：两个正交邻居必须都可行。
+                     */
                     if (i >= 4)
                     {
                         if (grid.IsBlocked(cx + NeighborDx[i], cz)) continue;
@@ -140,14 +161,17 @@ namespace AbilityKit.Combat.Navigation
                 waypoints = Simplify(grid, waypoints, cells);
             }
 
-            // A replanned path starts at the actor, not at the center of its current cell.
-            // Returning that center can send a moving actor backwards on every replan.
+            /*
+             * 重规划从角色实际位置开始，避免先返回当前格中心而导致角色倒走。
+             */
             grid.WorldToCell(in startWorld, out var actualStartX, out var actualStartZ);
             if (waypoints.Length > 1 && grid.IsInBounds(actualStartX, actualStartZ) &&
                 !grid.IsBlocked(actualStartX, actualStartZ))
                 waypoints[0] = startWorld;
 
-            // Found 时把末点替换为精确目标，使 actor 正好停在请求点。
+            /*
+             * 完整路径以精确目标为末点，使角色停在请求点。
+             */
             if (status == PathStatus.Found && waypoints.Length > 0)
             {
                 waypoints[waypoints.Length - 1] = targetWorld;
@@ -165,7 +189,10 @@ namespace AbilityKit.Combat.Navigation
                 count++;
                 if (cursor == startIndex) break;
                 cursor = _parent[cursor];
-                if (count > grid.CellCount) break; // 保护
+                /*
+                 * 限制回溯长度，避免损坏的父节点链无限循环。
+                 */
+                if (count > grid.CellCount) break;
             }
 
             var cells = new int[count];
@@ -301,7 +328,9 @@ namespace AbilityKit.Combat.Navigation
         {
             var dx = Math.Abs(ax - bx);
             var dz = Math.Abs(az - bz);
-            // octile: 14*min + 10*(max-min) == 10*max + 4*min
+            /*
+             * 八方向距离按对角代价 14、正交代价 10 计算，化简为 10*max + 4*min。
+             */
             return Math.Max(dx, dz) * OrthogonalCost + Math.Min(dx, dz) * (DiagonalCost - OrthogonalCost);
         }
 
@@ -378,7 +407,9 @@ namespace AbilityKit.Combat.Navigation
             return cell;
         }
 
-        // i 是否应排在 j 之前：f 小优先，f 相同则插入序小优先。
+        /*
+         * 代价小的节点优先，代价相同时按插入次序决定，保持确定性。
+         */
         private bool IsBefore(int i, int j)
         {
             var fi = _heapF[i];
@@ -396,6 +427,9 @@ namespace AbilityKit.Combat.Navigation
         }
     }
 
+    /// <summary>
+    /// 将寻路工作区的行主序索引转换为网格坐标。
+    /// </summary>
     internal static class GridPathfinderCellExtensions
     {
         public static void ToCell(this int flatIndex, NavigationGrid grid, out int cx, out int cz)

@@ -7,6 +7,21 @@ namespace AbilityKit.Demo.Moba.Tests.StateSync;
 
 public sealed class MobaDeterministicCheckpointTests
 {
+    [Theory]
+    [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)]
+    public void Restore_rejects_old_schema_before_any_import(int oldVersion)
+    {
+        var source = new FakeProvider(10, 111);
+        var checkpoint = CreateCoordinator(source).Capture(new FrameIndex(3));
+        Assert.Equal(7, checkpoint.SchemaVersion);
+        var old = new MobaDeterministicCheckpoint(oldVersion, checkpoint.WorldId, checkpoint.WorldType,
+            checkpoint.TickRate, checkpoint.Frame, checkpoint.StateHash, checkpoint.Entries);
+        var provider = new FakeProvider(10, 7);
+        Assert.Throws<InvalidOperationException>(() => CreateCoordinator(provider).Restore(old));
+        Assert.Equal(7, provider.Value);
+        Assert.Equal(0, provider.ImportCount);
+    }
+
     [Fact]
     public void Capture_OrdersProvidersAndProducesStableHash()
     {

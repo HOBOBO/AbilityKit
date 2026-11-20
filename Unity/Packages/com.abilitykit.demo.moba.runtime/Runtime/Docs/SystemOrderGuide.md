@@ -39,6 +39,19 @@ Buff 命令及生命周期以当前 `MobaSystemOrder` 的 BuffCommandsDrain、Co
 BuffLifecycleReconcile、OngoingTriggerPlansReconcile 为准；旧 BuffsApply/BuffsTick 示例已移除。
 阶段标签不代替真实装配验收，必须递归展开正式世界的执行树检查唯一性与顺序。
 
+## Actor 清理的每轮顺序
+
+2026-11-18 用户确认 `plans/MobaActorCleanupOrderDecision.2026-11-18.md` D8。
+ActorDespawnCleanup 每轮收集已达到确认门限的请求候选，按稳定 ActorId 升序清理；
+普通运行、关闭回滚和恢复后重演使用同一规则。候选使用可复用列表，不原地排序 Entitas 缓存数组。
+无有效 ActorId 的异常候选排在有效身份之后，彼此保持原枚举顺序，仍沿既有异常清理路径处理。
+
+消费前重新检查实体启用状态、创建序号、ActorId、请求存在性和确认门限；
+创建序号只检测池对象复用，不参与业务排序或恢复数据。本轮回调新增请求、
+或本轮开始尚未达到确认门限的请求，在后续轮重新收集。
+同一 Execute 最多 8 轮，剩余请求保留给下一次正式调度；不改变确认条件、清理帧或系统 Phase/Order。
+该规则只确定 Actor 清理候选顺序，不重排 Projectile/Area 通知、Continuous、物理或 Command 协议。
+
 ## 区域检测与恢复
 
 - 物理前存在的区域参与本帧检测；物理产生的 Enter/Cross/Stay/Exit/Expire 在后续 AreaSync 消费。
@@ -74,6 +87,14 @@ due delay 在 Area Spawn 后采集并标记，只处理本轮开始已存在的�
 本批不循环清理树，不支持任意尾部派生；失败后重建会话，不保证撤销已发出的本地表现／诊断。
 活动 schedule 恢复、已销毁 Continuous／Cast 重建及完整外部输出事务仍需独立合同。
 验收见 `local/docs/Moba派生战斗帧内结算验收.2026-11-17.md`；旧缺口复现报告保留历史含义。
+
+## 普通移动来源的驱动与恢复
+
+`MobaMotionLocomotionInputSystem` 继续在 `MotionLocomotionInput` 的 Execute 阶段更新普通移动，
+由 `MobaLocomotionRuntimeService` 持有来源和实体版本/Pipeline 关联；服务不另行调度。
+正常帧取样属性与 CanMove，空组及旧关联清扫仅撤销服务自己持有的来源。
+联合生命周期 v7 只恢复已批准的同实例混合来源值和次序，静默重绑不执行输入 System，
+下一帧仍按原顺序推进。删除重建、Path/CollisionDash 及其它未知来源不在该范围内。
 
 ## 添加或修改系统
 

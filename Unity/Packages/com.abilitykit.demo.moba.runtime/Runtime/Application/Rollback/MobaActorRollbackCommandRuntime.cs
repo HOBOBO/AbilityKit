@@ -26,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         private readonly MobaActorRegistry _actors;
         private readonly MobaEntityManager _entities;
         private readonly IFrameTime _frameTime;
+        private MobaBrainService _expiryBrains;
         private readonly Dictionary<int, MobaEntityKind> _actorKinds =
             new Dictionary<int, MobaEntityKind>();
 
@@ -57,6 +58,11 @@ namespace AbilityKit.Demo.Moba.Rollback
         public CommandRollbackLog Log { get; }
 
         public CommandRollbackStateProvider StateProvider { get; }
+
+        internal bool RetainsNaturalExpiry => _expiryBrains != null;
+
+        internal void EnableNaturalExpiryRetention(MobaBrainService brains) =>
+            _expiryBrains = brains ?? throw new ArgumentNullException(nameof(brains));
 
         internal bool Matches(
             global::ActorContext context,
@@ -202,11 +208,23 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (entity.isEnabled) entity.Destroy();
         }
 
-        private void RestoreDestroyedActor(in MobaActorRollbackTombstone tombstone)
+        private void RestoreDestroyedActor(in MobaActorRollbackTombstone tombstone, FrameIndex targetFrame)
         {
             ValidateRegistrationConsistency(tombstone.ActorId);
             if (_actors.TryGetRegistered(tombstone.ActorId, out _))
                 throw new InvalidOperationException($"Actor {tombstone.ActorId} already exists during rollback restore.");
+
+            if (tombstone.Kind == MobaEntityKind.Summon && RetainsNaturalExpiry &&
+                _actors.TryGetRetainedForRecovery(tombstone.ActorId, targetFrame.Value, out _))
+            {
+                var retained = _actors.ReattachExpiredActor(tombstone.ActorId, targetFrame.Value, tombstone.EntityVersion);
+                if (!_entities.RegisterSilently(tombstone.ActorId, retained, tombstone.Team, tombstone.MainType,
+                        tombstone.UnitSubType, new PlayerId(tombstone.OwnerPlayerId), publishObjectLifecycle: false))
+                    throw new InvalidOperationException($"Retained Actor {tombstone.ActorId} was not reindexed.");
+                _expiryBrains.ReattachExpiredBrain(retained);
+                _actorKinds[tombstone.ActorId] = tombstone.Kind;
+                return;
+            }
 
             var transform = tombstone.Transform;
             var info = new MobaEntityInfo(
@@ -308,7 +326,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 ReadOnlyMemory<byte> payload)
             {
                 var value = ReadTombstone(payloadVersion, payload);
-                _runtime.RestoreDestroyedActor(in value);
+                _runtime.RestoreDestroyedActor(in value, context.TargetFrame);
             }
         }
     }

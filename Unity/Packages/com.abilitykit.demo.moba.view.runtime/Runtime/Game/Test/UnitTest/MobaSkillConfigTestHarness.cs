@@ -52,8 +52,9 @@ namespace AbilityKit.Game.Test.UnitTest
         private readonly MobaAcceptanceActorExpectation[] _scenarioActors;
         private readonly MobaGameStartSpec _gameStartSpec;
 
-        private MobaSkillConfigTestHarness(IWorld world, PlayerId playerId, float fixedDelta, int tickRate, MobaGameStartSpec gameStartSpec, MobaAcceptanceScenarioExpectation scenario = null, MobaAcceptanceActorExpectation[] scenarioActors = null)
+        private MobaSkillConfigTestHarness(WorldManager worlds, IWorld world, PlayerId playerId, float fixedDelta, int tickRate, MobaGameStartSpec gameStartSpec, MobaAcceptanceScenarioExpectation scenario = null, MobaAcceptanceActorExpectation[] scenarioActors = null)
         {
+            Worlds = worlds;
             World = world ?? throw new ArgumentNullException(nameof(world));
             PlayerId = playerId;
             FixedDelta = fixedDelta;
@@ -65,6 +66,7 @@ namespace AbilityKit.Game.Test.UnitTest
             CacheScenarioAliases(_scenarioActors);
         }
 
+        internal WorldManager Worlds { get; }
         public IWorld World { get; }
         public PlayerId PlayerId { get; }
         public float FixedDelta { get; }
@@ -121,9 +123,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 },
                 tickRate: tickRate,
                 inputDelayFrames: inputDelayFrames);
-            var world = CreateHeadlessMobaWorld(new WorldId(worldId), worldType, in launchSpec, validationMode);
+            var world = CreateHeadlessMobaWorld(new WorldId(worldId), worldType, in launchSpec, out var worlds, validationMode);
 
-            return new MobaSkillConfigTestHarness(world, typedPlayerId, fixedDelta, tickRate, launchSpec.ToGameStartSpec());
+            return new MobaSkillConfigTestHarness(worlds, world, typedPlayerId, fixedDelta, tickRate, launchSpec.ToGameStartSpec());
         }
 
         public static MobaSkillConfigTestHarness CreateForScenario(
@@ -165,9 +167,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 players: players,
                 tickRate: resolvedTickRate,
                 inputDelayFrames: inputDelayFrames);
-            var world = CreateHeadlessMobaWorld(new WorldId(resolvedWorldId), worldType, in launchSpec);
+            var world = CreateHeadlessMobaWorld(new WorldId(resolvedWorldId), worldType, in launchSpec, out var worlds);
 
-            return new MobaSkillConfigTestHarness(world, typedPlayerId, fixedDelta, resolvedTickRate, launchSpec.ToGameStartSpec(), scenario, scenarioActors);
+            return new MobaSkillConfigTestHarness(worlds, world, typedPlayerId, fixedDelta, resolvedTickRate, launchSpec.ToGameStartSpec(), scenario, scenarioActors);
         }
 
         public void EnterGameAndWarmup(int warmupTicks = 3, string reason = "editmode skill config test")
@@ -988,17 +990,18 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             if (_disposed) return;
             _disposed = true;
-            World.Dispose();
+            Worlds.Destroy(World.Id);
         }
 
         private static IWorld CreateHeadlessMobaWorld(
             WorldId worldId,
             string worldType,
             in MobaBattleLaunchSpec launchSpec,
+            out WorldManager worlds,
             MobaRuntimeValidationMode validationMode = MobaRuntimeValidationMode.ManualOnly)
         {
             var registry = new WorldTypeRegistry().RegisterEntitasWorld(worldType);
-            var manager = new WorldManager(new RegistryWorldFactory(registry));
+            worlds = new WorldManager(new RegistryWorldFactory(registry));
 
             var builder = WorldServiceContainerFactory.CreateWithAttributes(
                 WorldServiceProfile.All,
@@ -1027,7 +1030,7 @@ namespace AbilityKit.Game.Test.UnitTest
             options.Modules.Add(new MobaTraceAdapterModule());
             options.Modules.Add(new MobaWorldBootstrapModule());
             options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
-            return manager.Create(options);
+            return worlds.Create(options);
         }
 
         private static MobaBattleLaunchSpec BuildLaunchSpec(

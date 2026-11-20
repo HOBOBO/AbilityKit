@@ -54,12 +54,14 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private long _tickIntervalTimestampTicks;
     private long _tickDeadlineTimestamp;
     private WorldStartAnchor? _worldStartAnchor;
+    private FrameSyncInitialCheckpoint? _initialCheckpoint;
     private int _inputDelayFrames;
     private ServerBattleSyncProfile? _syncProfile;
     private string _syncTemplateId = string.Empty;
     private string _networkEnvironmentId = string.Empty;
     private string? _initSpecHash;
     private bool _externalTickMode;
+    private Guid _runtimeGeneration;
 
     public BattleLogicHostGrain(
         ILogger<BattleLogicHostGrain> logger,
@@ -131,7 +133,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             }
 
             _logger.LogDebug("[BattleLogicHost] Already initialized, returning idempotent result. BattleId: {BattleId}", _battleId);
-            return Task.FromResult(BattleInitResult.FromAlreadyInitialized(_initSpecHash, _worldStartAnchor));
+            return Task.FromResult(BattleInitResult.FromAlreadyInitialized(_initSpecHash, _worldStartAnchor)
+                with { InitialCheckpoint = _initialCheckpoint });
         }
 
         var result = InitializeBattleCore(initParams, initSpecHash);
@@ -207,12 +210,24 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
         ConfigureRuntimeDiagnostics();
 
+        _externalTickMode = syncTemplate.RuntimeMode == ServerBattleRuntimeMode.BattleWorldWithFrameSync;
+        _runtimeGeneration = Guid.NewGuid();
+        if (_externalTickMode && _runtimeSession is IBattleRuntimeExternalFrameClock frameClock)
+        {
+            _worldStartAnchor = _worldStartAnchor with { StartServerTicks = DateTime.UtcNow.Ticks };
+            initParams.WorldStartAnchor = _worldStartAnchor;
+            if (frameClock.HasInitialFrameCheckpoint)
+            {
+                _initialCheckpoint = new FrameSyncInitialCheckpoint(_runtimeGeneration);
+                _battleHostState.AdvanceFrame();
+            }
+        }
+
         _initSpecHash = initSpecHash;
         _initialized = true;
         PublishInitialSnapshot();
-        if (syncTemplate.RuntimeMode == ServerBattleRuntimeMode.BattleWorldWithFrameSync)
+        if (_externalTickMode)
         {
-            _externalTickMode = true;
             _logger.LogInformation("[BattleLogicHost] External tick mode — BattleFrameSyncGrain drives clock. BattleId: {BattleId}", _battleId);
         }
         else
@@ -221,7 +236,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         }
 
         _logger.LogInformation("[BattleLogicHost] Battle initialized successfully");
-        return BattleInitResult.FromInitialized(_initSpecHash, _worldStartAnchor);
+        return BattleInitResult.FromInitialized(_initSpecHash, _worldStartAnchor)
+            with { InitialCheckpoint = _initialCheckpoint };
     }
 
     public Task<BattleInputSubmitResult> SubmitInputAsync(ulong worldId, int frame, BattleInputItem input)
@@ -237,6 +253,12 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         {
             _logger.LogWarning("[BattleLogicHost] Input world mismatch. Expected: {ExpectedWorldId}, Actual: {ActualWorldId}", _worldId, worldId);
             return Task.FromResult(CreateInputSubmitResult(false, frame, frame, BattleResultStatusCodes.RejectedWorldMismatch, "Input world does not match battle world."));
+        }
+
+        if (frame == 0 && _initialCheckpoint != null)
+        {
+            return Task.FromResult(CreateInputSubmitResult(false, frame, frame,
+                nameof(BattleInputAcceptStatus.RejectedInvalidFrame), "Frame zero is an input-free initial checkpoint."));
         }
 
         if (input == null)
@@ -628,6 +650,15 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _performanceDiagnostics.BeginTick(frame, tickStartedAt);
         try
         {
+            if (_externalTickMode && _runtimeSession is IBattleRuntimeExternalFrameClock frameClock)
+            {
+                deltaTime = 1f / _tickRate;
+                if (!frameClock.TryPrepareExternalFrame(frame, deltaTime))
+                {
+                    return Task.FromResult(new BattleTickFrameResult(frame, false, 0) { RuntimeGeneration = _runtimeGeneration });
+                }
+            }
+
             // 1. 将帧同步输入转换为 BattleInputItem 并提交给运行时
             var battleInputs = new BattleInputItem[frameInputs?.Count ?? 0];
             if (frameInputs is { Count: > 0 })
@@ -663,6 +694,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             }
 
             // 2. Tick 世界
+            var settlementCandidate = _externalTickMode && _battleHostState.Frame == frame &&
+                submittedInputCount == battleInputs.Length;
             var worldTickStartedAt = Stopwatch.GetTimestamp();
             var worldTicked = _runtimeSession.Tick(frame, _tickRate, deltaTime);
             _performanceDiagnostics.RecordStage(
@@ -696,12 +729,18 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
                 ? hashProvider.ComputeStateHash()
                 : _runtimeSession.GetWorldDiagnostics(_worldId, frame)?.StateHash ?? (uint)_battleHostState.Frame;
 
-            return Task.FromResult(new BattleTickFrameResult(frame, worldTicked, stateHash));
+            var settlementEligible = settlementCandidate && worldTicked &&
+                _runtimeSession is IBattleRuntimeFrameCompletion completion && completion.CanFinalizeFrame(frame);
+            return Task.FromResult(new BattleTickFrameResult(frame, worldTicked, stateHash)
+            {
+                RuntimeGeneration = _runtimeGeneration,
+                SettlementEligible = settlementEligible
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[BattleLogicHost] Error in TickFrameAsync. Frame: {Frame}", frame);
-            return Task.FromResult(new BattleTickFrameResult(frame, false, 0));
+            return Task.FromResult(new BattleTickFrameResult(frame, false, 0) { RuntimeGeneration = _runtimeGeneration });
         }
         finally
         {
@@ -1231,6 +1270,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _tickDeadlineTimestamp = 0;
         _runtimeSession?.Dispose();
         _runtimeSession = null;
+        _runtimeGeneration = Guid.Empty;
+        _initialCheckpoint = null;
         _observerContexts.Clear();
         _snapshotDeliveries.Clear();
         _battleId = string.Empty;

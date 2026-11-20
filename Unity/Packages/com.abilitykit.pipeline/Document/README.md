@@ -34,28 +34,21 @@ IAbilityPipelineRun<TCtx>
 | `AbilityConditionalPhase` | 条件分支，多路分支 |
 | `AbilityDelayPhase` | 简单时间延迟 |
 | `AbilityRepeatPhase` | 循环/迭代 |
-| `AbilityTimelinePhase` | 关键帧事件调度（TODO） |
+| `AbilityWaitUntilPhase` | 等待条件满足，可配置超时行为 |
 
 ## 快速示例
 
-```csharp
-// 定义 Pipeline
-var pipeline = AbilityPipeline.Start(config, context)
-    .AddPhase(new InstantPhase("CheckCooldown"))       // 瞬时：冷却检查
-    .AddPhase(new DurationalPhase("Cast", 0.5f))       // 持续：吟唱 0.5s
-    .AddPhase(new TimelinePhase("Execute")               // 时间轴：关键帧
-        .AddEvent(0.0f, () => SpawnProjectile())
-        .AddEvent(0.3f, () => PlayEffect())
-        .AddEvent(0.5f, () => DealDamage())
-    )
-    .AddPhase(new InstantPhase("Aftercast"));           // 瞬时：后摇
+假设项目已提供 `AbilityPipeline<TCtx>` 实现、配置和本次运行的上下文，先装配阶段，再启动 Run：
 
-// 外部 Tick 驱动
-while (pipeline.State == PipelineState.Executing)
-{
-    pipeline.Run.Tick(deltaTime);
-}
+```csharp
+pipeline.AddPhase(new AbilityDelayPhase<TCtx>(0.5f));
+pipeline.AddPhase(new AbilityActionPhase<TCtx>(executeAbility));
+var run = pipeline.Start(config, context);
+
+run.Tick(deltaTime);
 ```
+
+宿主在后续模拟帧继续调用 `run.Tick(deltaTime)` 直至运行结束。动作回调和领域时间线由项目提供。
 
 ## 扩展机制
 

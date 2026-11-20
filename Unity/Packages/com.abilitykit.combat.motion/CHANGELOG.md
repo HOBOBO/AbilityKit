@@ -2,6 +2,15 @@
 
 本包遵循 [Keep a Changelog](https://keepachangelog.com/) 风格；版本号遵循语义化版本。
 
+## [Unreleased]
+
+- 新增 `MotionPipelinePolicyState` 及 `MotionPipelinePolicy.CaptureState / ValidateState / RestoreState`，按完整纯值规则排序捕获、验证并原子替换策略；运行配置 API 和组数组 getter 语义保持不变。
+- .NET 验证：Motion 核心项目 72/72；本批不涉及 MOBA Provider、帧载荷或 Solver/Events/导航恢复接线。
+- 新增 `PathFollowerState` 及 `PathFollowerMotionSource.CaptureState / ValidateState / RestoreState`，完整保存路径、冻结参数、仲裁参数和推进游标；捕获与恢复复制数组，恢复验证失败不改变来源。
+- PathFollower 推进迁入包内无状态算法，保留池化、逐航点步进、旧局部快照规则与正常通知时序；普通 Tick 不新增路径或状态对象分配。
+- 完整状态 API 不管理管线成员、顺序、来源身份或导航依赖，不自动提供完整世界回滚；详细用法及限制见 [使用文档](Document/Usage.md#71-pathfollower-完整领域状态)。
+- .NET 验证：共享 Motion 59/59、受影响 MOBA 22/22；本批未运行 Unity/Player 验证。
+
 ## [0.1.0] — 2026-07-31 — Beta
 
 首个 Beta 里程碑。MotionPipeline / ConfigurableMotionSolver / LocomotionMotionSource 等

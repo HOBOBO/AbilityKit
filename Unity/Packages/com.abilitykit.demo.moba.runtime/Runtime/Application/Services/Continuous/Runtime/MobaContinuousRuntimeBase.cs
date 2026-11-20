@@ -175,7 +175,10 @@ namespace AbilityKit.Demo.Moba.Services
         internal void RestoreLocalLifecycle(ContinuousState state, long elapsedRaw, long intervalRaw)
         {
             if (state != ContinuousState.Active && state != ContinuousState.Paused && state != ContinuousState.Inactive ||
-                elapsedRaw < 0 || intervalRaw < 0)
+                elapsedRaw < 0 || intervalRaw == long.MinValue ||
+                intervalRaw < 0 && (!(Config is IMobaContinuousPeriodicConfig periodic) ||
+                    periodic.IntervalSeconds <= 0f || float.IsNaN(periodic.IntervalSeconds) || float.IsInfinity(periodic.IntervalSeconds) ||
+                    periodic.IntervalEffectIds == null || periodic.IntervalEffectIds.Count == 0))
                 throw new InvalidOperationException("Invalid local continuous lifecycle state.");
             State = state;
             _elapsedRaw = elapsedRaw;

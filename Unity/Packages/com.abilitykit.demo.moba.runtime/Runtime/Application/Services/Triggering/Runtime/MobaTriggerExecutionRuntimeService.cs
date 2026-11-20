@@ -81,12 +81,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
         public void ValidateImport(FrameIndex frame, byte[] payload)
         {
-            ValidateState(ReadState(payload));
+            var progress = ReadProgress(payload);
+            _scheduler.ValidateProgress(in progress);
         }
 
         public byte[] ExportState(FrameIndex frame)
         {
-            var source = _scheduler.GetExecutions();
+            var progress = _scheduler.CaptureProgress();
+            var source = progress.Entries;
             var entries = new List<MobaTriggerScheduledExecutionEntry>(source.Length);
             for (var i = 0; i < source.Length; i++)
             {
@@ -101,7 +103,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
                     item.FailureReason));
             }
 
-            return MemoryPackSerializer.Serialize(new MobaTriggerExecutionRuntimePayload(1, _scheduler.NextExecutionId, entries.ToArray()));
+            return MemoryPackSerializer.Serialize(new MobaTriggerExecutionRuntimePayload(1, progress.NextExecutionId, entries.ToArray()));
         }
 
         public void ImportState(FrameIndex frame, byte[] payload)
@@ -113,26 +115,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
                 return;
             }
 
-            var state = ReadState(payload);
-            ValidateState(state);
-            var retained = new HashSet<long>();
-            foreach (var item in state.Entries ?? Array.Empty<MobaTriggerScheduledExecutionEntry>())
-            {
-                retained.Add(item.Id);
-                _scheduler.SetExecutionProgress(new TriggerScheduledExecutionInfo(item.Id,
-                    (TriggerScheduledExecutionState)item.State, item.ElapsedMs,
-                    item.LastExecutionMs, item.ExecutionCount, item.FailureReason));
-            }
-            foreach (var existing in _scheduler.GetExecutions())
-                if (!retained.Contains(existing.Id)) _scheduler.Remove(existing.Id);
-            _scheduler.SetNextExecutionId(state.NextId);
+            var progress = ReadProgress(payload);
+            _scheduler.RestoreProgress(in progress);
             _finishedAtFrame.Clear();
-            foreach (var item in state.Entries ?? Array.Empty<MobaTriggerScheduledExecutionEntry>())
-                if (item.State != (byte)TriggerScheduledExecutionState.Waiting)
+            foreach (var item in progress.Entries)
+                if (item.State != TriggerScheduledExecutionState.Waiting)
                     _finishedAtFrame[item.Id] = frame.Value;
         }
 
-        private static MobaTriggerExecutionRuntimePayload ReadState(byte[] payload)
+        private static TriggerExecutionProgress ReadProgress(byte[] payload)
         {
             if (payload == null || payload.Length == 0)
                 throw new InvalidOperationException("Missing trigger execution rollback payload.");
@@ -140,25 +131,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             if (state.Version != 1)
                 throw new InvalidOperationException($"Unsupported trigger execution runtime payload version '{state.Version}'.");
 
-            return state;
-        }
-
-        private void ValidateState(in MobaTriggerExecutionRuntimePayload state)
-        {
-            if (state.NextId <= 0)
-                throw new InvalidOperationException("Invalid scheduled execution ID cursor.");
-            var ids = new HashSet<long>();
-            foreach (var entry in state.Entries ?? Array.Empty<MobaTriggerScheduledExecutionEntry>())
+            var source = state.Entries ?? Array.Empty<MobaTriggerScheduledExecutionEntry>();
+            var entries = new TriggerScheduledExecutionInfo[source.Length];
+            for (var index = 0; index < source.Length; index++)
             {
-                if (entry.Id <= 0 || entry.Id >= state.NextId || !ids.Add(entry.Id) ||
-                    !_scheduler.ContainsDefinition(entry.Id) ||
-                    entry.State > (byte)TriggerScheduledExecutionState.Failed ||
-                    entry.ElapsedMs < 0 || double.IsNaN(entry.ElapsedMs) || double.IsInfinity(entry.ElapsedMs) ||
-                    entry.LastExecutionMs < 0 || double.IsNaN(entry.LastExecutionMs) ||
-                    double.IsInfinity(entry.LastExecutionMs) || entry.ExecutionCount < 0)
-                    throw new InvalidOperationException(
-                        $"Scheduled execution {entry.Id} cannot be restored without its in-process definition.");
+                var item = source[index];
+                entries[index] = new TriggerScheduledExecutionInfo(item.Id, (TriggerScheduledExecutionState)item.State,
+                    item.ElapsedMs, item.LastExecutionMs, item.ExecutionCount, item.FailureReason);
             }
+
+            return new TriggerExecutionProgress(state.NextId, entries);
         }
 
         public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)

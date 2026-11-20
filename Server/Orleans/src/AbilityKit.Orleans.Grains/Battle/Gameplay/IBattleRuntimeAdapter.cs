@@ -63,6 +63,23 @@ public interface IBattleRuntimeStateHashProvider
     uint ComputeStateHash();
 }
 
+/// <summary>
+/// 可选的权威结算凭据：只核对刚完成的世界帧，不推进世界、不用诊断哈希代替。
+/// 只由没有旁路输入、且不重写同一会话已完成历史的运行时对符合条件的帧提供。
+/// </summary>
+public interface IBattleRuntimeFrameCompletion
+{
+    bool CanFinalizeFrame(int frame);
+}
+
+/// <summary>在混合帧同步模式下，于输入分发前准备同一权威帧的模拟时钟。</summary>
+public interface IBattleRuntimeExternalFrameClock
+{
+    bool HasInitialFrameCheckpoint => false;
+
+    bool TryPrepareExternalFrame(int frame, float fixedDeltaTime);
+}
+
 /// <summary>可选：阶段耗时诊断，供服务端性能观测消费。</summary>
 public interface IBattleRuntimeStageDiagnostics
 {

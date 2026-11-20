@@ -1,6 +1,6 @@
 # AbilityKit.Entitas.CodeGen
 
-Entitas 组件代码生成器（设计时 CLI），取代已失管的 Jenny 链路。与 `tools/AbilityKit.Protocol.CatalogCompiler` 同级同模式：**产物 checked-in，由本工具生成/校验**，不进任何 Unity 包，零外部 NuGet 依赖（离线可跑；测试工程仅依赖仓库既有 xunit 栈）。
+Entitas 组件代码生成器（设计时 CLI），取代已失管的 Jenny 链路。与 `tools/AbilityKit.Protocol.CatalogCompiler` 同级同模式：**产物 checked-in，由本工具生成/校验**，不进任何 Unity 包；使用 Roslyn 进行语义扫描及共用纯数据语法检查，依赖已还原时可离线运行。
 
 ## 设计裁定
 
@@ -22,7 +22,7 @@ Entitas 组件代码生成器（设计时 CLI），取代已失管的 Jenny 链�
   - Context 构造里 AERC 行缩进对齐相邻实参；
   - `catch(` → `catch (`
   - 头部署名默认 `abilitykit`（本工具真实出处；`entitas-parity` 保留为可配选项）。
-- **gate 已挂**：`tools/test-gates.json` 的 `entitas-codegen`（P1）= `tools/check_entitas_codegen.ps1`（全部项目基线校验）+ 生成器 29 项单测；`tools/run_test_gate.ps1 -Gate entitas-codegen`。
+- **gate 已挂**：`tools/test-gates.json` 的 `entitas-codegen`（P1）= `tools/check_entitas_codegen.ps1`（全部项目基线校验）+ 生成器单测（2026-11-18 为 72 项）；`tools/run_test_gate.ps1 -Gate entitas-codegen`。
 
 ### 组件序列化策略（业务选项，2026-10-12 起）
 
@@ -34,14 +34,22 @@ Entitas 组件代码生成器（设计时 CLI），取代已失管的 Jenny 链�
 | `opt-in` | pin 里 `serialize:true` 主动加入 | serialize 有效；无 coverage 概念 |
 | `auto`（MOBA 采用） | **默认全量 + 豁免制**：凡通过可序列化判定的组件自动入集；不入集必须在 pin 用 `coverage` 声明豁免理由 | serialize 字段无效（报错）；coverage = 豁免注册表 |
 
-`auto` 的 fail-closed 语义：新平值组件**自动受保护**（想不备都不行，除非豁免）；新 blob 组件不声明豁免则直接报错逼作者归类。豁免词汇：`provider:<名>`（服务侧真相源）/ `immutable`（出生赋值，实体重建覆盖）/ `projection`（每帧重投影）/ `transient`。
+`auto` 的 fail-closed 语义：没有 `coverage` 豁免的组件按生成器支持的形状自动入集；有 `coverage` 的组件不进入生成字段集。新组件必须显式决定是由生成链恢复，还是声明 `provider:<名>`（服务侧真相源）、`immutable`（出生赋值，实体重建覆盖）、`projection`（每帧重投影）或 `transient`（帧间不保留）。生成器按 pin coverage 决定入集，`[EntitasBlob]` 标记托管风险并允许有限字典形状校验，不会自动建立 Provider 注册或绕过字段校验。
 
-设计裁定（2026-10-12，对照 UnityLockstep/ET 帧同步分析）：全量备份哲学以业务选项落地，工具保持通用；blob 组件无法进全量是投影架构的边界而非工具缺口；组件层序列化用生成的逐字段二进制（深拷贝语义，外层 MemoryPack payload 包装），不用 MemoryPack 库本体（组件类型未标注，Fixed64/Vec3/句柄会卡死）。
+设计裁定（2026-10-12，对照 UnityLockstep/ET 帧同步分析）：全量备份哲学以业务选项落地，工具保持通用；运行时引用仍需 Provider 或生命周期绑定；值字段与明确支持的有限托管纯数据使用生成逐字段二进制（深拷贝语义，外层 MemoryPack payload 包装）。
+
+### 有限托管 codec（2026-11-18）
+
+显式 `[EntitasBlob]` 组件可包含最多四层的有限纯字段数据图、数组及 `Dictionary<int/枚举, T>`。普通 class 必须 sealed、非 partial、无继承/泛型且仅含 public 可写字段；拒绝构造、方法、属性、隐藏字段、initializer、循环引用及交错数组。运行时句柄、服务、委托和任意多态对象图仍不支持。两种扫描器使用相同 Roslyn 语法护栏。
+
+class 与 string 写显式存在标记；数组/字典 count=-1 表示 null，0 表示 empty，元素 null 另写存在标记，不占用业务哨兵值。字典按键排序；键仅 int 或 int 底层枚举，拒绝未知枚举、重复键、派生字典和非默认 comparer。恢复检查长度/存在标记，集合读取要求底层流可 seek 且剩余长度可读；Provider 使用 MemoryStream 全量临时预检后才写 live 实体，生成 Restore 自身不承诺跨组件事务。
+
+新增已知叶类型 `AttributeId` 使用 RawId/FromRaw，`Fixed64` 保留精确 raw。MOBA 生成覆盖增加 ResourceContainer 至 15 项，组件载荷 v4、checkpoint schema3，HP v3 仅保存属性 BaseValue，旧资源 Provider 10013 删除。正常网络状态 hash 字段顺序不变；资源派生上下文按另行批准的 D2.1 静默读取实时上限，范围和验收见 `local/docs/Moba资源组件统一回滚验收.2026-11-18.md`。
 
 ### 序列化已知类型与运行时修复（2026-10-12）
 
-- 序列化器内置定点/向量类型展开规则：`Fixed64`（RawValue 往返）、`Vec3`（XYZ float 往返）——平值组件的覆盖面从"纯基元"扩到定点向量；
-- **运行时修复**：`MobaActorTransformRollbackProvider` payload v3 补齐 `MotionState.Velocity/Time` 恢复（此前回滚只恢复 Position/Forward，速度是预测帧残留值，重模拟首帧可能发散）；71/71 回滚测试绿。
+- 序列化器支持 `Fixed64`、`Vec3`、`Quat`、`Transform3` 固定值形状；Transform3 完整保存位置、旋转和缩放。
+- MOBA 的 Transform/MoveInput 由生成组件载荷 v3 统一恢复；key 10001 的 `MobaActorMotionRollbackProvider` v5 只恢复 Motion 速度、时间和碰撞资格。
 
 ### 接入后待办
 
@@ -49,7 +57,7 @@ Entitas 组件代码生成器（设计时 CLI），取代已失管的 Jenny 链�
 2. ~~护盾双组件处置~~ 已完成（2026-10-12）：两个 `[Actor]` 死定义已删除（领域模型保留，护盾 ECS 化待重新规划）；
 3. Unity 编辑器权威编译：batchmode 尝试因 Unity 版本不匹配失败（gate 默认 2022.3.62f1，项目 Library 为用户编辑器 f3 所建；日志 0 条 error CS，API-updater 节点失败属环境问题）——下次用 f3 编辑器打开即闭环；
 4. ~~序列化生成~~ 已落地（2026-10-12）：`ActorComponentSerialization.cs`（10 个平值组件）+ 覆盖归类审计 + Transform provider v3 运动学补全；
-5. 已知冗余：`SkillLoadout` 已全量序列化，`MobaSkillCooldownRollbackProvider` 与之重复覆盖（写入同值，无害）——下次动回滚注册表时可一并清理。
+5. 已知覆盖交叠：`SkillLoadout` 已全量序列化，与 `MobaSkillCooldownRollbackProvider` 存在交叠。不能仅凭写入同值认定长期无害；冷却由独立工作流管理，调整所有权、载荷或已有预期需独立核实并确认，本批不改。
 6. ~~context 收敛~~ 已完成（2026-10-14）：配置从 `Actor/Game/Input/Service` 收敛为 **`Actor` + `Game`**。`Input`/`Service` 两个空壳（0 组件、0 消费者）删除——输入经 `MobaSkillInputCommandHandler` 直达 `SkillCastCoordinator`，服务经 `[WorldService]` 进 DI，两者与 ECS 职责重复。`Game` 保留为"战斗内全局"的显式容器（当前 0 组件），等真有全局实体事实时再标 `[Game]`；判断准则：**服务事实进 DI，实体事实进 `[Game]`**，不要把单例塞进 entity 重蹈"状态权威分裂"。`MobaEntitasContextsExtensions` 只保留 `Actor()`/`Game()`。
 
 ## 目录划分（与命名空间一致）
@@ -75,10 +83,10 @@ AbilityKit.Entitas.CodeGen/
 | 要加什么 | 动哪里 |
 |---|---|
 | 新输出物（archetype matcher / entity index / manifest） | `Pipeline/Generators/` 新增 `IGenerator` + `Pipeline.CreateDefault()` 注册一行 |
-| 扩大序列化覆盖 | pin 里给组件加 `"serialize": true`（平值组件；ModelBuilder 会校验可行性并拦截 blob 组件） |
+| 扩大序列化覆盖 | `auto` 模式下移除该组件的 `coverage` 豁免；`opt-in` 模式才使用 `"serialize": true` |
 | 新后处理（如生成 .meta、hash manifest） | `Pipeline/PostProcessors/` 新增 `IPostProcessor` |
-| ~~编译器级源解析~~ | **已落地**：`scanner: "roslyn"`（语义级 FQN 解析，字段类型短名定位闭包，19s；parity 测试保证与 regex 生成物逐字节一致）；默认仍 regex（5s、零依赖） |
-| ~~analyzer 护栏~~ | **已落地**：`EntitasComponentGuardAnalyzer`（AKSG9201 blob 字段须 [EntitasBlob] 标注 / AKSG9202 非 public 字段），在 com.abilitykit.demo.moba.codegen；9 个 blob 组件已显式标注 |
+| ~~编译器级源解析~~ | **已落地**：`scanner: "roslyn"`（语义级 FQN 解析，字段类型短名定位闭包；parity 测试保证与 regex 生成物逐字节一致）；默认 regex，有限纯数据语法护栏也使用 Roslyn |
+| ~~analyzer 护栏~~ | **已落地**：`EntitasComponentGuardAnalyzer`（AKSG9201 托管字段须 [EntitasBlob] 标注 / AKSG9202 非 public 字段），在 com.abilitykit.demo.moba.codegen；标记供 analyzer 识别，不代替 pin coverage 和运行时 Provider 注册 |
 | 新配置格式（YAML 等） | 实现 `Configuration/IConfigReader` |
 
 ## 配置体系（schema 2）
@@ -141,12 +149,12 @@ AbilityKit.Entitas.CodeGen/
 dotnet test tools/AbilityKit.Entitas.CodeGen.Tests/AbilityKit.Entitas.CodeGen.Tests.csproj
 ```
 
-29 个测试覆盖：**Golden 基线**（全管线对照 checked-in 基线清单）、**示例包差异仅信息性**（`--diff-generated-dir` 不影响退出码）、**模板归一化**（Matcher 统一缩进/`IContext[]`/空 lookup 同构/署名默认 abilitykit）、**基线防篡改**（固化→绿、篡改→红）、项目发现、漂移与 pin（未知组件/过期条目/update-pin 恢复/generate:false）、源校验（属性/方法/非 public 字段/缺 context 属性）、配置严格性（未知键/schema 互斥/导出有效配置）、编辑器开关与守卫宏、类型解析（基元/数组/泛型/BCL/歧义）、flag 组件 API、管线确定性。
+截至 2026-11-18 共 72 项，覆盖：**Golden 基线**（全管线对照 checked-in 基线清单）、**示例包差异仅信息性**（`--diff-generated-dir` 不影响退出码）、**模板归一化**（Matcher 统一缩进/`IContext[]`/空 lookup 同构/署名默认 abilitykit）、**基线防篡改**（固化→绿、篡改→红）、项目发现、漂移与 pin（未知组件/过期条目/update-pin 恢复/generate:false）、源校验（属性/方法/非 public 字段/缺 context 属性）、配置严格性（未知键/schema 互斥/导出有效配置）、编辑器开关与守卫宏、类型解析（基元/数组/泛型/BCL/歧义）、flag 组件 API、管线确定性，以及有限托管形状拒绝和实际编译执行的字典/数组深复制、null/empty 与规范字节编码。
 
 ## 已知边界
 
 - 字段类型解析是"using 顺序 + 类型索引"启发式（别名/扩展方法不支持，遇到报错而非静默）；
 - 不支持 `[Unique]`/`[Event]`/`[Cleanup]`（当前 45 个组件均未使用）；
 - 组件类声明 `: IComponent` 之外的接口列表被忽略（当前无此写法）；
-- 尚未挂 `tools/test-gates.json` gate（接入替换时随 `-Check` gate 一起挂）；
+- 已接入 `tools/test-gates.json` 的 `entitas-codegen`；`moba-ecs-rollback` 复用该门禁并增加真实组件恢复验收，随 `regression` 执行；CI 是否实际强制仍需核对工作流；
 - `[PrimaryEntityIndex]` 被解析但无对应生成器（全仓 `GetEntityWith` 零命中——历史从未生成过索引代码）；补 entity index 时新增 `IGenerator`。

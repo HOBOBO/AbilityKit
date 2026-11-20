@@ -35,7 +35,10 @@ namespace AbilityKit.Pipeline
             return new Run(this, Runtime ?? Pipeline.DefaultRuntime, config, context, runPhases);
         }
 
-        /// <summary>Creates a run and lets the caller initialize its runtime state before registration.</summary>
+        /// <summary>
+        /// 附着一次运行，在登记前由调用方初始化运行状态，跳过普通启动事件。
+        /// 调用方负责校验和恢复业务数据；登记及调试观察仍会执行。
+        /// </summary>
         public IAbilityPipelineRun<TCtx> AttachRun(IAbilityPipelineConfig config, TCtx context,
             Action<IAbilityPipelineRun<TCtx>> initialize)
         {

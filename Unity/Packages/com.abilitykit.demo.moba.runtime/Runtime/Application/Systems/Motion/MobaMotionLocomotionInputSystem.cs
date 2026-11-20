@@ -1,16 +1,16 @@
-using System;
-using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Core.Logging;
-using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Demo.Moba;
 
 namespace AbilityKit.Demo.Moba.Systems.Motion
 {
+    /// <summary>
+    /// 在正式输入阶段驱动普通移动来源；关联由业务服务持有，属性和门禁仅在正常帧取样。
+    /// </summary>
     [WorldSystem(order: MobaSystemOrder.MotionLocomotionInput, Phase = WorldSystemPhase.Execute)]
     public sealed class MobaMotionLocomotionInputSystem : WorldSystemBase
     {
@@ -18,12 +18,13 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
         private MobaCombatRulesService _combatRules;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
-        private readonly Dictionary<int, LocomotionMotionSource> _locomotionByActorId = new Dictionary<int, LocomotionMotionSource>(128);
-        private readonly Dictionary<int, int> _seenStampByActorId = new Dictionary<int, int>(128);
-        private readonly List<int> _tmpRemoveActorIds = new List<int>(64);
-        private int _stamp;
+        private MobaLocomotionRuntimeService _locomotion;
+        private MobaActorRegistry _actors;
         private int _sampleLogCount;
 
+        /// <summary>
+        /// 使用当前世界的组件上下文和服务构建普通移动输入系统。
+        /// </summary>
         public MobaMotionLocomotionInputSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
@@ -33,6 +34,8 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
         {
             Services.TryResolve(out _clock);
             Services.TryResolve(out _combatRules);
+            _locomotion = Services.Resolve<MobaLocomotionRuntimeService>();
+            _actors = Services.Resolve<MobaActorRegistry>();
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.Motion,
@@ -43,11 +46,8 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
         {
             if (_clock == null) return;
 
-            _stamp++;
-            if (_stamp == int.MaxValue) _stamp = 1;
-
+            _locomotion.BeginFrame();
             var entities = _group.GetEntities();
-            if (entities == null || entities.Length == 0) return;
 
             for (int i = 0; i < entities.Length; i++)
             {
@@ -61,34 +61,19 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                 var actorId = e.actorId.Value;
                 if (actorId <= 0) continue;
 
-                _seenStampByActorId[actorId] = _stamp;
+                var version = _actors.GetEntityVersion(actorId);
+                var loco = _locomotion.Visit(e, version);
 
                 if (_combatRules != null && !_combatRules.CanMove(actorId))
                 {
-                    if (_locomotionByActorId.TryGetValue(actorId, out var blockedLoco) && blockedLoco != null)
-                    {
-                        blockedLoco.SetInput(0f, 0f);
-                    }
+                    loco?.SetInput(0f, 0f);
                     continue;
                 }
 
                 var speed = new MobaAttrs(e).MoveSpeed;
 
-                if (!_locomotionByActorId.TryGetValue(actorId, out var loco) || loco == null)
-                {
-                    // MoveInput is expressed in world X/Z space: the HUD joystick
-                    // projects through the camera, while AI target movement writes
-                    // a normalized world-space delta. Treating it as Local rotates
-                    // the input again whenever an actor turns (for example after
-                    // aiming or casting a directional skill).
-                    loco = new LocomotionMotionSource(speed: speed, space: MotionInputSpace.World, priority: 0);
-                    _locomotionByActorId[actorId] = loco;
-                    m.Pipeline.AddSource(loco);
-                }
-                else
-                {
-                    loco.Speed = speed;
-                }
+                if (loco == null) loco = _locomotion.Create(e, version, speed);
+                else loco.Speed = speed;
 
                 loco.SetInput(e.moveInput.Dx, e.moveInput.Dz);
 
@@ -109,25 +94,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                     newHitTriggerRuntime: m.HitTriggerRuntime);
             }
 
-            if (_locomotionByActorId.Count > 0)
-            {
-                _tmpRemoveActorIds.Clear();
-                foreach (var kv in _locomotionByActorId)
-                {
-                    if (!_seenStampByActorId.TryGetValue(kv.Key, out var s) || s != _stamp)
-                    {
-                        _tmpRemoveActorIds.Add(kv.Key);
-                    }
-                }
-
-                for (int i = 0; i < _tmpRemoveActorIds.Count; i++)
-                {
-                    var id = _tmpRemoveActorIds[i];
-                    _locomotionByActorId.Remove(id);
-                    _seenStampByActorId.Remove(id);
-                }
-            }
+            _locomotion.EndFrame();
         }
     }
 }
-

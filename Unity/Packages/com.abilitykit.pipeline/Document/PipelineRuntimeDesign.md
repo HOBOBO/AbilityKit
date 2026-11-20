@@ -58,12 +58,14 @@
 ### `IAbilityPipelineContext`
 
 - 职责：
-  - run 的可变运行时状态容器
+  - 一次运行的访问面，包含运行信息与阶段间数据访问；本身不是可还原的快照。
   - 必须包含：
     - `CurrentPhaseId`
     - `PipelineState`
     - `IsAborted` / `IsPaused`
     - `StartTime` / `ElapsedTime`
+
+需要回滚的 Context 用类型化字段承载可恢复状态，以逻辑时间推进，用稳定 ID 或句柄表示跨对象关系。`SharedData` 只用于兼容互操作；必须依赖的键要明确值类型、默认规则和恢复归属。不要把委托、服务、实体引用或订阅令牌放进共享数据，也不要把跨帧状态藏在 Action、WaitUntil 或 Repeat 的闭包里。行为由阶段或宿主绑定；需要跨帧保存的延迟操作用规则 ID、参数和到期数据表达。普通运行的字典 API 不会自动拒绝这些引用。
 
 ### `IAbilityPipelinePhase<TCtx>`
 

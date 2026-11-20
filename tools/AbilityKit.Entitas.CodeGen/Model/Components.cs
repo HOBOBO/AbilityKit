@@ -11,7 +11,7 @@ public sealed class FieldInfo(string typeFqn, string name)
 }
 
 /// <summary>从源码扫描出的组件定义（已通过源校验）。</summary>
-public sealed class ComponentInfo(string componentName, string classFqn, List<FieldInfo> fields, HashSet<string> contexts, string sourceFile)
+public sealed class ComponentInfo(string componentName, string classFqn, List<FieldInfo> fields, HashSet<string> contexts, string sourceFile, bool isBlob = false)
 {
     /// <summary>组件名（类名去掉 Component 后缀）。</summary>
     public string ComponentName { get; } = componentName;
@@ -20,4 +20,8 @@ public sealed class ComponentInfo(string componentName, string classFqn, List<Fi
     public HashSet<string> Contexts { get; } = contexts;
     public string SourceFile { get; } = sourceFile;
     public bool IsFlag => Fields.Count == 0;
+    /// <summary>
+    /// 显式托管数据标记；不隐式豁免字段校验或注册 Provider。
+    /// </summary>
+    public bool IsBlob { get; } = isBlob;
 }

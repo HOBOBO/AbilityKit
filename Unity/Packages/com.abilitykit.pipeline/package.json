@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "displayName": "AbilityKit Pipeline",
   "unity": "2022.3",
-  "description": "AbilityKit pipeline graph asset and runtime debugging infrastructure.",
+    "description": "Composable stages and host-driven execution for a single ability run, with graph and debugging support.",
   "author": {
     "name": "AbilityKit"
   },

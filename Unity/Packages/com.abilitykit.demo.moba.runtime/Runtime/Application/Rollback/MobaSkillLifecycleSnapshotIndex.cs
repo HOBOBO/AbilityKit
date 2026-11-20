@@ -72,7 +72,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 local.ExecutionContextNextId != execution.NextContextId)
                 throw new InvalidOperationException("Skill and execution registry checkpoints differ.");
             var skills = MemoryPackSerializer.Deserialize<MobaSkillRuntimeRollbackPayload>(local.RuntimeState);
-            if (skills.Version != 3 || skills.Runtimes == null || skills.Retains == null)
+            if (skills.Version != MobaSkillRuntimeRollbackProvider.RuntimePayloadVersion ||
+                skills.Runtimes == null || skills.Retains == null)
                 throw new InvalidOperationException("Invalid lifecycle skill runtime state.");
             foreach (var node in local.ExecutionContextNodes)
                 if (!contexts.ContainsKey(node.ContextId))

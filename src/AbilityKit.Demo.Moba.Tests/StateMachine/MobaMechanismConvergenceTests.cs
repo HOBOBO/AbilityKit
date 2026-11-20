@@ -72,6 +72,112 @@ public sealed class MobaMechanismConvergenceTests
     }
 
     [Fact]
+    public void Prepared_parameters_roundtrip_through_v4_after_commit_without_reapplying()
+    {
+        using var parameters = new MobaCharacterHfsmParameterService();
+        parameters.RegisterActorProfile(27, Graph());
+        var request = new SkillCastRequest(98123, 2, 27, 0, Vec3.Zero, Vec3.Forward, new Services(parameters),
+            null, null, null, new[] { new MobaPreparedParameterSnapshot(82, 7), new MobaPreparedParameterSnapshot(81, 3) });
+        var context = new SkillPipelineContext();
+        context.Initialize(new object(), request);
+        context.SourceContextId = 500;
+        request.ParameterSnapshots[0] = new MobaPreparedParameterSnapshot(82, 99);
+        var copy = context.GetPreparedParameterSnapshots();
+        Assert.Equal(new[] { 81, 82 }, Array.ConvertAll(copy, sample => sample.TargetParameterId));
+        copy[1] = new MobaPreparedParameterSnapshot(82, 101);
+        Assert.True(context.CommitPreparedParameters());
+        Assert.Equal(3, parameters.Resolve(27, 81));
+        Assert.Equal(7, parameters.Resolve(27, 82));
+
+        var state = context.CaptureRollbackState();
+        Assert.DoesNotContain(context.SharedData.Keys, key => key.StartsWith("cast.prepared.", StringComparison.Ordinal));
+        Assert.Collection(Array.FindAll(state.SharedData, entry => entry.Key.StartsWith("cast.prepared.", StringComparison.Ordinal)),
+            entry => { Assert.Equal("cast.prepared.committed", entry.Key); Assert.Equal(true, entry.ToValue()); },
+            entry => { Assert.Equal("cast.prepared.parameter.81", entry.Key); Assert.Equal(3f, entry.ToValue()); },
+            entry => { Assert.Equal("cast.prepared.parameter.82", entry.Key); Assert.Equal(7f, entry.ToValue()); });
+        var payload = SerializeRunnerContext(state);
+        context.ClearData();
+        Assert.Empty(context.GetPreparedParameterSnapshots());
+
+        var restored = new SkillPipelineContext();
+        restored.Initialize(new object(), request);
+        var decoded = SkillRunnerRollbackCodec.Deserialize(payload).Entries[0].Context;
+        restored.RestoreRollbackState(decoded);
+        Assert.Equal(payload, SerializeRunnerContext(restored.CaptureRollbackState()));
+
+        // A later write by the same source must survive the restored commit path.
+        var later = ModifierData.Override(ModifierKey.FromPacked(82), 19);
+        parameters.Set(27, 500L, 82, in later);
+        for (var frame = 1; frame <= 3; frame++)
+        {
+            restored.SetFrame(frame);
+            Assert.True(restored.CommitPreparedParameters());
+            Assert.Equal(19, parameters.Resolve(27, 82));
+        }
+        restored.RunAndClearCleanups();
+        Assert.Equal(0, parameters.Resolve(27, 82));
+    }
+
+    [Theory]
+    [InlineData("cast.prepared.parameter.82", "wrong type")]
+    [InlineData("cast.prepared.parameter.082", "noncanonical key")]
+    [InlineData("cast.prepared.committed", "wrong type")]
+    public void Invalid_prepared_state_rejects_before_changing_the_target(string key, string problem)
+    {
+        var context = new SkillPipelineContext();
+        var request = new SkillCastRequest(98123, 2, 27, 0, Vec3.Zero, Vec3.Forward, null,
+            null, null, null, new[] { new MobaPreparedParameterSnapshot(82, 7) });
+        context.Initialize(new object(), request);
+        context.SetFrame(4);
+        Assert.True(context.SharedData.TryAdd("unrelated", 20));
+        var state = context.CaptureRollbackState();
+        var index = Array.FindIndex(state.SharedData, entry => entry.Key == "cast.prepared.parameter.82");
+        state.SharedData[index] = SkillSharedDataRollbackEntry.Capture(key, problem == "noncanonical key" ? (object)7f : problem);
+        var payload = SerializeRunnerContext(state);
+        Assert.Contains(key, Assert.Throws<System.IO.InvalidDataException>(() => SkillRunnerRollbackCodec.Deserialize(payload)).Message);
+
+        context.SetFrame(9);
+        Assert.Contains(key, Assert.Throws<System.IO.InvalidDataException>(() => context.RestoreRollbackState(state)).Message);
+        Assert.Equal(9, context.Frame);
+        Assert.Equal(20, context.GetData<int>("unrelated"));
+        Assert.Equal(7f, Assert.Single(context.GetPreparedParameterSnapshots()).Value);
+    }
+
+    [Fact]
+    public void Reserved_key_written_directly_to_shared_data_cannot_override_the_prepared_state()
+    {
+        using var parameters = new MobaCharacterHfsmParameterService();
+        parameters.RegisterActorProfile(27, Graph());
+        var request = new SkillCastRequest(98123, 2, 27, 0, Vec3.Zero, Vec3.Forward, new Services(parameters),
+            null, null, null, new[] { new MobaPreparedParameterSnapshot(82, 7) });
+        var context = new SkillPipelineContext();
+        context.Initialize(new object(), request);
+        context.SourceContextId = 500;
+        const string key = "cast.prepared.parameter.82";
+        context.SharedData[key] = (Action)(() => throw new InvalidOperationException());
+        context.SharedData["cast.prepared.committed"] = true;
+        Assert.Equal(7f, Assert.Single(context.GetPreparedParameterSnapshots()).Value);
+        Assert.True(context.CommitPreparedParameters());
+        Assert.Equal(7, parameters.Resolve(27, 82));
+        Assert.Contains(key, Assert.Throws<InvalidOperationException>(() => context.CaptureRollbackState()).Message);
+    }
+
+    private static byte[] SerializeRunnerContext(in SkillPipelineContextRollbackState state) =>
+        SkillRunnerRollbackCodec.Serialize(new SkillRunnerRollbackSnapshot
+        {
+            Entries = new[]
+            {
+                new SkillRunnerRollbackEntry
+                {
+                    ActorId = 27, SkillId = 98123, SkillSlot = 2, SkillLevel = 1, Sequence = 1,
+                    RuntimeId = 1, RuntimeGeneration = 1, RootContextId = 500, SourceContextId = 500,
+                    Policy = SkillCastPolicy.Default, Context = state,
+                    Run = PipelineRollbackStateCodec.Serialize(new PipelineRunRollbackState())
+                }
+            }
+        });
+
+    [Fact]
     public void Aim_scope_survives_substate_input_changes_rollback_and_same_frame_reentry()
     {
         var definition = Graph();

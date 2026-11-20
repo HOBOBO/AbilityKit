@@ -19,12 +19,10 @@ using AbilityKit.Moba.Behavior;
 namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 {
     /// <summary>
-    /// Adapts a deterministic AbilityKit behavior tree to the shared behavior runtime. MOBA trees
-    /// are expected to be reactive: frame facts are refreshed before Update, and intent nodes must
-    /// publish their request each tick. Persistent state belongs under memory.* rather than in
-    /// transient fact or intent keys.
+    /// 将确定性行为树接入共享行为运行时。逐帧事实在求值前刷新，意图每次重新输出；
+    /// 跨帧记忆保存在 memory.*。可选恢复包含树值状态和决策外壳，不执行节点求值。
     /// </summary>
-    internal sealed class MobaBTreeDecision : IBehaviorDecision, IBehaviorRuntimeSnapshot, IMobaActorIntentDecision, IDisposable
+    internal sealed class MobaBTreeDecision : IBehaviorDecision, IBehaviorSnapshotValidator, IMobaActorIntentDecision, IDisposable
     {
         private readonly TreeRuntime _tree;
         private readonly MobaBTreeRuntimeContext _runtimeContext;
@@ -32,7 +30,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         private bool _disposed;
 
         public string DecisionType => "MobaBTree";
-        public string SnapshotType => "MobaBTree.Runtime.v2";
+        public string SnapshotType => "MobaBTree.Runtime.v3";
         public string CurrentState { get; private set; } = "Running";
         public MobaActorIntent CurrentIntent { get; private set; } = MobaActorIntent.Hold;
         internal Blackboard Blackboard => _tree.Blackboard;
@@ -230,20 +228,59 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             CurrentState = "Disposed";
         }
 
+        /// <summary>
+        /// 捕获树、黑板及当前状态；已释放对象显式失败。
+        /// </summary>
         public byte[] CaptureSnapshot()
         {
-            if (_disposed) return Array.Empty<byte>();
+            if (_disposed) throw new InvalidOperationException("Cannot capture a disposed MOBA tree.");
             return System.Text.Encoding.UTF8.GetBytes(
-                TreeJson.SaveSnapshot(_tree.CaptureState()));
+                Newtonsoft.Json.JsonConvert.SerializeObject(new BrainTreeSnapshot
+                { Version = 3, CurrentState = CurrentState, Tree = TreeJson.SaveSnapshot(_tree.CaptureState()) }));
         }
 
+        /// <summary>
+        /// 只读验证完整包络和树定义，不创建临时树或执行恢复。
+        /// </summary>
+        public void ValidateSnapshot(byte[] payload) => ReadSnapshot(payload);
+
+        /// <summary>
+        /// 先验证后恢复，当前意图从已恢复黑板静默投影。
+        /// </summary>
         public void RestoreSnapshot(byte[] payload)
         {
-            if (_disposed || payload == null || payload.Length == 0) return;
-            var json = System.Text.Encoding.UTF8.GetString(payload);
-            _tree.RestoreState(TreeJson.LoadSnapshot(json));
+            var snapshot = ReadSnapshot(payload);
+            _tree.RestoreState(TreeJson.LoadSnapshot(snapshot.Tree));
             CurrentIntent = ReadIntent(_tree.Blackboard);
+            CurrentState = snapshot.CurrentState;
             _reportedRunningRoot = false;
+            _runtimeContext.EndEvaluation();
+        }
+
+        private BrainTreeSnapshot ReadSnapshot(byte[] payload)
+        {
+            if (_disposed || payload == null || payload.Length == 0 || payload.Length > 16 * 1024 * 1024)
+                throw new InvalidOperationException("Missing, oversized or disposed MOBA tree snapshot.");
+            var snapshot = Newtonsoft.Json.JsonConvert.DeserializeObject<BrainTreeSnapshot>(
+                System.Text.Encoding.UTF8.GetString(payload));
+            if (snapshot == null || snapshot.Version != 3 || string.IsNullOrEmpty(snapshot.Tree) ||
+                (snapshot.CurrentState != "Running" && snapshot.CurrentState != "Chasing" &&
+                 snapshot.CurrentState != "Casting" && snapshot.CurrentState != "Holding"))
+                throw new InvalidOperationException("Invalid MOBA tree envelope; v3 is required.");
+            var tree = TreeJson.LoadSnapshot(snapshot.Tree);
+            if (tree.Blackboard == null) throw new InvalidOperationException("MOBA tree requires complete blackboard state.");
+            _tree.ValidateState(tree);
+            return snapshot;
+        }
+
+        /// <summary>
+        /// 决策外壳和树快照的版本化值包络。
+        /// </summary>
+        private sealed class BrainTreeSnapshot
+        {
+            public int Version { get; set; }
+            public string CurrentState { get; set; }
+            public string Tree { get; set; }
         }
 
         private static void CaptureLaunchHeading(Blackboard bb, Vec3 forward)

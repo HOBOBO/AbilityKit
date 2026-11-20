@@ -134,6 +134,8 @@ public sealed record BattleInitResult(
     [property: Id(3)] WorldStartAnchor? WorldStartAnchor,
     [property: Id(4)] string? Error)
 {
+    [Id(5)] public FrameSyncInitialCheckpoint? InitialCheckpoint { get; init; }
+
     /// <summary>
     /// 是否成功（首次初始化成功，或已初始化且 hash 匹配的幂等命中）。
     /// </summary>
@@ -407,4 +409,9 @@ public class StateSyncPush
 public sealed record BattleTickFrameResult(
     [property: Id(0)] int Frame,
     [property: Id(1)] bool WorldTicked,
-    [property: Id(2)] long StateHash);
+    [property: Id(2)] long StateHash)
+{
+    [Id(3)] public Guid RuntimeGeneration { get; init; }
+
+    [Id(4)] public bool SettlementEligible { get; init; }
+}

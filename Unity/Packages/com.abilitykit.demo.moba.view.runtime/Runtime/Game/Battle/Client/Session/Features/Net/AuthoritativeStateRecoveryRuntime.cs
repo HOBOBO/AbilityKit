@@ -65,7 +65,7 @@ namespace AbilityKit.Game.Flow
 
         public bool TryImport(in GatewayStateSyncSnapshot snapshot)
         {
-            if (_context == null || _handles.Session == null) return false;
+            if (_context == null || _handles.Session == null || !AdmitAuthoritativeFrame(snapshot.Frame)) return false;
 
             _simulation.StartRemoteDriven(
                 _plan,
@@ -112,6 +112,7 @@ namespace AbilityKit.Game.Flow
 
         public bool TryApplyAuthoritativeState(in GatewayStateSyncSnapshot snapshot)
         {
+            if (!AdmitAuthoritativeFrame(snapshot.Frame)) return false;
             var importer = _handles.RemoteDriven.Capabilities.StateImporter;
             if (importer == null)
             {
@@ -128,6 +129,19 @@ namespace AbilityKit.Game.Flow
                 $"[BattleAuthoritativeWorldRecoveryPort] Authoritative state apply incomplete. " +
                 $"frame={snapshot.Frame} failed={result.Failed}");
             ResetAfterReconnect();
+            return false;
+        }
+
+        private bool AdmitAuthoritativeFrame(int frame)
+        {
+            var world = _handles.RemoteDriven.World;
+            var runtime = _handles.RemoteDriven.Runtime;
+            if (world == null || runtime == null ||
+                !runtime.Features.TryGetFeature<IClientPredictionRestoreFloor>(out var boundary) || boundary == null ||
+                !boundary.TryGetRestoreFloor(world.Id, out var floor) || frame >= floor.Value)
+                return true;
+
+            Log.Warning($"[BattleAuthoritativeWorldRecoveryPort] Rejected state below restore floor. frame={frame} floor={floor.Value}");
             return false;
         }
 

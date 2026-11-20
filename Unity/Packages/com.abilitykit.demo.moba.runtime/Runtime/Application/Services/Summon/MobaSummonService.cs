@@ -458,6 +458,10 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
+        internal bool CanRetainExpired(global::ActorEntity entity) => entity.hasSummonMeta && !entity.isFlyingProjectileTag &&
+            !entity.hasProjectileLauncher &&
+            _entities != null && _entities.TryGetActorRollbackCommands(out var commands) && commands.RetainsNaturalExpiry;
+
         public bool ExecuteRequestedDespawn(int summonActorId, SummonDespawnReason reason)
         {
             if (summonActorId <= 0) return false;
@@ -480,7 +484,13 @@ namespace AbilityKit.Demo.Moba.Services
             // Brain 行为树拥有独立于 ActorEntity 的 BehaviorRuntime。召唤物实体销毁前必须
             // 先释放 Brain，否则 BrainSystem 后续 Tick 仍会驱动已失效 Actor 的决策，且
             // Decision/黑板资源会一直留在 BehaviorManager 中。
-            if (_brains != null && e.hasActorBrain)
+            var retain = reason == SummonDespawnReason.Timeout && CanRetainExpired(e);
+            if (retain)
+            {
+                _brains.RetainExpiredBrain(e);
+                _spawnSnapshots?.CancelPendingActorSpawn(summonActorId);
+            }
+            else if (_brains != null && e.hasActorBrain)
             {
                 _brains.DeactivateBrain(e);
             }
@@ -525,6 +535,12 @@ namespace AbilityKit.Demo.Moba.Services
             if (rootOwner > 0)
             {
                 PublishSummonEvent(MobaSummonTriggering.Events.DespawnedByOwner(rootOwner), rootOwner, owner, summonActorId, summonId, (int)reason, in sourceContext);
+            }
+
+            if (retain)
+            {
+                _registry.RetainExpiredActor(summonActorId, e, CurrentFrame);
+                return true;
             }
 
             try { e.Destroy(); }

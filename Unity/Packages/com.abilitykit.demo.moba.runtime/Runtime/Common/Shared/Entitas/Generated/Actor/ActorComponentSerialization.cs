@@ -14,6 +14,12 @@ public static class ActorComponentSerialization {
             var p = e.lifetime;
             w.Write(p.EndTimeMs);
         }
+        w.Write(e.hasMoveInput);
+        if (e.hasMoveInput) {
+            var p = e.moveInput;
+            w.Write(p.Dx);
+            w.Write(p.Dz);
+        }
         w.Write(e.hasProjectileEffectSnapshot);
         if (e.hasProjectileEffectSnapshot) {
             var p = e.projectileEffectSnapshot;
@@ -33,10 +39,35 @@ public static class ActorComponentSerialization {
             w.Write(p.IntervalFrames);
             w.Write(p.TotalCount);
         }
+        w.Write(e.hasResourceContainer);
+        if (e.hasResourceContainer) {
+            var p = e.resourceContainer;
+            w.Write(p.Value != null);
+            if (p.Value != null) {
+                w.Write(p.Value.Map == null ? -1 : p.Value.Map.Count);
+                if (p.Value.Map != null) {
+                    if (p.Value.Map.GetType() != typeof(System.Collections.Generic.Dictionary<AbilityKit.Demo.Moba.Components.ResourceType, AbilityKit.Demo.Moba.Components.ResourceState>) || !object.ReferenceEquals(p.Value.Map.Comparer, System.Collections.Generic.EqualityComparer<AbilityKit.Demo.Moba.Components.ResourceType>.Default)) throw new System.IO.InvalidDataException("Unsupported dictionary runtime shape or comparer.");
+                    var keysValueMap = new System.Collections.Generic.List<AbilityKit.Demo.Moba.Components.ResourceType>(p.Value.Map.Keys);
+                    keysValueMap.Sort();
+                    foreach (var keyValueMap in keysValueMap) {
+                        if (!System.Enum.IsDefined(typeof(AbilityKit.Demo.Moba.Components.ResourceType), keyValueMap)) throw new System.IO.InvalidDataException("Unknown enum value.");
+                        w.Write((int)(keyValueMap));
+                        w.Write(p.Value.Map[keyValueMap] != null);
+                        if (p.Value.Map[keyValueMap] != null) {
+                            w.Write(p.Value.Map[keyValueMap].Current.RawValue);
+                            w.Write(p.Value.Map[keyValueMap].LastMax.RawValue);
+                            w.Write(p.Value.Map[keyValueMap].MaxAttribute.RawId);
+                        }
+                    }
+                }
+            }
+            w.Write(p.Initialized);
+        }
         w.Write(e.hasSkillCastCancelRequest);
         if (e.hasSkillCastCancelRequest) {
             var p = e.skillCastCancelRequest;
             w.Write(p.Frame);
+            if (!System.Enum.IsDefined(typeof(AbilityKit.Demo.Moba.Components.SkillCancelReason), p.Reason)) throw new System.IO.InvalidDataException("Unknown enum value.");
             w.Write((int)(p.Reason));
         }
         w.Write(e.hasSkillCastDestroyRequest);
@@ -44,6 +75,7 @@ public static class ActorComponentSerialization {
             var p = e.skillCastDestroyRequest;
             w.Write(p.RequestFrame);
             w.Write(p.MinConfirmedFrame);
+            if (!System.Enum.IsDefined(typeof(AbilityKit.Demo.Moba.Components.SkillDestroyReason), p.Reason)) throw new System.IO.InvalidDataException("Unknown enum value.");
             w.Write((int)(p.Reason));
         }
         w.Write(e.isSkillCastRunningTag);
@@ -59,27 +91,33 @@ public static class ActorComponentSerialization {
             w.Write(p.HeroId);
             w.Write(p.ActiveSkills == null ? -1 : p.ActiveSkills.Length);
             if (p.ActiveSkills != null) {
-                for (var i = 0; i < p.ActiveSkills.Length; i++) {
-                    w.Write(p.ActiveSkills[i].SkillId);
-                    w.Write(p.ActiveSkills[i].Level);
-                    w.Write(p.ActiveSkills[i].CooldownDurationMs);
-                    w.Write(p.ActiveSkills[i].CooldownEndTimeMs);
-                    w.Write(p.ActiveSkills[i].MaxCharges);
-                    w.Write(p.ActiveSkills[i].CurrentCharges);
-                    w.Write(p.ActiveSkills[i].ChargeRecoveryMs);
-                    w.Write(p.ActiveSkills[i].NextChargeRecoveryTimeMs);
-                    w.Write(p.ActiveSkills[i].CooldownGroupId);
-                    w.Write(p.ActiveSkills[i].ChargesConfigured);
-                    w.Write(p.ActiveSkills[i].IgnoreGlobalCooldown);
+                for (var indexActiveSkills = 0; indexActiveSkills < p.ActiveSkills.Length; indexActiveSkills++) {
+                    w.Write(p.ActiveSkills[indexActiveSkills] != null);
+                    if (p.ActiveSkills[indexActiveSkills] != null) {
+                        w.Write(p.ActiveSkills[indexActiveSkills].SkillId);
+                        w.Write(p.ActiveSkills[indexActiveSkills].Level);
+                        w.Write(p.ActiveSkills[indexActiveSkills].CooldownDurationMs);
+                        w.Write(p.ActiveSkills[indexActiveSkills].CooldownEndTimeMs);
+                        w.Write(p.ActiveSkills[indexActiveSkills].MaxCharges);
+                        w.Write(p.ActiveSkills[indexActiveSkills].CurrentCharges);
+                        w.Write(p.ActiveSkills[indexActiveSkills].ChargeRecoveryMs);
+                        w.Write(p.ActiveSkills[indexActiveSkills].NextChargeRecoveryTimeMs);
+                        w.Write(p.ActiveSkills[indexActiveSkills].CooldownGroupId);
+                        w.Write(p.ActiveSkills[indexActiveSkills].ChargesConfigured);
+                        w.Write(p.ActiveSkills[indexActiveSkills].IgnoreGlobalCooldown);
+                    }
                 }
             }
             w.Write(p.PassiveSkills == null ? -1 : p.PassiveSkills.Length);
             if (p.PassiveSkills != null) {
-                for (var i = 0; i < p.PassiveSkills.Length; i++) {
-                    w.Write(p.PassiveSkills[i].PassiveSkillId);
-                    w.Write(p.PassiveSkills[i].Level);
-                    w.Write(p.PassiveSkills[i].CooldownDurationMs);
-                    w.Write(p.PassiveSkills[i].CooldownEndTimeMs);
+                for (var indexPassiveSkills = 0; indexPassiveSkills < p.PassiveSkills.Length; indexPassiveSkills++) {
+                    w.Write(p.PassiveSkills[indexPassiveSkills] != null);
+                    if (p.PassiveSkills[indexPassiveSkills] != null) {
+                        w.Write(p.PassiveSkills[indexPassiveSkills].PassiveSkillId);
+                        w.Write(p.PassiveSkills[indexPassiveSkills].Level);
+                        w.Write(p.PassiveSkills[indexPassiveSkills].CooldownDurationMs);
+                        w.Write(p.PassiveSkills[indexPassiveSkills].CooldownEndTimeMs);
+                    }
                 }
             }
         }
@@ -89,11 +127,26 @@ public static class ActorComponentSerialization {
             w.Write(p.SummonId);
             w.Write(p.DespawnOnOwnerDie);
         }
+        w.Write(e.hasTransform);
+        if (e.hasTransform) {
+            var p = e.transform;
+            w.Write(p.Value.Position.X);
+            w.Write(p.Value.Position.Y);
+            w.Write(p.Value.Position.Z);
+            w.Write(p.Value.Rotation.X);
+            w.Write(p.Value.Rotation.Y);
+            w.Write(p.Value.Rotation.Z);
+            w.Write(p.Value.Rotation.W);
+            w.Write(p.Value.Scale.X);
+            w.Write(p.Value.Scale.Y);
+            w.Write(p.Value.Scale.Z);
+        }
         w.Write(e.hasActorDespawnRequest);
         if (e.hasActorDespawnRequest) {
             var p = e.actorDespawnRequest;
             w.Write(p.RequestFrame);
             w.Write(p.MinConfirmedFrame);
+            if (!System.Enum.IsDefined(typeof(AbilityKit.Demo.Moba.Components.ActorDespawnReason), p.Reason)) throw new System.IO.InvalidDataException("Unknown enum value.");
             w.Write((int)(p.Reason));
             w.Write(p.SourceActorId);
             w.Write(p.SourceContextId);
@@ -118,6 +171,13 @@ public static class ActorComponentSerialization {
             e.RemoveLifetime();
         }
         if (r.ReadBoolean()) {
+            var dx = r.ReadSingle();
+            var dz = r.ReadSingle();
+            e.ReplaceMoveInput(dx, dz);
+        } else if (e.hasMoveInput) {
+            e.RemoveMoveInput();
+        }
+        if (r.ReadBoolean()) {
             var damageMul = r.ReadSingle();
             var speedMul = r.ReadSingle();
             var pierce = r.ReadInt32();
@@ -139,8 +199,36 @@ public static class ActorComponentSerialization {
             e.RemoveProjectileLauncher();
         }
         if (r.ReadBoolean()) {
+            var value = ReadPresence(r) ? new AbilityKit.Demo.Moba.Components.ResourceContainer() : null;
+            if (value != null) {
+                var valueMapCount = ReadCollectionCount(r);
+                var valueMap = valueMapCount == -1 ? null : new System.Collections.Generic.Dictionary<AbilityKit.Demo.Moba.Components.ResourceType, AbilityKit.Demo.Moba.Components.ResourceState>();
+                for (var valueMapIndex = 0; valueMapIndex < valueMapCount; valueMapIndex++) {
+                    var valueMapKey = (AbilityKit.Demo.Moba.Components.ResourceType)r.ReadInt32();
+                    if (!System.Enum.IsDefined(typeof(AbilityKit.Demo.Moba.Components.ResourceType), valueMapKey)) throw new System.IO.InvalidDataException("Unknown enum value.");
+                    if (valueMap.ContainsKey(valueMapKey)) throw new System.IO.InvalidDataException("Duplicate dictionary key.");
+                    var valueMapValue = ReadPresence(r) ? new AbilityKit.Demo.Moba.Components.ResourceState() : null;
+                    if (valueMapValue != null) {
+                        var valueMapValueCurrent = AbilityKit.Deterministic.Fixed64.FromRaw(r.ReadInt64());
+                        valueMapValue.Current = valueMapValueCurrent;
+                        var valueMapValueLastMax = AbilityKit.Deterministic.Fixed64.FromRaw(r.ReadInt64());
+                        valueMapValue.LastMax = valueMapValueLastMax;
+                        var valueMapValueMaxAttribute = AbilityKit.Attributes.Core.AttributeId.FromRaw(r.ReadInt32());
+                        valueMapValue.MaxAttribute = valueMapValueMaxAttribute;
+                    }
+                    valueMap.Add(valueMapKey, valueMapValue);
+                }
+                value.Map = valueMap;
+            }
+            var initialized = r.ReadBoolean();
+            e.ReplaceResourceContainer(value, initialized);
+        } else if (e.hasResourceContainer) {
+            e.RemoveResourceContainer();
+        }
+        if (r.ReadBoolean()) {
             var frame = r.ReadInt32();
             var reason = (AbilityKit.Demo.Moba.Components.SkillCancelReason)r.ReadInt32();
+            if (!System.Enum.IsDefined(typeof(AbilityKit.Demo.Moba.Components.SkillCancelReason), reason)) throw new System.IO.InvalidDataException("Unknown enum value.");
             e.ReplaceSkillCastCancelRequest(frame, reason);
         } else if (e.hasSkillCastCancelRequest) {
             e.RemoveSkillCastCancelRequest();
@@ -149,6 +237,7 @@ public static class ActorComponentSerialization {
             var requestFrame = r.ReadInt32();
             var minConfirmedFrame = r.ReadInt32();
             var reason = (AbilityKit.Demo.Moba.Components.SkillDestroyReason)r.ReadInt32();
+            if (!System.Enum.IsDefined(typeof(AbilityKit.Demo.Moba.Components.SkillDestroyReason), reason)) throw new System.IO.InvalidDataException("Unknown enum value.");
             e.ReplaceSkillCastDestroyRequest(requestFrame, minConfirmedFrame, reason);
         } else if (e.hasSkillCastDestroyRequest) {
             e.RemoveSkillCastDestroyRequest();
@@ -167,30 +256,51 @@ public static class ActorComponentSerialization {
         }
         if (r.ReadBoolean()) {
             var heroId = r.ReadInt32();
-            var activeSkillsCount = r.ReadInt32();
-            var activeSkills = activeSkillsCount < 0 ? null : new AbilityKit.Demo.Moba.Components.ActiveSkillRuntime[activeSkillsCount];
-            for (var i = 0; i < activeSkillsCount; i++) {
-                activeSkills[i] = new AbilityKit.Demo.Moba.Components.ActiveSkillRuntime();
-                activeSkills[i].SkillId = r.ReadInt32();
-                activeSkills[i].Level = r.ReadInt32();
-                activeSkills[i].CooldownDurationMs = r.ReadInt32();
-                activeSkills[i].CooldownEndTimeMs = r.ReadInt64();
-                activeSkills[i].MaxCharges = r.ReadInt32();
-                activeSkills[i].CurrentCharges = r.ReadInt32();
-                activeSkills[i].ChargeRecoveryMs = r.ReadInt32();
-                activeSkills[i].NextChargeRecoveryTimeMs = r.ReadInt64();
-                activeSkills[i].CooldownGroupId = r.ReadInt32();
-                activeSkills[i].ChargesConfigured = r.ReadBoolean();
-                activeSkills[i].IgnoreGlobalCooldown = r.ReadBoolean();
+            var activeSkillsCount = ReadCollectionCount(r);
+            var activeSkills = activeSkillsCount == -1 ? null : new AbilityKit.Demo.Moba.Components.ActiveSkillRuntime[activeSkillsCount];
+            for (var activeSkillsIndex = 0; activeSkillsIndex < activeSkillsCount; activeSkillsIndex++) {
+                var activeSkillsItem = ReadPresence(r) ? new AbilityKit.Demo.Moba.Components.ActiveSkillRuntime() : null;
+                if (activeSkillsItem != null) {
+                    var activeSkillsItemSkillId = r.ReadInt32();
+                    activeSkillsItem.SkillId = activeSkillsItemSkillId;
+                    var activeSkillsItemLevel = r.ReadInt32();
+                    activeSkillsItem.Level = activeSkillsItemLevel;
+                    var activeSkillsItemCooldownDurationMs = r.ReadInt32();
+                    activeSkillsItem.CooldownDurationMs = activeSkillsItemCooldownDurationMs;
+                    var activeSkillsItemCooldownEndTimeMs = r.ReadInt64();
+                    activeSkillsItem.CooldownEndTimeMs = activeSkillsItemCooldownEndTimeMs;
+                    var activeSkillsItemMaxCharges = r.ReadInt32();
+                    activeSkillsItem.MaxCharges = activeSkillsItemMaxCharges;
+                    var activeSkillsItemCurrentCharges = r.ReadInt32();
+                    activeSkillsItem.CurrentCharges = activeSkillsItemCurrentCharges;
+                    var activeSkillsItemChargeRecoveryMs = r.ReadInt32();
+                    activeSkillsItem.ChargeRecoveryMs = activeSkillsItemChargeRecoveryMs;
+                    var activeSkillsItemNextChargeRecoveryTimeMs = r.ReadInt64();
+                    activeSkillsItem.NextChargeRecoveryTimeMs = activeSkillsItemNextChargeRecoveryTimeMs;
+                    var activeSkillsItemCooldownGroupId = r.ReadInt32();
+                    activeSkillsItem.CooldownGroupId = activeSkillsItemCooldownGroupId;
+                    var activeSkillsItemChargesConfigured = r.ReadBoolean();
+                    activeSkillsItem.ChargesConfigured = activeSkillsItemChargesConfigured;
+                    var activeSkillsItemIgnoreGlobalCooldown = r.ReadBoolean();
+                    activeSkillsItem.IgnoreGlobalCooldown = activeSkillsItemIgnoreGlobalCooldown;
+                }
+                activeSkills[activeSkillsIndex] = activeSkillsItem;
             }
-            var passiveSkillsCount = r.ReadInt32();
-            var passiveSkills = passiveSkillsCount < 0 ? null : new AbilityKit.Demo.Moba.Components.PassiveSkillRuntime[passiveSkillsCount];
-            for (var i = 0; i < passiveSkillsCount; i++) {
-                passiveSkills[i] = new AbilityKit.Demo.Moba.Components.PassiveSkillRuntime();
-                passiveSkills[i].PassiveSkillId = r.ReadInt32();
-                passiveSkills[i].Level = r.ReadInt32();
-                passiveSkills[i].CooldownDurationMs = r.ReadInt32();
-                passiveSkills[i].CooldownEndTimeMs = r.ReadInt64();
+            var passiveSkillsCount = ReadCollectionCount(r);
+            var passiveSkills = passiveSkillsCount == -1 ? null : new AbilityKit.Demo.Moba.Components.PassiveSkillRuntime[passiveSkillsCount];
+            for (var passiveSkillsIndex = 0; passiveSkillsIndex < passiveSkillsCount; passiveSkillsIndex++) {
+                var passiveSkillsItem = ReadPresence(r) ? new AbilityKit.Demo.Moba.Components.PassiveSkillRuntime() : null;
+                if (passiveSkillsItem != null) {
+                    var passiveSkillsItemPassiveSkillId = r.ReadInt32();
+                    passiveSkillsItem.PassiveSkillId = passiveSkillsItemPassiveSkillId;
+                    var passiveSkillsItemLevel = r.ReadInt32();
+                    passiveSkillsItem.Level = passiveSkillsItemLevel;
+                    var passiveSkillsItemCooldownDurationMs = r.ReadInt32();
+                    passiveSkillsItem.CooldownDurationMs = passiveSkillsItemCooldownDurationMs;
+                    var passiveSkillsItemCooldownEndTimeMs = r.ReadInt64();
+                    passiveSkillsItem.CooldownEndTimeMs = passiveSkillsItemCooldownEndTimeMs;
+                }
+                passiveSkills[passiveSkillsIndex] = passiveSkillsItem;
             }
             e.ReplaceSkillLoadout(heroId, activeSkills, passiveSkills);
         } else if (e.hasSkillLoadout) {
@@ -204,9 +314,16 @@ public static class ActorComponentSerialization {
             e.RemoveSummonMeta();
         }
         if (r.ReadBoolean()) {
+            var value = new AbilityKit.Core.Mathematics.Transform3(new AbilityKit.Core.Mathematics.Vec3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle()), new AbilityKit.Core.Mathematics.Quat(r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle()), new AbilityKit.Core.Mathematics.Vec3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle()));
+            e.ReplaceTransform(value);
+        } else if (e.hasTransform) {
+            e.RemoveTransform();
+        }
+        if (r.ReadBoolean()) {
             var requestFrame = r.ReadInt32();
             var minConfirmedFrame = r.ReadInt32();
             var reason = (AbilityKit.Demo.Moba.Components.ActorDespawnReason)r.ReadInt32();
+            if (!System.Enum.IsDefined(typeof(AbilityKit.Demo.Moba.Components.ActorDespawnReason), reason)) throw new System.IO.InvalidDataException("Unknown enum value.");
             var sourceActorId = r.ReadInt32();
             var sourceContextId = r.ReadInt64();
             e.ReplaceActorDespawnRequest(requestFrame, minConfirmedFrame, reason, sourceActorId, sourceContextId);
@@ -225,5 +342,17 @@ public static class ActorComponentSerialization {
         } else if (e.hasSkillCastRetention) {
             e.RemoveSkillCastRetention();
         }
+    }
+
+    private static bool ReadPresence(System.IO.BinaryReader r) {
+        var value = r.ReadByte();
+        if (value > 1) throw new System.IO.InvalidDataException("Invalid presence marker.");
+        return value == 1;
+    }
+
+    private static int ReadCollectionCount(System.IO.BinaryReader r) {
+        var count = r.ReadInt32();
+        if (count < -1 || count > r.BaseStream.Length - r.BaseStream.Position) throw new System.IO.InvalidDataException("Invalid collection count.");
+        return count;
     }
 }

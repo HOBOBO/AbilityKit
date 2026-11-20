@@ -46,6 +46,17 @@ namespace AbilityKit.Ability.FrameSync.Rollback
             Array.Clear(_has, 0, _has.Length);
         }
 
+        /// <summary>
+        /// 使恢复点之后的旧分支哈希失效，等待重演重算。
+        /// </summary>
+        public void DiscardAfter(FrameIndex frame)
+        {
+            for (var index = 0; index < _capacity; index++)
+            {
+                if (_has[index] && _frames[index].Value > frame.Value) _has[index] = false;
+            }
+        }
+
         private static int Mod(int x, int m)
         {
             var r = x % m;

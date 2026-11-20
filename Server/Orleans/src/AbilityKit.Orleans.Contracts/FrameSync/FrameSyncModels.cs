@@ -13,7 +13,14 @@ public sealed record FrameSyncStartOptions(
     [property: Id(5)] int RuntimeMode,
     [property: Id(6)] bool EnableRecording = false,
     [property: Id(7)] int MinTickRate = 10,
-    [property: Id(8)] int MaxTickRate = 60);
+    [property: Id(8)] int MaxTickRate = 60)
+{
+    [Id(9)] public FrameSyncInitialCheckpoint? InitialCheckpoint { get; init; }
+}
+
+/// <summary>Server-internal proof that this runtime started at frame zero without a gameplay tick or inputs.</summary>
+[GenerateSerializer]
+public sealed record FrameSyncInitialCheckpoint([property: Id(0)] System.Guid RuntimeGeneration);
 
 [GenerateSerializer]
 public sealed record FrameInputItem(
@@ -88,4 +95,10 @@ public sealed record FrameSyncMetrics(
     [property: Id(9)] int TotalInputsReceived,
     [property: Id(10)] int CatchUpHistoryFrames,
     [property: Id(11)] int RecordingFrameCount,
-    [property: Id(12)] long UptimeSeconds);
+    [property: Id(12)] long UptimeSeconds)
+{
+    [Id(13)] public Guid SettlementGeneration { get; init; }
+
+    /// <summary>仅供服务端联调诊断；null 表示本代次尚无连续完成的权威帧。</summary>
+    [Id(14)] public int? LastSettledFrame { get; init; }
+}

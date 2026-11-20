@@ -250,10 +250,13 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
         }
     }
 
+    /// <summary>
+    /// ML 策略的行为适配。普通推理不要求快照声明，接入恢复时显式检查状态契约。
+    /// </summary>
     internal sealed class MobaMlBehaviorDecision :
         IBehaviorDecision,
         IMobaActorIntentDecision,
-        IBehaviorRuntimeSnapshot,
+        IBehaviorSnapshotValidator,
         IDisposable
     {
         private readonly IAiPolicy _policy;
@@ -279,8 +282,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
         public string CurrentState { get; private set; } = "Holding";
         public MobaActorIntent CurrentIntent { get; private set; } = MobaActorIntent.Hold;
         public string SnapshotType => _policy is IAiPolicyRuntimeSnapshot stateful
-            ? "MobaML.Runtime.v1:" + stateful.SnapshotType
-            : "MobaML.Stateless.v1";
+            ? "MobaML.Runtime.v2:" + stateful.SnapshotType
+            : "MobaML.Stateless.v2";
 
         public DecisionResult Decide(IBehaviorContext context, IWorldQuery world)
         {
@@ -296,12 +299,17 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
             return DecisionResult.Continue(CurrentState);
         }
 
+        /// <summary>
+        /// 独立捕获策略状态和完整当前意图，不推断未知策略无状态。
+        /// </summary>
         public byte[] CaptureSnapshot()
         {
+            ValidateRecoverySupport();
             var payload = new MlRuntimeSnapshot
             {
+                Version = 2,
                 PolicySnapshot = _policy is IAiPolicyRuntimeSnapshot stateful
-                    ? stateful.CaptureSnapshot() ?? Array.Empty<byte>()
+                    ? stateful.CaptureSnapshot()
                     : Array.Empty<byte>(),
                 MovementKind = (int)CurrentIntent.MovementKind,
                 MoveX = CurrentIntent.MoveX,
@@ -309,6 +317,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
                 MoveTargetX = CurrentIntent.MoveTarget.X,
                 MoveTargetY = CurrentIntent.MoveTarget.Y,
                 MoveTargetZ = CurrentIntent.MoveTarget.Z,
+                MoveStopRange = CurrentIntent.MoveStopRange,
                 HasCast = CurrentIntent.HasCast,
                 SkillId = CurrentIntent.SkillId,
                 SkillSlot = CurrentIntent.SkillSlot,
@@ -320,23 +329,43 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
                 AimDirectionY = CurrentIntent.AimDirection.Y,
                 AimDirectionZ = CurrentIntent.AimDirection.Z,
             };
-            return System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload));
+            ValidateSnapshot(bytes);
+            return bytes;
         }
 
-        public void RestoreSnapshot(byte[] payload)
+        /// <summary>
+        /// 完整只读验证意图后再验证策略载荷，不调用推理或恢复。
+        /// </summary>
+        public void ValidateSnapshot(byte[] payload) => ReadSnapshot(payload);
+
+        private void ValidateRecoverySupport()
         {
-            if (payload == null || payload.Length == 0)
+            if (_disposed || _observations.GetType() != typeof(MobaRegistryBrainObservationProvider))
+                throw new InvalidOperationException("ML rollback requires a live decision and the standard fully overwritten observation provider.");
+            if (_policy is IAiPolicyRuntimeSnapshot && !(_policy is IAiPolicySnapshotValidator))
+                throw new InvalidOperationException($"ML policy '{_policy.GetType().FullName}' requires read-only snapshot validation before enabling rollback.");
+            if (!(_policy is IAiPolicySnapshotValidator) && !(_policy is IAiStatelessPolicy))
+                throw new InvalidOperationException($"ML policy '{_policy.GetType().FullName}' must explicitly declare statelessness or provide a validated state snapshot before enabling rollback.");
+        }
+
+        private (MlRuntimeSnapshot Snapshot, MobaActorIntent Intent) ReadSnapshot(byte[] payload)
+        {
+            ValidateRecoverySupport();
+            if (payload == null || payload.Length == 0 || payload.Length > 16 * 1024 * 1024)
                 throw new InvalidOperationException("ML brain snapshot payload is empty.");
             var json = System.Text.Encoding.UTF8.GetString(payload);
             var snapshot = JsonConvert.DeserializeObject<MlRuntimeSnapshot>(json)
                 ?? throw new InvalidOperationException("ML brain snapshot payload is invalid.");
-            if (snapshot.Version != 1)
+            if (snapshot.Version != 2 || snapshot.PolicySnapshot == null)
                 throw new InvalidOperationException($"Unsupported ML brain snapshot version '{snapshot.Version}'.");
-
-            if (_policy is IAiPolicyRuntimeSnapshot stateful)
-            {
-                stateful.RestoreSnapshot(snapshot.PolicySnapshot ?? Array.Empty<byte>());
-            }
+            if (snapshot.MovementKind < 0 || snapshot.MovementKind > 2 ||
+                !Finite(snapshot.MoveX) || !Finite(snapshot.MoveZ) || Math.Abs(snapshot.MoveX) > 1f ||
+                Math.Abs(snapshot.MoveZ) > 1f || !Finite(snapshot.MoveTargetX) || !Finite(snapshot.MoveTargetY) ||
+                !Finite(snapshot.MoveTargetZ) || !Finite(snapshot.MoveStopRange) || snapshot.MoveStopRange < 0f ||
+                !Finite(snapshot.AimPositionX) || !Finite(snapshot.AimPositionY) || !Finite(snapshot.AimPositionZ) ||
+                !Finite(snapshot.AimDirectionX) || !Finite(snapshot.AimDirectionY) || !Finite(snapshot.AimDirectionZ))
+                throw new InvalidOperationException("ML brain snapshot contains invalid numeric values or movement kind.");
 
             var moveTarget = new Vec3(
                 snapshot.MoveTargetX,
@@ -347,7 +376,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
                 (int)MobaActorMovementIntentKind.Direction =>
                     MobaActorIntent.MoveDirection(snapshot.MoveX, snapshot.MoveZ),
                 (int)MobaActorMovementIntentKind.TargetPosition =>
-                    MobaActorIntent.MoveTo(in moveTarget),
+                    MobaActorIntent.MoveTo(in moveTarget, snapshot.MoveStopRange),
                 _ => MobaActorIntent.Hold,
             };
             if (snapshot.HasCast)
@@ -369,9 +398,27 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
             }
             if (!intent.IsValid())
                 throw new InvalidOperationException("ML brain snapshot contains an invalid actor intent.");
-            CurrentIntent = intent;
+            if (_policy is IAiPolicySnapshotValidator stateful)
+                stateful.ValidateSnapshot(snapshot.PolicySnapshot);
+            else if (snapshot.PolicySnapshot.Length != 0)
+                throw new InvalidOperationException("Stateless ML policy cannot restore state bytes.");
+            return (snapshot, intent);
+        }
+
+        /// <summary>
+        /// 全部只读校验通过后恢复策略及意图，失败显式传播。
+        /// </summary>
+        public void RestoreSnapshot(byte[] payload)
+        {
+            var value = ReadSnapshot(payload);
+            if (_policy is IAiPolicySnapshotValidator stateful)
+                stateful.RestoreSnapshot(value.Snapshot.PolicySnapshot);
+            CurrentIntent = value.Intent;
+            var intent = value.Intent;
             CurrentState = ResolveState(in intent);
         }
+
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
         public void Dispose()
         {
@@ -391,7 +438,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
 
         private sealed class MlRuntimeSnapshot
         {
-            public int Version { get; set; } = 1;
+            public int Version { get; set; }
             public byte[] PolicySnapshot { get; set; }
             public int MovementKind { get; set; }
             public float MoveX { get; set; }
@@ -399,6 +446,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
             public float MoveTargetX { get; set; }
             public float MoveTargetY { get; set; }
             public float MoveTargetZ { get; set; }
+            public float MoveStopRange { get; set; }
             public bool HasCast { get; set; }
             public int SkillId { get; set; }
             public int SkillSlot { get; set; }

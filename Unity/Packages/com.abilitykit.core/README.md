@@ -29,6 +29,8 @@ Core 是第一批内部推广的 P0 基础底座包，适合被 `world.di`、`tr
 
 数学原语源码位于 `Runtime/Math`，与玩法数值修饰能力分开维护。应用设置和反射兼容入口不属于 Core 新能力的纳入方向，具体规则见包内边界文档。
 
+`Runtime/Observability` 保留既有观测关联原语；当前生产引用集中在同一项目诊断链，尚缺三个独立框架使用方的准入证据。其契约整理不代表已纳入 Core 正式基础面，发布前仍需复核职责归属。
+
 ## 不负责什么
 
 - 不承载项目业务技能、Buff、角色或怪物逻辑。
@@ -49,6 +51,10 @@ com.abilitykit.world.di
 
 ## 验收要求
 
+源码注释、Core 局部 XML 文档错误门禁、依赖闭包与尚未完成的发布证据统一见 [验证门禁与发布缺口](./Documentation~/ValidationAndReleaseReadiness.md)。当前 Core 并非零依赖包，消费与发布须包含 Deterministic；[独立消费验证](./Documentation~/IndependentConsumption.md) 已覆盖本地 .NET 制品与真实 Unity Editor 导入，注册表安装、正式版本升级和 Player 平台矩阵仍待完成。
+
+仓库发布计划已补齐 ready/candidate、精确依赖版本及失败校验；严格入口还核对完整包目录、固定 HEAD 和标签依赖内容，并输出 Git 对象证据。当前未提交输入会被严格校验拒绝；这些检查不改变 Core 的 candidate 状态，也不代替实际制品、平台验收或发布签核，详细规则见发布缺口文档。
+
 Core 进入内部 Starter 前至少满足：
 
 - 包根目录有 README，说明定位、边界和推荐接入方式。
@@ -59,13 +65,17 @@ Core 进入内部 Starter 前至少满足：
 
 ## 相关文档
 
+- [`Documentation~/ValidationAndReleaseReadiness.md`](./Documentation~/ValidationAndReleaseReadiness.md)：XML 文档门禁、依赖闭包、检查工具范围及当前发布缺口。
+- [`Documentation~/IndependentConsumption.md`](./Documentation~/IndependentConsumption.md)：本地 .NET 制品、真实 Unity tarball 的隔离消费、候选替换与回退，以及未覆盖的正式安装场景。
 - [`Documentation~/README.md`](./Documentation~/README.md)：Core 文档索引。
 - [`Documentation~/CoreBoundary.md`](./Documentation~/CoreBoundary.md)：准入规则、所有权和兼容迁移边界。
 - [`Documentation~/ContinuousCompatibility.md`](./Documentation~/ContinuousCompatibility.md)：旧持续体的登记、回调、查询、重入限制与独立包迁移差异。
 - [`Documentation~/ReflectionAndDisposalCompatibility.md`](./Documentation~/ReflectionAndDisposalCompatibility.md)：旧反射调用的异常、返回值及异步边界，以及释放回调、引用清空与重入契约。
 - [`Documentation~/ConfigurationFileCompatibility.md`](./Documentation~/ConfigurationFileCompatibility.md)：旧设置文件读写、对象缓存失效、模块描述及应用迁移边界。
+- [`Documentation~/UnitySettingsBootstrapCompatibility.md`](./Documentation~/UnitySettingsBootstrapCompatibility.md)：旧 Unity 引导的协程、路径、复制失败边界、同步差异及平台验收范围。
 - [`Documentation~/Markers.md`](./Documentation~/Markers.md)：标记登记、实时查询、反射扫描及已冻结全局引导的兼容契约。
 - [`Documentation~/DebugDrawCompatibility.md`](./Documentation~/DebugDrawCompatibility.md)：旧绘制值、编辑器设置、SceneView 回调及 Diagnostics 迁移限制。
+- [`Documentation~/Observability.md`](./Documentation~/Observability.md)：观测值标识、有效性、同步接收、空对象及待完成的 Core 准入复核。
 - [`Documentation~/Mathematics.md`](./Documentation~/Mathematics.md)：数学单位、退化输入、旋转顺序及浮点边界。
 - [`Documentation~/DeterministicMathBridge.md`](./Documentation~/DeterministicMathBridge.md)：定点桥接的转换差异、量化、几何溢出、函数定义域与跨目标限制。
 - [`Documentation~/IdentifiersAndTiming.md`](./Documentation~/IdentifiersAndTiming.md)：版本化哈希、注册冲突、默认输出、时钟来源与换算边界。

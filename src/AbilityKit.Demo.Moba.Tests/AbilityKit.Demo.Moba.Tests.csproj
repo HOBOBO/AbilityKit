@@ -59,5 +59,8 @@
 
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Battle/MobaCharacterHfsmTestFixture.cs" Link="Fixtures/MobaCharacterHfsmTestFixture.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Battle/Networking/Replication/GragasQPredictionReplayScenario.cs" Link="Fixtures/GragasQPredictionReplayScenario.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Battle/Networking/Replication/PublishedHeroPredictionScenario.cs" Link="Fixtures/PublishedHeroPredictionScenario.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Battle/Networking/Replication/PublishedHeroPredictionScenario.VeigarE.cs" Link="Fixtures/PublishedHeroPredictionScenario.VeigarE.cs" />
   </ItemGroup>
 </Project>

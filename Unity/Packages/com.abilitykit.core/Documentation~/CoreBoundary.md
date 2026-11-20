@@ -25,6 +25,12 @@ Core 不是通用工具包。如果某个类型只有一个子系统使用、携
 
 ## 公共 API 兼容性
 
+中文多行注释与 Core 局部 XML 文档错误门禁、Core 对 Deterministic 的依赖闭包及当前发布缺口见 [验证门禁与发布缺口](./ValidationAndReleaseReadiness.md)。该门禁仅作用于 .NET Core 工程，不覆盖 Unity/Editor 编译，也不代表命名空间审计或正式发布已通过。
+
+隔离 .NET 制品及真实 Unity Editor 的本地安装、最小调用与候选替换/回退证据见 [独立消费验证](./IndependentConsumption.md)。验证夹具不计入独立生产使用方，不新增正式 NuGet 发布承诺或扩大 Core 职责。
+
+发布计划的状态筛选、精确依赖版本、提交内容核对和命令失败处理属于仓库发布工具，不能作为新原语放入 Core。严格检查绑定所选包的 HEAD 子树及已有标签依赖；隔离回归不赋予候选发布资格，也不改变准入或兼容边界。当前未提交输入须在正式流程中处理，实际制品、注册表和平台签核仍需分别验收。
+
 .NET Core 构建使用 `Microsoft.CodeAnalysis.PublicApiAnalyzers` 作为机器可读的兼容性门禁：
 
 - `src/AbilityKit.Core/PublicAPI.Shipped.txt` 保存已评审并发布的接口面。
@@ -140,7 +146,9 @@ Core 也不提供通用 `Result<T>`。触发器执行、流程状态、回滚、
 
 诊断和验证记录遵循相同规则。错误、警告和信息等严重级别名称不足以构成共享契约：有些诊断是可变的合并输出，有些是不可变的启动门禁，还有些携带导航、修订、健康状态或领域载荷。在生产方和使用方共享标识、顺序、本地化、传输及失败门禁语义前，不要添加通用诊断严重级别或问题类型。
 
-`RuntimeObjectKey`、`ObservationDefinitionRef` 和 `ObservationTraceRef` 是不拥有目标生命周期的值类型关联标识。零值保留为未指定或无效；非零标识的具体分配、持久化和复用策略仍归领域所有。`IObservationSink<TEvent>` 仅表示同步尝试写入：`IsEnabled` 是调用前提示而非接受保证，`TryWrite` 返回本次是否接受。该接口不承诺排队、线程切换、顺序、持久化、异常隔离或事件所有权；生产方不得假定调用返回后 Sink 仍持有传入值。
+`RuntimeObjectKey`、`ObservationDefinitionRef`、`ObservationTraceRef` 和同步 sink 的详细契约统一见 [观测关联原语契约与准入复核](./Observability.md)。标识分配、复用和生命周期仍归领域所有，同步接口不提供采集调度或事件所有权管理。
+
+本轮生产引用盘点集中在 MOBA 诊断链，不能将同项目多个程序集当作三个独立框架使用方。现有 API 在 Unshipped 中保留，尚缺正式纳入 Core 的独立需求证据；若后续仍不能满足，应按实际领域或 Diagnostics 所有权单独评审迁移与兼容窗口。本批不迁移、不新增弃用标记，也不扩大事件内容、目录或调度职责。
 
 ## 可释放注册项
 
@@ -154,7 +162,7 @@ Core 也不提供通用 `Result<T>`。触发器执行、流程状态、回滚、
 
 配置来源、持久化路径、序列化器选择和可选模块安装属于应用程序/引导策略。它们不会仅仅因为实现小或可复用就满足 Core 纳入规则。
 
-旧文件工具、静态对象缓存及模块描述的实际契约统一见 [配置文件、缓存与模块描述兼容契约](./ConfigurationFileCompatibility.md)。写入不提供原子替换，缓存不提供内容版本或在途加载失效屏障；这些应用策略应由所有者明确。Core 内仍保留调用文件工具的旧 UnityJsonSettingsBootstrap 兼容入口，本批未改其源码或完成 Unity 平台验证；MOBA 的同名类型使用不同所有者命名空间。
+旧文件工具、静态对象缓存及模块描述的实际契约统一见 [配置文件、缓存与模块描述兼容契约](./ConfigurationFileCompatibility.md)。写入不提供原子替换，缓存不提供内容版本或在途加载失效屏障；这些应用策略应由所有者明确。Core 内仍保留调用文件工具的旧 UnityJsonSettingsBootstrap，详细边界见 [旧 Unity 设置引导兼容契约](./UnitySettingsBootstrapCompatibility.md)。其中文注释已补齐，控制流程和弃用窗口保持；真实 Unity 平台验证仍待完成。MOBA 的同名类型使用不同所有者命名空间。
 
 当前 MOBA 的所有权已明确：
 

@@ -76,7 +76,7 @@ namespace AbilityKit.Game.Flow
                 _ => handles.Consumable,
                 _ => ctx != null ? ctx.LocalInputQueue : null,
                 resolveIdealFrameLimit,
-                MobaRollbackRegistryBuilder.Create,
+                MobaRollbackRegistryBuilder.CreateForPrediction,
                 world => CreateStateHash(world, shouldForceHashMismatch)));
 
             handles.BindWorldRuntime(worldRuntime);

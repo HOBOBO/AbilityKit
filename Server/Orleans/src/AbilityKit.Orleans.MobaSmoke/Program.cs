@@ -19,11 +19,13 @@ using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using AbilityKit.Orleans.Contracts.FrameSync;
 using GatewayNetworking = Gateway::AbilityKit.Orleans.Gateway.Networking;
 
 var tcpPort = ParseIntArgument(args, "--tcp-port", 41101, 1, 65535);
 var hostOnly = HasArgument(args, "--host-only");
 var clientOnly = HasArgument(args, "--client-only");
+var probeFrameCommit = HasArgument(args, "--probe-frame-commit");
 var connectPort = ParseIntArgument(args, "--connect-port", tcpPort, 1, 65535);
 var hostTimeoutSeconds = ParseIntArgument(args, "--host-timeout-seconds", 180, 1, 3600);
 var syncTemplateId = ParseStringArgument(args, "--sync-template", MobaSmokeConstants.DefaultSyncTemplateId);
@@ -59,7 +61,7 @@ builder.Services.AddAbilityKitGrainStateStorage(
     storageOptions.SessionStateProvider,
     storageOptions.RoomStateProvider,
     storageOptions.AllowInMemoryFallbackForUnsupportedProviders);
-builder.Services.AddSingleton(ServerGameplayModuleCatalog.Default);
+builder.Services.AddSingleton(probeFrameCommit ? FrameCommitProbe.CreateCatalog() : ServerGameplayModuleCatalog.Default);
 builder.Services.AddSingleton<ServerBattleWorldManager>(sp =>
     new ServerBattleWorldManager(
         sp.GetRequiredService<ILogger<ServerBattleWorldManager>>(),
@@ -74,6 +76,12 @@ Task? transportTask = null;
 try
 {
     await host.StartAsync();
+    if (probeFrameCommit)
+    {
+        await FrameCommitProbe.RunAsync(host.Services.GetRequiredService<Orleans.IClusterClient>());
+        return;
+    }
+
     var transport = host.Services.GetRequiredService<GatewayNetworking.TcpTransportServer>();
     transportTask = transport.StartAsync(transportCancellation.Token);
     await WaitForTcpAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(10));
@@ -88,7 +96,20 @@ try
     }
     else
     {
-        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(60), syncTemplateId);
+        var cluster = host.Services.GetRequiredService<Orleans.IClusterClient>();
+        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(60), syncTemplateId, cluster);
+        if (syncTemplateId == MobaSmokeConstants.DefaultSyncTemplateId)
+        {
+            var frames = cluster.GetGrain<IBattleFrameSyncGrain>(result.NumericRoomId.ToString());
+            var metrics = await frames.GetMetricsAsync();
+            Require(metrics.WorldId == result.WorldId, "Settlement metrics came from the wrong world.");
+            Require(metrics.SettlementGeneration != Guid.Empty && metrics.CurrentFrame > 0 &&
+                metrics.LastSettledFrame == metrics.CurrentFrame - 1,
+                $"MOBA authority did not settle the continuous prefix: current={metrics.CurrentFrame}, settled={metrics.LastSettledFrame}.");
+            Console.WriteLine($"MOBA_SMOKE_SETTLEMENT_METRICS CurrentFrame={metrics.CurrentFrame} " +
+                $"RuntimeGeneration={metrics.SettlementGeneration} LastSettledFrame={metrics.LastSettledFrame?.ToString() ?? "none"}");
+        }
+
         Console.WriteLine(
             $"MOBA_SMOKE_PASSED SyncTemplate={syncTemplateId} RoomId={result.RoomId} NumericRoomId={result.NumericRoomId} " +
             $"BattleId={result.BattleId} WorldId={result.WorldId} Phase={result.Phase} " +
@@ -123,7 +144,8 @@ finally
     await host.StopAsync();
 }
 
-static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeSpan timeout, string syncTemplateId)
+static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeSpan timeout, string syncTemplateId,
+    Orleans.IClusterClient? cluster = null)
 {
     using var timeoutCts = new CancellationTokenSource(timeout);
     using var owner = new MobaSmokeClient("owner", host, port, syncTemplateId);
@@ -191,17 +213,46 @@ static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeS
         var memberFrame = await memberBattle.WaitForFrameAfterAsync(-1, timeoutCts.Token);
         Require(ownerFrame.WorldId == final.Snapshot.WorldId && memberFrame.WorldId == final.Snapshot.WorldId,
             "FrameSync pushes did not match the room's authoritative world.");
+        Require(ownerFrame.Frame >= 1 && memberFrame.Frame >= 1, "Frame zero was broadcast as a gameplay frame.");
+        var frameMovePayload = MobaMoveCodec.Serialize(1f, 0f);
+        var rejected = await ownerBattle.SubmitFrameInputAsync(created.RoomId, final.Snapshot.BattleId,
+            final.Snapshot.WorldId, ownerPlayerId, 0, MobaOpCodes.Input.Move, frameMovePayload, timeoutCts.Token);
+        Require(!rejected.Accepted && rejected.ServerFrame >= 1, "TCP accepted input for the frame-zero checkpoint.");
+        if (cluster != null)
+        {
+            var battleHost = cluster.GetGrain<IBattleLogicHostGrain>(final.Snapshot.BattleId);
+            var directInput = await battleHost.SubmitInputAsync(final.Snapshot.WorldId, 0, new BattleInputItem
+            {
+                PlayerId = ownerPlayerId, OpCode = MobaOpCodes.Input.Move, Payload = frameMovePayload
+            });
+            Require(!directInput.Accepted && directInput.Status == "RejectedInvalidFrame", "The host remapped or accepted frame-zero input.");
+            var directTick = await battleHost.TickFrameAsync(final.Snapshot.WorldId, 0, 1f / 30f,
+                new[] { new FrameInputItem(ownerPlayerId, MobaOpCodes.Input.Move, frameMovePayload) });
+            Require(!directTick.WorldTicked && !directTick.SettlementEligible && directTick.StateHash == 0,
+                "The host ran gameplay for frame zero.");
+        }
 
         var frameInput = await ownerBattle.SubmitFrameInputAsync(
             created.RoomId, final.Snapshot.BattleId, final.Snapshot.WorldId, ownerPlayerId,
             Math.Max(ownerFrame.Frame, memberFrame.Frame) + 30, MobaOpCodes.Input.Move,
-            MobaMoveCodec.Serialize(1f, 0f), timeoutCts.Token);
+            frameMovePayload, timeoutCts.Token);
         Require(frameInput.Accepted, $"Frame input was rejected. ServerFrame={frameInput.ServerFrame}, Reason={frameInput.Reason}.");
         var ownerAppliedFrame = await ownerBattle.WaitForFrameInputAsync(ownerPlayerId, timeoutCts.Token);
         var memberAppliedFrame = await memberBattle.WaitForFrameInputAsync(ownerPlayerId, timeoutCts.Token);
         Require(ownerAppliedFrame.WorldId == memberAppliedFrame.WorldId &&
                 ownerAppliedFrame.Frame == memberAppliedFrame.Frame,
             "FrameSync clients did not observe the same authoritative input frame.");
+        if (cluster != null)
+        {
+            var relay = cluster.GetGrain<IBattleFrameSyncGrain>(final.NumericRoomId.ToString());
+            var history = await relay.RequestCatchUpAsync(new FrameSyncCatchUpRequest(final.NumericRoomId, final.Snapshot.WorldId,
+                -1, ownerAppliedFrame.Frame));
+            Require(history != null && history.StartFrame == 0 && history.FrameInputs.Count == ownerAppliedFrame.Frame + 1 &&
+                history.FrameInputs[0].Count == 0 && history.FrameInputs[^1].Any(input => input.PlayerId == ownerPlayerId &&
+                    input.OpCode == MobaOpCodes.Input.Move && input.Payload.AsSpan().SequenceEqual(frameMovePayload)),
+                "Cold CatchUp did not return the empty initial checkpoint and original TCP input.");
+            Console.WriteLine($"MOBA_SMOKE_FRAME_ZERO_VERIFIED FirstHistoryFrame=0 CatchUpFrames={history!.FrameInputs.Count}");
+        }
         Console.WriteLine($"MOBA_SMOKE_FRAME_SYNC_VERIFIED Frame={ownerAppliedFrame.Frame} PlayerId={ownerPlayerId} WorldId={ownerAppliedFrame.WorldId}");
         return new MobaSmokeResult(created.RoomId, final.NumericRoomId, final.Snapshot.BattleId,
             final.Snapshot.WorldId, final.Snapshot.Phase, final.Snapshot.Players?.Count ?? 0, final.Snapshot.RoomRevision);

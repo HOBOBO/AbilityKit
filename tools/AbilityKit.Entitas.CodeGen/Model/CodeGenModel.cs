@@ -50,10 +50,12 @@ public sealed class CodeGenModel
 }
 
 /// <summary>普通类型信息：kind（class/struct/enum）+ 已解析字段。枚举无字段。</summary>
-public sealed class PlainTypeInfo(string kind, List<FieldInfo> fields)
+public sealed class PlainTypeInfo(string kind, List<FieldInfo> fields, string enumUnderlyingType = "int", string? unsupportedShape = null)
 {
     public string Kind { get; } = kind;
     public List<FieldInfo> Fields { get; } = fields;
+    public string EnumUnderlyingType { get; } = enumUnderlyingType;
+    public string? UnsupportedShape { get; } = unsupportedShape;
     public bool IsEnum => Kind == "enum";
 }
 

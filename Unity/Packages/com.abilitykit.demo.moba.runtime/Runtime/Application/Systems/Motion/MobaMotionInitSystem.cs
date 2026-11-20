@@ -1,39 +1,46 @@
-using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Combat.Collision;
-using AbilityKit.Combat.MotionSystem.Collision;
-using AbilityKit.Combat.MotionSystem.Constraints;
 using AbilityKit.Combat.MotionSystem.Core;
-using AbilityKit.Core.Mathematics;
-using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Demo.Moba;
 
 namespace AbilityKit.Demo.Moba.Systems.Motion
 {
+    /// <summary>
+    /// 在原 PreExecute 阶段初始化移动组件，默认运行依赖由世界服务持有。
+    /// </summary>
     [WorldSystem(order: MobaSystemOrder.MotionInit, Phase = WorldSystemPhase.PreExecute)]
     public sealed class MobaMotionInitSystem : WorldSystemBase
     {
-        private const float DefaultActorCollisionRadius = 0.5f;
-
         private global::Entitas.IGroup<global::ActorEntity> _group;
-        private IMotionSolver _defaultSolver;
+        private MobaMotionRuntimeDependencyService _dependencies;
 
+        /// <summary>
+        /// 使用世界上下文及业务依赖解析器构建初始化系统。
+        /// </summary>
         public MobaMotionInitSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
         {
         }
 
+        /// <summary>
+        /// 解析正常业务依赖并建立组件分组，不提前构造求解器。
+        /// </summary>
         protected override void OnInit()
         {
+            /*
+             * 默认依赖由世界业务服务持有，初始化仍在原正式帧阶段执行。
+             */
+            _dependencies = Services.Resolve<MobaMotionRuntimeDependencyService>();
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.Transform,
                 global::ActorComponentsLookup.Motion));
         }
 
+        /// <summary>
+        /// 仅为尚未初始化的组件建立 Pipeline，保持原状态与配置取样规则。
+        /// </summary>
         protected override void OnExecute()
         {
             var entities = _group.GetEntities();
@@ -61,7 +68,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                     pipeline.Policy ??= MobaMotionGroupConfigResolver.CreatePolicy(Services);
                 }
 
-                var solver = m.Solver ?? ResolveDefaultSolver();
+                var solver = m.Solver ?? _dependencies.ResolveDefaultSolver();
                 if (solver != null) pipeline.Solver = solver;
                 if (m.Events != null) pipeline.Events = m.Events;
 
@@ -87,37 +94,6 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
             }
         }
 
-        private IMotionSolver ResolveDefaultSolver()
-        {
-            if (_defaultSolver != null) return _defaultSolver;
-
-            if (!Services.TryResolve<ICollisionService>(out var collisionService) || collisionService == null || collisionService.World == null)
-            {
-                return null;
-            }
-
-            Services.TryResolve<MobaActorRegistry>(out var actors);
-            var motionWorld = new MobaMotionCollisionWorldAdapter(collisionService.World, actors);
-            _defaultSolver = new ConfigurableMotionSolver(motionWorld, ResolveDefaultConstraints);
-            return _defaultSolver;
-        }
-
-        private static MotionConstraints ResolveDefaultConstraints(int moverId, in MotionState state, in MotionOutput input, float dt)
-        {
-            var collision = new MotionCollisionConstraints(
-                enable: true,
-                allowPassThrough: false,
-                endOverlapPolicy: MotionEndOverlapPolicy.AllowInside,
-                radius: DefaultActorCollisionRadius,
-                skin: 0f,
-                obstacleMask: MobaCollisionLayers.WorldMask,
-                ignoreMask: 0,
-                slideAlongWalls: true,
-                maxSlideIterations: 2,
-                wallSlideSpeedRecovery: 1f);
-
-            return new MotionConstraints(collision, MotionLeashConstraints.Disabled);
-        }
     }
 }
 

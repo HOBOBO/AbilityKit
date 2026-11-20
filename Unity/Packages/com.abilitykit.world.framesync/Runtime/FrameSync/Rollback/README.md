@@ -19,6 +19,8 @@
 - **`RollbackRegistry`**
   - 维护一组 `IRollbackStateProvider`，并在构造 `RollbackCoordinator` 时 `Seal()` 固化。
   - 通过 `Key(int)` 唯一标识每个 provider，避免重复注册。
+  - 可在封存前调用 `SetStructureRestoreOrder(params int[] keys)` 声明全部结构 Provider 的完整顺序；Seal 验证无重复、漏项、未知项或普通项。相同配置可重复声明，冲突或封存后修改拒绝；Clear 同时清除配置。
+  - 顺序声明不隐含载荷必需性；需要完整状态时另用 `RequireState(key)`。未配置顺序或必需项的 Registry 保留原部分快照合同。
 
 - **`IRollbackStateProvider`**
   - `int Key { get; }`
@@ -33,9 +35,10 @@
   - Handler 执行时禁止再次 `Record`。若执行已经开始后抛异常，Journal 会进入 faulted 状态，调用方必须重建世界并 `Clear()`，不能继续 replay。
 
 - **`RollbackCoordinator`**
-  - Restore 会先执行可选 `IRollbackStatePreflightProvider.ValidateImport`；全部 preflight 通过后才调用 provider 的 `Import`。这保证导入前的协议和依赖检查，但不构成跨 provider 的事务；若 Import 阶段失败，调用方必须停止世界推进并按业务策略重建或重新同步。
-  - 全部预检通过后，先 Import `IRollbackStructureRestoreProvider`，再 Import 普通字段状态 Provider；每个阶段内部仍按 Key 保持稳定顺序。
-  - 将 registry 中各 provider 的导出结果聚合为一个 `WorldRollbackSnapshot`。
+  - Restore 在任何预检前建立不可变有效结构计划，随后完成全部 `IRollbackSnapshotPreflightProvider.ValidateSnapshot` 和 `IRollbackStatePreflightProvider.ValidateImport`；全部通过后才调用 `Import`。这保证导入前的协议和依赖检查，但不构成跨 provider 的事务；若 Import 阶段失败，调用方必须停止世界推进并按业务策略重建或重新同步。
+  - 先 Import `IRollbackStructureRestoreProvider`，再 Import 普通字段状态 Provider。结构项未配置显式顺序时按输入条目次序，配置后按声明顺序筛选当前快照已有项；普通项始终保留输入相对次序，每项只导入一次。
+  - 预检通过 `RollbackSnapshotPreflightContext.StructureRestoreKeys` 读取协调器实际执行的同一份有效计划。`Providers` 仍按输入次序枚举快照内成员；直接调用原 Context 构造器时按输入条目推导结构计划。
+  - 将 registry 中各 provider 的导出结果按 Key 升序聚合为一个 `WorldRollbackSnapshot`；恢复顺序不改变捕获顺序、状态键、载荷字节或编码版本。
   - 通过 `RollbackSnapshotRingBuffer` 管理历史快照。
   - 关键方法：
     - `CaptureAndStore(frame)`：抓取并存入 ring buffer。

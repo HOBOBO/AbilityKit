@@ -400,6 +400,9 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests : IDispos
 
     [Theory]
     [InlineData("version")]
+    [InlineData("previous-version")]
+    [InlineData("previous-skill-version")]
+    [InlineData("frozen-level")]
     [InlineData("frame")]
     [InlineData("missing-section")]
     [InlineData("duplicate-section")]
@@ -431,6 +434,24 @@ public sealed partial class MobaSkillLifecycleRollbackPreparationTests : IDispos
         switch (change)
         {
             case "version": envelope.Version++; break;
+            case "previous-version": envelope.Version = 10; break;
+            case "previous-skill-version":
+            case "frozen-level":
+                var frozenSection = Find(envelope, "skill-runtime");
+                var frozenLocal = MemoryPackSerializer.Deserialize<MobaSkillRuntimeLocalRollbackPayload>(frozenSection.Payload);
+                var frozenState = MemoryPackSerializer.Deserialize<MobaSkillRuntimeRollbackPayload>(frozenLocal.RuntimeState);
+                var version = change == "previous-skill-version" ? 3 : frozenState.Version;
+                if (change == "frozen-level")
+                {
+                    var entry = frozenState.Runtimes[0];
+                    frozenState.Runtimes[0] = MobaSkillRuntimeFrozenParametersRollbackTests.WithFrozenData(entry,
+                        entry.ChampionLevel + 1, entry.LevelParameters);
+                }
+                var replacedState = new MobaSkillRuntimeRollbackPayload(version, frozenState.NextRuntimeId,
+                    frozenState.NextRetainId, frozenState.NextGeneration, frozenState.Runtimes, frozenState.Retains);
+                frozenSection.Payload = MemoryPackSerializer.Serialize(new MobaSkillRuntimeLocalRollbackPayload(frozenLocal.Version,
+                    MemoryPackSerializer.Serialize(replacedState), frozenLocal.ExecutionContextNodes, frozenLocal.ExecutionContextNextId));
+                break;
             case "frame": envelope.Frame++; break;
             case "missing-section": envelope.Sections = envelope.Sections.Skip(1).ToArray(); break;
             case "duplicate-section": envelope.Sections[0] = envelope.Sections[1]; break;

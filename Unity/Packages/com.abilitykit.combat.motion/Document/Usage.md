@@ -155,6 +155,18 @@ pipeline.Policy.SetSuppressedGroups(
     MotionGroups.Path);
 ```
 
+需要由外部同步/恢复适配完整策略值时，可以单独捕获和静默恢复：
+
+```csharp
+MotionPipelinePolicyState saved = pipeline.Policy.CaptureState();
+MotionPipelinePolicy.ValidateState(in saved);
+pipeline.Policy.RestoreState(in saved);
+```
+
+状态包含全部 `SuppressorGroupId -> SuppressedGroupIds` 规则。捕获按 key 升序排列，数组彼此独立；恢复完整替换规则并复制输入数组。空 `Rules` 表示无规则；规则目标数组必须非空，key 必须唯一且升序。组编号及内层目标的顺序和重复值不做限制。非法状态会抛出包含字段或索引的 `ArgumentException`，且不改变当前策略。
+
+该 API 只管理 Policy 的纯值映射，不保存 Policy 对象身份、别名关系、Pipeline 成员、来源状态、Solver、Events 或导航世界，也不触发通知或推进。它不依赖 FrameSync，也不单独构成完整世界回滚能力；宿主负责 Policy 存在性、共享关系和其他运行依赖。
+
 常见约定：
 
 - `Locomotion`：玩家/AI 常规移动，通常 `Additive`。
@@ -212,6 +224,22 @@ pipeline.AddSource(restored);
 ```
 
 注意：轨迹对象本身通常应由技能配置或回放上下文重新创建，`MotionSourceSnapshot` 只保存运行进度，不保存完整轨迹数据。
+
+### 7.1 PathFollower 完整领域状态
+
+`PathFollowerMotionSource` 的旧 `ExportSnapshot / ImportSnapshot` 仍依赖目标实例原路径，继续保留索引夹取、非正速度/阈值留旧值等兼容规则。需要独立保存完整路径及来源数据时，使用以下入口：
+
+```csharp
+PathFollowerState saved = path.CaptureState();
+PathFollowerMotionSource.ValidateState(in saved);
+path.RestoreState(in saved);
+```
+
+`PathFollowerState` 包含 `Points`、`Speed`、`ArriveEpsilon`、`GroupId`、`Priority`、`Stacking`、`Index` 和 `IsActive`。结构赋值本身不复制数组；Capture 返回独立路径数组，Restore 验证并复制输入后一次替换来源数据，准备失败保留原值。两个入口均不推进、寻路或发送到达通知；正常 Tick 不复制路径。
+
+完整恢复要求非 null 路径及有限坐标、有限正速度和阈值、已定义的 Stacking，以及 `[0, Points.Length]` 内的索引；空路径必须非活动。允许中途取消和非空路径的 `IsActive == true && Index == Points.Length` 边界，恢复不将其提前规范化。GroupId/Priority 允许任意整数，`default(PathFollowerState)` 不是合法重置状态。Validate/Restore 对非法状态抛出指明字段的 `ArgumentException`；Capture 保留普通配置中的特殊值，不默默修正。
+
+恢复不增删管线成员、不重新排序，也不恢复 Actor、导航输入或业务重规划计数。接入方须另外保存 MotionState 并管理身份、成员、顺序及依赖一致性；普通归池仍要求先解绑。来源和输入数组均不支持并发修改。此 API 不依赖帧同步包，不持有帧历史，不等于项目已支持完整世界回滚。
 
 ## 8. 对象池使用建议
 

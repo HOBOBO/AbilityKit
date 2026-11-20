@@ -10,9 +10,11 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Search;
+using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Continuous;
 using AbilityKit.Deterministic;
+using AbilityKit.HFSM.Definition;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
@@ -264,6 +266,56 @@ public sealed class MobaSkillFlowAcceptanceTests
 
         Assert.Equal(new[] { 8443 }, scope.ExecutedEffects);
         Assert.False(scope.Runner.HasRunning);
+    }
+
+    [Fact]
+    public void Restored_precast_passes_frozen_parameters_to_cast_commit()
+    {
+        const int parameterId = 82;
+        using var parameters = new MobaCharacterHfsmParameterService();
+        var profile = new StateMachineDefinition();
+        profile.Parameters.Add(new StateMachineParameterDefinition
+        {
+            Id = parameterId,
+            Name = "cast_sample",
+            SupportedOperations = new List<int> { (int)ModifierOp.Override },
+        });
+        parameters.RegisterActorProfile(ActorId, profile);
+        using var scope = new Scope(withPreCastCommit: true);
+        scope.Services.Add(parameters);
+        Assert.True(scope.Start(Charge, 2, SkillCastPolicy.Default,
+            parameterSnapshots: new[] { new MobaPreparedParameterSnapshot(parameterId, 7) }).Success);
+        scope.Runner.Step(.04f);
+        Assert.Equal(0, parameters.Resolve(ActorId, parameterId));
+
+        var entries = new List<SkillRunnerRollbackEntry>();
+        scope.Runner.CaptureRollbackEntries(entries);
+        var payload = SkillRunnerRollbackCodec.Serialize(new SkillRunnerRollbackSnapshot { Entries = entries.ToArray() });
+        var saved = Assert.Single(SkillRunnerRollbackCodec.Deserialize(payload).Entries);
+        var runtimeState = scope.Runtimes.CaptureRollbackSnapshot();
+        var contextNodes = scope.ExecutionContexts.CaptureLifecycleSnapshot();
+        var parameterState = parameters.CaptureSnapshot();
+
+        scope.Runner.Step(.08f);
+        Assert.Equal(7, parameters.Resolve(ActorId, parameterId));
+        var normalCommit = Assert.Single(parameters.CaptureSnapshot());
+
+        scope.Runner.DetachForRollback();
+        scope.Runtimes.RestoreRollbackSnapshot(in runtimeState);
+        scope.ExecutionContexts.RestoreLifecycle(contextNodes);
+        parameters.RestoreSnapshot(parameterState);
+        scope.Restore(saved);
+        Assert.Equal(0, parameters.Resolve(ActorId, parameterId));
+
+        scope.Runner.Step(.02f);
+        Assert.Empty(parameters.CaptureSnapshot());
+        scope.Runner.Step(.06f);
+        Assert.Equal(7, parameters.Resolve(ActorId, parameterId));
+        var replayCommit = Assert.Single(parameters.CaptureSnapshot());
+        Assert.Equal((normalCommit.ActorId, normalCommit.OwnerId, normalCommit.ParameterId, normalCommit.Modifier),
+            (replayCommit.ActorId, replayCommit.OwnerId, replayCommit.ParameterId, replayCommit.Modifier));
+        scope.Runner.CancelAll();
+        Assert.Empty(parameters.CaptureSnapshot());
     }
 
     [Fact]
@@ -543,7 +595,7 @@ public sealed class MobaSkillFlowAcceptanceTests
         private readonly MobaExecutionContextRegistry _executionContexts = new();
         private int _sequence;
 
-        public Scope(int recoveryStartMs = -1)
+        public Scope(int recoveryStartMs = -1, bool withPreCastCommit = false)
         {
             var actor = _contexts.actor.CreateEntity();
             actor.AddActorId(ActorId);
@@ -616,11 +668,21 @@ public sealed class MobaSkillFlowAcceptanceTests
                     },
                 } },
             };
+            var charge = Skill(Charge, 8432);
+            var chargePhases = new List<SkillPhaseDTO>();
+            if (withPreCastCommit)
+            {
+                charge.PreCastFlowId = 8434;
+                chargePhases.Add(new SkillPhaseDTO { Type = (int)SkillPhaseType.CommitPoint, PhaseId = "commit",
+                    CommitPoint = new SkillCommitPointPhaseDTO() });
+            }
+            chargePhases.Add(new SkillPhaseDTO { Type = (int)SkillPhaseType.Delay, PhaseId = "charge",
+                Delay = new SkillDelayPhaseDTO { DelayMs = 1000 } });
             var load = configs.ReloadFromDtoArrays(new Dictionary<Type, Array>
             {
                 [typeof(SkillDTO)] = new[]
                 {
-                    Skill(Instant, 8431), Skill(Charge, 8432), Skill(Volley, 8433),
+                    Skill(Instant, 8431), charge, Skill(Volley, 8433),
                 },
                 [typeof(SkillFlowDTO)] = new[]
                 {
@@ -634,10 +696,11 @@ public sealed class MobaSkillFlowAcceptanceTests
                         new SkillPhaseDTO { Type = (int)SkillPhaseType.CommitPoint, PhaseId = "hit",
                             CommitPoint = new SkillCommitPointPhaseDTO { RequireEconomyReservation = true } },
                     } },
-                    new SkillFlowDTO { Id = 8432, Phases = new[]
+                    new SkillFlowDTO { Id = 8432, Phases = chargePhases.ToArray() },
+                    new SkillFlowDTO { Id = 8434, Phases = new[]
                     {
-                        new SkillPhaseDTO { Type = (int)SkillPhaseType.Delay, PhaseId = "charge",
-                            Delay = new SkillDelayPhaseDTO { DelayMs = 1000 } },
+                        new SkillPhaseDTO { Type = (int)SkillPhaseType.Delay, PhaseId = "prepare",
+                            Delay = new SkillDelayPhaseDTO { DelayMs = 100 } },
                     } },
                     VolleyFlow,
                 },
@@ -680,7 +743,8 @@ public sealed class MobaSkillFlowAcceptanceTests
             return results.Count > 0 ? results[0] : 0;
         }
 
-        public SkillPipelineRunner.SkillPipelineStartResult Start(int id, int slot, SkillCastPolicy policy, int targetActorId = 0)
+        public SkillPipelineRunner.SkillPipelineStartResult Start(int id, int slot, SkillCastPolicy policy,
+            int targetActorId = 0, MobaPreparedParameterSnapshot[] parameterSnapshots = null)
         {
             Assert.True(Library.TryGet(id, out var pre, out var prePhases, out var cast, out var phases));
             var aim = Vec3.Zero;
@@ -690,7 +754,7 @@ public sealed class MobaSkillFlowAcceptanceTests
             var runtime = Runtimes.Create(new MobaSkillCastRuntimeCreateRequest(
                 id, slot, 1, ++_sequence, ActorId, targetActorId, in aim, in direction, root.ContextId));
             var request = new SkillCastRequest(id, slot, ActorId, targetActorId, in aim, in direction,
-                Services, null, null, null);
+                Services, null, null, null, parameterSnapshots);
             var trigger = new SkillCastContext();
             trigger.Initialize(in request, skillLevel: 1);
             trigger.SourceContextId = root.ContextId;

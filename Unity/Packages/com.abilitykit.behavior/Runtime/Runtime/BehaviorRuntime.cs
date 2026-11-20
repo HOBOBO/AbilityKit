@@ -14,7 +14,7 @@ namespace AbilityKit.Ability.Behavior
     /// 注意：完全独立于 Triggering 模块
     /// 实现了 IContinuous 接口，可由 ContinuousManager 统一管理
     /// </summary>
-    public class BehaviorRuntime : IContinuous
+    public partial class BehaviorRuntime : IContinuous
     {
         #region IContinuous Members
 
@@ -385,7 +385,7 @@ namespace AbilityKit.Ability.Behavior
     /// <summary>
     /// 行为状态存储实现
     /// </summary>
-    public class BehaviorState : IBehaviorState
+    public partial class BehaviorState : IBehaviorState
     {
         private readonly Dictionary<string, object> _data = new Dictionary<string, object>();
         
@@ -408,7 +408,7 @@ namespace AbilityKit.Ability.Behavior
     /// <summary>
     /// 行为输出实现
     /// </summary>
-    public class BehaviorOutput : IBehaviorOutput
+    public partial class BehaviorOutput : IBehaviorOutput
     {
         private readonly List<PendingEvent> _events = new List<PendingEvent>();
         private readonly List<PendingEffect> _effects = new List<PendingEffect>();

@@ -175,7 +175,6 @@ public sealed class MobaCastRetentionRollbackTests
             case "future-request": cast.ReplaceSkillCastDestroyRequest(141, 151, SkillDestroyReason.CompletedRetainExpired); break;
             case "confirmation-before-request": cast.ReplaceSkillCastDestroyRequest(131, 130, SkillDestroyReason.CompletedRetainExpired); break;
             case "running-request": cast.isSkillCastRunningTag = true; break;
-            case "reason": cast.ReplaceSkillCastDestroyRequest(131, 141, (SkillDestroyReason)999); break;
             case "actor-with-cast-state": actor.AddSkillCastRetention(100); break;
         }
         var bad = MemoryPackSerializer.Deserialize<MobaEntitasComponentRollbackPayload>(f.Provider.Export(frame));
@@ -184,13 +183,22 @@ public sealed class MobaCastRetentionRollbackTests
         var entry = entries[index];
         switch (defect)
         {
+            case "reason":
+                // 模板现在在导出时也拒绝未知枚举；损坏合法载荷验证导入边界。
+                var request = BitConverter.GetBytes(131).Concat(BitConverter.GetBytes(141))
+                    .Concat(BitConverter.GetBytes((int)SkillDestroyReason.CompletedRetainExpired)).ToArray();
+                var requestOffset = Enumerable.Range(0, entry.Data.Length - request.Length + 1)
+                    .Single(offset => entry.Data.AsSpan(offset, request.Length).SequenceEqual(request));
+                BitConverter.GetBytes(999).CopyTo(entry.Data, requestOffset + 8);
+                break;
             case "missing-trailer": entries[index] = new(entry.ActorId, entry.CastId, entry.Data[..^13]); break;
             case "bad-trailer": entry.Data[^13] ^= 1; break;
             case "truncated": entries[index] = new(entry.ActorId, entry.CastId, entry.Data[..3]); break;
             case "duplicate": entries = entries.Append(entry).ToArray(); break;
             case "dual-identity": entries[index] = new(1, entry.CastId, entry.Data); break;
         }
-        var payload = MemoryPackSerializer.Serialize(new MobaEntitasComponentRollbackPayload(defect == "v1" ? 1 : 2, entries));
+        var payload = MemoryPackSerializer.Serialize(new MobaEntitasComponentRollbackPayload(
+            defect == "v1" ? 1 : MobaEntitasComponentRollbackProvider.CurrentVersion, entries));
         // Restore valid live state, then perturb a preceding actor. No earlier entry may be applied.
         if (actor.hasSkillCastRetention) actor.RemoveSkillCastRetention();
         cast.ReplaceSkillCastRetention(100);

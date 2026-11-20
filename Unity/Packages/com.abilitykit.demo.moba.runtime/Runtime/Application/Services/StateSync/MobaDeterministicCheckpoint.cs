@@ -6,7 +6,7 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
 {
     public readonly struct MobaDeterministicCheckpoint
     {
-        public const int CurrentSchemaVersion = 1;
+        public const int CurrentSchemaVersion = 7;
 
         public MobaDeterministicCheckpoint(
             int schemaVersion,
@@ -183,6 +183,10 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
                 if (_providersByKey[entry.Key] is IMobaStagedStateRecoveryProvider stagedProvider)
                 {
                     stagedProvider.PrepareRestore(frame, entry.Payload);
+                }
+                else if (_providersByKey[entry.Key] is AbilityKit.Ability.FrameSync.Rollback.IRollbackStatePreflightProvider preflight)
+                {
+                    preflight.ValidateImport(frame, entry.Payload);
                 }
             }
         }

@@ -8,18 +8,18 @@ namespace AbilityKit.Demo.Moba.Rollback
 {
     /// <summary>
     /// 在隔离名单中验证既有 Actor 逆命令的结果，不创建、销毁或恢复任何业务对象。
-    /// 仅证明差异来自检查点之后新增或已销毁的飞行弹体。
+    /// 仅证明差异来自检查点之后新增或已销毁的受支持弹体或 Launcher。
     /// </summary>
     public sealed partial class MobaActorRollbackCommandRuntime
     {
-        internal void ValidateProjectileRosterProjection(FrameIndex frame, byte[] commandPayload,
+        internal void ValidateSupportedActorRosterProjection(FrameIndex frame, byte[] commandPayload,
             int[] targetActorIds, IReadOnlyDictionary<int, int> targetVersions,
-            ISet<int> targetProjectileIds)
+            ISet<int> targetProjectileIds, ISet<int> targetLauncherIds, ISet<int> targetRetainedIds = null)
         {
             StateProvider.ValidateImport(frame, commandPayload);
             var checkpoint = CommandJournalCheckpointCodec.Decode(commandPayload);
             var target = new HashSet<int>(targetActorIds);
-            var restoredTargetProjectiles = new HashSet<int>();
+            var restoredTargetActors = new HashSet<int>();
             foreach (var id in targetActorIds)
             {
                 ValidateRegistrationConsistency(id);
@@ -30,8 +30,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                     if (!_actors.MatchesEntityVersion(id, version))
                         throw new InvalidOperationException("Lifecycle target actor entity identity changed.");
                 }
-                else if (!targetProjectileIds.Contains(id))
-                    throw new InvalidOperationException("Lifecycle target actor is missing and is not a flying projectile.");
+                else if (!targetProjectileIds.Contains(id) && !targetLauncherIds.Contains(id) && targetRetainedIds?.Contains(id) != true)
+                    throw new InvalidOperationException("Lifecycle target actor is missing and is not a supported flying projectile or ProjectileLauncher or retained summon.");
             }
 
             var projected = new HashSet<int>(_actors.CopyActorIdsInOrder());
@@ -46,7 +46,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
 
             /*
-             * 按真实日志逆序只推导存在性；任何目标对象重建或其它类型的差异都不在本批范围内。
+             * 仅目标弹体与 Launcher 可以重建，目标名单外的对象仍限定为飞行弹体。
              */
             for (var i = Log.Count - 1; i >= 0; i--)
             {
@@ -63,13 +63,19 @@ namespace AbilityKit.Demo.Moba.Rollback
                 else if (record.CommandType == RestoreDestroyedActorCommand)
                 {
                     var value = ReadTombstone(record.PayloadVersion, record.Payload);
-                    var targetProjectile = target.Contains(value.ActorId);
-                    if (value.Kind != MobaEntityKind.Projectile ||
-                        targetProjectile && (!targetProjectileIds.Contains(value.ActorId) ||
-                            !targetVersions.TryGetValue(value.ActorId, out var expectedVersion) ||
-                            expectedVersion != value.EntityVersion || !restoredTargetProjectiles.Add(value.ActorId)) ||
-                        !projected.Add(value.ActorId))
-                        throw new InvalidOperationException("Lifecycle actor destruction command exceeds projectile projection scope.");
+                    var isTargetProjectile = target.Contains(value.ActorId) && targetProjectileIds.Contains(value.ActorId);
+                    var isTargetLauncher = target.Contains(value.ActorId) && targetLauncherIds.Contains(value.ActorId);
+                    var isRetained = targetRetainedIds?.Contains(value.ActorId) == true;
+                    var isTargetActor = target.Contains(value.ActorId);
+                    var expectedKind = isRetained ? MobaEntityKind.Summon :
+                        isTargetLauncher ? MobaEntityKind.ProjectileLauncher : MobaEntityKind.Projectile;
+                    var added = projected.Add(value.ActorId);
+                    if (value.Kind != expectedKind || isTargetActor && !isTargetProjectile && !isTargetLauncher && !isRetained ||
+                        (isTargetProjectile || isTargetLauncher || isRetained) &&
+                            (!targetVersions.TryGetValue(value.ActorId, out var expectedVersion) ||
+                             expectedVersion != value.EntityVersion || !restoredTargetActors.Add(value.ActorId)) ||
+                        !added)
+                        throw new InvalidOperationException("Lifecycle actor destruction command exceeds supported projectile/launcher projection scope.");
                 }
                 else throw new InvalidOperationException("Unsupported lifecycle actor projection command.");
             }
@@ -82,8 +88,15 @@ namespace AbilityKit.Demo.Moba.Rollback
                 if (ordered[i] != targetActorIds[i])
                     throw new InvalidOperationException("Actor commands do not restore the ordered target lifecycle roster.");
             foreach (var id in targetProjectileIds)
-                if (!restoredTargetProjectiles.Contains(id) && !_actors.TryGet(id, out _))
+                if (!restoredTargetActors.Contains(id) && !_actors.TryGet(id, out _))
                     throw new InvalidOperationException("Lifecycle missing projectile has no matching destruction tombstone.");
+            foreach (var id in targetLauncherIds)
+                if (!restoredTargetActors.Contains(id) && !_actors.TryGet(id, out _))
+                    throw new InvalidOperationException("Lifecycle missing ProjectileLauncher has no matching destruction tombstone.");
+            if (targetRetainedIds != null)
+                foreach (var id in targetRetainedIds)
+                    if (!restoredTargetActors.Contains(id))
+                        throw new InvalidOperationException("Retained summon has no matching destruction tombstone.");
         }
     }
 }

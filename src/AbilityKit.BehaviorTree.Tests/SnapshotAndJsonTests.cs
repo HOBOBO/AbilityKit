@@ -72,6 +72,67 @@ namespace AbilityKit.BehaviorTree.Tests
             Assert.Throws<System.InvalidOperationException>(() => other.RestoreState(snapshot));
         }
 
+        [Theory]
+        [InlineData(BuiltInNodeTypes.Sequence, 1, NodeState.Success)]
+        [InlineData(BuiltInNodeTypes.Sequence, 0, NodeState.Failure)]
+        [InlineData(BuiltInNodeTypes.Selector, 0, NodeState.Failure)]
+        [InlineData(BuiltInNodeTypes.Parallel, 2, NodeState.Running)]
+        public void SnapshotRoundtrip_PreservesExhaustedChildCursor(string type, int result, NodeState expected)
+        {
+            var definition = new TreeBuilder()
+                .Blackboard("test.result", TreeValueType.Int64)
+                .Node("root", type, "child")
+                .Node("child", CountingAction)
+                .Root("root");
+            var original = TreeRuntime.Create(definition, CreateRegistry());
+            original.Enable();
+            original.Blackboard.SetInt64("test.result", result);
+            original.Update(1, Fixed64.Zero);
+            Assert.Equal(expected, original.RootNodeState);
+            var payload = ApiTreeJson.SaveSnapshot(original.CaptureState());
+            var snapshot = ApiTreeJson.LoadSnapshot(payload);
+            Assert.Equal(1, snapshot.Nodes[0].RunningChildIndex);
+
+            var restored = TreeRuntime.Create(definition, CreateRegistry());
+            restored.Enable();
+            restored.ValidateState(snapshot);
+            restored.RestoreState(snapshot);
+            Assert.Equal(payload, ApiTreeJson.SaveSnapshot(restored.CaptureState()));
+
+            foreach (var invalidCursor in new[] { -2, 2 })
+            {
+                snapshot.Nodes[0].RunningChildIndex = invalidCursor;
+                Assert.Throws<System.InvalidOperationException>(() => restored.RestoreState(snapshot));
+                Assert.Equal(payload, ApiTreeJson.SaveSnapshot(restored.CaptureState()));
+            }
+
+            original.Blackboard.SetInt64("test.result", 1);
+            restored.Blackboard.SetInt64("test.result", 1);
+            for (var frame = 2; frame <= 4; frame++)
+            {
+                var time = Fixed64.FromInt32(frame - 1);
+                original.Update(frame, time);
+                restored.Update(frame, time);
+                Assert.Equal(ApiTreeJson.SaveSnapshot(original.CaptureState()), ApiTreeJson.SaveSnapshot(restored.CaptureState()));
+            }
+        }
+
+        [Fact]
+        public void Restore_RejectsExhaustedCursorOnDecorator()
+        {
+            var definition = new TreeBuilder()
+                .Node("root", BuiltInNodeTypes.Inverter, "child")
+                .Node("child", BuiltInNodeTypes.Wait)
+                .Root("root");
+            var runtime = TreeRuntime.Create(definition, CreateRegistry());
+            runtime.Enable();
+            var snapshot = runtime.CaptureState();
+            var original = ApiTreeJson.SaveSnapshot(snapshot);
+            snapshot.Nodes[0].RunningChildIndex = 1;
+            Assert.Throws<System.InvalidOperationException>(() => runtime.RestoreState(snapshot));
+            Assert.Equal(original, ApiTreeJson.SaveSnapshot(runtime.CaptureState()));
+        }
+
         [Fact]
         public void Restore_RejectsVersionMismatch()
         {

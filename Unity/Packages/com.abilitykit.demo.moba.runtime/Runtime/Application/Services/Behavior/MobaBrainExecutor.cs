@@ -4,8 +4,21 @@ using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior
 {
-    public sealed class MobaBrainExecutor : DefaultExecutor
+    /// <summary>
+    /// 将通用决策翻译为 MOBA 当前输出；派生执行器仍可用于普通业务。
+    /// 回滚准入仅自动覆盖本标准实现。
+    /// </summary>
+    public class MobaBrainExecutor : DefaultExecutor, IBehaviorRecoveryDependency
     {
+        /// <summary>
+        /// 此执行器无自有跨帧状态，输出由 Runtime 保存，不在恢复时执行。
+        /// </summary>
+        public void ValidateRecoveryDependency()
+        {
+            if (GetType() != typeof(MobaBrainExecutor))
+                throw new System.InvalidOperationException($"Brain executor '{GetType().FullName}' requires its own recovery dependency contract before enabling rollback.");
+        }
+
         public const string SkillCastEventId = "moba.brain.skill.cast";
         public const string SkillIdParam = "SkillId";
         public const string SkillSlotParam = "SkillSlot";

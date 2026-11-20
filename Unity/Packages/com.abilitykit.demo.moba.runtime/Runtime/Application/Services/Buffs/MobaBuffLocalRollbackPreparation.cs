@@ -169,12 +169,15 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                         throw new InvalidOperationException("Absent Buff Continuous has unexpected local state.");
                     continue;
                 }
-                if (local.ElapsedRaw < 0 || local.IntervalRemainingRaw < 0 ||
+                if (local.ElapsedRaw < 0 || local.IntervalRemainingRaw == long.MinValue ||
                     local.DurationRaw.HasValue && (local.DurationRaw.Value <= 0 || local.DurationRaw.Value < local.ElapsedRaw) ||
                     local.State != (int)ContinuousState.Active && local.State != (int)ContinuousState.Paused ||
                     !string.Equals(local.Configuration, CaptureLocalBuffConfiguration(entry.BuffId), StringComparison.Ordinal))
                     throw new InvalidOperationException("Local Buff Continuous timing, state, or configuration is invalid.");
                 _configs.TryGetBuff(entry.BuffId, out var config);
+                if (local.IntervalRemainingRaw < 0 &&
+                    (config.IntervalMs <= 0 || config.OnIntervalEffects == null || config.OnIntervalEffects.Count == 0))
+                    throw new InvalidOperationException("Non-periodic Buff Continuous cannot contain interval backlog.");
                 var hasModifiers = config.Modifiers != null && config.Modifiers.Count > 0;
                 if (hasModifiers != (local.ModifierSourceId > 0) || local.ModifierSourceId < 0 ||
                     local.ModifierSourceId > 0 && !sourceIds.Add(local.ModifierSourceId))

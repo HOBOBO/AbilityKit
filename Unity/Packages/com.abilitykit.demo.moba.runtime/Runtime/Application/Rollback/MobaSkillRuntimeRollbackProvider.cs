@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     {
         public const int DefaultKey = 10012;
         private const int LocalPayloadVersion = 1;
-        private const int RuntimePayloadVersion = 3;
+        internal const int RuntimePayloadVersion = 4;
         private readonly MobaSkillCastRuntimeService _runtimes;
 
         public MobaSkillRuntimeRollbackProvider(MobaSkillCastRuntimeService runtimes)
@@ -41,8 +41,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             var state = ReadLocalRollback(payload);
             var runtimeState = MemoryPackSerializer.Deserialize<MobaSkillRuntimeRollbackPayload>(state.RuntimeState);
-            if (runtimeState.Version != RuntimePayloadVersion)
-                throw new InvalidOperationException("Unsupported skill runtime state in local rollback payload.");
+            ValidateRuntimeState(in runtimeState);
 
             if (state.ExecutionContextNodes != null)
             {
@@ -263,8 +262,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 return;
             }
             var state = MemoryPackSerializer.Deserialize<MobaSkillRuntimeRollbackPayload>(payload);
-            if (state.Version != RuntimePayloadVersion)
-                throw new InvalidOperationException($"Unsupported skill runtime rollback payload version '{state.Version}'.");
+            ValidateRuntimeState(in state);
             var source = state.Runtimes ?? Array.Empty<MobaSkillRuntimeRollbackEntry>();
             var runtimes = new MobaSkillCastRuntimeSnapshot[source.Length];
             for (var i = 0; i < source.Length; i++) runtimes[i] = FromSerializable(in source[i]);
@@ -273,6 +271,36 @@ namespace AbilityKit.Demo.Moba.Rollback
             for (var i = 0; i < retainSource.Length; i++) retains[i] = FromSerializable(in retainSource[i]);
             _runtimes.RestoreRollbackSnapshot(new MobaSkillCastRuntimeServiceSnapshot(
                 state.NextRuntimeId, state.NextRetainId, state.NextGeneration, runtimes, retains));
+        }
+
+        internal void ValidateRuntimeState(in MobaSkillRuntimeRollbackPayload state)
+        {
+            if (state.Version != RuntimePayloadVersion)
+                throw new InvalidOperationException($"Unsupported skill runtime rollback payload version '{state.Version}'.");
+
+            foreach (var entry in state.Runtimes ?? Array.Empty<MobaSkillRuntimeRollbackEntry>())
+            {
+                if (entry.ChampionLevel < 0 ||
+                    (_runtimes.TryGet(entry.RuntimeId, out var live) && live.Generation == entry.Generation &&
+                     live.ChampionLevel != entry.ChampionLevel))
+                    throw new InvalidOperationException($"Invalid frozen champion level for skill runtime '{entry.RuntimeId}'.");
+
+                var parameters = entry.LevelParameters;
+                if (parameters == null)
+                    throw new InvalidOperationException($"Missing frozen parameters for skill runtime '{entry.RuntimeId}'.");
+
+                var usedIndices = parameters.Length == 0 ? Array.Empty<bool>() : new bool[parameters.Length];
+                for (var index = 0; index < parameters.Length; index++)
+                {
+                    var parameter = parameters[index];
+                    if (string.IsNullOrWhiteSpace(parameter.Name) || float.IsNaN(parameter.Value) ||
+                        float.IsInfinity(parameter.Value) || (uint)parameter.DeclarationIndex >= (uint)parameters.Length ||
+                        usedIndices[parameter.DeclarationIndex] || (index > 0 &&
+                        StringComparer.OrdinalIgnoreCase.Compare(parameters[index - 1].Name, parameter.Name) >= 0))
+                        throw new InvalidOperationException($"Invalid frozen parameter at index '{index}' for skill runtime '{entry.RuntimeId}'.");
+                    usedIndices[parameter.DeclarationIndex] = true;
+                }
+            }
         }
 
         public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)
@@ -293,12 +321,17 @@ namespace AbilityKit.Demo.Moba.Rollback
             }
             var boards = new MobaSkillRuntimeBlackboardRollbackEntry[value.BlackboardEntries.Length];
             for (var i = 0; i < boards.Length; i++) boards[i] = ToSerializable(in value.BlackboardEntries[i]);
+            var frozen = value.LevelParameters.ToArray();
+            var parameters = new MobaSkillRuntimeLevelParameterRollbackEntry[frozen.Length];
+            for (var index = 0; index < parameters.Length; index++)
+                parameters[index] = new MobaSkillRuntimeLevelParameterRollbackEntry(frozen[index].Name, frozen[index].Value, index);
+            Array.Sort(parameters, (left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.Name, right.Name));
             return new MobaSkillRuntimeRollbackEntry(
                 value.RuntimeId, value.Generation, value.RootContextId, value.SkillId, value.SkillSlot,
                 value.SkillLevel, value.Sequence, value.CasterActorId, value.TargetActorId,
                 value.AimPos.X, value.AimPos.Y, value.AimPos.Z, value.AimDir.X, value.AimDir.Y, value.AimDir.Z,
                 (int)value.Stage, value.PipelineEnded, value.IsEnding, value.IsEnded, (int)value.EndReason,
-                children, boards, value.BaseSkillId);
+                children, boards, value.BaseSkillId, value.ChampionLevel, parameters);
         }
 
         private static MobaSkillCastRuntimeSnapshot FromSerializable(in MobaSkillRuntimeRollbackEntry value)
@@ -310,12 +343,17 @@ namespace AbilityKit.Demo.Moba.Rollback
             var boardSource = value.BlackboardEntries ?? Array.Empty<MobaSkillRuntimeBlackboardRollbackEntry>();
             var boards = new MobaSkillRuntimeBlackboardSnapshotEntry[boardSource.Length];
             for (var i = 0; i < boards.Length; i++) boards[i] = FromSerializable(in boardSource[i]);
+            var parameters = new MobaSkillLevelParameterValue[value.LevelParameters.Length];
+            foreach (var parameter in value.LevelParameters)
+                parameters[parameter.DeclarationIndex] = new MobaSkillLevelParameterValue(parameter.Name, parameter.Value);
             return new MobaSkillCastRuntimeSnapshot(
                 value.RuntimeId, value.Generation, value.RootContextId, value.SkillId, value.SkillSlot,
                 value.SkillLevel, value.Sequence, value.CasterActorId, value.TargetActorId,
                 new Vec3(value.AimX, value.AimY, value.AimZ), new Vec3(value.DirX, value.DirY, value.DirZ),
                 (SkillCastStage)value.Stage, value.PipelineEnded, value.IsEnding, value.IsEnded,
-                (MobaSkillRuntimeEndReason)value.EndReason, children, boards, value.BaseSkillId);
+                (MobaSkillRuntimeEndReason)value.EndReason, children, boards, value.BaseSkillId,
+                parameters.Length == 0 ? MobaSkillLevelParameterSnapshot.Empty : new MobaSkillLevelParameterSnapshot(parameters),
+                value.ChampionLevel);
         }
 
         private static MobaSkillRuntimeBlackboardRollbackEntry ToSerializable(in MobaSkillRuntimeBlackboardSnapshotEntry entry)
@@ -522,9 +560,29 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(20)] public readonly MobaSkillRuntimeChildRollbackEntry[] Children;
         [MemoryPackOrder(21)] public readonly MobaSkillRuntimeBlackboardRollbackEntry[] BlackboardEntries;
         [MemoryPackOrder(22)] public readonly int BaseSkillId;
+        [MemoryPackOrder(23)] public readonly int ChampionLevel;
+        [MemoryPackOrder(24)] public readonly MobaSkillRuntimeLevelParameterRollbackEntry[] LevelParameters;
         [MemoryPackConstructor]
-        public MobaSkillRuntimeRollbackEntry(long runtimeId, int generation, long rootContextId, int skillId, int skillSlot, int skillLevel, int sequence, int casterActorId, int targetActorId, float aimX, float aimY, float aimZ, float dirX, float dirY, float dirZ, int stage, bool pipelineEnded, bool isEnding, bool isEnded, int endReason, MobaSkillRuntimeChildRollbackEntry[] children, MobaSkillRuntimeBlackboardRollbackEntry[] blackboardEntries, int baseSkillId)
-        { RuntimeId=runtimeId;Generation=generation;RootContextId=rootContextId;SkillId=skillId;SkillSlot=skillSlot;SkillLevel=skillLevel;Sequence=sequence;CasterActorId=casterActorId;TargetActorId=targetActorId;AimX=aimX;AimY=aimY;AimZ=aimZ;DirX=dirX;DirY=dirY;DirZ=dirZ;Stage=stage;PipelineEnded=pipelineEnded;IsEnding=isEnding;IsEnded=isEnded;EndReason=endReason;Children=children;BlackboardEntries=blackboardEntries;BaseSkillId=baseSkillId; }
+        public MobaSkillRuntimeRollbackEntry(long runtimeId, int generation, long rootContextId, int skillId, int skillSlot, int skillLevel, int sequence, int casterActorId, int targetActorId, float aimX, float aimY, float aimZ, float dirX, float dirY, float dirZ, int stage, bool pipelineEnded, bool isEnding, bool isEnded, int endReason, MobaSkillRuntimeChildRollbackEntry[] children, MobaSkillRuntimeBlackboardRollbackEntry[] blackboardEntries, int baseSkillId, int championLevel, MobaSkillRuntimeLevelParameterRollbackEntry[] levelParameters)
+        { RuntimeId=runtimeId;Generation=generation;RootContextId=rootContextId;SkillId=skillId;SkillSlot=skillSlot;SkillLevel=skillLevel;Sequence=sequence;CasterActorId=casterActorId;TargetActorId=targetActorId;AimX=aimX;AimY=aimY;AimZ=aimZ;DirX=dirX;DirY=dirY;DirZ=dirZ;Stage=stage;PipelineEnded=pipelineEnded;IsEnding=isEnding;IsEnded=isEnded;EndReason=endReason;Children=children;BlackboardEntries=blackboardEntries;BaseSkillId=baseSkillId;ChampionLevel=championLevel;LevelParameters=levelParameters; }
+    }
+
+    /// <summary>
+    /// 一次施法的冻结数值，按查询名称编码，恢复时保留原声明顺序。
+    /// </summary>
+    [MemoryPackable]
+    public readonly partial struct MobaSkillRuntimeLevelParameterRollbackEntry
+    {
+        [MemoryPackOrder(0)] public readonly string Name;
+        [MemoryPackOrder(1)] public readonly float Value;
+        [MemoryPackOrder(2)] public readonly int DeclarationIndex;
+
+        public MobaSkillRuntimeLevelParameterRollbackEntry(string name, float value, int declarationIndex)
+        {
+            Name = name;
+            Value = value;
+            DeclarationIndex = declarationIndex;
+        }
     }
 
     [MemoryPackable]

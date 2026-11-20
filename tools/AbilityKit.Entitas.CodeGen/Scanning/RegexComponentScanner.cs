@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using AbilityKit.Entitas.CodeGen.Configuration;
 using AbilityKit.Entitas.CodeGen.Diagnostics;
 
@@ -71,7 +73,8 @@ public sealed class Scanner : IComponentSourceScanner
     /// 非组件的普通类型（嵌套数据类/枚举），供序列化生成器展开字段。
     /// kind: "class" | "struct" | "enum"。
     /// </summary>
-    public sealed class RawPlainType(string name, string ns, string kind, List<RawField> fields, List<string> usings, string sourceFile)
+    public sealed class RawPlainType(string name, string ns, string kind, List<RawField> fields, List<string> usings,
+        string sourceFile, string enumUnderlyingType = "int", string? unsupportedShape = null)
     {
         public string Name { get; } = name;
         public string Namespace { get; } = ns;
@@ -79,11 +82,16 @@ public sealed class Scanner : IComponentSourceScanner
         public List<RawField> Fields { get; } = fields;
         public List<string> Usings { get; } = usings;
         public string SourceFile { get; } = sourceFile;
+        public string EnumUnderlyingType { get; } = enumUnderlyingType;
+        public string? UnsupportedShape { get; } = unsupportedShape;
     }
 
     private static readonly Regex PlainTypeDeclRegex = new(
         @"^\s*(?:public\s+|internal\s+)?(?<modifiers>(?:sealed\s+|static\s+|abstract\s+|partial\s+|readonly\s+)*)?(?<kind>class|struct|enum)\s+(?<name>[A-Za-z_]\w*)",
         RegexOptions.Compiled);
+    private static readonly Regex EnumUnderlyingTypeRegex = new(@"^\s*(?:public\s+|internal\s+)?enum\s+[A-Za-z_]\w*\s*:\s*(?<type>[A-Za-z_]\w*)", RegexOptions.Compiled);
+    private static readonly Regex PlainPropertyRegex = new(@"^\s*(?:public|private|internal|protected)\s+[^=]+\s+[A-Za-z_]\w*\s*\{", RegexOptions.Compiled);
+    private static readonly Regex ReadonlyFieldRegex = new(@"^\s*public\s+readonly\s+", RegexOptions.Compiled);
 
     /// <summary>扫描普通类型（跳过 IComponent 类——那是组件扫描的事）。字段宽松提取。</summary>
     public List<RawPlainType> ScanPlainTypes(IEnumerable<string> sourceDirs)
@@ -120,11 +128,42 @@ public sealed class Scanner : IComponentSourceScanner
                     var fields = kind == "enum"
                         ? new List<RawField>()
                         : ScanClassBody(lines, i, file, name, strict: false);
-                    result.Add(new RawPlainType(name, ns, kind, fields, usings.ToList(), file));
+                    var enumMatch = EnumUnderlyingTypeRegex.Match(lines[i]);
+                    var enumUnderlyingType = kind == "enum" && enumMatch.Success ? enumMatch.Groups["type"].Value : "int";
+                    var syntax = CSharpSyntaxTree.ParseText(string.Join("\n", lines)).GetRoot()
+                        .DescendantNodes().OfType<BaseTypeDeclarationSyntax>()
+                        .FirstOrDefault(d => d.Identifier.ValueText == name);
+                    result.Add(new RawPlainType(name, ns, kind, fields, usings.ToList(), file,
+                        enumUnderlyingType, (syntax == null ? "unrecognized data declaration" : PlainDataShape.Validate(syntax))
+                            ?? FindUnsupportedPlainTypeShape(lines, i, kind)));
                 }
             }
         }
         return result;
+    }
+
+    private static string? FindUnsupportedPlainTypeShape(string[] lines, int declarationLine, string kind)
+    {
+        if (kind == "enum") return null;
+        var modifiers = PlainTypeDeclRegex.Match(lines[declarationLine]).Groups["modifiers"].Value;
+        if (modifiers.Contains("readonly", StringComparison.Ordinal)) return "readonly data types require an explicit restore constructor";
+
+        var depth = 0;
+        var started = false;
+        for (var i = declarationLine; i < lines.Length; i++)
+        {
+            foreach (var ch in lines[i])
+            {
+                if (ch == '{') { depth++; started = true; }
+                else if (ch == '}') depth--;
+            }
+            if (started && depth == 0) break;
+            if (i == declarationLine) continue;
+            var line = StripComment(lines[i]);
+            if (ReadonlyFieldRegex.IsMatch(line)) return $"readonly field is not assignable during restore ({i + 1})";
+            if (PlainPropertyRegex.IsMatch(line)) return $"properties are not included in field serialization ({i + 1})";
+        }
+        return null;
     }
 
     private static void ScanComponentFile(string path, List<RawComponent> result)

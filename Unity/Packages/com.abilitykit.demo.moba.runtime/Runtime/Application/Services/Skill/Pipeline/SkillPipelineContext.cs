@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.ECS;
 using AbilityKit.Core.Mathematics;
@@ -119,42 +121,151 @@ namespace AbilityKit.Demo.Moba.Services
 
         private const string PreparedParameterPrefix = "cast.prepared.parameter.";
         private const string ParametersCommittedKey = "cast.prepared.committed";
+        private MobaPreparedParameterSnapshot[] _preparedParameters = Array.Empty<MobaPreparedParameterSnapshot>();
+        /*
+         * v4 快照可以省略提交标记，也可以显式保存 false。
+         * 两者都允许后续提交，备份往返时保留原来的条目形态。
+         */
+        private bool? _parametersCommitted;
 
+        /// <summary>
+        /// 返回本次施法的预采样值副本，按目标参数 ID 升序排列。
+        /// 调用方可修改结果，不影响当前施法或其它备份。
+        /// </summary>
         public MobaPreparedParameterSnapshot[] GetPreparedParameterSnapshots()
         {
-            var result = new List<MobaPreparedParameterSnapshot>();
-            foreach (var pair in SharedData)
-                if (pair.Key.StartsWith(PreparedParameterPrefix, StringComparison.Ordinal) && pair.Value is float value &&
-                    int.TryParse(pair.Key.Substring(PreparedParameterPrefix.Length), out var id))
-                    result.Add(new MobaPreparedParameterSnapshot(id, value));
-            result.Sort((left, right) => left.TargetParameterId.CompareTo(right.TargetParameterId));
-            return result.ToArray();
+            return _preparedParameters.Length == 0 ? Array.Empty<MobaPreparedParameterSnapshot>() :
+                (MobaPreparedParameterSnapshot[])_preparedParameters.Clone();
         }
+
+        private static MobaPreparedParameterSnapshot[] CopyPreparedParameters(MobaPreparedParameterSnapshot[] samples)
+        {
+            if (samples == null || samples.Length == 0) return Array.Empty<MobaPreparedParameterSnapshot>();
+            var copy = (MobaPreparedParameterSnapshot[])samples.Clone();
+            Array.Sort(copy, ComparePreparedParameterIds);
+            for (var i = 1; i < copy.Length; i++)
+                if (copy[i - 1].TargetParameterId == copy[i].TargetParameterId)
+                    throw new ArgumentException($"Duplicate prepared cast parameter {copy[i].TargetParameterId}.", nameof(samples));
+            return copy;
+        }
+
+        private static bool IsPreparedParameterKey(string key) =>
+            key != null && key.StartsWith(PreparedParameterPrefix, StringComparison.Ordinal);
+
+        private static string GetPreparedParameterKey(int id) =>
+            PreparedParameterPrefix + id.ToString(CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// 校验 v4 载荷中为施法状态保留的键，同时解码预采样值。
+        /// 其它共享键仍由通用共享条目处理。
+        /// </summary>
+        internal static bool TryReadPreparedParameterRollbackEntry(in SkillSharedDataRollbackEntry entry,
+            out MobaPreparedParameterSnapshot sample, out bool? committed)
+        {
+            sample = default;
+            committed = null;
+            if (entry.Key == ParametersCommittedKey)
+            {
+                if (entry.Kind != SkillSharedDataRollbackEntry.Boolean || entry.IntegerValue is < 0 or > 1)
+                    throw new InvalidDataException($"Invalid prepared cast parameter state '{entry.Key}'.");
+                committed = entry.IntegerValue != 0;
+                return true;
+            }
+            if (!IsPreparedParameterKey(entry.Key)) return false;
+            if (entry.Kind != SkillSharedDataRollbackEntry.Float ||
+                !int.TryParse(entry.Key.Substring(PreparedParameterPrefix.Length), NumberStyles.None,
+                    CultureInfo.InvariantCulture, out var parameterId) || parameterId <= 0 ||
+                entry.Key != GetPreparedParameterKey(parameterId) ||
+                double.IsNaN(entry.Number) || entry.Number < -float.MaxValue || entry.Number > float.MaxValue)
+                throw new InvalidDataException($"Invalid prepared cast parameter state '{entry.Key}'.");
+            sample = new MobaPreparedParameterSnapshot(parameterId, (float)entry.Number);
+            return true;
+        }
+
+        private SkillSharedDataRollbackEntry[] CaptureSharedDataRollbackEntries()
+        {
+            var entries = new SkillSharedDataRollbackEntry[SharedData.Count + _preparedParameters.Length +
+                (_parametersCommitted.HasValue ? 1 : 0)];
+            var index = 0;
+            foreach (var pair in SharedData)
+            {
+                if (pair.Key == ParametersCommittedKey || IsPreparedParameterKey(pair.Key))
+                    throw new InvalidOperationException(
+                        $"Reserved SkillPipelineContext rollback key '{pair.Key}' is present in SharedData.");
+                entries[index++] = SkillSharedDataRollbackEntry.Capture(pair.Key, pair.Value);
+            }
+
+            foreach (var sample in _preparedParameters)
+            {
+                var key = GetPreparedParameterKey(sample.TargetParameterId);
+                if (sample.TargetParameterId <= 0 || float.IsNaN(sample.Value) || float.IsInfinity(sample.Value))
+                    throw new InvalidOperationException($"Invalid SkillPipelineContext rollback value '{key}'.");
+                entries[index++] = new SkillSharedDataRollbackEntry(key, SkillSharedDataRollbackEntry.Float,
+                    0, 0L, sample.Value, null, default, default);
+            }
+            if (_parametersCommitted.HasValue)
+                entries[index] = SkillSharedDataRollbackEntry.Capture(ParametersCommittedKey, _parametersCommitted.Value);
+            Array.Sort(entries, (left, right) => string.CompareOrdinal(left.Key, right.Key));
+            return entries;
+        }
+
+        private static void ReadPreparedParameterRollbackState(
+            SkillSharedDataRollbackEntry[] savedEntries,
+            out MobaPreparedParameterSnapshot[] preparedParameters,
+            out bool? parametersCommitted,
+            out Dictionary<string, object> sharedData)
+        {
+            List<MobaPreparedParameterSnapshot> prepared = null;
+            sharedData = new Dictionary<string, object>(savedEntries.Length);
+            parametersCommitted = null;
+            string previousKey = null;
+            foreach (var entry in savedEntries)
+            {
+                if (string.IsNullOrEmpty(entry.Key) || previousKey != null && string.CompareOrdinal(previousKey, entry.Key) >= 0)
+                    throw new InvalidDataException($"Invalid or repeated skill shared-data rollback key '{entry.Key}'.");
+                previousKey = entry.Key;
+                if (!TryReadPreparedParameterRollbackEntry(in entry, out var sample, out var committed))
+                    sharedData.Add(entry.Key, entry.ToValue());
+                else if (committed.HasValue)
+                    parametersCommitted = committed;
+                else
+                    (prepared ??= new List<MobaPreparedParameterSnapshot>()).Add(sample);
+            }
+
+            preparedParameters = prepared == null ? Array.Empty<MobaPreparedParameterSnapshot>() : prepared.ToArray();
+            Array.Sort(preparedParameters, ComparePreparedParameterIds);
+        }
+
+        private static int ComparePreparedParameterIds(MobaPreparedParameterSnapshot left, MobaPreparedParameterSnapshot right) =>
+            left.TargetParameterId.CompareTo(right.TargetParameterId);
 
         internal bool CanCommitPreparedParameters()
         {
-            var samples = GetPreparedParameterSnapshots();
-            if (samples.Length == 0) return true;
+            if (_preparedParameters.Length == 0) return true;
             if (WorldServices == null || (SourceContextId <= 0 && RuntimeId <= 0) ||
                 !WorldServices.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) || parameters == null) return false;
-            foreach (var sample in samples)
+            foreach (var sample in _preparedParameters)
                 if (float.IsNaN(sample.Value) || float.IsInfinity(sample.Value) ||
                     !parameters.SupportsOperation(CasterActorId, sample.TargetParameterId, (int)ModifierOp.Override)) return false;
             return true;
         }
 
+        /// <summary>
+        /// 在原提交点应用已冻结的参数；本次施法已提交时直接返回成功。
+        /// 提交失败仍沿原来源清理路径撤销已写入的参数。
+        /// </summary>
         public bool CommitPreparedParameters()
         {
-            if (GetData(ParametersCommittedKey, false)) return true;
+            if (_parametersCommitted == true) return true;
             if (!CanCommitPreparedParameters()) return false;
-            var samples = GetPreparedParameterSnapshots();
+            var samples = _preparedParameters;
             foreach (var sample in samples)
                 if (!TrySetHfsmParameter(sample.TargetParameterId, sample.Value))
                 {
                     TryClearHfsmParameters();
                     return false;
                 }
-            SetData(ParametersCommittedKey, true);
+            _parametersCommitted = true;
             if (samples.Length > 0) SynchronizeCharacterHfsm();
             return true;
         }
@@ -293,9 +404,15 @@ namespace AbilityKit.Demo.Moba.Services
             return SharedData.Remove(key);
         }
 
+        /// <summary>
+        /// 清除阶段间共享值，以及原先由共享键持有的预采样值和提交标记。
+        /// 此操作不提交参数，也不执行清理回调。
+        /// </summary>
         public void ClearData()
         {
             SharedData.Clear();
+            _preparedParameters = Array.Empty<MobaPreparedParameterSnapshot>();
+            _parametersCommitted = null;
         }
 
         public void RegisterCleanup(IDisposable disposable)
@@ -378,8 +495,8 @@ namespace AbilityKit.Demo.Moba.Services
             _elapsedRaw = 0L;
 
             SharedData.Clear();
-            foreach (var sample in request.ParameterSnapshots ?? Array.Empty<MobaPreparedParameterSnapshot>())
-                SharedData.Add(PreparedParameterPrefix + sample.TargetParameterId, sample.Value);
+            _preparedParameters = CopyPreparedParameters(request.ParameterSnapshots);
+            _parametersCommitted = null;
             FailReason = null;
             SkillLevel = triggerContext?.SkillLevel ?? 0;
             ResolvedConfiguration = triggerContext?.ResolvedConfiguration ?? default;
@@ -503,11 +620,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         internal SkillPipelineContextRollbackState CaptureRollbackState()
         {
-            var keys = new List<string>(SharedData.Keys);
-            keys.Sort(StringComparer.Ordinal);
-            var shared = new SkillSharedDataRollbackEntry[keys.Count];
-            for (var i = 0; i < keys.Count; i++)
-                shared[i] = SkillSharedDataRollbackEntry.Capture(keys[i], SharedData[keys[i]]);
+            var shared = CaptureSharedDataRollbackEntries();
             RefreshCharacterModeInstance();
             return new SkillPipelineContextRollbackState(
                 _elapsedRaw, Frame, TargetActorId, AimPos, AimDir, CastSequence,
@@ -524,6 +637,8 @@ namespace AbilityKit.Demo.Moba.Services
                 state.CastSequence < 0 || state.TimelineNextEventIndex < 0 ||
                 state.SkillCooldownMs < 0 || state.CastFlowId < 0)
                 throw new InvalidOperationException("Invalid skill pipeline context rollback state.");
+            ReadPreparedParameterRollbackState(state.SharedData, out var preparedParameters,
+                out var parametersCommitted, out var sharedData);
             _elapsedRaw = state.ElapsedRaw;
             SetFrame(state.Frame);
             SetCastSequence(state.CastSequence);
@@ -553,7 +668,9 @@ namespace AbilityKit.Demo.Moba.Services
             if (_hfsmParameterOwnerId > 0) RegisterHfsmParameterCleanup();
             this.SetSourceContextId(SourceContextId);
             SharedData.Clear();
-            foreach (var item in state.SharedData) SharedData.Add(item.Key, item.ToValue());
+            foreach (var item in sharedData) SharedData.Add(item.Key, item.Value);
+            _preparedParameters = preparedParameters;
+            _parametersCommitted = parametersCommitted;
         }
 
         public bool TryGetCombatContextSource(out MobaCombatContextSource source)
@@ -634,7 +751,7 @@ namespace AbilityKit.Demo.Moba.Services
             StartTime = 0f;
             _elapsedRaw = 0L;
 
-            SharedData.Clear();
+            ClearData();
 
             _disposables.Clear();
             _cleanupActions.Clear();

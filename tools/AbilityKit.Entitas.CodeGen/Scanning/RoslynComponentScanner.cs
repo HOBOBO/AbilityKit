@@ -125,7 +125,21 @@ public sealed class RoslynComponentScanner : IComponentSourceScanner
                         SyntaxKind.InterfaceDeclaration => "interface",
                         _ => "class",
                     };
-                    plainTypes.Add(new Scanner.RawPlainType(name, ns, kind, fields, UsingsOf(root), tree.FilePath));
+                    var enumUnderlyingType = typeDecl is EnumDeclarationSyntax enumDeclaration
+                        ? model.GetDeclaredSymbol(enumDeclaration)?.EnumUnderlyingType?.SpecialType switch
+                        {
+                            SpecialType.System_Byte => "byte",
+                            SpecialType.System_SByte => "sbyte",
+                            SpecialType.System_Int16 => "short",
+                            SpecialType.System_UInt16 => "ushort",
+                            SpecialType.System_UInt32 => "uint",
+                            SpecialType.System_Int64 => "long",
+                            SpecialType.System_UInt64 => "ulong",
+                            _ => "int",
+                        }
+                        : "int";
+                    plainTypes.Add(new Scanner.RawPlainType(name, ns, kind, fields, UsingsOf(root), tree.FilePath,
+                        enumUnderlyingType, FindUnsupportedPlainTypeShape(typeDecl)));
                 }
             }
         }
@@ -135,6 +149,24 @@ public sealed class RoslynComponentScanner : IComponentSourceScanner
 
     private static bool IsComponentDeclaration(BaseTypeDeclarationSyntax typeDecl) =>
         typeDecl.BaseList?.Types.Any(t => t.Type is SimpleNameSyntax n && n.Identifier.ValueText == "IComponent") == true;
+
+    private static string? FindUnsupportedPlainTypeShape(BaseTypeDeclarationSyntax typeDecl)
+    {
+        var shape = PlainDataShape.Validate(typeDecl);
+        if (shape != null) return shape;
+        if (typeDecl is not TypeDeclarationSyntax dataType) return null;
+        if (dataType is StructDeclarationSyntax structDeclaration && structDeclaration.Modifiers.Any(SyntaxKind.ReadOnlyKeyword))
+            return "readonly data types require an explicit restore constructor";
+        foreach (var field in dataType.Members.OfType<FieldDeclarationSyntax>())
+        {
+            if (field.Modifiers.Any(SyntaxKind.ReadOnlyKeyword))
+                return $"readonly field is not assignable during restore ({field.GetLocation().GetLineSpan().StartLinePosition.Line + 1})";
+        }
+        var property = dataType.Members.OfType<PropertyDeclarationSyntax>().FirstOrDefault();
+        return property is null
+            ? null
+            : $"properties are not included in field serialization ({property.GetLocation().GetLineSpan().StartLinePosition.Line + 1})";
+    }
 
     private static List<Scanner.RawField> ExtractFields(
         BaseTypeDeclarationSyntax typeDecl, SemanticModel model, bool strict, string path)
@@ -221,6 +253,11 @@ public sealed class RoslynComponentScanner : IComponentSourceScanner
             var d = Path.GetFullPath(dir);
             while (d is not null)
             {
+                if (Directory.Exists(Path.Combine(d, ".git")) || File.Exists(Path.Combine(d, ".git")))
+                {
+                    candidateRoots.Add(d);
+                    break;
+                }
                 var parent = Path.GetDirectoryName(d);
                 var reachedPackages = parent is not null &&
                     string.Equals(Path.GetFileName(parent), "Packages", StringComparison.OrdinalIgnoreCase);
@@ -287,7 +324,7 @@ public sealed class RoslynComponentScanner : IComponentSourceScanner
         foreach (var line in File.ReadLines(file))
         {
             var match = System.Text.RegularExpressions.Regex.Match(
-                line, @"\s(public|internal)\s+(?:sealed |static |abstract |partial |readonly )*(class|struct|interface|enum|record)\s+([A-Za-z_]\w*)");
+                line, @"(?:^|\s)(public|internal)\s+(?:sealed |static |abstract |partial |readonly )*(class|struct|interface|enum|record)\s+([A-Za-z_]\w*)");
             if (match.Success && wantedNames.Contains(match.Groups[3].Value)) return true;
         }
         return false;

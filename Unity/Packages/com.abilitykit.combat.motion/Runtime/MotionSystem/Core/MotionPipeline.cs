@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using AbilityKit.Combat.MotionSystem.Collision;
 using AbilityKit.Combat.MotionSystem.Events;
 using AbilityKit.Core.Mathematics;
@@ -43,6 +44,75 @@ namespace AbilityKit.Combat.MotionSystem.Core
         {
             EnsureNotDisposed();
             return source != null && _sources.Contains(source);
+        }
+
+        /// <summary>
+        /// 返回当前来源次序的独立副本，仅供持有稳定领域身份的恢复所有者建立数据映射。
+        /// 返回的运行时引用不能直接写入持久载荷，也不会改变来源的活动状态。
+        /// </summary>
+        public IMotionSource[] CaptureSourceOrder()
+        {
+            EnsureNotDisposed();
+            return _sources.ToArray();
+        }
+
+        /// <summary>
+        /// 只读校验目标次序是否为当前来源引用的完整无重复排列，不接受增删或替换来源。
+        /// 预检调用此入口不会排序、取消或推进任何来源。
+        /// </summary>
+        public void ValidateSourceOrder(IReadOnlyList<IMotionSource> order)
+        {
+            EnsureNotDisposed();
+            if (order == null || order.Count != _sources.Count)
+                throw new InvalidOperationException("Motion source order requires the complete current membership.");
+            var remaining = new HashSet<IMotionSource>(SourceReferenceComparer.Instance);
+            foreach (var source in _sources)
+                if (source == null || !remaining.Add(source))
+                    throw new InvalidOperationException("Motion source membership is null or duplicated.");
+            for (var i = 0; i < order.Count; i++)
+                if (order[i] == null || !remaining.Remove(order[i]))
+                    throw new InvalidOperationException("Motion source order contains an unknown or repeated reference.");
+        }
+
+        /// <summary>
+        /// 经完整预检后静默恢复已有来源的精确次序，不经 AddSource，不改变正常排序和仲裁规则。
+        /// 调用方负责稳定身份、检查点合法性和所属业务状态的补偿。
+        /// </summary>
+        public void RestoreSourceOrder(IReadOnlyList<IMotionSource> order)
+        {
+            ValidateSourceOrder(order);
+            for (var i = 0; i < order.Count; i++) _sources[i] = order[i];
+        }
+
+        /// <summary>
+        /// 静默应用领域所有者已预检的完整成员名单；不排序、不执行来源回调。
+        /// 所有者负责核对当前成员及处理移除来源的生命周期。
+        /// </summary>
+        public void RestoreSourceMembership(IReadOnlyList<IMotionSource> order)
+        {
+            EnsureNotDisposed();
+            if (order == null) throw new ArgumentNullException(nameof(order));
+            var unique = new HashSet<IMotionSource>(SourceReferenceComparer.Instance);
+            var priority = int.MaxValue;
+            for (var i = 0; i < order.Count; i++)
+            {
+                var source = order[i];
+                if (source == null || !unique.Add(source) || source.Priority > priority)
+                    throw new InvalidOperationException("Invalid target Motion source membership or priority order.");
+                priority = source.Priority;
+            }
+            if (_sources.Capacity < order.Count) _sources.Capacity = order.Count;
+            _sources.Clear();
+            for (var i = 0; i < order.Count; i++) _sources.Add(order[i]);
+        }
+
+        private sealed class SourceReferenceComparer : IEqualityComparer<IMotionSource>
+        {
+            internal static readonly SourceReferenceComparer Instance = new SourceReferenceComparer();
+
+            public bool Equals(IMotionSource x, IMotionSource y) => ReferenceEquals(x, y);
+
+            public int GetHashCode(IMotionSource obj) => RuntimeHelpers.GetHashCode(obj);
         }
 
         public void AddSource(IMotionSource source)
