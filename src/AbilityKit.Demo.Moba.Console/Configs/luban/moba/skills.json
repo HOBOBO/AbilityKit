@@ -898,7 +898,7 @@
     "Name": "熔岩护盾",
     "PreCastFlowId": 0,
     "Range": 8,
-    "RequiredTargetQueryId": 0,
+    "RequiredTargetQueryId": 52030401,
     "SkillButtonTemplateId": 1,
     "SkillType": 2,
     "Tags": [],

@@ -15,6 +15,7 @@ using DamageReasonKind = AbilityKit.Demo.Moba.DamageReasonKind;
 using DamageFormulaKind = AbilityKit.Demo.Moba.DamageFormulaKind;
 using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
 using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Combat.Projectile;
 
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -136,6 +137,29 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 }
             }
 
+            MobaProjectileLinkService impactLinks = null;
+            var impact = default(ProjectileHitEvent);
+            var impactContextId = 0L;
+            if (args.ProjectileImpactKillBonus > 0f)
+            {
+                if (!(triggerArgs is ProjectileHitArgs hit) || !(hit.Raw is ProjectileHitEvent impactEvent) ||
+                    hit.ProjectileId.Value != impactEvent.Projectile.Value || hit.TargetActorId != targetActorId ||
+                    hit.SourceActorId != attackerActorId ||
+                    !ctx.Context.TryResolve<MobaProjectileLinkService>(out impactLinks) || impactLinks == null ||
+                    !impactLinks.TryReadPriorImpactKills(impactEvent.Projectile, hit.LaunchSourceContextId,
+                        impactEvent.HitCount, out var priorKills))
+                {
+                    ctx.Control?.RejectAction("projectile_impact_kill_bonus requires a live hit on the damage target.");
+                    MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.GiveDamage,
+                        "projectile_impact_kill_bonus requires a live hit on the damage target.");
+                    return;
+                }
+
+                impact = impactEvent;
+                impactContextId = hit.LaunchSourceContextId;
+                requestedDamage *= Fixed64.One + MobaResourceFixedConvert.ToFixed(args.ProjectileImpactKillBonus) * (Fixed64)priorKills;
+            }
+
             var attack = new AttackInfo
             {
                 AttackerActorId = attackerActorId,
@@ -155,6 +179,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.GiveDamage, $"pipeline returned null. attacker={attackerActorId} target={targetActorId} damage={MobaResourceFixedConvert.ToSingle(requestedDamage):0.###} reasonParam={args.ReasonParam}");
                 return;
             }
+
+            if (impactLinks != null && result.TargetBecameDead)
+                impactLinks.RecordImpactKill(impact.Projectile, impactContextId, impact.HitCount);
 
             LogDamageTrace(args, input, ctx, attributeSourceActorId, MobaResourceFixedConvert.ToSingle(requestedDamage), attack.BaseDamage.Value, in origin, result);
         }

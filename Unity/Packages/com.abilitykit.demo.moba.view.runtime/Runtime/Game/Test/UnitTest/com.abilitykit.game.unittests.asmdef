@@ -56,6 +56,7 @@
         "AbilityKit.Protocol.Room",
         "AbilityKit.Protocol.MemoryPack",
         "AbilityKit.Triggering",
+        "AbilityKit.Triggering.Authoring",
         "AbilityKit.Trace",
         "AbilityKit.Combat.Collision.Abstractions",
         "AbilityKit.Combat.Projectile",

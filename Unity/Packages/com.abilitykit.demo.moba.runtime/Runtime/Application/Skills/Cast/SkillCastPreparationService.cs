@@ -1,0 +1,538 @@
+using System;
+using System.Collections.Generic;
+using AbilityKit.Ability;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Core.Logging;
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Search;
+using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.ECS;
+
+namespace AbilityKit.Demo.Moba.Services
+{
+    internal sealed class SkillCastPreparationService
+    {
+        private readonly IWorldResolver _services;
+        private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
+        private readonly IUnitResolver _units;
+        private readonly MobaActorLookupService _actors;
+        private readonly IMobaSkillPipelineLibrary _library;
+        private readonly Dictionary<int, int> _castSequenceByActor = new Dictionary<int, int>();
+
+        public SkillCastPreparationService(
+            IWorldResolver services,
+            AbilityKit.Triggering.Eventing.IEventBus eventBus,
+            IUnitResolver units,
+            MobaActorLookupService actors,
+            IMobaSkillPipelineLibrary library)
+        {
+            _services = services ?? throw new ArgumentNullException(nameof(services));
+            _eventBus = eventBus;
+            _units = units ?? throw new ArgumentNullException(nameof(units));
+            _actors = actors ?? throw new ArgumentNullException(nameof(actors));
+            _library = library ?? throw new ArgumentNullException(nameof(library));
+        }
+
+        internal static bool TryClampGroundPoint(in Vec3 origin, in Vec3 point, float range, out Vec3 result)
+        {
+            result = point;
+            if (!Finite(origin.X) || !Finite(origin.Y) || !Finite(origin.Z) ||
+                !Finite(point.X) || !Finite(point.Y) || !Finite(point.Z) || !Finite(range) || range < 0f)
+                return false;
+            // Double intermediates avoid overflow for finite, very distant input.
+            var dx = (double)point.X - origin.X;
+            var dz = (double)point.Z - origin.Z;
+            if (dx * dx + dz * dz > (double)range * range)
+            {
+                var scale = Math.Max(Math.Abs(dx), Math.Abs(dz));
+                var nx = AbilityKit.Deterministic.Fixed64.FromSingle((float)(dx / scale));
+                var nz = AbilityKit.Deterministic.Fixed64.FromSingle((float)(dz / scale));
+                var length = AbilityKit.Deterministic.DeterministicMath.Sqrt(nx * nx + nz * nz).ToSingle();
+                var factor = range / (double)length;
+                result = new Vec3((float)(origin.X + nx.ToSingle() * factor), point.Y,
+                    (float)(origin.Z + nz.ToSingle() * factor));
+            }
+            return true;
+        }
+
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.ResourceCost,
+            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.CreateSnapshot)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.CooldownMs,
+            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.CreateSnapshot)]
+        [MobaModifierConsumes(MobaSkillParamModifierKeys.Skill.Ids.CastRange,
+            MobaParameterStage.CastPrepare, MobaModifierSampleTiming.CreateSnapshot)]
+        public SkillCastPreparationResult Prepare(in SkillCastPreparationInput input)
+        {
+            var actorId = input.ActorId;
+            var skillId = input.SkillId;
+            var slot = input.Slot;
+            if (actorId <= 0) return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.InvalidCaster, $"Invalid caster actor id: {actorId}.");
+            if (skillId <= 0) return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.InvalidSkill, $"Invalid skill id: {skillId}.");
+
+            if (!_units.TryResolve(new EcsEntityId(actorId), out var caster) || caster == null)
+            {
+                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.CasterMissing, "Caster not found.");
+            }
+
+            ResolveCasterTransform(actorId, out var casterPos, out var casterForward);
+            var finalAimPos = input.HasAim ? input.AimPos : casterPos;
+            var finalAimDir = input.HasAim ? input.AimDir : casterForward;
+            if (finalAimDir.Equals(Vec3.Zero)) finalAimDir = casterForward;
+
+            var finalTargetActorId = input.TargetActorId > 0 ? input.TargetActorId : 0;
+            IUnitFacade targetUnit = null;
+            if (finalTargetActorId > 0)
+            {
+                if (!_units.TryResolve(new EcsEntityId(finalTargetActorId), out targetUnit) || targetUnit == null)
+                {
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, $"Target not found. targetActorId={finalTargetActorId}.");
+                }
+            }
+
+            if (!_services.TryResolve<MobaConfigDatabase>(out var configs) ||
+                configs == null ||
+                !configs.TryGetSkill(skillId, out var skill) ||
+                skill == null)
+            {
+                return SkillCastPreparationResult.Failed(
+                    SkillFailureCodes.Cast.ConfigurationInvalid,
+                    $"Skill configuration is missing. skillId={skillId}.");
+            }
+
+            var samples = System.Array.Empty<AbilityKit.Demo.Moba.Services.StateMachine.MobaPreparedParameterSnapshot>();
+            if (_actors.TryGetActorEntity(actorId, out var boundActor) && boundActor != null &&
+                boundActor.hasCharacterHfsm && boundActor.characterHfsm.Runtime != null)
+            {
+                var hfsm = boundActor.characterHfsm.Runtime;
+                var binding = hfsm.CastBinding(skillId);
+                if (binding != null)
+                {
+                    if (binding.AimSource == "StateAimSnapshot" &&
+                        !hfsm.TryGetAimSnapshot(binding.AimScope, out finalAimPos, out finalAimDir))
+                        return SkillCastPreparationResult.Failed("skill.cast.aimSnapshotMissing", "Required state aim snapshot is not active.");
+                    if (binding.AimSource == "InputWithinStateCone")
+                    {
+                        if (!hfsm.TryGetAimSnapshot(binding.AimScope, out _, out var axis))
+                            return SkillCastPreparationResult.Failed("skill.cast.aimSnapshotMissing", "Required state aim snapshot is not active.");
+                        if (!input.HasAim || !binding.TryConstrainInputAim(input.AimDir, axis, out finalAimDir))
+                            return SkillCastPreparationResult.Failed("skill.cast.aimOutsideStateCone", "A valid input direction inside the active state cone is required.");
+                    }
+                    if (binding.ParameterSnapshots.Count > 0)
+                    {
+                        if (!_services.TryResolve<AbilityKit.Demo.Moba.Services.StateMachine.MobaCharacterHfsmParameterService>(out var parameters) || parameters == null)
+                            return SkillCastPreparationResult.Failed("skill.cast.parameterSnapshotMissing", "Cast parameter service is missing.");
+                        samples = new AbilityKit.Demo.Moba.Services.StateMachine.MobaPreparedParameterSnapshot[binding.ParameterSnapshots.Count];
+                        for (var i = 0; i < samples.Length; i++)
+                        {
+                            var sample = binding.ParameterSnapshots[i];
+                            if (!parameters.SupportsOperation(actorId, sample.TargetParameterId, (int)AbilityKit.Modifiers.ModifierOp.Override))
+                                return SkillCastPreparationResult.Failed("skill.cast.parameterSnapshotInvalid", "Cast snapshot target is not writable.");
+                            var value = sample.SourceParameterId > 0 ? hfsm.ResolveParameter(sample.SourceParameterId) : sample.Value;
+                            samples[i] = new AbilityKit.Demo.Moba.Services.StateMachine.MobaPreparedParameterSnapshot(sample.TargetParameterId, value);
+                        }
+                    }
+                }
+            }
+
+            var castFlowId = skill.CastFlowId;
+            float castRange = skill.Range;
+            var usesBasicAttackRules = configs.TryGetSkillFlow(castFlowId, out var castFlow) && castFlow.BasicAttack != null;
+            if (usesBasicAttackRules)
+            {
+                if (skill.SkillType != SkillType.NormalAttack || skill.RequiredTargetQueryId != 0 ||
+                    skill.PreCastFlowId != 0 || skill.CooldownMs <= 0 ||
+                    !MobaSkillRuntimeAccess.TryGetActiveSkill(_actors, actorId, slot, skillId, out var attackSlot) ||
+                    !_services.TryResolve<IFrameTime>(out var time) || time == null)
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.ConfigurationInvalid,
+                        "Basic attack rules require a normal-attack slot, a positive interval and the default target query.");
+
+                if (MobaSkillRuntimeAccess.GetCurrentTimeMs(time) + castFlow.BasicAttackWindupMs < attackSlot.CooldownEndTimeMs)
+                    return SkillCastPreparationResult.Failed("skill.cast.basicAttackCoolingDown", "Basic attack is cooling down.");
+
+                castRange = castFlow.BasicAttack.ResolveRange(castRange,
+                    ResolveSlotSkillLevel(actorId, castFlow.BasicAttack.RangeLevelSlot));
+            }
+            var baseSkillId = 0;
+            if (_services.TryResolve<MobaSkillLoadoutService>(out var loadout) && loadout != null)
+                loadout.TryGetBaseSkillId(actorId, slot, out baseSkillId);
+            var parameterRecord = new MobaParameterRecord(MobaParameterStage.CastPrepare,
+                slot: slot, baseSkillId: baseSkillId, effectiveSkillId: skillId);
+            MobaSkillParamModifierService paramModifiers = null;
+            if (_services.TryResolve<MobaSkillParamModifierService>(out var resolvedModifiers) && resolvedModifiers != null)
+            {
+                paramModifiers = resolvedModifiers;
+                castRange = paramModifiers.Skill.ResolveCastRange(actorId, castRange, in parameterRecord);
+            }
+
+            if (configs.TryGetSkillButtonTemplate(skill.SkillButtonTemplateId, out var button) &&
+                button.PointRangePolicy == PointRangePolicy.ClampToResolvedRange)
+            {
+                if (!TryClampGroundPoint(in casterPos, in finalAimPos, castRange, out finalAimPos))
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.ConfigurationInvalid,
+                        "Point cast requires finite coordinates and a non-negative resolved range.");
+            }
+            castRange = Math.Max(0f, castRange);
+
+            if (RequiresTargetSearch(skill))
+            {
+                if (!_services.TryResolve<SearchTargetService>(out var search) || search == null)
+                {
+                    if (!skill.AllowCastWithoutTarget)
+                    {
+                        return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "Required target search service is unavailable.");
+                    }
+                }
+                else if (skill.RequiredTargetQueryId <= 0 && castRange <= 0f)
+                {
+                    if (!skill.AllowCastWithoutTarget)
+                    {
+                        return SkillCastPreparationResult.Failed(
+                            SkillFailureCodes.Cast.ConfigurationInvalid,
+                            $"Resolved cast range must be positive. skillId={skillId}, range={castRange}.");
+                    }
+                }
+                else
+                {
+                    var targets = new List<int>(1);
+                    var found = skill.RequiredTargetQueryId > 0
+                        ? search.TrySearchActorIds(
+                            skill.RequiredTargetQueryId,
+                            actorId,
+                            in casterPos,
+                            in finalAimDir,
+                            finalTargetActorId,
+                            targets,
+                            input.DiagnosticCommandId)
+                        : search.TrySearchActorIds(
+                            NormalAttackTargetQuery.Create(castRange),
+                            actorId,
+                            in casterPos,
+                            finalTargetActorId,
+                            targets,
+                            input.DiagnosticCommandId);
+                    if (!found || targets.Count == 0 ||
+                        usesBasicAttackRules && input.TargetActorId > 0 && targets[0] != input.TargetActorId)
+                    {
+                        var requiresExplicitTargetMatch = RequiresExplicitTargetMatch(
+                            configs, skill.RequiredTargetQueryId, input.TargetActorId);
+                        if (requiresExplicitTargetMatch || !skill.AllowCastWithoutTarget)
+                        {
+                            return SkillCastPreparationResult.Failed(
+                                SkillFailureCodes.Cast.TargetMissing,
+                                $"No valid target is within cast range. skillId={skillId}, skillType={(int)skill.SkillType}, " +
+                                $"requiredTargetQueryId={skill.RequiredTargetQueryId}, allowCastWithoutTarget={skill.AllowCastWithoutTarget}, " +
+                                $"requestedTargetActorId={input.TargetActorId}, requiresExplicitTargetMatch={requiresExplicitTargetMatch}.");
+                        }
+
+                        finalTargetActorId = 0;
+                        targetUnit = null;
+                    }
+                    else
+                    {
+                        finalTargetActorId = targets[0];
+                        if (!_units.TryResolve(new EcsEntityId(finalTargetActorId), out targetUnit) || targetUnit == null)
+                        {
+                            if (!skill.AllowCastWithoutTarget)
+                            {
+                                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, $"Resolved target not found. targetActorId={finalTargetActorId}.");
+                            }
+                            finalTargetActorId = 0;
+                        }
+                    }
+                }
+            }
+
+            if (!MobaSkillPipelineDefinition.TryResolve(_library, skillId, out var definition))
+            {
+                Log.Warning($"[SkillCastCoordinator] Cast failed: pipeline missing. actor={actorId}, skillId={skillId}, slot={slot}, target={finalTargetActorId}");
+                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.PipelineMissing, "Skill pipeline not found.");
+            }
+
+            var request = new SkillCastRequest(
+                skillId: skillId,
+                skillSlot: slot,
+                casterActorId: actorId,
+                targetActorId: finalTargetActorId,
+                aimPos: in finalAimPos,
+                aimDir: in finalAimDir,
+                worldServices: _services,
+                eventBus: _eventBus,
+                casterUnit: caster,
+                targetUnit: targetUnit,
+                parameterSnapshots: samples,
+                summonInputIdentity: input.SummonInputIdentity);
+
+            var skillLevel = ResolveSlotSkillLevel(actorId, slot);
+            var championLevel = ResolveChampionLevel(actorId);
+            if (!ResolvedSkillCastConfiguration.TryResolve(
+                    configs,
+                    skill,
+                    skillLevel,
+                    out var resolvedConfiguration,
+                    out var configurationError))
+            {
+                return SkillCastPreparationResult.Failed(
+                    SkillFailureCodes.Cast.ConfigurationInvalid,
+                    configurationError);
+            }
+
+            var levelParameters = MobaSkillLevelParameterSnapshot.Empty;
+            if (skill.LevelTableId > 0)
+            {
+                if (!configs.TryGetSkillLevelTable(skill.LevelTableId, out var levelTable) || levelTable == null)
+                {
+                    return SkillCastPreparationResult.Failed(
+                        SkillFailureCodes.Cast.ConfigurationInvalid,
+                        $"Skill level table is missing while preparing parameter snapshot. skillId={skillId}, levelTableId={skill.LevelTableId}, level={resolvedConfiguration.SkillLevel}.");
+                }
+                if (!levelTable.TryCreateParameterSnapshot(resolvedConfiguration.SkillLevel, skillId, out levelParameters, out configurationError))
+                {
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.ConfigurationInvalid, configurationError);
+                }
+            }
+
+            if (paramModifiers != null)
+            {
+                resolvedConfiguration = resolvedConfiguration.WithRuntimeParameters(
+                    paramModifiers.Skill.ResolveResourceCost(actorId, resolvedConfiguration.ResourceCost, in parameterRecord),
+                    paramModifiers.Skill.ResolveCooldownMs(actorId, resolvedConfiguration.CooldownMs, in parameterRecord));
+            }
+
+            var sequence = NextCastSequence(actorId);
+            var context = SkillCastContextBuilder.Create()
+                .FromRequest(in request)
+                .WithSkillLevel(resolvedConfiguration.SkillLevel)
+                .WithChampionLevel(championLevel)
+                .WithSequence(sequence)
+                .Build();
+            context.BaseSkillId = baseSkillId;
+            context.CastFlowId = castFlowId;
+            context.ResolvedConfiguration = resolvedConfiguration;
+            context.DiagnosticCommandId = input.DiagnosticCommandId;
+
+            if (!_services.TryResolve<MobaExecutionContextRegistry>(out var executionContexts) || executionContexts == null)
+            {
+                return SkillCastPreparationResult.Failed(
+                    SkillFailureCodes.Cast.ExecutionContextRegistryMissing,
+                    "MobaExecutionContextRegistry is required for formal skill cast identity.");
+            }
+
+            var frame = _services.TryResolve<IFrameTime>(out var frameTime) && frameTime != null
+                ? frameTime.Frame.Value
+                : 0;
+            var executionNode = executionContexts.Create(new MobaExecutionContextCreateRequest(
+                MobaExecutionKind.SkillCast,
+                skillId,
+                actorId,
+                finalTargetActorId,
+                frame: frame,
+                castFlowId: castFlowId));
+            context.SourceContextId = executionNode.ContextId;
+            if (context.SourceContextId == 0)
+            {
+                return SkillCastPreparationResult.Failed(
+                    SkillFailureCodes.Cast.ExecutionContextCreateFailed,
+                    "Skill cast execution context creation failed.");
+            }
+
+            MobaSkillCastRuntimeService runtimes = null;
+            try
+            {
+                runtimes = _services.Resolve<MobaSkillCastRuntimeService>();
+                if (runtimes == null)
+                {
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.RuntimeServiceMissing, "MobaSkillCastRuntimeService is required for formal skill cast runtime tracking.");
+                }
+
+                configs.TryGetSkillFlow(castFlowId, out var authoredFlow);
+                var childBinding = default(MobaSkillChildRecastBinding);
+                if (authoredFlow != null && authoredFlow.ChildChannelId > 0 && runtimes.HasChildChannel(actorId, authoredFlow.ChildChannelId))
+                {
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
+                    return SkillCastPreparationResult.Failed("skill.cast.childChannelOccupied", "An active child already occupies this channel.");
+                }
+                if (authoredFlow != null && authoredFlow.RecastChannelId > 0 &&
+                    !runtimes.TrySelectRecastArea(actorId, authoredFlow.RecastChannelId, out childBinding, out var recastError, slot, baseSkillId, authoredFlow.QueueRecastInFlight))
+                {
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
+                    return SkillCastPreparationResult.Failed("skill.cast.childRecastUnavailable", recastError);
+                }
+
+                var createRequest = MobaSkillCastRuntimeCreateRequestBuilder.Create()
+                    .FromCastContext(context)
+                    .WithLevelParameters(levelParameters)
+                    .Build();
+                var runtime = runtimes.Create(in createRequest);
+                context.RuntimeHandle = runtime.Handle;
+                context.RuntimeId = runtime.RuntimeId;
+                if (authoredFlow != null && authoredFlow.UseCommitCooldownFactor)
+                    runtimes.PrepareCooldownForCommit(context.RuntimeHandle, resolvedConfiguration.CooldownMs);
+                else
+                    runtimes.FreezeEffectiveCooldown(context.RuntimeHandle, resolvedConfiguration.CooldownMs);
+                if (authoredFlow != null && authoredFlow.RequiredBuffQualificationId > 0 &&
+                    (!_actors.TryGetActorEntity(actorId, out var qualificationOwner) ||
+                     !runtimes.TryReserveBuffQualification(context.RuntimeHandle, authoredFlow.RequiredBuffQualificationId, qualificationOwner)))
+                {
+                    runtimes.ForceTerminate(context.RuntimeHandle, MobaSkillRuntimeEndReason.RollbackCleanup);
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
+                    return SkillCastPreparationResult.Failed("skill.cast.buffQualificationUnavailable", "The required buff source is missing, ambiguous, or reserved.");
+                }
+                if (authoredFlow != null && authoredFlow.ChildChannelId > 0 && !runtimes.TryBindChildChannel(context.RuntimeHandle, authoredFlow.ChildChannelId) ||
+                    authoredFlow != null && authoredFlow.RecastChannelId > 0 && !runtimes.BindRecastArea(context.RuntimeHandle, in childBinding))
+                    throw new InvalidOperationException("Failed to bind the prepared child channel.");
+                if (!context.RuntimeHandle.IsValid)
+                {
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.RuntimeHandleInvalid, "Skill cast runtime creation returned an invalid handle.");
+                }
+
+                return SkillCastPreparationResult.Ready(in request, context, runtimes, definition);
+            }
+            catch
+            {
+                if (context.RuntimeHandle.IsValid && runtimes != null)
+                {
+                    runtimes.ForceTerminate(in context.RuntimeHandle, MobaSkillRuntimeEndReason.RollbackCleanup);
+                }
+                else
+                {
+                    executionContexts.End(context.SourceContextId, (int)MobaExecutionEndReason.Cancelled, frame);
+                }
+
+                throw;
+            }
+        }
+
+        private static bool RequiresTargetSearch(SkillMO skill)
+        {
+            return skill.RequiredTargetQueryId > 0
+                || skill.SkillType == SkillType.NormalAttack;
+        }
+
+        private static bool RequiresExplicitTargetMatch(MobaConfigDatabase configs, int queryId, int requestedTargetActorId)
+        {
+            if (configs == null || queryId <= 0 || requestedTargetActorId <= 0)
+                return false;
+
+            if (!configs.TryGetSearchQueryTemplate(queryId, out var template) || template == null)
+                return false;
+
+            return template.ExplicitTargetPolicy == (int)SearchQueryExplicitTargetPolicy.PreferExplicitTarget;
+        }
+
+        private void ResolveCasterTransform(int actorId, out Vec3 position, out Vec3 forward)
+        {
+            position = Vec3.Zero;
+            forward = Vec3.Forward;
+            if (_actors.TryGetActorEntity(actorId, out var actorEntity) && actorEntity != null && actorEntity.hasTransform)
+            {
+                var transform = actorEntity.transform.Value;
+                position = transform.Position;
+                forward = DeterministicMathBridge.Normalize(transform.Rotation.Rotate(Vec3.Forward));
+            }
+        }
+
+        private int ResolveSlotSkillLevel(int actorId, int slot)
+        {
+            if (!_actors.TryGetActorEntity(actorId, out var actor) || actor == null || !actor.hasSkillLoadout) return 0;
+
+            var skills = actor.skillLoadout.ActiveSkills;
+            var index = slot - 1;
+            if (skills == null || index < 0 || index >= skills.Length) return 0;
+
+            var runtime = skills[index];
+            return runtime != null ? runtime.Level : 0;
+        }
+
+        public void RemoveActor(int actorId)
+        {
+            if (actorId > 0)
+            {
+                _castSequenceByActor.Remove(actorId);
+            }
+        }
+
+        private int ResolveChampionLevel(int actorId)
+        {
+            if (!_actors.TryGetActorEntity(actorId, out var actor) || actor == null || !actor.hasChampionLevel)
+                return 0;
+            return actor.championLevel.Value;
+        }
+
+        internal KeyValuePair<int, int>[] CaptureRollbackSequences()
+        {
+            var values = new List<KeyValuePair<int, int>>(_castSequenceByActor);
+            values.Sort((a, b) => a.Key.CompareTo(b.Key));
+            return values.ToArray();
+        }
+
+        internal void RestoreRollbackSequences(IReadOnlyList<KeyValuePair<int, int>> values)
+        {
+            _castSequenceByActor.Clear();
+            foreach (var value in values)
+            {
+                if (value.Key <= 0 || value.Value <= 0 || _castSequenceByActor.ContainsKey(value.Key))
+                    throw new InvalidOperationException("Invalid skill cast sequence rollback state.");
+                _castSequenceByActor.Add(value.Key, value.Value);
+            }
+        }
+
+        private int NextCastSequence(int actorId)
+        {
+            if (_castSequenceByActor.TryGetValue(actorId, out var sequence))
+            {
+                sequence++;
+            }
+            else
+            {
+                sequence = 1;
+            }
+
+            _castSequenceByActor[actorId] = sequence;
+            return sequence;
+        }
+    }
+
+    internal static class NormalAttackTargetQuery
+    {
+        public static SearchQueryTemplateMO Create(float range)
+        {
+            if (range <= 0f)
+            {
+                throw new ArgumentOutOfRangeException(nameof(range), range, "Normal attack range must be positive.");
+            }
+
+            return new SearchQueryTemplateMO(
+                id: 0,
+                name: "normal_attack_target_query",
+                maxCount: 1,
+                explicitTargetPolicy: (int)SearchQueryExplicitTargetPolicy.PreferExplicitTarget,
+                provider: new SearchTargetProviderConfig(0, (int)SearchTargetProviderKind.EnemyTeam),
+                rules: new[]
+                {
+                    new SearchTargetRuleConfig(
+                        id: 0,
+                        kind: (int)SearchTargetRuleKind.CircleShape,
+                        center: (int)SearchTargetPointKind.Caster,
+                        radius: range)
+                },
+                scorers: new[]
+                {
+                    new SearchTargetScorerConfig(
+                        id: 0,
+                        kind: (int)SearchTargetScorerKind.DistanceToCaster,
+                        source: (int)SearchTargetPointKind.Caster)
+                },
+                selector: new SearchTargetSelectorConfig(
+                    id: 0,
+                    kind: (int)SearchTargetSelectorKind.TopKByScore));
+        }
+    }
+}

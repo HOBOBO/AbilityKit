@@ -80,12 +80,12 @@ flowchart TB
 | System 顺序定义 | `Application/Systems/MobaSystemOrder.cs` | 规定 System 执行顺序 |
 | System 协作辅助 | `Application/Systems/MobaWorldSystemExecution.cs` | 统一 Resolve / Warn / Require / HandleException |
 | 服务基类 | `Application/Services/Templates/GameServiceBase.cs` | 统一日志、生命周期、resolver 持有和事件发布 |
-| 技能调度 System | `Application/Systems/Skill/MobaSkillPipelineStepSystem.cs` | 遍历实体并调用 `SkillCastCoordinator.Step()` |
-| 技能协调 Service | `Application/Services/Skill/Cast/SkillCastCoordinator.cs` | 处理技能输入、释放准备、策略、runner 生命周期 |
-| Buff 调度 System | `Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs` | 触发 `MobaBuffService.DrainPending()` |
-| Buff Service | `Application/Services/Buffs/MobaBuffService.cs` | 维护命令队列、生命周期执行器、重入保护、诊断和异常 |
-| 玩法 Tick System | `Application/Gameplay/Systems/MobaGameplayTickSystem.cs` | 读取时钟和运行门禁，驱动玩法服务 Tick |
-| 玩法 Service | `Application/Gameplay/Core/MobaGameplayService.cs` | 维护玩法阶段、配置解析、触发绑定和生命周期事件 |
+| 技能调度 System | `Application/Skills/Pipeline/MobaSkillPipelineStepSystem.cs` | 遍历实体并调用 `SkillCastCoordinator.Step()` |
+| 技能协调 Service | `Application/Skills/Cast/SkillCastCoordinator.cs` | 处理技能输入、释放准备、策略、runner 生命周期 |
+| Buff 调度 System | `Application/Buffs/Systems/MobaBuffCommandDrainSystem.cs` | 触发 `MobaBuffService.DrainPending()` |
+| Buff Service | `Application/Buffs/MobaBuffService.cs` | 维护命令队列、生命周期执行器、重入保护、诊断和异常 |
+| 玩法 Tick System | `Application/Gameplay/Match/Systems/MobaGameplayTickSystem.cs` | 读取时钟和运行门禁，驱动玩法服务 Tick |
+| 玩法 Service | `Application/Gameplay/Match/MobaGameplayService.cs` | 维护玩法阶段、配置解析、触发绑定和生命周期事件 |
 | 进场流程 Service | `Application/Services/Lifecycle/MobaEnterGameFlowService.cs` | 处理开局校验、Actor 生成、玩家映射、索引注册和 gameplay 启动 |
 | 移动 Tick System | `Application/Systems/Motion/MobaMotionTickSystem.cs` | 移动管线 Tick，含 ECS 组件写回（例外边界） |
 | 快照路由 | `Application/Services/Snapshot/MobaSnapshotRouter.cs` | 聚合所有快照发射器，实现 `IWorldStateSnapshotProvider` |
@@ -969,7 +969,7 @@ System/Service 拆分带来的低接入成本来自“稳定机制可复用、�
 | 文档 | 关系 |
 |---|---|
 | [12-DI 与 System/Service 协作深潜](./12-DIAndSystemServiceCollaborationDeepDive.md) | 互补：侧重 DI 机制和协作模式 |
-| [21-MOBA 战斗逻辑层实战指南](../../../../local/Docs/AbilityKit战斗逻辑层设计草稿.md) | 互补：侧重实战指南（能力组合、扩展模式、错误清单、7 步上手） |
+| `local/Docs/AbilityKit战斗逻辑层设计草稿.md` | 互补：侧重实战指南（能力组合、扩展模式、错误清单、7 步上手） |
 | [01-世界启动与运行时装配](./01-WorldAndBootstrap.md) | 深入理解 World 创建和 Bootstrap Stage |
 | [05-技能执行深潜](./05-SkillExecutionDeepDive.md) | 深入理解技能施放的四阶段处理 |
 | [03-Buff、Projectile 与 Damage 管线](./03-BuffProjectileDamage.md) | 深入理解 Buff 命令链路和伤害计算 |

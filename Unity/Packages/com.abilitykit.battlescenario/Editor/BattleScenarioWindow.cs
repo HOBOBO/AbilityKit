@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+#nullable enable annotations
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,9 +17,9 @@ namespace AbilityKit.BattleScenario.Editor
     /// 战斗测试用例编辑器：作者步骤、场景前置、时间线、断言与运行结果。
     /// 积木按 <see cref="BattleBlock.Section"/> 自动落入对应区块，对应 IR 的 Actors/Setup/Obstacles vs Timeline vs Expectations 三段，
     /// 避免把声明式的世界定义、真正的时间线、跑完才判的断言混在一个扁平时间轴里。
-    /// 运行（headless verdict + trace）是项目级插桩，编辑器只负责「编排 → 编译 → 展示 IR」。
+    /// 画面播放与断言都由项目接入，编辑器负责选用例、校验及展示结果。
     /// </summary>
-    public sealed class BattleScenarioWindow : EditorWindow
+    public sealed partial class BattleScenarioWindow : EditorWindow
     {
         private readonly List<BattleBlock> _settings = new List<BattleBlock>();
         private readonly List<BattleBlock> _authoring = new List<BattleBlock>();
@@ -36,7 +37,7 @@ namespace AbilityKit.BattleScenario.Editor
         private string _scenePath = string.Empty;
         private string _sceneId = string.Empty;
         private string _sceneDisplayName = string.Empty;
-        private string _casePath = string.Empty;
+        [SerializeField] private string _casePath = string.Empty;
         private string _result = string.Empty;
         private IReadOnlyList<BattleScenarioTraceNode>? _traceNodes;
         private readonly Dictionary<long, bool> _traceFoldouts = new Dictionary<long, bool>();
@@ -60,17 +61,29 @@ namespace AbilityKit.BattleScenario.Editor
             window.Show();
         }
 
-        private void OnEnable() => RefreshSceneLibrary();
+        private void OnEnable()
+        {
+            if (_cleanDraft == null) RestoreSelectedCase();
+            EditorApplication.delayCall += RefreshCaseLibrary;
+            RefreshCaseLibrary();
+        }
+
+        private void OnDisable() => EditorApplication.delayCall -= RefreshCaseLibrary;
 
         private void OnGUI()
         {
             HandleUndoShortcut();
             DrawToolbar();
+            DrawExecutionToolbar();
             DrawSettings();
             var internalWorkspace = _developerMode && _authoring.Count == 0;
             using (new EditorGUILayout.HorizontalScope())
             {
-                DrawPalette(internalWorkspace);
+                using (new EditorGUILayout.VerticalScope(GUILayout.Width(230)))
+                {
+                    DrawCaseLibrary();
+                    DrawPalette(internalWorkspace);
+                }
                 if (internalWorkspace)
                 {
                     DrawSection(_setup, "① 构建前置", ref _setupScroll);
@@ -101,13 +114,10 @@ namespace AbilityKit.BattleScenario.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                if (GUILayout.Button("预览", EditorStyles.toolbarButton, GUILayout.Width(48))) Preview();
-                if (GUILayout.Button("运行", EditorStyles.toolbarButton, GUILayout.Width(48))) Run();
-                if (GUILayout.Button("批量运行", EditorStyles.toolbarButton, GUILayout.Width(60))) RunBatch();
                 if (GUILayout.Button("存为模板", EditorStyles.toolbarButton, GUILayout.Width(60))) SaveAsTemplate();
                 if (_developerMode && GUILayout.Button("DSL", EditorStyles.toolbarButton, GUILayout.Width(40))) ParseDsl();
                 if (GUILayout.Button("保存", EditorStyles.toolbarButton, GUILayout.Width(48))) SaveCase();
-                if (GUILayout.Button("加载", EditorStyles.toolbarButton, GUILayout.Width(48))) LoadCase();
+                if (GUILayout.Button("浏览用例…", EditorStyles.toolbarButton, GUILayout.Width(76))) LoadCase();
                 if (GUILayout.Button("保存场景", EditorStyles.toolbarButton, GUILayout.Width(60))) SaveScene();
                 if (GUILayout.Button("加载场景", EditorStyles.toolbarButton, GUILayout.Width(60))) LoadScene();
                 if (GUILayout.Button("清空", EditorStyles.toolbarButton, GUILayout.Width(48)))
@@ -240,7 +250,6 @@ namespace AbilityKit.BattleScenario.Editor
 
         private void DrawPalette(bool includeInternal)
         {
-            EditorGUILayout.BeginVertical(GUILayout.Width(190));
             EditorGUILayout.LabelField("积木调色板", EditorStyles.boldLabel);
             _paletteScroll = EditorGUILayout.BeginScrollView(_paletteScroll);
 
@@ -267,36 +276,7 @@ namespace AbilityKit.BattleScenario.Editor
                 EditorGUI.indentLevel--;
             }
 
-            // 用例库：列出 .battlescenario 文件，点击加载
-            EditorGUILayout.Space();
-            var libExpanded = _groupFoldouts.TryGetValue("__caselib__", out var le) ? le : true;
-            libExpanded = EditorGUILayout.Foldout(libExpanded, "用例库", true);
-            _groupFoldouts["__caselib__"] = libExpanded;
-            if (libExpanded)
-            {
-                if (!Directory.Exists(_caseDirectory))
-                {
-                    EditorGUILayout.HelpBox("目录不存在: " + _caseDirectory, MessageType.None);
-                }
-                else
-                {
-                    var files = Directory.GetFiles(_caseDirectory, "*.battlescenario");
-                    if (files.Length == 0) EditorGUILayout.HelpBox("暂无 .battlescenario 文件", MessageType.None);
-                    foreach (var file in files)
-                    {
-                        if (GUILayout.Button(Path.GetFileNameWithoutExtension(file)))
-                        {
-                            PushUndo();
-                            var doc = BattleScenarioCodec.Load(file);
-                            LoadDocument(doc, file);
-                            _result = "已加载: " + file;
-                        }
-                    }
-                }
-            }
-
             EditorGUILayout.EndScrollView();
-            EditorGUILayout.EndVertical();
         }
 
         private void DrawSection(List<BattleBlock> blocks, string title, ref Vector2 scroll)
@@ -390,7 +370,9 @@ namespace AbilityKit.BattleScenario.Editor
         }
 
         /// <summary>把当前三段列表快照压栈（每次增/删/移动/清空/加载前调用）。</summary>
-        private void PushUndo()
+        private void PushUndo() => _undoStack.Push(CaptureEditorSnapshot());
+
+        private EditorSnapshot CaptureEditorSnapshot()
         {
             var doc = new BattleScenarioDocument
             {
@@ -402,14 +384,14 @@ namespace AbilityKit.BattleScenario.Editor
                 ExecutionProfileId = _executionProfileId,
                 Sections = CaptureSections(includeSetup: true),
             };
-            _undoStack.Push(new EditorSnapshot
+            return new EditorSnapshot
             {
                 DocumentJson = BattleScenarioCodec.Serialize(doc),
                 ScenePath = _scenePath,
                 SceneId = _sceneId,
                 SceneDisplayName = _sceneDisplayName,
                 CasePath = _casePath,
-            });
+            };
         }
 
         private void Undo()
@@ -624,7 +606,7 @@ namespace AbilityKit.BattleScenario.Editor
             EditorGUI.indentLevel = 0;
         }
 
-        private void Preview()
+        private void ValidateCurrent()
         {
             _traceNodes = null;
             try
@@ -637,16 +619,18 @@ namespace AbilityKit.BattleScenario.Editor
             }
             catch (Exception ex)
             {
-                _result = "预览异常：" + ex.Message;
+                _result = "校验异常：" + ex.Message;
             }
         }
 
-        private void Run()
+        internal void RunSavedAssertions()
         {
+            _traceNodes = null;
             TestScenario scenario;
             try
             {
-                scenario = CompileCurrent();
+                if (!TryGetSavedCasePath(out var path)) return;
+                scenario = BattleScenarioCompiler.CompileFile(path);
             }
             catch (Exception ex)
             {
@@ -664,7 +648,7 @@ namespace AbilityKit.BattleScenario.Editor
             var runner = BattleScenarioRunnerRegistry.Runner;
             if (runner == null)
             {
-                _result = "未注册 IBattleScenarioRunner（项目在编辑器里注册自己的 runner，如 MobaBattleScenarioRunner）。";
+                _result = "项目未注册断言运行器。";
                 return;
             }
 
@@ -691,7 +675,8 @@ namespace AbilityKit.BattleScenario.Editor
                 return;
             }
 
-            var directory = EditorUtility.OpenFolderPanel("选择 .battlescenario 目录", _caseDirectory, "");
+            var directory = EditorUtility.OpenFolderPanel("选择 .battlescenario 目录",
+                _casePath.Length == 0 ? _caseDirectory : Path.GetDirectoryName(_casePath), "");
             if (string.IsNullOrEmpty(directory))
             {
                 _result = "已取消批量运行。";
@@ -785,23 +770,33 @@ namespace AbilityKit.BattleScenario.Editor
             }
             var path = EditorUtility.SaveFilePanel("保存战斗测试用例", _caseDirectory, _caseId + ".battlescenario", "battlescenario");
             if (string.IsNullOrEmpty(path)) return;
-            if (!string.IsNullOrEmpty(_scenePath))
-                _scenarioRef = MakeRelativeAssetReference(path, _scenePath);
-            var document = CreateCaseDocument();
-            BattleScenarioDocumentValidator.ThrowIfInvalid(document);
-            EditorAtomicFileWriter.WriteAllText(path, BattleScenarioCodec.Serialize(document));
-            _casePath = path;
-            _result = "已保存: " + path;
+            try
+            {
+                var document = CreateCaseDocument();
+                if (!string.IsNullOrEmpty(_scenePath)) document.ScenarioRef = MakeRelativeAssetReference(path, _scenePath);
+                BattleScenarioDocumentValidator.ThrowIfInvalid(document);
+                var scenePath = string.IsNullOrWhiteSpace(document.ScenarioRef)
+                    ? string.Empty : BattleScenarioCodec.ResolveScenePath(path, document.ScenarioRef);
+                var sceneSource = scenePath.Length == 0 ? null : File.ReadAllText(scenePath);
+                var source = BattleScenarioCodec.Serialize(document);
+                EditorAtomicFileWriter.WriteAllText(path, source);
+                _casePath = Path.GetFullPath(path);
+                _scenarioRef = document.ScenarioRef;
+                RememberSavedCase(source, scenePath, sceneSource);
+                RefreshCaseLibrary();
+                _result = "已保存: " + path;
+            }
+            catch (Exception error)
+            {
+                _result = "保存失败：" + error.Message;
+            }
         }
 
         private void LoadCase()
         {
             var path = EditorUtility.OpenFilePanel("加载战斗测试用例", _caseDirectory, "battlescenario");
             if (string.IsNullOrEmpty(path)) return;
-            var doc = BattleScenarioCodec.Load(path);
-            PushUndo();
-            LoadDocument(doc, path);
-            _result = "已加载: " + path;
+            SelectCase(path);
         }
 
         private void SaveScene()
@@ -1021,9 +1016,8 @@ namespace AbilityKit.BattleScenario.Editor
             });
         }
 
-        private void LoadDocument(BattleScenarioDocument document, string ownerPath)
+        private void LoadDocument(BattleScenarioDocument document, string ownerPath, string scenePath, BattleSceneDocument? scene)
         {
-            BattleScenarioDocumentValidator.ThrowIfInvalid(document);
             _caseId = document.CaseId;
             _displayName = document.DisplayName;
             _executionProfileId = document.ExecutionProfileId;
@@ -1034,7 +1028,6 @@ namespace AbilityKit.BattleScenario.Editor
             _scenePath = string.Empty;
             _sceneId = string.Empty;
             _sceneDisplayName = string.Empty;
-            RefreshSceneLibrary();
 
             _authoring.Clear();
             _authoring.AddRange(document.Authoring);
@@ -1051,15 +1044,14 @@ namespace AbilityKit.BattleScenario.Editor
                 LoadSections(new BattleScenarioSections());
                 _developerMode = false;
             }
-            if (string.IsNullOrWhiteSpace(document.ScenarioRef)) return;
-
-            _scenePath = BattleScenarioCodec.ResolveScenePath(ownerPath, document.ScenarioRef);
-            var scene = BattleScenarioCodec.LoadScene(_scenePath);
-            BattleScenarioDocumentValidator.ThrowIfInvalid(scene);
-            _sceneId = scene.SceneId;
-            _sceneDisplayName = scene.DisplayName;
-            _setup.Clear();
-            _setup.AddRange(scene.GetOrderedBlocks());
+            if (scene != null)
+            {
+                _scenePath = scenePath;
+                _sceneId = scene.SceneId;
+                _sceneDisplayName = scene.DisplayName;
+                _setup.Clear();
+                _setup.AddRange(scene.GetOrderedBlocks());
+            }
             RefreshSceneLibrary();
         }
 

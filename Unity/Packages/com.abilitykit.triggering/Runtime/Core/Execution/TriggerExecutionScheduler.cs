@@ -5,29 +5,81 @@ using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Triggering.Runtime
 {
+    /// <summary>
+    /// 执行树调度条目的本地标识；不包含调度器身份或历史分支信息。
+    /// </summary>
     public readonly struct TriggerScheduledExecutionHandle : IEquatable<TriggerScheduledExecutionHandle>
     {
+        /// <summary>
+        /// 以给定 ID 构造句柄，不查询调度器中的条目。
+        /// </summary>
         public TriggerScheduledExecutionHandle(long id) => Id = id;
 
+        /// <summary>
+        /// 调度器分配的条目标识。
+        /// </summary>
         public long Id { get; }
+
+        /// <summary>
+        /// ID 是否为正数；不表示该定义仍然存在。
+        /// </summary>
         public bool IsValid => Id > 0L;
 
+        /// <summary>
+        /// 只比较 ID，不比较调度器或历史分支。
+        /// </summary>
         public bool Equals(TriggerScheduledExecutionHandle other) => Id == other.Id;
+
+        /// <summary>
+        /// 判断对象是否为相同 ID 的调度句柄。
+        /// </summary>
         public override bool Equals(object obj) => obj is TriggerScheduledExecutionHandle other && Equals(other);
+
+        /// <summary>
+        /// 返回 ID 的哈希值。
+        /// </summary>
         public override int GetHashCode() => Id.GetHashCode();
+
+        /// <summary>
+        /// 输出有效 ID 或无效标记，供诊断使用。
+        /// </summary>
         public override string ToString() => IsValid ? Id.ToString() : "Invalid";
     }
 
+    /// <summary>
+    /// 执行树调度的等待状态和终态。
+    /// </summary>
     public enum TriggerScheduledExecutionState : byte
     {
+        /// <summary>
+        /// 任务可继续推进或等待外部触发。
+        /// </summary>
         Waiting = 0,
+
+        /// <summary>
+        /// 任务已按调度方式或次数上限完成。
+        /// </summary>
         Completed = 1,
+
+        /// <summary>
+        /// 等待中的任务已被中断。
+        /// </summary>
         Interrupted = 2,
+
+        /// <summary>
+        /// 执行返回失败或抛出异常，任务终止。
+        /// </summary>
         Failed = 3,
     }
 
+    /// <summary>
+    /// 单条任务的进度值，不包含执行定义或宿主引用。
+    /// </summary>
     public readonly struct TriggerScheduledExecutionInfo
     {
+        /// <summary>
+        /// 构造待查询或恢复的进度值；不在此校验 ID、时间或状态。
+        /// </summary>
         public TriggerScheduledExecutionInfo(
             long id,
             TriggerScheduledExecutionState state,
@@ -44,16 +96,45 @@ namespace AbilityKit.Triggering.Runtime
             FailureReason = failureReason ?? string.Empty;
         }
 
+        /// <summary>
+        /// 进度所属的任务 ID。
+        /// </summary>
         public long Id { get; }
+
+        /// <summary>
+        /// 当前等待状态或终态。
+        /// </summary>
         public TriggerScheduledExecutionState State { get; }
+
+        /// <summary>
+        /// 等待期间累积的已推进毫秒数。
+        /// </summary>
         public double ElapsedMs { get; }
+
+        /// <summary>
+        /// 最近一次计入执行次数时的累计毫秒数。
+        /// </summary>
         public double LastExecutionMs { get; }
+
+        /// <summary>
+        /// 已计入的非失败执行次数。
+        /// </summary>
         public int ExecutionCount { get; }
+
+        /// <summary>
+        /// 记录的失败或中断原因；未提供原因时构造器写为空字符串。
+        /// </summary>
         public string FailureReason { get; }
     }
 
+    /// <summary>
+    /// 执行树节点请求登记子树的宿主接口，不负责应用的帧驱动或快照编解码。
+    /// </summary>
     public interface ITriggerExecutionScheduler
     {
+        /// <summary>
+        /// 提交子树、载荷和上下文，以及调度方式、毫秒间隔、次数上限和中断选项。
+        /// </summary>
         TriggerScheduledExecutionHandle Schedule<TCtx>(
             ITriggerPlanExecutable executable,
             object args,
@@ -92,10 +173,14 @@ namespace AbilityKit.Triggering.Runtime
     }
 
     /// <summary>
-    /// 逐帧推进已绑定的可执行子树。快照只记录进度，不记录执行委托或上下文。
+    /// 由宿主逐帧推进已绑定的可执行子树；不读取系统时钟，也不负责领域对象恢复。
+    /// 快照只记录进度，不记录执行委托或上下文；同一调度器应由宿主串行调用。
     /// </summary>
     public sealed class TriggerExecutionScheduler : ITriggerExecutionScheduler
     {
+        /// <summary>
+        /// 宿主内保留的任务定义与执行绑定；可变进度集中在独立字段。
+        /// </summary>
         private sealed class Entry
         {
             public readonly long Id;
@@ -103,10 +188,10 @@ namespace AbilityKit.Triggering.Runtime
             public readonly double IntervalMs;
             public readonly int MaxExecutions;
             public readonly bool CanBeInterrupted;
-            public readonly Func<TriggerPlanExecutionResult> Execute;
             public EntryProgress Progress;
+            private readonly Func<TriggerPlanExecutionResult> _execute;
 
-            public Entry(long id, EScheduleMode mode, double intervalMs, int maxExecutions, bool canBeInterrupted,
+            public Entry(long id, EScheduleMode mode, float intervalMs, int maxExecutions, bool canBeInterrupted,
                 Func<TriggerPlanExecutionResult> execute)
             {
                 Id = id;
@@ -114,11 +199,16 @@ namespace AbilityKit.Triggering.Runtime
                 IntervalMs = intervalMs;
                 MaxExecutions = maxExecutions;
                 CanBeInterrupted = canBeInterrupted;
-                Execute = execute;
+                _execute = execute;
                 Progress.State = TriggerScheduledExecutionState.Waiting;
             }
+
+            public TriggerPlanExecutionResult Execute() => _execute();
         }
 
+        /// <summary>
+        /// 随帧推进变化的状态，不持有动作或上下文。
+        /// </summary>
         private struct EntryProgress
         {
             public TriggerScheduledExecutionState State;
@@ -135,15 +225,33 @@ namespace AbilityKit.Triggering.Runtime
         private int _tickDepth;
         private int _externalExecutionDepth;
 
+        /// <summary>
+        /// 创建空调度器；可保留终态定义，以供诊断及同宿主进度恢复。
+        /// </summary>
         public TriggerExecutionScheduler(bool retainFinishedEntries = false)
         {
             _retainFinishedEntries = retainFinishedEntries;
         }
 
+        /// <summary>
+        /// 当前仍在等待的任务数量。
+        /// </summary>
         public int ActiveCount { get; private set; }
+
+        /// <summary>
+        /// 当前保留的定义数量，包括尚未裁剪的终态。
+        /// </summary>
         public int DefinitionCount => _definitions.Count;
+
+        /// <summary>
+        /// 下次登记使用的本地 ID，不具备跨宿主唯一性。
+        /// </summary>
         public long NextExecutionId => _nextId;
 
+        /// <summary>
+        /// 注册可执行子树，保留安排时的上下文值及传入的对象引用，不复制对象内容。
+        /// 即时节点不进入此队列；按间隔推进的任务以宿主传入的毫秒增量计时。
+        /// </summary>
         public TriggerScheduledExecutionHandle Schedule<TCtx>(
             ITriggerPlanExecutable executable,
             object args,
@@ -160,16 +268,30 @@ namespace AbilityKit.Triggering.Runtime
             if (maxExecutions == 0 || maxExecutions < -1) throw new ArgumentOutOfRangeException(nameof(maxExecutions));
 
             var capturedContext = context;
-            var id = _nextId++;
-            if (_nextId <= 0L) _nextId = 1L;
-            var entry = new Entry(id, mode, intervalMs, maxExecutions, canBeInterrupted,
-                () => executable.Execute(args, in capturedContext));
-            _definitions.Add(id, entry);
-            _ordered.Add(entry);
-            ActiveCount++;
-            return new TriggerScheduledExecutionHandle(id);
+            return AddEntry(new Entry(AllocateExecutionId(), mode, intervalMs, maxExecutions, canBeInterrupted,
+                () => executable.Execute(args, in capturedContext)));
         }
 
+        private long AllocateExecutionId()
+        {
+            var id = _nextId++;
+            if (_nextId <= 0L) _nextId = 1L;
+            return id;
+        }
+
+        private TriggerScheduledExecutionHandle AddEntry(Entry entry)
+        {
+            _definitions.Add(entry.Id, entry);
+            _ordered.Add(entry);
+            ActiveCount++;
+            return new TriggerScheduledExecutionHandle(entry.Id);
+        }
+
+        /// <summary>
+        /// 按条目顺序累加宿主提供的毫秒增量，负增量按零处理。
+        /// 每次遍历对到期条目至多派发一次，不补跑跨过的周期；外部触发条目不自动派发。
+        /// 动作失败或抛出异常时记录失败终态，并继续推进后续条目。
+        /// </summary>
         public void Tick(float deltaTimeMs)
         {
             var delta = Math.Max(0d, deltaTimeMs);
@@ -210,6 +332,9 @@ namespace AbilityKit.Triggering.Runtime
             }
         }
 
+        /// <summary>
+        /// 推进一个仍在等待的外部触发任务；失败时记录终态并返回否。
+        /// </summary>
         public bool ExecuteExternal(in TriggerScheduledExecutionHandle handle)
         {
             if (!TryGetWaiting(handle, out var entry) || entry.Mode != EScheduleMode.External) return false;
@@ -245,6 +370,9 @@ namespace AbilityKit.Triggering.Runtime
             }
         }
 
+        /// <summary>
+        /// 将可中断的等待项置为中断终态，不调用子树；没有匹配项时返回否。
+        /// </summary>
         public bool Interrupt(in TriggerScheduledExecutionHandle handle, string reason = null)
         {
             if (!TryGetWaiting(handle, out var entry) || !entry.CanBeInterrupted) return false;
@@ -253,6 +381,9 @@ namespace AbilityKit.Triggering.Runtime
             return true;
         }
 
+        /// <summary>
+        /// 按当前队列顺序复制进度值，包含仍保留的终态，不包含 ID 游标或执行定义。
+        /// </summary>
         public TriggerScheduledExecutionInfo[] GetExecutions()
         {
             var entries = new TriggerScheduledExecutionInfo[_ordered.Count];
@@ -271,6 +402,9 @@ namespace AbilityKit.Triggering.Runtime
             return entries;
         }
 
+        /// <summary>
+        /// 检查本地 ID 的定义是否留存，不校验定义所属的历史分支。
+        /// </summary>
         public bool ContainsDefinition(long id) => _definitions.ContainsKey(id);
 
         /// <summary>
@@ -344,6 +478,10 @@ namespace AbilityKit.Triggering.Runtime
                 throw new InvalidOperationException("Scheduled execution progress requires a frame boundary, outside execution callbacks.");
         }
 
+        /// <summary>
+        /// 静默修改单条已存在定义的进度并重计活动数量，不更新 ID 游标。
+        /// 无效进度或缺失定义会被拒绝；帧快照恢复使用 <see cref="RestoreProgress"/>。
+        /// </summary>
         public void SetExecutionProgress(in TriggerScheduledExecutionInfo progress)
         {
             if (!_definitions.TryGetValue(progress.Id, out var entry))
@@ -373,6 +511,9 @@ namespace AbilityKit.Triggering.Runtime
             entry.Progress.FailureReason = progress.FailureReason;
         }
 
+        /// <summary>
+        /// 直接移除已登记定义，不调用子树；不存在时返回否，逐帧推进期间拒绝移除。
+        /// </summary>
         public bool Remove(long id)
         {
             if (_tickDepth != 0) throw new InvalidOperationException("Cannot remove an execution during a scheduler tick.");
@@ -383,6 +524,9 @@ namespace AbilityKit.Triggering.Runtime
             return true;
         }
 
+        /// <summary>
+        /// 设置本地分配游标；新值必须为正并大于所有保留定义的 ID。
+        /// </summary>
         public void SetNextExecutionId(long nextId)
         {
             if (nextId <= 0) throw new ArgumentOutOfRangeException(nameof(nextId));
@@ -391,6 +535,9 @@ namespace AbilityKit.Triggering.Runtime
             _nextId = nextId;
         }
 
+        /// <summary>
+        /// 静默清除全部定义和进度，并将分配游标重置为一。
+        /// </summary>
         public void Clear()
         {
             _definitions.Clear();

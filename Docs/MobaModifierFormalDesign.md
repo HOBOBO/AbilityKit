@@ -10,7 +10,7 @@
 
 2026-10-07 增量：21 个已发布参数的实际消费方法已用 `MobaModifierConsumes` 声明参数 ID、阶段和取样时机，并由目录测试逐项核对；同一执行上下文经效果节点及 payload 转发保留来源子弹模板。服务层 16 owner × 16 来源的有界读取回归已加入门禁。解释用捕获记录由世界级服务管理，查询与投影器共享当前世界的实例，持续行为 runtime 中的捕获值仍是回滚权威状态。战斗世界的子弹速度、Buff 时长与召唤寿命已有真实对象结果及撤销回归。默认并行 .NET 全量回归本轮通过 728/728；上述证据仍不覆盖其他参数的真实对象结果、Unity EditMode、跨端回滚、长期 CI 稳定性或真实高弹量预算；放量结论见 [路线图](MobaModifierProductionRoadmap.md)。
 
-2026-10-01 的 P0-P4 本轮实施证据见 [实施与验收记录](../local/docs/MobaModifierP0P4ImplementationRecord.md)。当前生产配置为 21 个参数目录项、33 个模板和 1 条召唤继承配置；MOBA .NET 685/685、Luban Python 77/77、完整 `moba-content-contracts` 门禁通过。下文各阶段的旧计数是当时的历史记录，放量结论以该实施记录的未完成条件为准。
+2026-10-01 的 P0-P4 本轮实施证据见 `local/docs/MobaModifierP0P4ImplementationRecord.md`。当前生产配置为 21 个参数目录项、33 个模板和 1 条召唤继承配置；MOBA .NET 685/685、Luban Python 77/77、完整 `moba-content-contracts` 门禁通过。下文各阶段的旧计数是当时的历史记录，放量结论以该实施记录的未完成条件为准。
 
 ## 1. 结论与边界
 

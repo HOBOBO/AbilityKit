@@ -56,7 +56,7 @@ Triggering 是 AbilityKit 的“玩法规则执行层”，负责把事件、条
 - 如何支持持续行为、打断、优先级阻塞、调度与短路。
 - 如何把规则计划接到 MOBA 的技能、Buff、投射物、表现和战斗原语上。
 
-Triggering 的核心对象是 `TriggerPlan<TArgs>`，核心运行器是 [`TriggerRunner<TCtx>`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunner.cs:19)，核心计划数据库是 [`TriggerPlanJsonDatabase`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Serialization/Json/Database/TriggerPlanJsonDatabase.cs:20)。
+Triggering 的核心对象是 `TriggerPlan<TArgs>`，核心运行器是 [`TriggerRunner<TCtx>`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunner.cs#L19)，核心计划数据库是 [`TriggerPlanJsonDatabase`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Serialization/Json/Database/TriggerPlanJsonDatabase.cs#L20)。
 
 ### 1.1 职责归属与应用策略
 
@@ -74,16 +74,16 @@ Triggering 的核心对象是 `TriggerPlan<TArgs>`，核心运行器是 [`Trigge
 
 | 能力 | 关键类型 | 源码 |
 |------|----------|------|
-| 触发计划模型 | `TriggerPlan<TArgs>` | [`TriggerPlan.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Model/TriggerPlan.cs:12) |
-| 动作参数与模块接口 | `IActionSchema`, `IPlanActionModule` | [`ActionArgs.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Model/ActionArgs.cs:47) |
-| 函数注册表 | `FunctionRegistry` | [`FunctionRegistry.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Registries/FunctionRegistry.cs:6) |
-| 动作注册表 | `ActionRegistry` | [`ActionRegistry.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Registries/ActionRegistry.cs:6) |
-| 主运行器 | `TriggerRunner<TCtx>` | [`TriggerRunner.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunner.cs:19) |
-| JSON 计划库 | `TriggerPlanJsonDatabase` | [`TriggerPlanJsonDatabase.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Serialization/Json/Database/TriggerPlanJsonDatabase.cs:20) |
-| MOBA 计划执行器 | `MobaTriggerPlanExecutor` | [`MobaTriggerPlanExecutor.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerPlanExecutor.cs:13) |
-| MOBA 动作模块注册 | `PlanActionModuleRegistry` | [`PlanActionModuleRegistry.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/PlanActionModuleRegistry.cs:12) |
-| 持续触发计划调和 | `MobaOngoingTriggerPlansReconcileSystem` | [`MobaOngoingTriggerPlansReconcileSystem.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Triggering/MobaOngoingTriggerPlansReconcileSystem.cs:10) |
-| 持续触发计划存储 | `OngoingTriggerPlansComponent` | [`OngoingTriggerPlansComponent.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/OngoingTriggerPlansComponent.cs:8) |
+| 触发计划模型 | `TriggerPlan<TArgs>` | [`TriggerPlan.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Model/TriggerPlan.cs#L12) |
+| 动作参数与模块接口 | `IActionSchema`, `IPlanActionModule` | [`ActionArgs.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Model/ActionArgs.cs#L47) |
+| 函数注册表 | `FunctionRegistry` | [`FunctionRegistry.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Registries/FunctionRegistry.cs#L6) |
+| 动作注册表 | `ActionRegistry` | [`ActionRegistry.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Registries/ActionRegistry.cs#L6) |
+| 主运行器 | `TriggerRunner<TCtx>` | [`TriggerRunner.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunner.cs#L19) |
+| JSON 计划库 | `TriggerPlanJsonDatabase` | [`TriggerPlanJsonDatabase.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Serialization/Json/Database/TriggerPlanJsonDatabase.cs#L20) |
+| MOBA 计划执行器 | `MobaTriggerPlanExecutor` | [`MobaTriggerPlanExecutor.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaTriggerPlanExecutor.cs#L13) |
+| MOBA 动作模块注册 | `PlanActionModuleRegistry` | [`PlanActionModuleRegistry.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/PlanActionModuleRegistry.cs#L12) |
+| 持续触发计划调和 | `MobaOngoingTriggerPlansReconcileSystem` | [`MobaOngoingTriggerPlansReconcileSystem.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Triggering/MobaOngoingTriggerPlansReconcileSystem.cs#L10) |
+| 持续触发计划存储 | `OngoingTriggerPlansComponent` | [`OngoingTriggerPlansComponent.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/OngoingTriggerPlansComponent.cs#L8) |
 
 ---
 
@@ -131,7 +131,7 @@ flowchart TD
 
 ### 4.1 `TriggerPlan<TArgs>`
 
-[`TriggerPlan<TArgs>`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Model/TriggerPlan.cs:12) 是触发器的不可变主模型，包含：
+[`TriggerPlan<TArgs>`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Model/TriggerPlan.cs#L12) 是触发器的不可变主模型，包含：
 
 - `Phase`：阶段。
 - `Priority`：优先级。
@@ -159,7 +159,7 @@ flowchart TD
 
 ### 4.2 `ActionArgValue` 与 Schema
 
-[`ActionArgs.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Model/ActionArgs.cs:11) 定义了动作参数系统：
+[`ActionArgs.cs`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Model/ActionArgs.cs#L11) 定义了动作参数系统：
 
 - `ActionArgValue`：具名参数值引用。
 - `IActionSchema<TActionArgs, TCtx>`：动作参数 Schema。
@@ -176,7 +176,7 @@ flowchart TD
 
 ### 4.3 `FunctionRegistry` 与 `ActionRegistry`
 
-[`FunctionRegistry`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Registries/FunctionRegistry.cs:6) 和 [`ActionRegistry`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Registries/ActionRegistry.cs:6) 分别负责：
+[`FunctionRegistry`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Registries/FunctionRegistry.cs#L6) 和 [`ActionRegistry`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Registries/ActionRegistry.cs#L6) 分别负责：
 
 - 条件函数的注册与精确类型检索；
 - 动作委托的注册与精确类型检索。
@@ -187,7 +187,7 @@ flowchart TD
 
 ## 5. 运行时执行主线
 
-[`TriggerRunner<TCtx>`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunner.cs:19) 是 Triggering 的主运行器。
+[`TriggerRunner<TCtx>`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunner.cs#L19) 是 Triggering 的主运行器。
 
 它的职责包括：
 
@@ -250,7 +250,7 @@ sequenceDiagram
 
 ## 6. JSON 计划加载与注册
 
-[`TriggerPlanJsonDatabase`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Serialization/Json/Database/TriggerPlanJsonDatabase.cs:20) 是计划装载入口。
+[`TriggerPlanJsonDatabase`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Serialization/Json/Database/TriggerPlanJsonDatabase.cs#L20) 是计划装载入口。
 
 它支持两种数据来源：
 
@@ -291,13 +291,13 @@ flowchart TD
     DB --> Strings[String Table]
 ```
 
-`TriggerPlanJsonDatabase.LoadFromDto()` 会在候选转换后重建 `Records`、按 triggerId 的执行根、`Strings` 与 `_byTriggerId`，但当前实现没有重建 `_recordsByTriggerId`。因此 `TryGetRecordByTriggerId()` 在 JSON 装载后可能仍返回空/旧值，而 `MobaTriggerPlanIntegrityValidator` 和 `MobaTriggerPlanReferenceValidator` 又依赖该查询为每个引用做校验。装载返回成功不能因此推出“引用完整性已校验”；应在发布前显式重建并校验所有派生索引。
+`TriggerPlanJsonDatabase.LoadFromDto()` 在候选转换成功后一起替换记录、按 ID 的记录/计划/执行根索引、字符串表与黑板初始化集合。能查到新记录不等于引用完整性已校验；JSON 转换和 MOBA 启动校验是不同阶段，职责见[加载行为基线](../../TriggerPlanLoadingBaseline.md)。
 
-候选转换本身也不是纯函数：`CueFactory.Create` 可能在后续记录失败前产生外部副作用。重复 triggerId 会保留在 `Records`，字典只保留最后一个值，而 `RegisterAll` 仍会逐条注册；生产发布必须把重复 ID 当成错误，而不是依赖字典覆盖。
+候选转换本身也不是纯函数：`CueFactory.Create` 可能在后续记录失败前产生外部副作用。直接装载时重复 Trigger ID 可保留在 `Records`，`RegisterAll` 仍逐条处理；这不同于发布聚合拒绝重复 ID，也不同于运行时由宿主显式合并覆盖。
 
 ### 6.3 模块注册
 
-[`PlanActionModuleRegistry`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/PlanActionModuleRegistry.cs:12) 会扫描当前程序集中的 `IPlanActionModule` 实现，并通过 `[PlanActionModule]` 排序生成可用模块列表。
+[`PlanActionModuleRegistry`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/PlanActionModuleRegistry.cs#L12) 会扫描当前程序集中的 `IPlanActionModule` 实现，并通过 `[PlanActionModule]` 排序生成可用模块列表。
 
 这意味着：
 
@@ -311,7 +311,7 @@ flowchart TD
 
 ## 7. MOBA 玩法中的规则计划协作
 
-MOBA 项目并不是直接把 `TriggerRunner<TCtx>` 暴露给技能逻辑，而是通过 [`MobaTriggerPlanExecutor`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerPlanExecutor.cs:13) 做适配。技能 Pipeline 中的 [`SkillRulePlanPhase`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillRulePlanPhase.cs:7) 会直接调用 `ExecuteRulePlan(triggerId, context)`，因此 RulePlan 阶段是技能释放主链路上的同步门禁点，不是被动订阅式触发器。
+MOBA 项目并不是直接把 `TriggerRunner<TCtx>` 暴露给技能逻辑，而是通过 [`MobaTriggerPlanExecutor`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaTriggerPlanExecutor.cs#L13) 做适配。技能 Pipeline 中的 [`SkillRulePlanPhase`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/Phases/SkillRulePlanPhase.cs#L7) 会直接调用 `ExecuteRulePlan(triggerId, context)`，因此 RulePlan 阶段是技能释放主链路上的同步门禁点，不是被动订阅式触发器。
 
 ### 7.1 执行器职责
 
@@ -334,7 +334,7 @@ MOBA 项目并不是直接把 `TriggerRunner<TCtx>` 暴露给技能逻辑，而�
 
 ### 7.2 运行时依赖
 
-[`MobaTriggerPlanExecutorRuntime.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerPlanExecutorRuntime.cs:11) 定义了：
+[`MobaTriggerPlanExecutorRuntime.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaTriggerPlanExecutorRuntime.cs#L11) 定义了：
 
 - `MobaTriggerPlanRuntimeDependencies`
 - `MobaTriggerPlanEffectResolver`
@@ -374,7 +374,7 @@ flowchart TD
 
 ### 7.4 与 TriggerRunner 事件主线的边界
 
-[`TriggerRunner<TCtx>`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunner.cs:19) 的真实主线包括：
+[`TriggerRunner<TCtx>`](../../../Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunner.cs#L19) 的真实主线包括：
 
 1. `Register` 把触发器插入按 `phase -> priority -> order` 排序的列表，并确保对应 `EventKey<TArgs>` 已订阅到 `IEventBus`。
 2. `Dispatch` 为每次事件创建新的 `ExecutionControl` 和 `ExecCtx<TCtx>`。
@@ -426,14 +426,14 @@ sequenceDiagram
 
 ### 8.1 数据承载
 
-[`OngoingTriggerPlansComponent`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/OngoingTriggerPlansComponent.cs:8) 存储：
+[`OngoingTriggerPlansComponent`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/OngoingTriggerPlansComponent.cs#L8) 存储：
 
 - 当前激活的持续触发计划列表；
 - `Revision` 版本号。
 
 ### 8.2 系统调和
 
-[`MobaOngoingTriggerPlansReconcileSystem`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Triggering/MobaOngoingTriggerPlansReconcileSystem.cs:10) 在世界执行阶段收集所有实体上的持续计划，再交给 [`MobaTriggerPlanReconcileService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanReconcileService.cs:16) 进行同步。
+[`MobaOngoingTriggerPlansReconcileSystem`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Triggering/MobaOngoingTriggerPlansReconcileSystem.cs#L10) 在世界执行阶段收集所有实体上的持续计划，再交给 [`MobaTriggerPlanReconcileService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanReconcileService.cs#L16) 进行同步。
 
 调和逻辑的价值是：
 

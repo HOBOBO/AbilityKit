@@ -4,7 +4,7 @@
 > 事实基线：2026-08-16
 > 文档版本：v3.0
 >
-> 本文从源码出发说明 AbilityKit 中投射物能力的真实边界：它不是“发射一个飞行物”这么简单，而是由 [`ProjectileWorld`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:16) 负责的投射物运行时、[`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:11) 负责的调度与事件编排、以及 Demo 层的 MOBA 绑定服务共同组成的一套可回滚、可追踪、可扩展的战斗子系统。
+> 本文从源码出发说明 AbilityKit 中投射物能力的真实边界：它不是“发射一个飞行物”这么简单，而是由 [`ProjectileWorld`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L16) 负责的投射物运行时、[`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L11) 负责的调度与事件编排、以及 Demo 层的 MOBA 绑定服务共同组成的一套可回滚、可追踪、可扩展的战斗子系统。
 
 ---
 
@@ -47,7 +47,7 @@
 - 支持回滚快照，便于确定性模拟和重演。
 - 允许 Demo 层在不改底层模块的前提下，挂接角色、来源上下文、技能运行时和触发器协作。
 
-底层核心是 [`ProjectileWorld`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:16)，面向外部的统一入口是 [`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:11)。
+底层核心是 [`ProjectileWorld`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L16)，面向外部的统一入口是 [`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L11)。
 
 ### 1.1 职责归属与接入边界
 
@@ -65,18 +65,18 @@
 
 | 角色 | 类型 | 源码 |
 |------|------|------|
-| 投射物运行时 | `ProjectileWorld` | [`ProjectileWorld.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:16) |
-| 对外服务 | `ProjectileService` | [`ProjectileService.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:11) |
-| 投射物实体 | `Projectile` | [`Projectile.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/Projectile.cs:6) |
-| 生成参数 | `ProjectileSpawnParams` | [`ProjectileSpawnParams.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs:11) |
-| 生命周期事件 | `ProjectileSpawnEvent`、`ProjectileHitEvent`、`ProjectileExitEvent`、`ProjectileTickEvent` | [`ProjectileEvents.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs:5) |
-| 命中策略 | `IProjectileHitPolicy` | [`IProjectileHitPolicy.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Policies/IProjectileHitPolicy.cs:3) |
-| 命中过滤 | `IProjectileHitFilter` | [`IProjectileHitFilter.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Filters/IProjectileHitFilter.cs:5) |
-| Tick 入口 | `ProjectileTickSystem` | [`ProjectileTickSystem.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Systems/ProjectileTickSystem.cs:9) |
-| MOBA 发射服务 | `MobaProjectileService` | [`MobaProjectileService.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs:22) |
-| MOBA 来源上下文 | `ProjectileSourceContext` | [`ProjectileSourceContext.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs:6) |
-| MOBA 链接服务 | `MobaProjectileLinkService` | [`MobaProjectileLinkService.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileLinkService.cs:10) |
-| MOBA 事件快照 | `MobaProjectileEventSnapshotService` | [`MobaProjectileEventSnapshotService.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileEventSnapshotService.cs:13) |
+| 投射物运行时 | `ProjectileWorld` | [`ProjectileWorld.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L16) |
+| 对外服务 | `ProjectileService` | [`ProjectileService.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L11) |
+| 投射物实体 | `Projectile` | [`Projectile.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/Projectile.cs#L6) |
+| 生成参数 | `ProjectileSpawnParams` | [`ProjectileSpawnParams.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs#L11) |
+| 生命周期事件 | `ProjectileSpawnEvent`、`ProjectileHitEvent`、`ProjectileExitEvent`、`ProjectileTickEvent` | [`ProjectileEvents.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L5) |
+| 命中策略 | `IProjectileHitPolicy` | [`IProjectileHitPolicy.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Policies/IProjectileHitPolicy.cs#L3) |
+| 命中过滤 | `IProjectileHitFilter` | [`IProjectileHitFilter.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Filters/IProjectileHitFilter.cs#L5) |
+| Tick 入口 | `ProjectileTickSystem` | [`ProjectileTickSystem.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Systems/ProjectileTickSystem.cs#L9) |
+| MOBA 发射服务 | `MobaProjectileService` | [`MobaProjectileService.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs#L22) |
+| MOBA 来源上下文 | `ProjectileSourceContext` | [`ProjectileSourceContext.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs#L6) |
+| MOBA 链接服务 | `MobaProjectileLinkService` | [`MobaProjectileLinkService.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileLinkService.cs#L10) |
+| MOBA 事件快照 | `MobaProjectileEventSnapshotService` | [`MobaProjectileEventSnapshotService.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileEventSnapshotService.cs#L13) |
 
 ---
 
@@ -84,10 +84,10 @@
 
 投射物能力分成四层：
 
-1. **运行时内核**：[`ProjectileWorld`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:16) 持有对象池、活动列表和碰撞世界引用，负责推进每个投射物。
-2. **服务编排层**：[`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:11) 负责对外 API、发射调度、事件收集、区域协同和回滚接口。
-3. **系统驱动层**：[`ProjectileTickSystem`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Systems/ProjectileTickSystem.cs:9) 将投射物推进挂接到逻辑世界执行序列中。
-4. **Demo 绑定层**：MOBA 场景通过 [`MobaProjectileService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs:22)、[`MobaProjectileLinkService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileLinkService.cs:10) 和 [`MobaProjectileEventSnapshotService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileEventSnapshotService.cs:13) 把投射物纳入技能、表现、溯源与同步体系。
+1. **运行时内核**：[`ProjectileWorld`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L16) 持有对象池、活动列表和碰撞世界引用，负责推进每个投射物。
+2. **服务编排层**：[`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L11) 负责对外 API、发射调度、事件收集、区域协同和回滚接口。
+3. **系统驱动层**：[`ProjectileTickSystem`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Systems/ProjectileTickSystem.cs#L9) 将投射物推进挂接到逻辑世界执行序列中。
+4. **Demo 绑定层**：MOBA 场景通过 [`MobaProjectileService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs#L22)、[`MobaProjectileLinkService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileLinkService.cs#L10) 和 [`MobaProjectileEventSnapshotService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileEventSnapshotService.cs#L13) 把投射物纳入技能、表现、溯源与同步体系。
 
 ```mermaid
 flowchart TB
@@ -135,7 +135,7 @@ flowchart TB
 
 ### 4.1 `ProjectileSpawnParams`
 
-[`ProjectileSpawnParams`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs:11) 是投射物创建时的完整输入，包含：
+[`ProjectileSpawnParams`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs#L11) 是投射物创建时的完整输入，包含：
 
 | 字段组 | 代表字段 | 说明 |
 |--------|----------|------|
@@ -148,11 +148,11 @@ flowchart TB
 | 周期事件 | `TickIntervalFrames` | 让投射物在飞行中周期性产生 tick 事件 |
 | 过滤与冷却 | `HitFilter`、`HitCooldownFrames` | 控制阵营过滤、重复命中冷却等规则 |
 
-源码还提供 [`ProjectileSpawnParams.WithDirection()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs:96) 与 [`ProjectileSpawnParams.WithSpawnFrame()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs:123)，用于发射模式构造多个方向或调度帧。
+源码还提供 [`ProjectileSpawnParams.WithDirection()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs#L96) 与 [`ProjectileSpawnParams.WithSpawnFrame()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs#L123)，用于发射模式构造多个方向或调度帧。
 
 ### 4.2 `Projectile`
 
-[`Projectile`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/Projectile.cs:6) 是内部运行时对象，不对外暴露。它实现对象池接口，保存当前帧需要推进的全部状态：位置、方向、速度、剩余帧、剩余距离、命中次数、命中冷却、回收状态、命中策略等。
+[`Projectile`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/Projectile.cs#L6) 是内部运行时对象，不对外暴露。它实现对象池接口，保存当前帧需要推进的全部状态：位置、方向、速度、剩余帧、剩余距离、命中次数、命中冷却、回收状态、命中策略等。
 
 这个设计把“配置输入”和“运行时可变状态”分开：外部只提交不可变生成参数，内部再把它转成可 tick 的投射物对象。
 
@@ -164,8 +164,8 @@ flowchart TB
 
 投射物可以通过两条路径创建：
 
-1. 直接调用 [`ProjectileService.Spawn()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:56)。
-2. 通过 [`ProjectileService.ScheduleEmit()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:97) 以模式和计划延迟或重复发射。
+1. 直接调用 [`ProjectileService.Spawn()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L56)。
+2. 通过 [`ProjectileService.ScheduleEmit()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L97) 以模式和计划延迟或重复发射。
 
 ```mermaid
 sequenceDiagram
@@ -187,7 +187,7 @@ sequenceDiagram
 
 ### 5.2 每帧推进
 
-[`ProjectileTickSystem`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Systems/ProjectileTickSystem.cs:25) 每帧调用 [`ProjectileService.Tick()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:67)。服务层先推进发射计划和区域，再推进投射物世界。
+[`ProjectileTickSystem`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Systems/ProjectileTickSystem.cs#L25) 每帧调用 [`ProjectileService.Tick()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L67)。服务层先推进发射计划和区域，再推进投射物世界。
 
 ```mermaid
 flowchart TD
@@ -204,17 +204,17 @@ flowchart TD
 
 ### 5.3 单个投射物推进
 
-[`ProjectileWorld.Tick()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:187) 的核心顺序是：
+[`ProjectileWorld.Tick()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L187) 的核心顺序是：
 
-1. 检查生命周期是否耗尽，耗尽则产生 [`ProjectileExitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs:82)。
+1. 检查生命周期是否耗尽，耗尽则产生 [`ProjectileExitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L82)。
 2. 判断是否进入返回状态。
-3. 如果返回状态开启，查询 [`IProjectileReturnTargetProvider`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:11) 获取返回目标。
+3. 如果返回状态开启，查询 [`IProjectileReturnTargetProvider`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L11) 获取返回目标。
 4. 根据速度和固定帧间隔计算本帧移动距离。
 5. 沿移动段做 raycast，跳过 `IgnoreCollider`。
 6. 命中时执行过滤、冷却、重复命中保护和命中策略。
-7. 产生 [`ProjectileHitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs:51) 或 [`ProjectileExitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs:82)。
+7. 产生 [`ProjectileHitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L51) 或 [`ProjectileExitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L82)。
 8. 更新位置、剩余生命周期和剩余距离。
-9. 根据 `TickIntervalFrames` 产生 [`ProjectileTickEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs:29)。
+9. 根据 `TickIntervalFrames` 产生 [`ProjectileTickEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L29)。
 
 ```mermaid
 flowchart TD
@@ -257,11 +257,11 @@ flowchart TD
 
 | 层级 | 源码 | 作用 |
 |------|------|------|
-| 忽略碰撞体 | [`TryRaycastSkippingIgnored()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:424) | 跳过发射者自身或指定碰撞体 |
-| 命中过滤 | [`IProjectileHitFilter.ShouldHit()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Filters/IProjectileHitFilter.cs:5) | 上层决定是否应命中，例如阵营、无敌、不可选中 |
-| 命中策略 | [`IProjectileHitPolicy.ShouldExitOnHit()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Policies/IProjectileHitPolicy.cs:3) | 决定命中后是否销毁，例如立即退出或穿透若干次 |
+| 忽略碰撞体 | [`TryRaycastSkippingIgnored()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L424) | 跳过发射者自身或指定碰撞体 |
+| 命中过滤 | [`IProjectileHitFilter.ShouldHit()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Filters/IProjectileHitFilter.cs#L5) | 上层决定是否应命中，例如阵营、无敌、不可选中 |
+| 命中策略 | [`IProjectileHitPolicy.ShouldExitOnHit()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Policies/IProjectileHitPolicy.cs#L3) | 决定命中后是否销毁，例如立即退出或穿透若干次 |
 
-[`ProjectileHitPolicyKind`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs:5) 当前提供 `ExitOnHit` 与 `Pierce` 两种内置策略。`Pierce` 通过 `HitsRemaining` 递减来支持多目标命中。
+[`ProjectileHitPolicyKind`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs#L5) 当前提供 `ExitOnHit` 与 `Pierce` 两种内置策略。`Pierce` 通过 `HitsRemaining` 递减来支持多目标命中。
 
 源码还做了两个确定性保护：
 
@@ -272,7 +272,7 @@ flowchart TD
 
 ## 7. 发射调度与散射模式
 
-[`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:11) 不只支持单发创建，还支持 schedule：
+[`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L11) 不只支持单发创建，还支持 schedule：
 
 ```mermaid
 flowchart TD
@@ -289,13 +289,13 @@ flowchart TD
     I -->|no| K["Advance nextFrame"]
 ```
 
-发射模式由 [`IProjectileSpawnPattern`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Patterns/IProjectileSpawnPattern.cs:5) 构建多个 [`ProjectileSpawnParams`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs:11)。内置模式包括单发、连发、扇形、散射等。MOBA 层还通过 [`MobaModifierProjectileSpawnPatternProvider`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaModifierProjectileSpawnPatternProvider.cs:5) 在发射时读取技能参数修饰器，动态改变每次发射数量和扇形角度。
+发射模式由 [`IProjectileSpawnPattern`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Patterns/IProjectileSpawnPattern.cs#L5) 构建多个 [`ProjectileSpawnParams`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs#L11)。内置模式包括单发、连发、扇形、散射等。MOBA 层还通过 [`MobaModifierProjectileSpawnPatternProvider`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaModifierProjectileSpawnPatternProvider.cs#L5) 在发射时读取技能参数修饰器，动态改变每次发射数量和扇形角度。
 
 ---
 
 ## 8. 回滚与快照
 
-[`ProjectileWorld.ExportRollback()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:77) 和 [`ProjectileWorld.ImportRollback()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:118) 将运行时投射物转成二进制快照。快照内容包括：
+[`ProjectileWorld.ExportRollback()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L77) 和 [`ProjectileWorld.ImportRollback()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L118) 将运行时投射物转成二进制快照。快照内容包括：
 
 - 投射物 id 与 `_nextId`
 - 所属角色、模板、发射器、根角色
@@ -325,14 +325,14 @@ MOBA 示例没有直接把“技能命中”和“投射物命中”写死在核
 
 ### 9.1 发射流程
 
-[`MobaProjectileService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs:22) 在发射时会：
+[`MobaProjectileService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs#L22) 在发射时会：
 
 1. 校验投射物服务、角色注册表、实体管理器、Actor 生成服务等依赖。
 2. 创建投射物 Actor 或发射器 Actor。
-3. 将配置转换为 [`ProjectileSpawnParams`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs:11)。
-4. 选择发射模式并提交给 [`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:11)。
-5. 通过 [`MobaProjectileLinkService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileLinkService.cs:10) 绑定 `ProjectileId` 与 ActorId。
-6. 绑定 [`ProjectileSourceContext`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs:6)，保留来源、根上下文和技能运行时引用。
+3. 将配置转换为 [`ProjectileSpawnParams`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs#L11)。
+4. 选择发射模式并提交给 [`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L11)。
+5. 通过 [`MobaProjectileLinkService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileLinkService.cs#L10) 绑定 `ProjectileId` 与 ActorId。
+6. 绑定 [`ProjectileSourceContext`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs#L6)，保留来源、根上下文和技能运行时引用。
 
 ```mermaid
 sequenceDiagram
@@ -360,11 +360,11 @@ sequenceDiagram
 
 底层产生的投射物事件会被 MOBA 层消费：
 
-- [`ProjectileSpawnEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs:5)：用于表现和网络事件。
-- [`ProjectileHitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs:51)：转换为 `ProjectileHitArgs`，再进入 Triggering/Effect 执行链。
-- [`ProjectileExitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs:82)：驱动临时 Actor 清理、表现退出和快照输出。
+- [`ProjectileSpawnEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L5)：用于表现和网络事件。
+- [`ProjectileHitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L51)：转换为 `ProjectileHitArgs`，再进入 Triggering/Effect 执行链。
+- [`ProjectileExitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L82)：驱动临时 Actor 清理、表现退出和快照输出。
 
-[`MobaProjectileEventSnapshotService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileEventSnapshotService.cs:13) 会把底层 spawn/hit/exit 事件转换成 MOBA 协议快照，让客户端表现层以事件方式还原投射物生命周期。
+[`MobaProjectileEventSnapshotService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileEventSnapshotService.cs#L13) 会把底层 spawn/hit/exit 事件转换成 MOBA 协议快照，让客户端表现层以事件方式还原投射物生命周期。
 
 ```mermaid
 flowchart TD
@@ -454,3 +454,19 @@ These actions carry rollback state and never inspect hero or resource identity.
 MOBA area creation registers service metadata only after the low-level Area exists. If metadata registration fails, compensation first cancels the low-level Area without an event, then removes runtime metadata, indexes, delay markers, execution context and skill-runtime retains. The next sync pass therefore has no stale `AreaExpireEvent` whose metadata has already been removed.
 
 This is required for multi-area skills such as Jinx E: a failed later spawn must not dispatch an expire trigger for an earlier trap, and cancelling a cast must not look like normal gameplay expiration. Normal removal actions continue to use `DespawnArea` and preserve existing gameplay semantics.
+
+### Distance return, support contact and leg identity
+
+The [approved Lux extension](../../../plans/LuxImplementationReadiness.2026-11-13.md) adds `MaxDistanceResponse.ReturnToSource` (2). The outbound step stops at its actual maximum-distance boundary, then enters the existing return phase and tracks the source provider. Distance return and timed return are mutually exclusive. Return arrival clamps its final step, including a zero stop distance. Source death is handled by original Cast child cleanup, not inferred from a transform provider.
+
+`HitIdentity.OncePerActorPerLeg` (2) maintains separate outbound and return actor sets. Turning never clears legacy OncePerActor or Bounce history. Unlimited piercing uses the existing negative remaining-budget convention; per-frame collision sweep limits still apply.
+
+`SupportContact` (3) is accepted only by an explicit friendly-hero collision rule. It emits ordinary attributed contact for living allies without changing hostile Hit validation or allowing friendly damage. Self shielding uses launch and successful-return callbacks; ignoring enemies or walls spends no contact budget.
+
+Projectile snapshot format is now **18** (previously 17); it includes return-leg actor history and phase validation. Version 17 payloads are rejected rather than partially restored. Both peers must use matching code and snapshots. Tests cover outbound and returning restore, moving source tracking and preservation of legacy identity behavior.
+
+### Per-contact continuation and termination (D3, approved 2026-11-15)
+
+Collision responses append `HitAndContinue` (4) and `HitAndStop` (5), preserving values 0..3. Both use normal target eligibility, actor identity and hit cooldown, record an accepted Hit and increment TotalHitCount. Continue bypasses HitPolicy and does not consume HitsRemaining; Stop emits one Exit(Hit) at that contact after Hit and removes the projectile. Shield absorption and control immunity do not change collision termination. Legacy Hit still delegates to its configured HitPolicy.
+
+MOBA rules cannot bypass self, allied-team or HitUnitSubType guards. StaticWorld only permits Ignore/Block. The first approved configuration scope is straight, nonreturning ExitOnHit/Pierce projectiles; incompatible bounce, arc or return configurations are rejected. Rules and actor history retain the existing launch freeze and snapshot layout; new response values add no binary fields. Content selects classifications, while the framework only consumes the response.

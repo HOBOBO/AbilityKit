@@ -1,0 +1,60 @@
+{
+  "caseId": "local-statesync-fixed-baseline-recovery",
+  "sections": {
+    "settings": [
+      {
+        "$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario",
+        "tickRate": 100,
+        "maxDurationMs": 200,
+        "settleDurationMs": 0
+      }
+    ],
+    "timeline": [
+      {
+        "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+        "atMs": 100,
+        "name": "local.statesync.initial-full"
+      },
+      {
+        "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+        "atMs": 110,
+        "name": "local.statesync.input-first"
+      },
+      {
+        "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+        "atMs": 160,
+        "name": "local.statesync.input-second"
+      },
+      {
+        "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+        "atMs": 170,
+        "name": "local.statesync.current-delta"
+      },
+      {
+        "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+        "atMs": 170,
+        "name": "local.statesync.late-delta"
+      },
+      {
+        "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+        "atMs": 180,
+        "name": "local.statesync.wrong-baseline"
+      },
+      {
+        "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+        "atMs": 180,
+        "name": "local.statesync.delta-during-recovery"
+      },
+      {
+        "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+        "atMs": 190,
+        "name": "local.statesync.input-third"
+      },
+      {
+        "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario",
+        "atMs": 200,
+        "name": "local.statesync.recovery-full"
+      }
+    ]
+  }
+}

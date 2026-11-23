@@ -7,6 +7,8 @@
 
 ## 1. 能力定位
 
+机制扩展的准入要求见 [`MobaMechanismGovernance.md`](../../../MobaMechanismGovernance.md)。本文的组合方式和扩展路径不授权新增语义；规范未覆盖或需改变生命周期、所有权、状态及恢复契约时，先提交通用方案，等待用户确认。禁止为具体英雄增加共享执行特例。
+
 MOBA 示例中的持续行为不是单独的 Buff 系统，也不是单独的 Projectile 或 Motion 系统，而是一组被 `IContinuous` 生命周期统一治理的运行时对象。
 
 它要解决的问题是：
@@ -68,10 +70,10 @@ GAS 的 GameplayEffect 很强，因为它把 duration、stack、modifier、perio
 | Tick processor | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Runtime/MobaContinuousTickProcessor.cs` |
 | Trigger interval handler | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Triggering/MobaTriggerIntervalContinuousHandler.cs` |
 | Runtime query/view | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Runtime/Views/MobaContinuousRuntimeQueryService.cs` |
-| Buff continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` |
-| Buff stack policy | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffStackingPolicyApplier.cs` |
-| Buff interval handler | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousIntervalHandler.cs` |
-| Buff cue reporter | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Presentation/MobaBuffPresentationCueReporter.cs` |
+| Buff continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Runtime/BuffContinuousRuntime.cs` |
+| Buff stack policy | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Core/BuffStackingPolicyApplier.cs` |
+| Buff interval handler | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Runtime/BuffContinuousIntervalHandler.cs` |
+| Buff cue reporter | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Presentation/MobaBuffPresentationCueReporter.cs` |
 | Presentation cue snapshot | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaPresentationCueSnapshotService.cs` |
 | Buff timer rollback | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaBuffTimerRollbackProvider.cs` |
 | Projectile launch continuous | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaProjectileLaunchContinuous.cs` |
@@ -307,7 +309,7 @@ stateDiagram-v2
 2. `Unity/Packages/com.abilitykit.core/Runtime/Continuous/DefaultContinuousManager.cs`：注册、激活、暂停、恢复、结束的基础语义。
 3. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Tags/MobaContinuousTagRuleService.cs`：tag 如何影响生命周期。
 4. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Runtime/MobaContinuousTickProcessor.cs`：periodic 如何统一推进。
-5. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` 与 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffStackingPolicyApplier.cs`：stack 与 buff 生命周期。
+5. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Runtime/BuffContinuousRuntime.cs` 与 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Core/BuffStackingPolicyApplier.cs`：stack 与 buff 生命周期。
 6. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaProjectileLaunchContinuous.cs`：非 Buff 领域如何组合 continuous 能力。
 7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaPresentationCueSnapshotService.cs`：cue 如何从逻辑转成表现快照。
 8. `Docs/design/09-ImplementationExamples/MOBA/16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md`：Motion source、motion.hit、Summon 生命周期与 gameplay trigger 绑定的源码级落地。

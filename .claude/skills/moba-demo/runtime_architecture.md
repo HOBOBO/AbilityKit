@@ -57,7 +57,8 @@ Runtime/
 - `ServiceRegistrationGuide.md` — 服务注册
 - `SnapshotGuide.md` — 快照
 - `EventGuide.md` — 事件
-- `MobaCombatContextDesignGuide.md` — 战斗上下文设计
 - `GoldenSkillFlowGuide.md` — 黄金技能流
 - `MobaRuntimeProductionReadinessReview.md` — 生产就绪评估
 - `LegacyCompatibilityInventory.md` — 遗留兼容清单
+
+随包接入与代码归属见 [MOBA Runtime 包内指南](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Documentation~/Usage.md)。战斗上下文跨包设计、适配器源码与测试入口从[仓库 Trace / Context / Effect 专题](../../../Docs/design/09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md)进入。

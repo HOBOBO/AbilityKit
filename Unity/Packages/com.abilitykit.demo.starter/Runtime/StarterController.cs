@@ -96,7 +96,7 @@ namespace AbilityKit.Starter
             GUI.enabled = GUI.enabled && IsAuthenticated;
             if (GUILayout.Button("MOBA（帧同步示例）", GUILayout.Height(48f)))
             {
-                LaunchMoba(DemoMultiplayerSyncTemplates.FrameSyncAuthority);
+                LaunchMoba(DemoMultiplayerSyncTemplates.MobaSettledFrameSync);
             }
             if (GUILayout.Button("MOBA State Sync", GUILayout.Height(42f)))
             {

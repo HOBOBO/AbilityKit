@@ -9,14 +9,16 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 /// <summary>战斗流程回归：批量跑提交的 .battlescenario 目录，断言全部通过。挂 gate（Gate=BattleScenario）做 CI 回归。</summary>
 public sealed class BattleScenarioRegressionTests
 {
-    [Fact]
+    [Theory]
+    [InlineData("", 1)]
+    [InlineData("SkillPresentation", 28)]
     [Trait("Gate", "BattleScenario")]
-    public void CommittedFlows_AllPass()
+    public void CommittedFlows_AllPass(string subdirectory, int minimumCases)
     {
-        var dir = ResolveFlowsDir();
+        var dir = Path.Combine(ResolveFlowsDir(), subdirectory);
         var result = BattleScenarioBatchRunner.RunDirectory(dir);
 
-        Assert.True(result.Total > 0, "Flows 目录应至少有一个 .battlescenario");
+        Assert.True(result.Total >= minimumCases, $"场景目录 {dir} 至少应有 {minimumCases} 个用例。");
         var failed = result.Cases.Where(c => !c.Passed).ToList();
         Assert.True(failed.Count == 0,
             "有 " + failed.Count + " 个流程失败:\n" + string.Join("\n", failed.Select(c => c.CaseId + ": " + c.Summary)));

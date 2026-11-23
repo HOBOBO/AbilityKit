@@ -5,8 +5,8 @@
 ## 程序集边界
 
 - `AbilityKit.Core` 不引用 Unity 引擎。
-- `AbilityKit.Core.Unity` 包含 Unity 专用适配器，可以依赖基础程序集。
-- .NET 项目编译同一套基础层源码，并排除 Unity 适配器目录。
+- Unity 编辑器工具使用独立的 `AbilityKit.Core.Editor` 程序集；已退役的 `AbilityKit.Core.Unity` 不再交付，应用适配由各自的宿主持有。
+- .NET 项目编译同一套基础层源码，不引用 Unity 编辑器或宿主程序集。
 - Unity Collections、Burst、Jobs 和引擎对象类型不得进入基础程序集。
 
 Unity/Jobs 包中应使用 `Unity.Collections.NativeArray<T>`。当缓冲区所有权跨越方法、异步操作或存储边界时，共享托管代码可以使用 `PooledBufferOwner<T>`。不要在 Core 中再创建一个名为 `NativeArray` 的类型。
@@ -25,6 +25,8 @@ Core 不是通用工具包。如果某个类型只有一个子系统使用、携
 
 ## 公共 API 兼容性
 
+当前候选的具体 API 支持等级见[首发支持清单](./FirstReleaseSupport.md)。公开签名存在并不等同于推荐接入；现有接口的兼容要求也不由新增原语的准入数量决定。
+
 中文多行注释与 Core 局部 XML 文档错误门禁、Core 对 Deterministic 的依赖闭包及当前发布缺口见 [验证门禁与发布缺口](./ValidationAndReleaseReadiness.md)。该门禁仅作用于 .NET Core 工程，不覆盖 Unity/Editor 编译，也不代表命名空间审计或正式发布已通过。
 
 隔离 .NET 制品及真实 Unity Editor 的本地安装、最小调用与候选替换/回退证据见 [独立消费验证](./IndependentConsumption.md)。验证夹具不计入独立生产使用方，不新增正式 NuGet 发布承诺或扩大 Core 职责。
@@ -33,8 +35,8 @@ Core 不是通用工具包。如果某个类型只有一个子系统使用、携
 
 .NET Core 构建使用 `Microsoft.CodeAnalysis.PublicApiAnalyzers` 作为机器可读的兼容性门禁：
 
-- `src/AbilityKit.Core/PublicAPI.Shipped.txt` 保存已评审并发布的接口面。
-- `src/AbilityKit.Core/PublicAPI.Unshipped.txt` 保存计划在下个版本发布的新增接口。
+- `src/AbilityKit.Core/PublicAPI.Shipped.txt` 是分析器的既有签名基线；文件名不证明已有正式制品或标签。
+- `src/AbilityKit.Core/PublicAPI.Unshipped.txt` 记录下次发布待评审的签名变更（包括可空性修订），不自动授予首发支持状态。
 - `RS0016` 阻止未被有意登记的公共符号。
 - `RS0017` 阻止已登记 API 被意外删除或更改签名。
 
@@ -162,7 +164,7 @@ Core 也不提供通用 `Result<T>`。触发器执行、流程状态、回滚、
 
 配置来源、持久化路径、序列化器选择和可选模块安装属于应用程序/引导策略。它们不会仅仅因为实现小或可复用就满足 Core 纳入规则。
 
-旧文件工具、静态对象缓存及模块描述的实际契约统一见 [配置文件、缓存与模块描述兼容契约](./ConfigurationFileCompatibility.md)。写入不提供原子替换，缓存不提供内容版本或在途加载失效屏障；这些应用策略应由所有者明确。Core 内仍保留调用文件工具的旧 UnityJsonSettingsBootstrap，详细边界见 [旧 Unity 设置引导兼容契约](./UnitySettingsBootstrapCompatibility.md)。其中文注释已补齐，控制流程和弃用窗口保持；真实 Unity 平台验证仍待完成。MOBA 的同名类型使用不同所有者命名空间。
+旧文件工具、静态对象缓存及模块描述的实际契约统一见 [配置文件、缓存与模块描述兼容契约](./ConfigurationFileCompatibility.md)。写入不提供原子替换，缓存不提供内容版本或在途加载失效屏障；这些应用策略应由所有者明确。Core 已退役 `UnityJsonSettingsBootstrap`，见 [应用层迁移说明](./UnitySettingsBootstrapCompatibility.md)。MOBA 的同名类型是独立实现，不受影响。
 
 当前 MOBA 的所有权已明确：
 
@@ -218,6 +220,7 @@ Core 也不提供通用 `Result<T>`。触发器执行、流程状态、回滚、
 - `Numerics`：**已移除（2026-08，首次发布前）**。过时的玩法修改器兼容接口面（`NumberValue` 等）没有生产使用方；唯一的框架使用方已迁移到 MOBA 自有的定点数 `CombatNumberValue`（原名 DamageNumberValue）。领域自有数值管线应遵循定点数集成指南。
 - 配置与反射：MOBA 使用方现已采用所有者包内的设置和引导 API。Core 保留过时兼容类型至下一个主版本移除窗口；边界审计会阻止新使用方。
 - 标记扫描：候选的宿主/发现服务。
-- 碰撞形状：归碰撞抽象所有，最终应使用碰撞/几何命名空间，而不是 `AbilityKit.Core.Mathematics`。
 
 公共命名空间迁移需要兼容垫片、下游迁移和主版本移除窗口。它们有意与基础层正确性修复分开进行。
+
+碰撞形状、查询和边界读取已经由 `com.abilitykit.combat.collision.abstractions` 持有；录制、回放和规范状态差异分析已经由 `com.abilitykit.record` 持有。两个领域仍有历史 `AbilityKit.Core.*` 命名空间，但这些类型并不由 Core 程序集交付。Core 保留几何数学与稳定哈希等原语，不迁入领域实现，也不存在可直接删除的 Collision 或 Record 副本。

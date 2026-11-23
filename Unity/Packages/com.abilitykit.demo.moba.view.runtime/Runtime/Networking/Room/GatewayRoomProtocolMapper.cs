@@ -107,34 +107,7 @@ namespace AbilityKit.Game.Flow
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
 
-            var anchor = snapshot.WorldStartAnchor;
-            return new ClientRoomSnapshot
-            {
-                RoomId = snapshot.RoomId,
-                OwnerAccountId = snapshot.OwnerAccountId,
-                NumericRoomId = numericRoomId,
-                Phase = (ClientRoomPhase)snapshot.Phase,
-                PhaseReason = snapshot.PhaseReason,
-                LaunchGeneration = snapshot.LaunchGeneration,
-                LoadingDeadlineUnixMs = snapshot.LoadingDeadlineUnixMs,
-                LaunchManifestHash = snapshot.LaunchManifestHash,
-                TagBundleVersion = snapshot.TagBundleVersion,
-                LaunchManifestVersion = snapshot.LaunchManifestVersion,
-                LastStartFailureCode = snapshot.LastStartFailureCode,
-                RoomRevision = snapshot.RoomRevision,
-                LastEventSequence = snapshot.LastEventSequence,
-                CanStart = snapshot.CanStart,
-                BattleId = snapshot.BattleId,
-                WorldId = snapshot.WorldId,
-                Members = CopyStrings(snapshot.Members),
-                Players = ToClientPlayers(snapshot.Players),
-                SyncCapabilities = snapshot.SyncCapabilities,
-                WorldStartAnchor = new GatewayWorldStartAnchor(
-                    anchor.StartServerTicks,
-                    anchor.ServerTickFrequency,
-                    anchor.StartFrame,
-                    anchor.FixedDeltaSeconds)
-            };
+            return ClientRoomSnapshotMapper.ToSessionSnapshot(snapshot, numericRoomId);
         }
 
         internal static MultiplayerRoomRestoreNextStep ToNextStep(
@@ -195,58 +168,6 @@ namespace AbilityKit.Game.Flow
                 RoomGatewaySessionRestoreErrorCode.InternalError => MultiplayerRoomRestoreErrorCode.InternalError,
                 _ => MultiplayerRoomRestoreErrorCode.None
             };
-        }
-
-        private static IReadOnlyList<ClientRoomPlayer> ToClientPlayers(
-            IReadOnlyList<RoomGatewayPlayerSnapshot> players)
-        {
-            if (players == null || players.Count == 0) return Array.Empty<ClientRoomPlayer>();
-
-            var result = new ClientRoomPlayer[players.Count];
-            for (var i = 0; i < players.Count; i++)
-            {
-                var player = players[i];
-                result[i] = new ClientRoomPlayer
-                {
-                    AccountId = player.AccountId,
-                    PlayerId = player.PlayerId,
-                    TeamId = player.TeamId,
-                    HeroId = player.HeroId,
-                    SpawnPointId = player.SpawnPointId,
-                    Level = player.Level,
-                    AttributeTemplateId = player.AttributeTemplateId,
-                    BasicAttackSkillId = player.BasicAttackSkillId,
-                    SkillIds = CopyInts(player.SkillIds),
-                    LobbyReady = player.LobbyReady,
-                    Ready = player.LobbyReady,
-                    AssetsLoaded = player.AssetsLoaded,
-                    LoadingProgress = player.LoadingProgress,
-                    IsOnline = player.IsOnline,
-                    JoinOrdinal = player.JoinOrdinal,
-                    LoadedManifestVersion = player.LoadedManifestVersion,
-                    LoadedManifestHash = player.LoadedManifestHash,
-                    LastSeenTicks = player.LastSeenTicks,
-                    OfflineSinceTicks = player.OfflineSinceTicks
-                };
-            }
-
-            return result;
-        }
-
-        private static IReadOnlyList<string> CopyStrings(IReadOnlyList<string> source)
-        {
-            if (source == null || source.Count == 0) return Array.Empty<string>();
-            var result = new string[source.Count];
-            for (var i = 0; i < source.Count; i++) result[i] = source[i] ?? string.Empty;
-            return result;
-        }
-
-        private static IReadOnlyList<int> CopyInts(IReadOnlyList<int> source)
-        {
-            if (source == null || source.Count == 0) return Array.Empty<int>();
-            var result = new int[source.Count];
-            for (var i = 0; i < source.Count; i++) result[i] = source[i];
-            return result;
         }
     }
 }

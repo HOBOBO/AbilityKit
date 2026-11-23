@@ -186,6 +186,50 @@ public sealed class PoolingContractTests
         Assert.Equal(0, pool.InactiveCount);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void BulkCleanupCommitsSnapshotBeforeCallbacksAndKeepsReentrantReturns(bool trim)
+    {
+        var newestFailure = new InvalidOperationException("后归还对象销毁失败");
+        var oldestFailure = new InvalidOperationException("先归还对象销毁失败");
+        var calls = new List<Item>();
+
+        var cleanupPool = new ObjectPool<Item>(new ObjectPoolOptions<Item>(() => new Item())
+        {
+            OnDestroy = item => calls.Add(item),
+        });
+
+        var oldest = cleanupPool.Get();
+        oldest.OnDestroy = () => throw oldestFailure;
+        var newest = cleanupPool.Get();
+        var borrowed = cleanupPool.Get();
+        newest.OnDestroy = () =>
+        {
+            var stats = cleanupPool.Stats;
+            Assert.Equal(0, stats.InactiveCount);
+            Assert.Equal(1, stats.ActiveCount);
+            Assert.Equal(trim ? 0 : 2, stats.ClearDestroyCount);
+            Assert.Equal(trim ? 2 : 0, stats.TrimDestroyCount);
+            Assert.Throws<InvalidOperationException>(() => cleanupPool.Release(oldest));
+            cleanupPool.Release(borrowed);
+            throw newestFailure;
+        };
+        cleanupPool.Release(oldest);
+        cleanupPool.Release(newest);
+
+        var failure = Assert.Throws<AggregateException>(() =>
+        {
+            if (trim) cleanupPool.ForceTrim(PoolTrimPolicy.KeepNone);
+            else cleanupPool.Clear(destroy: true);
+        });
+
+        Assert.Equal(new Exception[] { newestFailure, oldestFailure }, failure.InnerExceptions);
+        Assert.Equal(new[] { newest, oldest }, calls);
+        Assert.Equal(1, cleanupPool.InactiveCount);
+        Assert.Same(borrowed, cleanupPool.Get());
+    }
+
     [Fact]
     public void NeverTrimSkipsRegularTrimButAllowsForceTrimAndClear()
     {
@@ -263,7 +307,7 @@ public sealed class PoolingContractTests
         public int DestroyCount { get; private set; }
         public int ReleaseCount { get; private set; }
         public Action? OnGet { get; init; }
-        public Action? OnDestroy { get; init; }
+        public Action? OnDestroy { get; set; }
         public void OnPoolGet() => OnGet?.Invoke();
         public void OnPoolRelease() => ReleaseCount++;
         public void OnPoolDestroy()

@@ -1,24 +1,27 @@
 #if UNITY_EDITOR
 
 using NUnit.Framework;
-using UnityEngine;
+using UnityEditor;
 
 namespace AbilityKit.Pipeline.Editor.Tests
 {
     public sealed class PipelineDebuggerWorkspaceStateTests
     {
         private PipelineDebuggerUserState _userState = null!;
+        private string _originalUserState = string.Empty;
 
         [SetUp]
         public void SetUp()
         {
-            _userState = ScriptableObject.CreateInstance<PipelineDebuggerUserState>();
+            _userState = PipelineDebuggerUserState.instance;
+            _originalUserState = EditorJsonUtility.ToJson(_userState);
         }
 
         [TearDown]
         public void TearDown()
         {
-            Object.DestroyImmediate(_userState);
+            if (!string.IsNullOrEmpty(_originalUserState))
+                EditorJsonUtility.FromJsonOverwrite(_originalUserState, _userState);
         }
 
         [Test]

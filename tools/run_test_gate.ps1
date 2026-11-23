@@ -635,16 +635,19 @@ function Invoke-Gate {
     $stepResults = New-Object System.Collections.Generic.List[object]
     $status = 'Passed'
     $failureMessage = $null
+    $hasStepSelection = -not [string]::IsNullOrWhiteSpace($OnlyStepName)
+    $executionScope = if ($hasStepSelection) { 'SingleStep' } else { 'FullGate' }
+    $selectedStepName = if ($hasStepSelection) { $OnlyStepName } else { $null }
 
     try {
         Write-GateHeader -GateDef $gateDef -GateOutputDirectory $gateOutputDirectory
 
         $stepIndex = 0
-        $matchedOnlyStep = [string]::IsNullOrWhiteSpace($OnlyStepName)
+        $matchedOnlyStep = -not $hasStepSelection
         foreach ($step in $gateDef.steps) {
             $stepIndex++
             $stepName = [string]$step.name
-            if (-not [string]::IsNullOrWhiteSpace($OnlyStepName) -and $stepName -ne $OnlyStepName) {
+            if ($hasStepSelection -and $stepName -ne $OnlyStepName) {
                 continue
             }
 
@@ -744,6 +747,8 @@ function Invoke-Gate {
         $summary = New-Object psobject
         $summary | Add-Member -MemberType NoteProperty -Name gate -Value $GateName
         $summary | Add-Member -MemberType NoteProperty -Name gatePath -Value ([object[]]@($pathSegments))
+        $summary | Add-Member -MemberType NoteProperty -Name executionScope -Value $executionScope
+        $summary | Add-Member -MemberType NoteProperty -Name selectedStepName -Value $selectedStepName
         $summary | Add-Member -MemberType NoteProperty -Name level -Value $gateLevel
         $summary | Add-Member -MemberType NoteProperty -Name owner -Value $gateOwner
         $summary | Add-Member -MemberType NoteProperty -Name status -Value $status
@@ -762,15 +767,20 @@ function Invoke-Gate {
     return $summary
 }
 
+$runLabel = if ([string]::IsNullOrWhiteSpace($StepName)) {
+    "Gate '$Gate'"
+} else {
+    "Step '$StepName' in gate '$Gate'"
+}
 $startedAt = Get-Date
 try {
     $gateResult = Invoke-Gate -GateName $Gate -Visiting ([System.Collections.Generic.HashSet[string]]::new()) -GatePath @($Gate) -RunRoot $runRoot -OnlyStepName $StepName
     $elapsed = (Get-Date) - $startedAt
-    Write-Host ("`nGate '{0}' passed in {1:n1}s." -f $Gate, $elapsed.TotalSeconds) -ForegroundColor Green
+    Write-Host ("`n{0} passed in {1:n1}s." -f $runLabel, $elapsed.TotalSeconds) -ForegroundColor Green
     Write-Host ("Summary: {0}" -f $gateResult.summaryPath) -ForegroundColor DarkGray
     exit 0
 }
 catch {
-    Write-Host ("`nGate '{0}' failed. See summary under {1}." -f $Gate, $runRoot) -ForegroundColor Red
+    Write-Host ("`n{0} failed. See summary under {1}." -f $runLabel, $runRoot) -ForegroundColor Red
     throw
 }

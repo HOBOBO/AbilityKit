@@ -275,7 +275,12 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 var entry = plan.Entries[i];
                 if (entry.PoolId == 0)
-                    FindLayer(container, entry.InstanceId).CurrentValue = entry.OldValue - entry.ConsumedValue;
+                {
+                    var layer = FindLayer(container, entry.InstanceId);
+                    layer.CurrentValue = entry.OldValue - entry.ConsumedValue;
+                    if (layer.RetaliationDamage > Fixed64.Zero && entry.ConsumedValue > Fixed64.Zero)
+                        (plan.RetaliationLayers ??= new List<ShieldLayer>(1)).Add(layer);
+                }
             }
             if (poolDeltas != null)
             {
@@ -596,7 +601,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (sourceActorId <= 0 || targetActorId <= 0 || sourceActorId == targetActorId || instanceId <= 0) return false;
             if (!_containers.TryGetValue(sourceActorId, out var source) || source?.Layers == null) return false;
             var layer = FindLayer(source, instanceId);
-            if (layer == null) return false;
+            if (layer == null || layer.RetaliationDamage > Fixed64.Zero) return false;
             var transferRatio = ratio <= Fixed64.Zero ? Fixed64.One : DeterministicMath.Min(Fixed64.One, ratio);
 
             if (layer.UsesSharedPoolValue && layer.SharedPoolId > 0)
@@ -1358,6 +1363,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int TargetActorId { get; }
         public Fixed64 Absorbed { get; private set; }
+        internal List<ShieldLayer> RetaliationLayers;
         public int UnsupportedPolicyMask { get; private set; }
         public bool HasUnsupportedPolicy => UnsupportedPolicyMask != 0;
         internal IReadOnlyList<ShieldAbsorbEntry> Entries => _entries ?? (IReadOnlyList<ShieldAbsorbEntry>)Array.Empty<ShieldAbsorbEntry>();
@@ -1408,7 +1414,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         internal bool IsCommitted { get; private set; }
         internal void MarkCommitted() => IsCommitted = true;
-        internal void MarkRolledBack() => IsCommitted = false;
+        internal void MarkRolledBack()
+        {
+            IsCommitted = false;
+            RetaliationLayers = null;
+        }
     }
 
     internal readonly struct ShieldAbsorbEntry

@@ -4,23 +4,49 @@ using System.IO.Compression;
 
 namespace AbilityKit.Ability.StateSync.Diff
 {
+    /// <summary>
+    /// 保留的压缩选项；默认提供器只区分不压缩和使用同一种 Deflate 实现。
+    /// </summary>
     public enum DiffCompressionLevel
     {
+        /// <summary>
+        /// 禁用压缩和解压缩。
+        /// </summary>
         None = 0,
+        /// <summary>
+        /// 兼容的低压缩标记；当前与其他启用值行为相同。
+        /// </summary>
         Low = 1,
+        /// <summary>
+        /// 默认压缩标记；当前与其他启用值行为相同。
+        /// </summary>
         Medium = 2,
+        /// <summary>
+        /// 兼容的高压缩标记；当前与其他启用值行为相同。
+        /// </summary>
         High = 3
     }
 
+    /// <summary>
+    /// 面向既有状态差分用法的兼容提供器；调用方负责前态身份及类型和配置匹配。
+    /// 不应用于外部不可信数据、跨版本协议或本地固定基线恢复的准入判断。
+    /// </summary>
     public sealed class StateDiffProvider : IStateDiffProvider
     {
         private readonly DiffCompressionLevel _compressionLevel;
 
+        /// <summary>
+        /// 创建以中等压缩标记为默认值的提供器；当前所有非禁用标记使用相同压缩行为。
+        /// </summary>
         public StateDiffProvider(DiffCompressionLevel compressionLevel = DiffCompressionLevel.Medium)
         {
             _compressionLevel = compressionLevel;
         }
 
+        /// <summary>
+        /// 根据前态是否为空生成全量或增量记录；当前状态为空时抛异常。
+        /// 结果帧元数据均为 0，时间取当前 UTC Unix 毫秒，未压缩大小取完整目标状态的大小。
+        /// </summary>
         public IStateDiff ComputeDiff<TState>(TState current, TState previous) where TState : class
         {
             if (current == null) throw new ArgumentNullException(nameof(current));
@@ -53,6 +79,10 @@ namespace AbilityKit.Ability.StateSync.Diff
                 isFullSnapshot: isFullSnapshot);
         }
 
+        /// <summary>
+        /// 全量记录忽略前态，增量由调用方提供匹配的前态；不验证帧、大小元数据或基线身份。
+        /// 空差分抛异常，底层失败直接传播；成功返回重建对象，不原地修改前态。
+        /// </summary>
         public TState ApplyDiff<TState>(TState baseState, IStateDiff diff) where TState : class
         {
             if (diff == null) throw new ArgumentNullException(nameof(diff));
@@ -73,6 +103,9 @@ namespace AbilityKit.Ability.StateSync.Diff
             return DeserializeState<TState>(targetData);
         }
 
+        /// <summary>
+        /// 世界快照沿用其现有格式；其他类型走公开实例字段的兼容路径，不保证一般对象图或跨版本兼容。
+        /// </summary>
         public byte[] SerializeState<TState>(TState state) where TState : class
         {
             if (state is Snapshot.WorldStateSnapshot worldSnapshot)
@@ -86,6 +119,10 @@ namespace AbilityKit.Ability.StateSync.Diff
             return stream.ToArray();
         }
 
+        /// <summary>
+        /// 空引用或空数据返回空；要求目标类型及表示与写入端匹配。
+        /// 泛型目标恰为世界快照时使用其格式，其他类型沿用兼容路径，失败向调用方传播。
+        /// </summary>
         public TState DeserializeState<TState>(byte[] data) where TState : class
         {
             if (data == null || data.Length == 0) return null;
@@ -220,9 +257,7 @@ namespace AbilityKit.Ability.StateSync.Diff
         }
 
         /// <summary>
-        /// 通用反射序列化兜底（仅 public 实例<strong>字段</strong>；property 不参与，刻意不扩展以
-        /// 保持线格式稳定）。当前无生产消费者（WorldStateSnapshot 走 <c>ToBytes</c> 快路径），
-        /// 仅作通用 TState 的兜底。反射元数据按类型静态缓存，避免每个对象节点重复 GetFields。
+        /// 旧版非快照状态的序列化辅助类型，仅供配对的提供器内部使用。
         /// </summary>
         private class BinarySerializerImpl
         {

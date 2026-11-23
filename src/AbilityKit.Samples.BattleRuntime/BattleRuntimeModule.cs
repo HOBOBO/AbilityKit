@@ -149,6 +149,8 @@ public sealed class BattleService : IBattleService, IFoundationTickLoop
     private const int MonsterLayerId = 1;
     private const int MonsterLayerMask = 1 << MonsterLayerId;
 
+    private readonly struct HeavyWoundRuleContext { }
+
     private readonly EventBus _bus;
     private readonly CollisionService _collisions;
     private readonly IProjectileService _projectiles;
@@ -158,7 +160,7 @@ public sealed class BattleService : IBattleService, IFoundationTickLoop
     private readonly List<Monster> _monsters = new();
     private readonly List<ProjectileHitEvent> _hitBuffer = new(8);
     private readonly List<ProjectileExitEvent> _exitBuffer = new(8);
-    private TriggerRunner<TriggerContext>? _runner;
+    private TriggerRunner<HeavyWoundRuleContext>? _runner;
     private int _frame;
 
     public IReadOnlyList<Monster> Monsters => _monsters;
@@ -329,12 +331,10 @@ public sealed class BattleService : IBattleService, IFoundationTickLoop
         var payloads = new PayloadAccessorRegistry();
         payloads.RegisterIntAccessor(new DamageEventPayloadAccessor());
 
-        _runner = new TriggerRunner<TriggerContext>(
+        _runner = new TriggerRunner<HeavyWoundRuleContext>(
             _bus,
             new FunctionRegistry(),
             new ActionRegistry(),
-            contextSource: null,
-            observer: null,
             blackboards: new DictionaryBlackboardResolver(),
             payloads: payloads);
 
@@ -343,7 +343,7 @@ public sealed class BattleService : IBattleService, IFoundationTickLoop
 
         _runner.Register(
             new EventKey<DamageEvent>(StableStringId.Get("event:damage")),
-            new DelegateTrigger<DamageEvent, TriggerContext>(
+            new DelegateTrigger<DamageEvent, HeavyWoundRuleContext>(
                 predicate: (evt, ctx) => expr.Eval(in evt, in ctx) >= 35,
                 actions: (evt, ctx) => Log.Info($"[Trigger] 重伤告警：单次伤害 {expr.Eval(in evt, in ctx):0.#} ≥ 35")),
             phase: 0,

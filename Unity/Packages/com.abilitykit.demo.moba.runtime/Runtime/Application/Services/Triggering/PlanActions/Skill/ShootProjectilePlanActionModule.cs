@@ -1,10 +1,15 @@
+using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Projectile;
@@ -249,13 +254,32 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             aimPos = casterPos;
 
+            var executionContext = coreInput.ExecutionContext;
+            if (!TryPrepareBasicAttackCadence(casterActorId, in executionContext, skillRuntimes, configs, ctx.Context,
+                    out var attackSlot, out var nextAttackAtMs, out var attackIntervalMs))
+            {
+                LogRejected(ctx, "basic attack cadence is not ready");
+                return;
+            }
+            if (args.LaunchMagnitude.Enabled && !MobaEffectMagnitudeResolver.TryEvaluate(args.LaunchMagnitude,
+                    in executionContext, in ctx, casterActorId, casterActorId, targetActorId, default,
+                    out _, out _, out var magnitudeFailure))
+            {
+                LogRejected(ctx, magnitudeFailure);
+                return;
+            }
+
             var sourceContext = input.CreateSourceContext(casterActorId, targetActorId, projectile.Id);
             if (!projectileSvc.TryLaunch(casterActorId, launcher, projectile, launchParams.CountPerShot, launchParams.FanAngleDeg, launchParams.DurationMs, args.ContinuousProcessId, args.TrackTarget, in aimPos, in aimDir, in sourceContext, out var launchResult, maxDistance))
             {
                 LogRejected(ctx, $"launch failed. launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} targetActorId={targetActorId} lockedTargetActorId={lockedTargetActorId} error={launchResult.Error ?? "<none>"}");
                 return;
             }
-            var executionContext = coreInput.ExecutionContext;
+            if (attackSlot != null)
+            {
+                attackSlot.CooldownEndTimeMs = nextAttackAtMs;
+                attackSlot.CooldownDurationMs = attackIntervalMs;
+            }
             PublishBasicAttackLaunched(triggerArgs, in executionContext, skillRuntimes, configs, ctx.Context);
             if (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, launchResult.LauncherActorId, out var outputError) ||
                 !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, launchResult.TotalCount, out outputError))
@@ -265,6 +289,38 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             LogApplied(ctx, $"launch requested. casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} launcherActorId={launchResult.LauncherActorId} targetActorId={targetActorId} trackTarget={args.TrackTarget} countPerShot={launchParams.CountPerShot} fanAngleDeg={launchParams.FanAngleDeg:0.###} durationMs={launchParams.DurationMs} continuousProcessId={args.ContinuousProcessId} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection}");
+        }
+
+        private static bool TryPrepareBasicAttackCadence(int casterActorId,
+            in MobaCombatExecutionContext executionContext, MobaSkillCastRuntimeService runtimes,
+            MobaConfigDatabase configs, IWorldResolver services, out ActiveSkillRuntime slot,
+            out long nextAttackAtMs, out int intervalMs)
+        {
+            slot = null;
+            nextAttackAtMs = 0;
+            intervalMs = 0;
+            var handle = executionContext.SkillRuntimeHandle;
+            if (!handle.IsValid || runtimes == null || !runtimes.TryGet(in handle, out var cast) ||
+                !configs.TryGetSkill(cast.SkillId, out var skill) || skill.SkillType != SkillType.NormalAttack ||
+                !configs.TryGetSkillFlow(skill.CastFlowId, out var flow) || flow.BasicAttack == null)
+                return true;
+
+            if (cast.CasterActorId != casterActorId ||
+                !services.TryResolve<IFrameTime>(out var time) || time == null ||
+                !services.TryResolve<MobaActorLookupService>(out var actors) || actors == null ||
+                !actors.TryGetActorEntity(casterActorId, out var actor) || !actor.hasAttributeGroup ||
+                !MobaSkillRuntimeAccess.TryGetActiveSkill(actors, casterActorId, cast.SkillSlot, cast.SkillId, out slot))
+                return false;
+
+            var nowMs = MobaSkillRuntimeAccess.GetCurrentTimeMs(time);
+            if (nowMs < slot.CooldownEndTimeMs) return false;
+
+            var speed = actor.attributeGroup.Group.GetValue(MobaAttributeIds.ATTACK_SPEED_R);
+            if (float.IsNaN(speed) || float.IsInfinity(speed)) return false;
+            var interval = Math.Min(int.MaxValue, Math.Ceiling(skill.CooldownMs / Math.Max(0.01, 1.0 + speed / 100.0)));
+            intervalMs = Math.Max(flow.BasicAttackWindupMs, (int)interval);
+            nextAttackAtMs = nowMs + intervalMs;
+            return true;
         }
 
         private static void PublishBasicAttackLaunched(

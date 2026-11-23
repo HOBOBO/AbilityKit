@@ -53,4 +53,4 @@
 
 - Effect 系统使用**第一套** EventBus（`AbilityKit.Ability.Triggering.IEventBus`）。
 - moba 业务事件（buff/damage/skill）走**第二套** EventBus（`AbilityKit.Triggering.Eventing.IEventBus`）。
-- 跨总线订阅/发布仍然收不到事件，详见 [triggering_engines.md](triggering_engines.md)。
+- 跨总线订阅/发布仍然收不到事件，详见 [two_engines.md](../triggering/two_engines.md)。

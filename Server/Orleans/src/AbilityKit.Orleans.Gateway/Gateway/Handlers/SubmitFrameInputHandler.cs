@@ -81,6 +81,12 @@ public sealed partial class SubmitFrameInputHandler : GatewayRequestHandlerBase
                 return GatewayResponse.Error(request.Seq, GatewayStatusCode.Forbidden);
             }
 
+            var frameSync = _clusterClient.GetGrain<IBattleFrameSyncGrain>(wireRequest.RoomId.ToString());
+            var binding = await frameSync.GetSettledBindingAsync();
+            if (binding == null || binding.WorldId != wireRequest.WorldId || binding.BattleId != snapshot.BattleId ||
+                !_subscriptions.HasSettledBinding(context, binding, requiresPlayer: true))
+                return GatewayResponse.Error(request.Seq, GatewayStatusCode.SettledFrameVersionMismatch);
+
             var battleKey = snapshot.BattleId ?? wireRequest.RoomId.ToString();
             var guard = _inputGuard.Check(
                 context.SessionToken,
@@ -98,16 +104,9 @@ public sealed partial class SubmitFrameInputHandler : GatewayRequestHandlerBase
                     FrameInputSubmitReason.RateLimited);
             }
 
-            await _subscriptions.EnsureSubscribedAsync(context.ConnectionId, wireRequest.RoomId);
-
-            var frameSync = _clusterClient.GetGrain<IBattleFrameSyncGrain>(wireRequest.RoomId.ToString());
-            var result = await frameSync.SubmitInputWithResultAsync(
-                wireRequest.WorldId,
-                wireRequest.Frame,
-                new FrameInputItem(
-                    wireRequest.PlayerId,
-                    wireRequest.InputOpCode,
-                    wireRequest.InputPayload ?? Array.Empty<byte>()));
+            var input = new FrameInputItem(wireRequest.PlayerId, wireRequest.InputOpCode,
+                wireRequest.InputPayload ?? Array.Empty<byte>());
+            var result = await frameSync.SubmitSettledInputAsync(wireRequest.WorldId, binding.RuntimeGeneration, wireRequest.Frame, input);
 
             return CreateInputResponse(request.Seq, result.Accepted, result.ServerFrame, result.Reason);
         }

@@ -1,10 +1,8 @@
 # MOBA 上下文模块指南
 
-## 设计指南
+## 使用与设计入口
 
-当前端到端战斗上下文设计、生命周期规则、运行时上下文诊断和扩展检查清单见 [整体设计指南](../../../Docs/MobaCombatContextDesignGuide.md)。
-
-设计评审建议从整体指南开始，再阅读 [Runtime Context 值与快照设计](../../../../Document/RuntimeContext运行时值与快照设计文档.md)、[Context 基础包](../../../../../com.abilitykit.context/Document/Context上下文注册与快照模块开发设计文档.md) 和 [Trace 基础包](../../../../../com.abilitykit.trace/Document/Trace溯源树模块开发设计文档.md)。Runtime Context 文档单独列出已实现行为、版本限制、恢复边界和待评审项。
+本页保留本包的使用与源码定位；[包内使用索引](../../../../Documentation~/Usage.md)提供上一级导航。跨包模型、端到端恢复设计及仓库测试见仓库 `Docs/design/00-index.md` 的 MOBA 专题，不要求安装者具备仓库目录。
 
 ## 用途
 

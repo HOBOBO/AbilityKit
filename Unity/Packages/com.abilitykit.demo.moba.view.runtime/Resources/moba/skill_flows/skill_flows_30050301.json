@@ -4,6 +4,10 @@
   "PipelineContinuousTagTemplateId": 0,
   "ChildChannelId": 0,
   "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": false,
   "RequiredBuffQualificationId": 0,
   "Phases": [
     {
@@ -55,6 +59,9 @@
       "PhaseId": "gragas_30050301_cast",
       "Timeline": {
         "DurationMs": 1167,
+        "RecoveryStartMs": -1,
+        "CastGateTagTemplateId": 3018,
+        "CastGateEndMs": 1000,
         "Events": [
           {
             "AtMs": 0,

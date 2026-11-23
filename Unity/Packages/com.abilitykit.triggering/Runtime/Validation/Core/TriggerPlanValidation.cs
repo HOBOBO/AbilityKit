@@ -13,6 +13,9 @@ namespace AbilityKit.Triggering.Validation
     {
         private static readonly CompositeTriggerValidator<object> ObjectRuntimeBoundaryValidator = CreateRuntimeBoundaryValidator<object>();
 
+        /// <summary>
+        /// 校验单个类型化计划并返回诊断，不注册或执行计划。
+        /// </summary>
         public static ValidationResult ValidateRuntimeBoundary<TArgs>(
             EventKey<TArgs> eventKey,
             in TriggerPlan<TArgs> plan,
@@ -29,6 +32,9 @@ namespace AbilityKit.Triggering.Validation
             return CreateRuntimeBoundaryValidator<TArgs>().Validate(in database, in validationContext);
         }
 
+        /// <summary>
+        /// 校验单个类型化计划，有错误时抛出包含诊断的异常。
+        /// </summary>
         public static void ThrowIfInvalidRuntimeBoundary<TArgs>(
             EventKey<TArgs> eventKey,
             in TriggerPlan<TArgs> plan,
@@ -41,6 +47,9 @@ namespace AbilityKit.Triggering.Validation
             result.ThrowIfInvalid($"TriggerPlan runtime boundary validation failed: {id ?? eventKey.IntId.ToString()}");
         }
 
+        /// <summary>
+        /// 校验一组计划及其批内约束并返回诊断，不注册或执行计划。
+        /// </summary>
         public static ValidationResult ValidateRuntimeBoundary(
             IReadOnlyList<TriggerPlanEntry<object>> entries,
             in ValidationContext<object> context = default)
@@ -50,6 +59,9 @@ namespace AbilityKit.Triggering.Validation
             return ObjectRuntimeBoundaryValidator.Validate(in database, in validationContext);
         }
 
+        /// <summary>
+        /// 校验一组计划，有错误时抛出包含诊断的异常。
+        /// </summary>
         public static void ThrowIfInvalidRuntimeBoundary(
             IReadOnlyList<TriggerPlanEntry<object>> entries,
             string sourceName = null,

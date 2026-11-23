@@ -3,12 +3,29 @@
   "version": "0.1.0",
   "displayName": "AbilityKit World StateSync",
   "unity": "2022.3",
-  "description": "State synchronization, delta compression, and rollback for multiplayer games.",
+  "description": "Engine-independent state history, checkpoints, and prediction building blocks.",
+  "samples": [
+    {
+      "displayName": "Local Checkpoints",
+      "description": "Capture, restore and evict local simulation checkpoints without a transport.",
+      "path": "Samples~/LocalCheckpoints"
+    },
+    {
+      "displayName": "Local Snapshot History",
+      "description": "Keep a detached history of typed snapshot metadata with either storage backend.",
+      "path": "Samples~/LocalSnapshotHistory"
+    },
+    {
+      "displayName": "Local State Commit",
+      "description": "Validate and import a typed candidate before publishing the state and commit cursor.",
+      "path": "Samples~/LocalStateCommit"
+    }
+  ],
   "author": { "name": "AbilityKit" },
   "dependencies": {
     "com.abilitykit.core": "0.1.0",
     "com.abilitykit.world.snapshot": "0.1.0",
-    "com.abilitykit.thirdparty.unsafe": "5.0.0",
+    "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0",
     "com.cysharp.memorypack": "1.10.0"
   }
 }

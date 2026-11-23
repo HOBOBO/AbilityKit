@@ -644,34 +644,36 @@ namespace AbilityKit.Demo.Moba.Console
 
             Log.System("Disposing...");
 
-            _inputHandler?.Dispose();
+            List<Exception>? failures = null;
+            void Release(Action dispose)
+            {
+                try { dispose(); }
+                catch (Exception failure) { (failures ??= new List<Exception>()).Add(failure); }
+            }
 
-            // Features 现在由 FeatureHost 管理，不需要手动 Detach
-            // _hudFeature?.OnDetach(_context);
-            // _inputFeature?.OnDetach(_context);
-            // _syncFeature?.OnDetach(_context);
-
-            _runtimeInputSink?.Dispose();
-            _hostClient?.Dispose();
-            _hostNetwork?.Dispose();
-            _runtimeWorldManager?.DisposeAll();
-            _cuePresenter?.Dispose();
-            _viewTimeline?.Dispose();
-            _viewBinder?.Dispose();
-            _context.Hooks?.Dispose();
-            _snapshotDispatcher?.Dispose();
-            _shareViewEventSink?.Dispose();
-            _replayRecorder?.Dispose();
-            _replayPlayer?.Dispose();
-            _syncAdapter?.Dispose();
-            _flow?.Dispose();
-            _battleView?.Dispose();
-            _context?.Dispose();
+            Release(() => _inputHandler?.Dispose());
+            Release(() => _runtimeInputSink?.Dispose());
+            Release(() => _hostClient?.Dispose());
+            Release(() => _hostNetwork?.Dispose());
+            Release(() => _runtimeWorldManager?.DisposeAll());
+            Release(() => _cuePresenter?.Dispose());
+            Release(() => _viewTimeline?.Dispose());
+            Release(() => _viewBinder?.Dispose());
+            Release(() => _context?.Hooks?.Dispose());
+            Release(() => _snapshotDispatcher?.Dispose());
+            Release(() => _shareViewEventSink?.Dispose());
+            Release(() => _replayRecorder?.Dispose());
+            Release(() => _replayPlayer?.Dispose());
+            Release(() => _syncAdapter?.Dispose());
+            Release(() => _flow?.Dispose());
+            Release(() => _battleView?.Dispose());
+            Release(() => _context?.Dispose());
 
             // 战斗与拆除阶段全部结束后再导出，保证火焰图覆盖完整生命周期。
-            _profileSession?.Dispose();
+            Release(() => _profileSession?.Dispose());
             _profileSession = null;
 
+            if (failures != null) throw new AggregateException("Console battle cleanup failed.", failures);
             Log.System("Disposed.");
         }
     }

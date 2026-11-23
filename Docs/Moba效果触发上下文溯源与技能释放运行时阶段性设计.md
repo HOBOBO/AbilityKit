@@ -1,7 +1,7 @@
 # Moba 效果触发、上下文、溯源与技能释放运行时阶段性设计
 
 > 说明：本文基于当前代码现状整理，目标是让效果触发、执行上下文、溯源/Origin、Trace、技能释放运行时形成一套可扩展、可诊断、可追踪的正式化设计。
-> 相关核心实现主要分布在 [`MobaEffectExecutionService.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs:24)、[`MobaCombatExecutionContext.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs:1)、[`MobaGameplayOrigin.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs:1)、[`MobaSkillCastRuntimeService.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:13)、[`SkillCastCoordinator.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs:45)。
+> 相关核心实现主要分布在 [`MobaEffectExecutionService.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs#L24)、[`MobaCombatExecutionContext.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs#L1)、[`MobaGameplayOrigin.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs#L1)、[`MobaSkillCastRuntimeService.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs#L13)、[`SkillCastCoordinator.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs#L45)。
 
 ## 1. 阶段性结论
 
@@ -10,21 +10,21 @@
 核心结论如下：
 
 1. **效果触发入口已经统一**
-   - 直接触发与 owner-bound 触发由 [`MobaTriggerExecutionGateway`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs:154) 收敛。
-   - 实际执行落到 [`MobaEffectExecutionService.ExecuteTrigger<TPayload>()`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs:485) 与 [`MobaTriggerPlanExecutor`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerPlanExecutor.cs:13)。
+   - 直接触发与 owner-bound 触发由 [`MobaTriggerExecutionGateway`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs#L154) 收敛。
+   - 实际执行落到 [`MobaEffectExecutionService.ExecuteTrigger<TPayload>()`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs#L485) 与 [`MobaTriggerPlanExecutor`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaTriggerPlanExecutor.cs#L13)。
 
 2. **上下文模型已经有主模型**
-   - 运行期主模型是 [`MobaCombatExecutionContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs:1)。
-   - [`MobaContextSourceView`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs:47) 更偏查询/快照/诊断视图，而不是主执行模型。
+   - 运行期主模型是 [`MobaCombatExecutionContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs#L1)。
+   - [`MobaContextSourceView`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs#L47) 更偏查询/快照/诊断视图，而不是主执行模型。
 
 3. **溯源链路已经标准化**
-   - 统一使用 [`MobaGameplayOrigin`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs:1) / [`MobaGameplayOriginBuilder`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOriginBuilder.cs:1) 从 lineage/trace 反推出 origin。
+   - 统一使用 [`MobaGameplayOrigin`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs#L1) / [`MobaGameplayOriginBuilder`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOriginBuilder.cs#L1) 从 lineage/trace 反推出 origin。
    - 旧的 `FromLegacy()` 兼容入口已经删除，不再作为正式业务路径。
 
 4. **技能释放运行时已从“状态散落”演进到“runtime 实体”**
    - `SkillCastCoordinator` 负责准备、启动、输入分发和 runner 选择。
-   - [`MobaSkillCastRuntimeService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:13) 负责 runtime 注册、查找、终止、children 追踪、blackboard、diagnostics。
-   - [`MobaSkillCastRuntime`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntime.cs:557) 承载一次技能释放的正式运行状态。
+   - [`MobaSkillCastRuntimeService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs#L13) 负责 runtime 注册、查找、终止、children 追踪、blackboard、diagnostics。
+   - [`MobaSkillCastRuntime`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntime.cs#L557) 承载一次技能释放的正式运行状态。
 
 5. **当前设计已经具备工业化项目的关键能力**
    - 强类型载荷。
@@ -40,51 +40,51 @@
 
 ### 2.1 触发执行模块
 
-- [`MobaTriggerExecutionGateway`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs:154)
+- [`MobaTriggerExecutionGateway`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs#L154)
   - 统一入口。
   - 分发直接触发与 owner-bound 触发。
   - 统计指标与诊断埋点。
-- [`MobaTriggerPlanSubscriptionService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs:18)
+- [`MobaTriggerPlanSubscriptionService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs#L18)
   - owner-bound trigger 的订阅、注册、注销、门禁。
-- [`MobaEffectExecutionService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs:24)
+- [`MobaEffectExecutionService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs#L24)
   - 效果执行主服务。
   - 负责上下文归一化、预算控制、条件判断、trace 管理、计划执行。
-- [`MobaTriggerPlanExecutor`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerPlanExecutor.cs:13)
+- [`MobaTriggerPlanExecutor`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaTriggerPlanExecutor.cs#L13)
   - 真正执行 trigger plan。
   - 对接 `ExecCtx<IWorldResolver>`、`PlannedTrigger`、`ExecutionRoot`。
 
 ### 2.2 上下文模块
 
-- [`MobaCombatExecutionContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs:1)
+- [`MobaCombatExecutionContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs#L1)
   - 当前正式执行上下文。
   - 聚合 payload、lineage、trace、origin、snapshot、runtime handle。
-- [`MobaTriggerInvocationContextBase`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Payload/MobaTriggerInvocationContextBase.cs:1)
+- [`MobaTriggerInvocationContextBase`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Payload/MobaTriggerInvocationContextBase.cs#L1)
   - 统一触发 payload 的抽象基类。
-- [`MobaTriggerExecutionSnapshotBuilder`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshotBuilder.cs:1)
+- [`MobaTriggerExecutionSnapshotBuilder`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshotBuilder.cs#L1)
   - 从 lineage + payload 构建执行快照。
 
 ### 2.3 溯源 / Origin / Execution Context 模块
 
-- [`MobaTriggerLineageContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaTriggerLineageContext.cs:1)
+- [`MobaTriggerLineageContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaTriggerLineageContext.cs#L1)
   - 传播 source/root/owner execution context 的正式链路载体。
-- [`MobaEffectLineageInput`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInput.cs:1)
+- [`MobaEffectLineageInput`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInput.cs#L1)
   - effect 执行时的 lineage 输入。
-- [`MobaGameplayOrigin`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs:1)
+- [`MobaGameplayOrigin`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs#L1)
   - 最终正式的 origin 实体。
-- [`MobaGameplayOriginBuilder`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOriginBuilder.cs:1)
+- [`MobaGameplayOriginBuilder`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOriginBuilder.cs#L1)
   - origin 组装器。
 
 ### 2.4 技能释放运行时模块
 
-- [`SkillCastCoordinator`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs:45)
+- [`SkillCastCoordinator`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs#L45)
   - 技能输入、预处理、启动、runner 管理。
-- [`SkillCastPreparationService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastPreparationService.cs:13)
+- [`SkillCastPreparationService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastPreparationService.cs#L13)
   - 生成上下文、创建 execution context root、创建 runtime。
-- [`SkillPipelineRunner`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs:18)
+- [`SkillPipelineRunner`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineRunner.cs#L18)
   - 执行 PreCast / Cast pipeline。
-- [`MobaSkillCastRuntimeService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:13)
+- [`MobaSkillCastRuntimeService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs#L13)
   - runtime 仓储 + 生命周期 + blackboard + trace 关联。
-- [`MobaSkillCastRuntime`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntime.cs:557)
+- [`MobaSkillCastRuntime`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntime.cs#L557)
   - runtime 实体。
 
 ---
@@ -107,7 +107,7 @@
 ### 3.2 强类型化
 
 触发参数不能长期停留在弱类型 `object`/反射式拼装。
-当前已经引入 [`IMobaTriggerExecutionPayload`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Payload/MobaTriggerInvocationContextBase.cs:1) 与 `MobaTriggerInvocationContextBase` 作为正式载体。
+当前已经引入 [`IMobaTriggerExecutionPayload`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Payload/MobaTriggerInvocationContextBase.cs#L1) 与 `MobaTriggerInvocationContextBase` 作为正式载体。
 
 ### 3.3 可追踪性
 
@@ -133,12 +133,12 @@ buff、projectile、summon、damage、area、periodic tick 等场景应复用同
 1. **直接触发**
    - 外部直接给一个 `MobaTriggerExecutionRequest<TPayload>`。
    - 典型于 projectile hit、area enter/exit、buff interval 等。
-   - 入口见 [`MobaEffectExecutionService.ExecuteTrigger<TPayload>()`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs:485)。
+   - 入口见 [`MobaEffectExecutionService.ExecuteTrigger<TPayload>()`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs#L485)。
 
 2. **owner-bound 触发**
    - 通过 ownerKey 订阅 trigger plan。
-   - 入口见 [`MobaTriggerExecutionGateway.ApplyOwnerBoundTriggers(...)`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs:213)。
-   - 触发注册与注销由 [`MobaTriggerPlanSubscriptionService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs:74) 维护。
+   - 入口见 [`MobaTriggerExecutionGateway.ApplyOwnerBoundTriggers(...)`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs#L213)。
+   - 触发注册与注销由 [`MobaTriggerPlanSubscriptionService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs#L74) 维护。
 
 ### 4.2 总体流程图
 
@@ -165,7 +165,7 @@ flowchart TD
 
 ### 5.1 `MobaEffectExecutionService` 的定位
 
-[`MobaEffectExecutionService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs:24) 是效果执行的主控服务，不是单纯的 plan 执行器。
+[`MobaEffectExecutionService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs#L24) 是效果执行的主控服务，不是单纯的 plan 执行器。
 
 它负责：
 
@@ -180,9 +180,9 @@ flowchart TD
 ### 5.2 关键执行步骤
 
 1. 接收 payload。
-2. 通过 [`MobaEffectLineageInputResolver`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInputResolver.cs:1) 解析 lineage。
-3. 通过 [`MobaTriggerExecutionSnapshotBuilder`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshotBuilder.cs:1) 建快照。
-4. 通过 [`MobaCombatExecutionContextFactory`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContextFactory.cs:1) 生成正式执行上下文。
+2. 通过 [`MobaEffectLineageInputResolver`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInputResolver.cs#L1) 解析 lineage。
+3. 通过 [`MobaTriggerExecutionSnapshotBuilder`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshotBuilder.cs#L1) 建快照。
+4. 通过 [`MobaCombatExecutionContextFactory`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContextFactory.cs#L1) 生成正式执行上下文。
 5. 进入预算控制。
 6. 评估 trigger condition。
 7. 建立 execution scope。
@@ -236,7 +236,7 @@ sequenceDiagram
 
 ### 6.1 主执行上下文
 
-[`MobaCombatExecutionContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs:1) 是当前正式执行上下文。
+[`MobaCombatExecutionContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs#L1) 是当前正式执行上下文。
 
 它聚合了：
 
@@ -321,9 +321,9 @@ flowchart TD
 
 ### 7.2 当前正式构造路线
 
-- [`MobaGameplayOrigin.FromLineageContext(...)`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs:1)
-- [`MobaGameplayOrigin.FromTraceContext(...)`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs:1)
-- [`MobaGameplayOriginBuilder.FromLineageContext(...)`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOriginBuilder.cs:1)
+- [`MobaGameplayOrigin.FromLineageContext(...)`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs#L1)
+- [`MobaGameplayOrigin.FromTraceContext(...)`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs#L1)
+- [`MobaGameplayOriginBuilder.FromLineageContext(...)`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOriginBuilder.cs#L1)
 
 已经不再保留 `FromLegacy()` 作为正式路径。
 
@@ -372,18 +372,18 @@ flowchart TD
 
 ### 8.2 技能启动主链路
 
-[`SkillCastCoordinator`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs:45) 负责：
+[`SkillCastCoordinator`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs#L45) 负责：
 
 1. 接收输入。
 2. 校验 actor / slot / phase。
-3. 交给 [`SkillCastPreparationService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastPreparationService.cs:36) 做前置准备。
+3. 交给 [`SkillCastPreparationService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastPreparationService.cs#L36) 做前置准备。
 4. 获取技能配置与 pipeline。
-5. 通过 [`SkillRunnerRegistry`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillRunnerRegistry.cs:1) 管理 runner。
-6. 启动 [`SkillPipelineRunner`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs:18)。
+5. 通过 [`SkillRunnerRegistry`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillRunnerRegistry.cs#L1) 管理 runner。
+6. 启动 [`SkillPipelineRunner`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineRunner.cs#L18)。
 
 ### 8.3 准备阶段职责
 
-[`SkillCastPreparationService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastPreparationService.cs:13) 负责：
+[`SkillCastPreparationService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastPreparationService.cs#L13) 负责：
 
 - 解析 caster / target。
 - 计算 aimPos / aimDir。
@@ -430,7 +430,7 @@ classDiagram
 
 ### 8.6 运行时终止策略
 
-[`MobaSkillCastRuntimeService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:13) 支持：
+[`MobaSkillCastRuntimeService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs#L13) 支持：
 
 - `MarkPipelineEnded`
 - `Cancel`
@@ -477,7 +477,7 @@ flowchart TD
 
 ### 9.1 `MobaTriggerPlanExecutor` 的定位
 
-[`MobaTriggerPlanExecutor`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerPlanExecutor.cs:13) 是“plan 执行适配器”，不是上下文制造器。
+[`MobaTriggerPlanExecutor`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaTriggerPlanExecutor.cs#L13) 是“plan 执行适配器”，不是上下文制造器。
 
 它负责：
 
@@ -525,9 +525,9 @@ owner-bound 不是 legacy，它是域模型的一部分：
 
 ### 10.2 当前责任划分
 
-- [`MobaTriggerExecutionGateway`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs:154)
+- [`MobaTriggerExecutionGateway`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs#L154)
   - 统一收口。
-- [`MobaTriggerPlanSubscriptionService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs:18)
+- [`MobaTriggerPlanSubscriptionService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs#L18)
   - 负责注册 / 停止 / 过期清理。
 - `MobaOwnerBoundTriggerGateService`
   - 负责执行门禁与完成通知。
@@ -573,7 +573,7 @@ sequenceDiagram
 ### 11.2 典型例子
 
 - Damage:
-  - [`MobaCombatEffectService.DealDamage(...)`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaCombatEffectService.cs:19)
+  - [`MobaCombatEffectService.DealDamage(...)`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaCombatEffectService.cs#L19)
   - Damage payload 已经接入 formal lineage/origin 逻辑。
 - Buff:
   - Buff runtime 与上下文源已经通过正式 origin 方式构造。
@@ -640,20 +640,20 @@ sequenceDiagram
 
 ## 14. 相关代码索引
 
-- [`MobaEffectExecutionService.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs:24)
-- [`MobaTriggerPlanExecutor.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerPlanExecutor.cs:13)
-- [`MobaCombatExecutionContext.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs:1)
-- [`MobaTriggerInvocationContextBase.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Payload/MobaTriggerInvocationContextBase.cs:1)
-- [`MobaGameplayOrigin.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs:1)
-- [`MobaGameplayOriginBuilder.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOriginBuilder.cs:1)
-- [`MobaSkillCastRuntimeService.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:13)
-- [`MobaSkillCastRuntime.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntime.cs:557)
-- [`SkillCastCoordinator.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs:45)
-- [`SkillCastPreparationService.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastPreparationService.cs:13)
-- [`SkillPipelineRunner.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs:18)
-- [`MobaTriggerExecutionGateway.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs:154)
-- [`MobaTriggerPlanSubscriptionService.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs:18)
-- [`MobaCombatEffectService.cs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaCombatEffectService.cs:7)
+- [`MobaEffectExecutionService.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs#L24)
+- [`MobaTriggerPlanExecutor.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaTriggerPlanExecutor.cs#L13)
+- [`MobaCombatExecutionContext.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs#L1)
+- [`MobaTriggerInvocationContextBase.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Payload/MobaTriggerInvocationContextBase.cs#L1)
+- [`MobaGameplayOrigin.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs#L1)
+- [`MobaGameplayOriginBuilder.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOriginBuilder.cs#L1)
+- [`MobaSkillCastRuntimeService.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs#L13)
+- [`MobaSkillCastRuntime.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntime.cs#L557)
+- [`SkillCastCoordinator.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs#L45)
+- [`SkillCastPreparationService.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastPreparationService.cs#L13)
+- [`SkillPipelineRunner.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineRunner.cs#L18)
+- [`MobaTriggerExecutionGateway.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs#L154)
+- [`MobaTriggerPlanSubscriptionService.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs#L18)
+- [`MobaCombatEffectService.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaCombatEffectService.cs#L7)
 
 ---
 

@@ -1,5 +1,8 @@
 # AbilityKit 测试门禁与批量回归规范
 
+> 文档类型：测试执行与接入指南 | 事实基线：2026-11-22（门禁入口、静态校验与 CI 状态）
+> 测试分层和证据要求见 [正式测试流程设计](design/10-EngineeringQuality/01-TestingWorkflow.md)。本页维护选择、执行、产物与接入约定；实际配置见 [`tools/test-gates.json`](../tools/test-gates.json)。
+
 ## 1. 目标
 
 AbilityKit 当前同时包含 Unity UPM 包源码、纯 C# runtime、MOBA/Shooter 示例、服务端实验工程和工具链。为了避免大型项目常见的“功能继续堆叠但基础链路已回归”的问题，测试流程必须从零散命令升级为统一门禁制度。
@@ -61,6 +64,14 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate runtime-c
 
 ### 2.3 P2：批量回归门禁
 
+MOBA 的 ECS 字段、组件存在性、恢复所有权或载荷布局变更必须通过以下专项门禁。它先运行 `entitas-codegen`（所有项目生成基线与生成器测试），再验证真实生成组件、实体/Command、Cast 保留期、联合生命周期、Motion 碰撞资格与来源顺序、全快照预检和局部补偿；已纳入 `regression`。这不表示所有托管组件字段或 Unity/Player 都已验收。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate moba-ecs-rollback
+```
+
+专项按测试类过滤，新增相关类应同步维护过滤器；单个类内新增 Fact/Theory 自动进入。`local/probes` 中未闭环的失败反例必须显式注入才能运行，不得当作绿色门禁证据。CI 接入状态与检查方法见 [§8](#8-ci-接入与静态校验)。
+
 P2 是阶段性收口标准，用于大范围重构或合并前。它不替代 P0/P1，而是在 P0/P1 已经稳定后，用来确认主要纯 C# 测试面没有明显回归。
 
 推荐命令：
@@ -69,27 +80,29 @@ P2 是阶段性收口标准，用于大范围重构或合并前。它不替代 P
 powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate regression
 ```
 
-## 3. 当前门禁清单
+## 3. 查找当前门禁
 
-门禁定义以 [`tools/test-gates.json`](../tools/test-gates.json) 为准。当前门禁包括：
-
-| 门禁 | 层级 | 负责人域 | 作用域 | 阻断点 |
-| --- | --- | --- | --- | --- |
-| `precheck` | P0 | Core/MOBA Runtime | 本地开发、MOBA console、战斗入口 | 继续功能开发、提交 runtime/console 相关改动前 |
-| `moba-console-smoke` | P0 | MOBA Runtime/Presentation | MOBA console、表现层可测试性、战斗 smoke、技能 trace | 继续 MOBA 表现层/runtime 后续开发前 |
-| `moba-codegen` | P1 | MOBA Runtime/Compile Time | MOBA Source Generator、Analyzer、Unity package 所有权 | 合并 MOBA 代码生成、静态分析或生成清单改动前 |
-| `core-stability` | P1 | Runtime Platform | Record、StateSync、FrameSync、Host、Triggering、Context、Attributes、Modifiers、核心 UPM 直接依赖与 Attributes 零分配契约 | 合并核心包、生命周期、同步或 Attributes/Modifiers 热路径改动前 |
-| `runtime-contracts` | P1 | Runtime Platform | 网络 runtime、World DI、Game View Runtime | 合并 runtime contract 变化前 |
-| `moba-content-contracts` | P1 | MOBA Content Pipeline | 包资源所有权、TriggerPlan 聚合漂移、配置资源可加载性、跨表有效时序 | 发布 MOBA 内容或合并配置/资源改动前 |
-| `moba-acceptance-dotnet` | P1 | MOBA Acceptance/Testing | 无 Unity 的 dotnet 验收判定（STJ 解析真实期望 + harness-free 判定器 + 批量 runner → batch_summary.json）、期望 schema、dsl-regression 核心 | 合并验收判定层（`AbilityKit.Demo.Moba.Acceptance`）或 `MobaAcceptanceModels`/期望 schema 改动前；行为覆盖随 trace fixture 增长 |
-| `regression` | P2 | AbilityKit Engineering | 核心包、MOBA、Shooter、runtime contracts 批量回归 | 大范围重构、候选发布、批量合并前 |
-| `moba-xiaoqiao-unity` | P1 | MOBA Runtime/Unity Test | 小乔四个 Unity EditMode 权威用例及其落盘产物 | 宣称最新小乔 Unity 结论前 |
-
-查看完整门禁：
+不在本页复制门禁清单。用只读列表确认名称、级别、负责人、范围和失败策略；执行步骤和嵌套关系以 JSON 为准。
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -List
+./tools/run_test_gate.ps1 -List
 ```
+
+本地按影响范围选择：窄改动先跑对应测试工程或 suite；跨模块契约、发布和大范围回归按 `requiredBefore` 与 `failurePolicy` 选择 gate。`-List` 不验证路径或执行用例。
+
+`moba-ecs-rollback` 覆盖组件、已支持 Motion 子集及 `MobaProjectileAreaMotionCompositionTests` 的正式投射物/区域/位移组合。涉及实际位移恢复时，还须运行受影响的完整 MOBA 回归；专项通过不能代表全部战斗机制已支持。2026-11-18 普通 Locomotion 与受管 Motion 的共存恢复已按单独批准方案纳入 v7 验收；报告仅存于有该产物的本地工作区：旧缺口与历史证据见 `local/docs/MobaECS回滚覆盖与验收收口.2026-11-18.md`，本批结果见 `local/docs/Moba普通移动与受管位移共存恢复验收.2026-11-18.md`。
+
+### 门禁与手工入口
+
+| 用途 | 首选入口 | 结果口径 |
+| --- | --- | --- |
+| 正式执行整个门禁 | `./tools/run_test_gate.ps1 -Gate <name>` | 按配置顺序执行；完整通过需要目标门禁的汇总同时满足 `executionScope: FullGate` 与 `status: Passed`，以步骤结果核对实际覆盖。 |
+| 沿用门禁参数复查单步 | `./tools/run_test_gate.ps1 -Gate <name> -StepName '<步骤名>'` | 汇总标记 `executionScope: SingleStep` 与 `selectedStepName`，`Passed` 仅代表所选步骤（或被选中的子门禁）通过。不补跑其他前置步骤；若步骤依赖上一步产物，需跑完整门禁。 |
+| 局部检查或有独立验证目标 | 从 [工具入口](../tools/README.md) 选择已有脚本或 suite | 记录实际执行的目标、配置和结果路径，不作为父门禁通过证据。 |
+
+脚本已经被门禁调用时，允许它继续提供独立诊断或不同范围的验收，但不要复制门禁参数、顺序或判定来另做一套入口。
+
+自动消费汇总时，缺少 `executionScope` 的历史报告按范围未知处理，不仅凭 `Passed` 推断为完整通过。嵌套子门禁的汇总只说明子门禁自身的执行范围，不能替代父门禁的汇总。
 
 ## 4. 配置规范
 
@@ -130,7 +143,8 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -List
 | `dotnet-build` | 构建指定项目 | `name`、`project` |
 | `dotnet-test` | 测试指定项目 | `name`、`project`，可选 `filter` |
 | `powershell-script` | 执行仓库内 PowerShell 契约或验收脚本 | `name`、`script`，可选 `arguments`、`timeoutSeconds` |
-| `unity-editmode-test` | 运行 Unity batchmode EditMode 测试并固定落盘 `command/log/xml` 产物 | `name`、`projectPath`，可选 `testPlatform`、`testFilter`、`editorPath`、`extraArgs` |
+| `unity-editmode-test` / `unity-playmode-test` | 运行 Unity batchmode 测试并生成 `command/log/xml`；PlayMode 步骤显式设置 `testPlatform: PlayMode`，runner 未收到该字段时默认 EditMode | `name`、`projectPath`，可选 `testPlatform`、`testFilter`、`editorPath`、`extraArgs` |
+| `unity-execute-method` | 运行 Unity batchmode 的指定静态方法；结果文件随方法约定 | `name`、`projectPath`、`executeMethod`，可选 `resultsFile`、`editorPath`、`extraArgs` |
 | `gate` | 嵌套执行另一个门禁 | `name`、`gate` |
 
 ## 5. xUnit 标签规范
@@ -201,50 +215,23 @@ powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -List
 - 只跑单个测试方法后宣称门禁通过。
 - 将 P0 失败延后到 P2 批量回归再处理。
 
-## 8. CI 接入与定时检测
+## 8. CI 接入与静态校验
 
-当前脚本已经可直接用于 CI，且会统一输出到 [`artifacts/test-gates`](../artifacts/test-gates) 下的门禁运行目录。每次运行都会生成：
+**当前状态：** 仓库中的 `.github/workflows/abilitykit-test-gates.yml` 已在 `3952d9b28` 移除。`test-gates.json` 的 `ci` 和 `ciPolicy` 保留接入意图，不代表当前存在 PR/push/nightly 阻断、定时执行或上传。
 
-- 门禁输出目录。
-- 每个 `dotnet test` 的日志文件，或 Unity batchmode 的原始 `.log` 文件。
-- 每个测试步的 TRX 结果文件，或 Unity step 的 `.xml` / `.command.txt` 结果文件。
-- `gate-summary.json` 汇总文件。
+本地校验门禁名称、默认和嵌套门禁引用、配置路径、脚本语法，以及既有的 Shooter 专项配置约束：
 
-推荐阶段如下：
+```powershell
+./tools/validate_shooter_test_gates.ps1 -ConfigOnly
+```
 
-| CI 阶段 | 命令 | 目的 |
-| --- | --- | --- |
-| Pull Request quick check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate precheck -CI -ResultsDirectory artifacts\test-gates\precheck` | 快速阻断明显回归 |
-| MOBA compile-time contract check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate moba-codegen -CI -ResultsDirectory artifacts\test-gates\moba-codegen` | 校验 Roslyn 构建、生成/分析契约和 package 所有权 |
-| Core stability check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate core-stability -CI -ResultsDirectory artifacts\test-gates\core-stability` | 校验八个核心包测试、Attributes 零分配契约和 UPM 直接依赖 |
-| Runtime contract check | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate runtime-contracts -CI -ResultsDirectory artifacts\test-gates\runtime-contracts` | 校验网络、DI 和表现运行时契约 |
-| Nightly regression | `powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate regression -CI -ResultsDirectory artifacts\test-gates\regression` | 批量回归，包含嵌套 `core-stability` |
+报告默认写入 `local/Logs/test-gates/contract-validation/report.json`，范围为 `ConfigOnly`；不会读 workflow 或执行测试。将来接入时，去掉 `-ConfigOnly` 并用 `-WorkflowPath` 指向真实工作流，严格模式另核验工作流和上传契约；缺失工作流会失败，不能作为配置通过来替代。
 
-对应的 GitHub Actions 工作流位于 [`/.github/workflows/abilitykit-test-gates.yml`](../.github/workflows/abilitykit-test-gates.yml)。
-
-### 8.1 定时策略
-
-当前定时策略以 `workflow schedule` 为准：
-
-- `0 18 * * *` UTC，每天触发一次。
-- 对应北京时间约为每天 02:00。
-- pull request 和 push 独立执行 `core-stability`，便于快速定位核心包失败。
-- 定时和手工任务由 `regression` 嵌套执行 `core-stability`，避免同一工作流重复运行核心测试。
-- 定时任务默认执行 `regression` 门禁，适合做夜间批量回归和失效检测。
-
-### 8.2 CI 产物约定
-
-每次 CI 运行建议上传整个门禁目录作为 artifact，便于排查：
-
-- `gate-summary.json`：门禁状态、耗时、失败步骤。
-- `*.log`：每个 step 的原始命令输出。
-- `*.trx`：Test Explorer / CI 可直接读取的测试结果。
-
-如果后续要引入覆盖率或更多 Unity batchmode 门禁，只需要继续沿用同一目录结构即可。
+在实际工作流中显式触发 `./tools/run_test_gate.ps1 -Gate <name> -CI -ResultsDirectory artifacts/test-gates/<job>`，按实际需要设置事件和频率，失败时也保留整个该次门禁输出目录（汇总、原始日志和测试结果）。`-CI` 不会自动改用 `artifacts/`，也不会上传产物。本地运行仍默认写入 `local/Logs/test-gates/`。
 
 ## 9. 维护规则
 
-1. 新增门禁必须同时更新 [`tools/test-gates.json`](../tools/test-gates.json) 和本文档。
+1. 门禁定义、步骤和默认参数只在 [`tools/test-gates.json`](../tools/test-gates.json) 维护；执行、证据或接入约定发生变化时才同步更新相关文档，不维护全量清单副本。
 2. 删除门禁必须说明替代门禁或删除原因。
 3. 修改 P0 门禁前必须确认不会降低继续开发前置保障。
 4. `regression` 可以变大，但 P0 应保持快速。

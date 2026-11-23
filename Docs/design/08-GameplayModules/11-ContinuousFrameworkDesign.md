@@ -50,7 +50,7 @@ Tick、周期处理、Modifier 投影、表现 Cue、标签驱动暂停/终止�
 | 间隔处理器 | `Application/Services/Continuous/Runtime/MobaContinuousTickProcessor.cs` | 驱动间隔效果 |
 | 标签规则 | `Application/Services/Continuous/Tags/MobaContinuousTagRuleService.cs` | 标签驱动的激活/暂停/终止 |
 | 修饰器投影 | `Application/Services/Continuous/Modifiers/MobaAttributeContinuousModifierProjector.cs` | 属性修改器 |
-| Buff 运行时 | `Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` | Buff 的 Continuous 实现 |
+| Buff 运行时 | `Application/Buffs/Runtime/BuffContinuousRuntime.cs` | Buff 的 Continuous 实现 |
 | 移动运行时 | `Application/Services/Motion/MobaMotionContinuousRuntime.cs` | 移动源的 Continuous 实现 |
 | Triggering 集成 | `Runtime/RuntimeServices/Continuous/ContinuousExecutorBase.cs` | 旧版 Continuous 与 IContinuous 桥接 |
 | Behavior 集成 | `Runtime/Runtime/BehaviorRuntime.cs` | BehaviorRuntime 实现 IContinuous |
@@ -674,6 +674,7 @@ flowchart TB
 | [13-持续行为能力组合设计](../09-ImplementationExamples/MOBA/13-ContinuousCapabilityCompositionDesign.md) | 五种 runtime model 的能力组合边界 |
 | [16-领域连续运行时与临时实体生命周期](../09-ImplementationExamples/MOBA/16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md) | Motion source、Summon 与 Continuous 的生命周期协作 |
 | [13-FrameworkCore/02-BehaviorTreeIntegrationDesign.md](../13-FrameworkCore/02-BehaviorTreeIntegrationDesign.md) | BehaviorRuntime 与 IContinuous 的集成 |
+| [Pipeline 与 Continuous 状态边界审查](../10-EngineeringQuality/13-PipelineContinuousStateReview.md) | 有序名单、领域状态与可选恢复适配的实际边界 |
 
 ---
 

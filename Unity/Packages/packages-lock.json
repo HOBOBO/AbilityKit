@@ -62,7 +62,7 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.thirdparty.unsafe": "5.0.0"
+        "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0"
       }
     },
     "com.abilitykit.attributes": {
@@ -233,7 +233,7 @@
         "com.abilitykit.host": "0.1.0",
         "com.abilitykit.protocol": "0.1.0",
         "com.cysharp.memorypack": "1.10.0",
-        "com.abilitykit.thirdparty.unsafe": "5.0.0"
+        "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0"
       }
     },
     "com.abilitykit.core": {
@@ -296,7 +296,8 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.environment": "0.1.0",
-        "com.abilitykit.battlescenario": "0.1.0"
+        "com.abilitykit.battlescenario": "0.1.0",
+        "com.abilitykit.scenario": "0.1.0"
       }
     },
     "com.abilitykit.demo.moba.host": {
@@ -361,6 +362,7 @@
         "com.abilitykit.record": "0.1.0",
         "com.abilitykit.game.battle.runtime": "0.1.0",
         "com.abilitykit.network.battle": "0.1.0",
+        "com.abilitykit.network.runtime": "0.1.0",
         "com.abilitykit.gameplaytags": "0.1.0",
         "com.abilitykit.host.extension": "0.1.0",
         "com.abilitykit.demo.moba.host": "0.0.1",
@@ -373,7 +375,7 @@
         "com.abilitykit.world.networkfragments": "0.1.0",
         "com.abilitykit.world.statesync": "0.1.0",
         "com.cysharp.memorypack": "1.10.0",
-        "com.abilitykit.thirdparty.unsafe": "5.0.0",
+        "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0",
         "com.abilitykit.deterministic": "0.1.0",
         "com.abilitykit.environment": "0.1.0"
       }
@@ -593,7 +595,7 @@
         "com.abilitykit.network.runtime": "0.1.0",
         "com.abilitykit.protocol.room": "0.1.0",
         "com.abilitykit.world.framesync": "0.1.0",
-        "com.abilitykit.thirdparty.unsafe": "5.0.0"
+        "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0"
       }
     },
     "com.abilitykit.demo.tiny.logic": {
@@ -928,7 +930,7 @@
         "com.abilitykit.world.snapshot": "0.1.0",
         "com.abilitykit.host": "0.1.0",
         "com.cysharp.memorypack": "1.10.0",
-        "com.abilitykit.thirdparty.unsafe": "5.0.0"
+        "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0"
       }
     },
     "com.abilitykit.record.memorypack": {
@@ -1015,14 +1017,8 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.thirdparty.unsafe": "5.0.0"
+        "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0"
       }
-    },
-    "com.abilitykit.thirdparty.unsafe": {
-      "version": "file:com.abilitykit.thirdparty.unsafe",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
     },
     "com.abilitykit.timer": {
       "version": "file:com.abilitykit.timer",
@@ -1052,7 +1048,7 @@
         "com.abilitykit.modifiers": "0.1.0",
         "com.abilitykit.world.di": "0.1.0",
         "com.abilitykit.deterministic": "0.1.0",
-        "com.abilitykit.analyzer": "0.1.0"
+        "com.unity.nuget.newtonsoft-json": "3.2.1"
       }
     },
     "com.abilitykit.unity.pool": {
@@ -1069,7 +1065,9 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
-        "com.abilitykit.deterministic": "0.1.0"
+        "com.abilitykit.deterministic": "0.1.0",
+        "com.cysharp.memorypack": "1.10.0",
+        "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0"
       }
     },
     "com.abilitykit.world.ecs": {
@@ -1098,7 +1096,7 @@
         "com.abilitykit.core": "0.1.0",
         "com.abilitykit.deterministic": "0.1.0",
         "com.abilitykit.world.di": "0.1.0",
-        "com.abilitykit.thirdparty.unsafe": "5.0.0",
+        "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0",
         "com.cysharp.memorypack": "1.10.0"
       }
     },
@@ -1130,7 +1128,7 @@
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
         "com.abilitykit.world.snapshot": "0.1.0",
-        "com.abilitykit.thirdparty.unsafe": "5.0.0",
+        "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0",
         "com.cysharp.memorypack": "1.10.0"
       }
     },
@@ -1343,6 +1341,13 @@
         "com.unity.modules.jsonserialize": "1.0.0"
       },
       "url": "https://packages.unity.com"
+    },
+    "org.nuget.system.runtime.compilerservices.unsafe": {
+      "version": "5.0.0",
+      "depth": 1,
+      "source": "registry",
+      "dependencies": {},
+      "url": "https://package.openupm.com"
     },
     "com.unity.modules.ai": {
       "version": "1.0.0",

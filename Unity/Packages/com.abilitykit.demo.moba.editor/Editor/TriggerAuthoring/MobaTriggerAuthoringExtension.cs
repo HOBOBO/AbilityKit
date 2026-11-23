@@ -360,6 +360,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("target_missing_hp_bonus_max", TriggerValueType.Number),
                 Optional("target_missing_hp_damage_scale_coefficient", TriggerValueType.Number),
                 Optional("target_missing_hp_damage_scale_max_bonus", TriggerValueType.Number),
+                Optional("projectile_impact_kill_bonus", TriggerValueType.Number),
                 Optional("damage_scale", TriggerValueType.Number),
                 Optional("damage_scale_skill_level_parameter", TriggerValueType.String),
                 Optional("damage_min", TriggerValueType.Number),
@@ -403,6 +404,8 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("shield_id", TriggerValueType.Integer),
                 OneOf("shield_amount", "shield_value", TriggerValueType.Number),
                 Optional("absorb_ratio", TriggerValueType.Number),
+                Optional("retaliation_skill_level_parameter", TriggerValueType.String),
+                Optional("retaliation_magic_ratio", TriggerValueType.Number),
                 Optional("priority", TriggerValueType.Integer),
                 Optional("damage_type_mask", TriggerValueType.Integer),
                 Optional("duration_frames", TriggerValueType.Integer),
@@ -445,14 +448,14 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 DamageType("heal_type"), DamageReason("reason_kind"),
                 Optional("reason_param", TriggerValueType.Integer))));
 
-            context.RegisterAction(Action("shoot_projectile", "发射投射物", "Action/Projectile", WithTargets(
+            context.RegisterAction(Action("shoot_projectile", "发射投射物", "Action/Projectile", WithTargets(WithMagnitude(null,
                 Reference("launcher_id", ProjectileLauncherSemanticId),
                 Reference("projectile_id", ProjectileSemanticId),
                 Optional("continuous_process_id", TriggerValueType.Integer),
                 Optional("track_target", TriggerValueType.Boolean),
                 Optional("use_aim_distance", TriggerValueType.Boolean),
                 OptionalOutput("result", TriggerValueType.Integer),
-                OptionalOutput("result_count", TriggerValueType.Integer))));
+                OptionalOutput("result_count", TriggerValueType.Integer)))));
             context.RegisterAction(Action("remove_projectile", "移除投射物", "Action/Projectile"));
             context.RegisterAction(Action("spawn_summon", "生成召唤物", "Action/Summon",
                 Reference("summon_id", SummonSemanticId),
@@ -473,6 +476,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("reason", TriggerValueType.Integer))));
             context.RegisterAction(Action("spawn_area", "生成区域", "Action/Area", WithTargets(
                 Reference("area_id", AreaSemanticId),
+                new TriggerParameterDescriptor("replace_event_area", TriggerValueType.Boolean, false, TriggerValueSourceMask.Constant),
                 Optional("forward_yaw_deg", TriggerValueType.Number),
                 Optional("capture_cast_frame", TriggerValueType.Boolean),
                 Optional("position_mode", TriggerValueType.Integer), Optional("radius", TriggerValueType.Number),
@@ -789,7 +793,8 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                     Choice("source", false,
                         Option(3, "上下文目标"), Option(4, "自身"), Option(2, "指定实体"),
                         Option(1, "全部实体"), Option(5, "同队实体"), Option(6, "敌方实体"),
-                        Option(7, "主类型"), Option(8, "单位子类型"), Option(1000, "查询模板")),
+                        Option(7, "主类型"), Option(8, "单位子类型"),
+                        Option(9, "自己的活体召唤物（参数：召唤模板 ID）"), Option(1000, "查询模板")),
                     Optional("source_param", TriggerValueType.Integer),
                     Choice("filter", false,
                         Option(0, "无"), Option(0x0204, "要求有效 ID"), Option(0x0205, "要求位置信息"),
@@ -810,7 +815,8 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Choice("target_source", false,
                     Option(3, "上下文目标"), Option(4, "自身"), Option(2, "指定实体"),
                     Option(1, "全部实体"), Option(5, "同队实体"), Option(6, "敌方实体"),
-                    Option(7, "主类型"), Option(8, "单位子类型"), Option(1000, "查询模板")),
+                    Option(7, "主类型"), Option(8, "单位子类型"),
+                    Option(9, "自己的活体召唤物（参数：召唤模板 ID）"), Option(1000, "查询模板")),
                 Optional("target_source_param", TriggerValueType.Integer),
                 Choice("target_filter", false,
                     Option(0, "无"), Option(0x0204, "要求有效 ID"), Option(0x0205, "要求位置信息"),

@@ -34,6 +34,14 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
         }
 
         public LogicWorldInputSubmitResult TrySubmit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
+            => TrySubmitWithContext(frame, inputs, null);
+
+        /// <summary>
+        /// 在保留批次校验和派发规则的前提下使用调用者指定的执行上下文。
+        /// 未提供上下文时从当前世界创建默认上下文。
+        /// </summary>
+        protected LogicWorldInputSubmitResult TrySubmitWithContext(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs, TContext context,
+            Action<int> beforeCommand = null, Action<int, MobaInputCommandResult> afterCommand = null)
         {
             if (inputs == null || inputs.Count == 0)
             {
@@ -55,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
                 return LogicWorldInputSubmitResult.Rejected(LogicWorldInputSubmitFailureCode.CommandFrameMismatch, commandFrameError);
             }
 
-            TContext context = CreateContext(frame, inputs);
+            context ??= CreateContext(frame, inputs);
             if (context == null)
             {
                 const string message = "input context creation returned null";
@@ -68,6 +76,7 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
             for (int i = 0; i < inputs.Count; i++)
             {
                 PlayerInputCommand command = inputs[i];
+                beforeCommand?.Invoke(i);
                 bool handledBeforeDispatch = TryHandleBeforeDispatch(context, frame, command);
                 bool handledByDispatch = false;
                 if (handledBeforeDispatch)
@@ -98,10 +107,12 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
                         MobaInputDiagnostics.RecordCommandRejected(_diagnostics, frame, in commandResult, GetType().Name);
                     }
 
+                    afterCommand?.Invoke(i, commandResult);
                     dispatchTrace.Record(i, handledBeforeDispatch, handledByDispatch, in commandResult);
                     continue;
                 }
 
+                afterCommand?.Invoke(i, default);
                 dispatchTrace.Record(i, handledBeforeDispatch, handledByDispatch);
             }
 

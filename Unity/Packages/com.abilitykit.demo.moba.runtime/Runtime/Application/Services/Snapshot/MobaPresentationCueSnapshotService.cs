@@ -116,7 +116,16 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        public bool TryGetActiveBaseline(out WorldStateSnapshot snapshot)
+        public bool TryGetActiveBaseline(out WorldStateSnapshot snapshot) =>
+            BuildActiveBaseline(_lastFrame.Value, advanceSequence: true, out snapshot);
+
+        /// <summary>
+        /// 为同帧状态投影读取完整活动集，不消费帧同步事件缓冲、不推进 Cue 序列。
+        /// </summary>
+        public bool TryCaptureStateSyncBaseline(FrameIndex frame, out WorldStateSnapshot snapshot) =>
+            BuildActiveBaseline(frame.Value, advanceSequence: false, out snapshot);
+
+        private bool BuildActiveBaseline(int frame, bool advanceSequence, out WorldStateSnapshot snapshot)
         {
             if (!_phase.InGame)
             {
@@ -134,8 +143,8 @@ namespace AbilityKit.Demo.Moba.Services
                 entry.SnapshotKind = (int)PresentationCueSnapshotKind.ActiveBaseline;
                 entry.WorldId = _worldId;
                 entry.Generation = _generation;
-                entry.SourceFrame = _lastFrame.Value;
-                entry.Sequence = ++_sequence;
+                entry.SourceFrame = frame;
+                if (advanceSequence) entry.Sequence = ++_sequence;
                 entry.Revision = item.Revision;
                 entries.Add(entry);
             }
@@ -145,8 +154,8 @@ namespace AbilityKit.Demo.Moba.Services
                 SnapshotKind = (int)PresentationCueSnapshotKind.ActiveBaselineEnd,
                 WorldId = _worldId,
                 Generation = _generation,
-                SourceFrame = _lastFrame.Value,
-                Sequence = ++_sequence,
+                SourceFrame = frame,
+                Sequence = advanceSequence ? ++_sequence : _sequence,
             });
 
             var payloadEntries = _pool.RentExact(entries.Count);

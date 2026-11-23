@@ -5,7 +5,10 @@ using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Ability.World.DI
 {
-    public sealed class WorldScope : IWorldResolver, IServiceProvider, IDisposable
+    /// <summary>
+    /// 解析世界作用域内的服务，拥有受管的作用域实例，不接管外部播种或瞬时实例。
+    /// </summary>
+    public sealed class WorldScope : IWorldScope, IServiceProvider
     {
         private readonly WorldContainer _root;
 
@@ -18,7 +21,8 @@ namespace AbilityKit.Ability.World.DI
 
         private readonly List<object> _disposeOrder = new List<object>(32);
         private readonly HashSet<object> _ownedInstances = new HashSet<object>(ReferenceEqualityComparer.Instance);
-        private readonly HashSet<object> _initialized = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        private readonly WorldContainer.InitializationTracker _initialization = new WorldContainer.InitializationTracker();
+        private bool _disposing;
         private bool _disposed;
 
         internal WorldScope(WorldContainer root)
@@ -26,8 +30,14 @@ namespace AbilityKit.Ability.World.DI
             _root = root ?? throw new ArgumentNullException(nameof(root));
         }
 
+        /// <summary>
+        /// 获取根解析器；释放本作用域不会释放根容器。
+        /// </summary>
         public IWorldResolver Root => _root;
 
+        /// <summary>
+        /// 优先解析内建入口或本作用域的播种实例，否则按根容器中的注册解析。
+        /// </summary>
         public object Resolve(Type serviceType)
         {
             ThrowIfDisposed();
@@ -76,17 +86,26 @@ namespace AbilityKit.Ability.World.DI
             _seeded[serviceType] = instance;
         }
 
+        /// <summary>
+        /// 从本作用域解析服务；空类型返回空值，非空类型沿用 Resolve 的异常行为。
+        /// </summary>
         public object GetService(Type serviceType)
         {
             if (serviceType == null) return null;
             return Resolve(serviceType);
         }
 
+        /// <summary>
+        /// 按泛型契约解析服务，沿用非泛型入口的解析顺序和异常规则。
+        /// </summary>
         public T Resolve<T>()
         {
             return (T)Resolve(typeof(T));
         }
 
+        /// <summary>
+        /// 尝试解析服务；未注册或已释放时返回假，循环依赖等无效操作异常仍会传播。
+        /// </summary>
         public bool TryResolve(Type serviceType, out object instance)
         {
             if (serviceType == null)
@@ -148,6 +167,9 @@ namespace AbilityKit.Ability.World.DI
             }
         }
 
+        /// <summary>
+        /// 尝试解析可赋值给泛型契约的实例，沿用非泛型入口的异常规则。
+        /// </summary>
         public bool TryResolve<T>(out T instance)
         {
             if (TryResolve(typeof(T), out var obj) && obj is T t)
@@ -170,11 +192,7 @@ namespace AbilityKit.Ability.World.DI
             return created;
         }
 
-        internal void TryInit(object instance)
-        {
-            if (instance != null && _initialized.Add(instance) && instance is IWorldInitializable init)
-                init.OnInit(this);
-        }
+        internal void EnsureInitialized(object instance) => _initialization.EnsureInitialized(instance, this);
 
         private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
         {
@@ -199,38 +217,49 @@ namespace AbilityKit.Ability.World.DI
             if (_disposed) throw new ObjectDisposedException(nameof(WorldScope));
         }
 
+        /// <summary>
+        /// 逆登记顺序释放作用域拥有的实例；不释放播种实例，释放回调重入时直接返回。
+        /// </summary>
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed || _disposing) return;
+            _disposing = true;
 
-            for (int i = _disposeOrder.Count - 1; i >= 0; i--)
+            try
             {
-                var instance = _disposeOrder[i];
-                try
+                for (int index = _disposeOrder.Count - 1; index >= 0; index--)
                 {
-                    TryDeinit(instance);
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, "[WorldScope] scoped deinit failed");
+                    var instance = _disposeOrder[index];
+                    try
+                    {
+                        TryDeinit(instance);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, "[WorldScope] scoped deinit failed");
+                    }
+
+                    try
+                    {
+                        if (instance is IDisposable disposable) disposable.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, "[WorldScope] scoped dispose failed");
+                    }
                 }
 
-                try
-                {
-                    if (instance is IDisposable d) d.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, "[WorldScope] scoped dispose failed");
-                }
+                _disposed = true;
+                _disposeOrder.Clear();
+                _ownedInstances.Clear();
+                _initialization.Clear();
+                _scoped.Clear();
+                _seeded.Clear();
             }
-
-            _disposed = true;
-            _disposeOrder.Clear();
-            _ownedInstances.Clear();
-            _initialized.Clear();
-            _scoped.Clear();
-            _seeded.Clear();
+            finally
+            {
+                _disposing = false;
+            }
         }
     }
 }

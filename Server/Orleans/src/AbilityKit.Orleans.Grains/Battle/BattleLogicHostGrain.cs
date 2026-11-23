@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Orleans.Grains.Gameplays.Moba.Battle;
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
@@ -34,6 +37,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private BattleSnapshotSyncPolicy _snapshotSyncPolicy = new();
     private readonly BattleSnapshotPublisher<IStateSyncObserverGrain, StateSyncPush> _snapshotPublisher;
     private readonly Dictionary<IStateSyncObserverGrain, SnapshotDeliveryInFlight> _snapshotDeliveries = new();
+    private FixedBaselineSnapshotStream _fixedBaselineStream = new(tickRate: 30);
     private readonly Dictionary<uint, ulong> _consumedCommandSequences = new();
     private readonly BattleServerPerformanceDiagnostics _performanceDiagnostics = new();
     // Cache the method-group once. Installing the stage sink is a lifecycle operation;
@@ -62,6 +66,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private string? _initSpecHash;
     private bool _externalTickMode;
     private Guid _runtimeGeneration;
+    private bool _settledClockBound;
+    private bool _settledClockFaulted;
 
     public BattleLogicHostGrain(
         ILogger<BattleLogicHostGrain> logger,
@@ -175,6 +181,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             syncOptions?.InputDelayFrames ?? 0);
         _worldId = initParams.WorldId;
         _tickRate = initParams.TickRate > 0 ? initParams.TickRate : 30;
+        _fixedBaselineStream = new FixedBaselineSnapshotStream(_tickRate,
+            syncTemplate.Mode == ServerBattleSyncMode.StateSync ? _snapshotSyncPolicy.FullSnapshotInterval : null);
         _tickInterval = TimeSpan.FromSeconds(1.0 / _tickRate);
         _inputDelayFrames = initParams.InputDelayFrames > 0 ? initParams.InputDelayFrames : 0;
         _worldStartAnchor = new WorldStartAnchor(
@@ -529,7 +537,18 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
         eventCursor ??= new ReliableBattleEventSubscribeCursor();
         var observerContext = CreateObserverContext(observerInfo);
+        if (observerContext.UsesFixedBaseline &&
+            (_runtimeSession is not IFixedBaselineBattleSnapshotSource || !_initialized ||
+             _syncProfile?.ResolveTemplate(_syncTemplateId)?.SupportsStateSyncPush != true))
+        {
+            throw new InvalidOperationException("Fixed baseline snapshots are not supported by this battle.");
+        }
         var added = _observerRegistry.Subscribe(observer);
+        if (_observerContexts.TryGetValue(observer, out var previousContext) &&
+            previousContext.UsesFixedBaseline != observerContext.UsesFixedBaseline)
+        {
+            _snapshotDeliveries.Remove(observer);
+        }
         _observerContexts[observer] = observerContext;
         if (added)
         {
@@ -597,7 +616,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return Task.CompletedTask;
         }
 
-        _observerContexts[observer] = CreateObserverContext(observerInfo);
+        if (!_observerContexts.ContainsKey(observer))
+            _observerContexts[observer] = CreateObserverContext(observerInfo);
         PushSnapshotTo(observer, isFullSnapshot: true);
         return Task.CompletedTask;
     }
@@ -632,10 +652,95 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return Task.CompletedTask;
     }
 
+    public Task<BattleFrameSettlement?> TickSettledFrameAsync(ulong worldId, Guid runtimeGeneration, int frame,
+        IReadOnlyList<FrameInputItem> frameInputs)
+    {
+        if (!_initialized || !_externalTickMode || _initialCheckpoint == null || !CanEnterSettledClock() ||
+            worldId != _worldId || runtimeGeneration != _runtimeGeneration || frame != _battleHostState.Frame ||
+            _runtimeSession is not IMobaSettledFrameRuntime settledRuntime)
+            return Task.FromResult<BattleFrameSettlement?>(null);
+
+        _settledClockBound = true;
+        _settledClockFaulted = true;
+        var tickStartedAt = Stopwatch.GetTimestamp();
+        _performanceDiagnostics.BeginTick(frame, tickStartedAt);
+        try
+        {
+            var inputs = ConvertFrameInputs(frameInputs);
+            if (!settledRuntime.TryTickSettledFrame(frame, _tickRate, inputs, out var outcomes, out var decisions) ||
+                outcomes.Count != inputs.Length)
+                return Task.FromResult<BattleFrameSettlement?>(null);
+
+            _performanceDiagnostics.RecordStage(BattleServerStage.WorldTick, tickStartedAt, Stopwatch.GetTimestamp());
+
+            var commands = ImmutableArray.CreateBuilder<SettledFrameCommand>(outcomes.Count);
+            foreach (var outcome in outcomes)
+            {
+                var disposition = outcome.Disposition switch
+                {
+                    MobaFrameInputDisposition.Executed => SettledCommandDisposition.Executed,
+                    MobaFrameInputDisposition.Rejected => SettledCommandDisposition.Rejected,
+                    MobaFrameInputDisposition.Duplicate => SettledCommandDisposition.Duplicate,
+                    _ => throw new InvalidOperationException("Cannot publish an unproven command outcome.")
+                };
+                var payload = disposition == SettledCommandDisposition.Executed
+                    ? ImmutableArray.CreateRange(outcome.CopyExecutedInput().Payload ?? Array.Empty<byte>())
+                    : ImmutableArray<byte>.Empty;
+                var input = inputs[outcome.Ordinal];
+                commands.Add(new SettledFrameCommand(outcome.Ordinal, disposition, input.PlayerId, input.OpCode, payload));
+            }
+
+            var entries = ImmutableArray.CreateBuilder<SettledFrameDecision>(decisions.Count);
+            foreach (var decision in decisions)
+            {
+                var entry = decision.Entry;
+                entries.Add(new SettledFrameDecision(decision.Ordinal, entry.ActorId, entry.EntityVersion,
+                    entry.PredictionKey, entry.SkillId, entry.Accepted, entry.AuthoritativeFrame,
+                    entry.Reason, entry.InterruptEpoch, entry.AuthoritySequence));
+            }
+
+            var result = new BattleFrameSettlement(runtimeGeneration, frame, commands.MoveToImmutable(), entries.MoveToImmutable());
+            _battleHostState.AdvanceFrame();
+            PublishExternalTickOutputs(frame, worldTicked: true);
+            _settledClockFaulted = false;
+            return Task.FromResult<BattleFrameSettlement?>(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[BattleLogicHost] Settled frame failed. Frame: {Frame}", frame);
+            return Task.FromResult<BattleFrameSettlement?>(null);
+        }
+        finally
+        {
+            CompletePerformanceTick(Stopwatch.GetTimestamp());
+        }
+    }
+
+    private bool CanEnterSettledClock() => !_settledClockFaulted && (_settledClockBound || _battleHostState.Frame == 1);
+
+    private static BattleInputItem[] ConvertFrameInputs(IReadOnlyList<FrameInputItem>? frameInputs)
+    {
+        var inputs = new BattleInputItem[frameInputs?.Count ?? 0];
+        for (var index = 0; index < inputs.Length; index++)
+        {
+            var input = frameInputs![index];
+            inputs[index] = new BattleInputItem { PlayerId = input.PlayerId, OpCode = input.OpCode, Payload = input.Payload };
+        }
+        return inputs;
+    }
+
+    private void PublishExternalTickOutputs(int frame, bool worldTicked)
+    {
+        if (worldTicked) _ = CaptureAndPublishReliableEventsAsync(frame);
+        if (_snapshotSyncPolicy.ShouldPublish(frame, _observerRegistry.Count, worldTicked))
+            PushSnapshot(frame, _snapshotSyncPolicy.ShouldCreateFullSnapshot(frame));
+        _ = FlushSnapshotDeliveriesAsync();
+    }
+
     public Task<BattleTickFrameResult> TickFrameAsync(ulong worldId, int frame, float deltaTime,
         IReadOnlyList<FrameInputItem> frameInputs)
     {
-        if (!_initialized || _runtimeSession is null)
+        if (!_initialized || _runtimeSession is null || _settledClockBound)
         {
             return Task.FromResult(new BattleTickFrameResult(frame, false, 0));
         }
@@ -660,20 +765,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             }
 
             // 1. 将帧同步输入转换为 BattleInputItem 并提交给运行时
-            var battleInputs = new BattleInputItem[frameInputs?.Count ?? 0];
-            if (frameInputs is { Count: > 0 })
-            {
-                for (var i = 0; i < frameInputs.Count; i++)
-                {
-                    var fi = frameInputs[i];
-                    battleInputs[i] = new BattleInputItem
-                    {
-                        PlayerId = fi.PlayerId,
-                        OpCode = fi.OpCode,
-                        Payload = fi.Payload
-                    };
-                }
-            }
+            var battleInputs = ConvertFrameInputs(frameInputs);
 
             var inputStartedAt = Stopwatch.GetTimestamp();
             var submittedInputCount = _runtimeSession.SubmitInputs(frame, battleInputs);
@@ -706,21 +798,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             // 3. 推进帧计数器
             _battleHostState.AdvanceFrame();
 
-            // 4. 捕获并发布可靠事件
-            if (worldTicked)
-            {
-                // 可靠事件捕获（fire-and-forget，不阻塞帧时钟）
-                _ = CaptureAndPublishReliableEventsAsync(frame);
-            }
-
-            // 5. 发布快照
-            if (_snapshotSyncPolicy.ShouldPublish(frame, _observerRegistry.Count, worldTicked))
-            {
-                PushSnapshot(frame, _snapshotSyncPolicy.ShouldCreateFullSnapshot(frame));
-            }
-
-            // 6. 刷新快照投递（fire-and-forget）
-            _ = FlushSnapshotDeliveriesAsync();
+            PublishExternalTickOutputs(frame, worldTicked);
 
             // 7. 获取状态 hash。不要在每个 tick 构造完整 WorldDiagnostics；
             // Shooter 的完整实体诊断包含字典、组件列表和格式化字符串，应该只
@@ -971,6 +1049,11 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
     private void PushSnapshotTo(IStateSyncObserverGrain observer, bool isFullSnapshot)
     {
+        if (UsesFixedBaseline(observer))
+        {
+            _fixedBaselineStream.RequestFull();
+            return;
+        }
         _snapshotPublisher.PublishTo(
             observer,
             _battleHostState.Frame,
@@ -994,6 +1077,37 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             }
 
             var observers = _observerRegistry.Snapshot();
+            if (_runtimeSession is IFixedBaselineBattleSnapshotSource fixedBaselineSource &&
+                observers.Any(UsesFixedBaseline))
+            {
+                try
+                {
+                    var projection = fixedBaselineSource.CaptureFixedBaselineProjection(_worldId, frame);
+                    NormalizeStateSyncPush(projection, frame, isFullSnapshot);
+                    if (TryBuildFixedBaselineDelivery(syncTemplate?.Mode, _fixedBaselineStream, projection, isFullSnapshot,
+                        out var push, out var wireBytes, out var fullReason))
+                    {
+                        if (push.IsFullSnapshot)
+                            _logger.LogDebug("Fixed baseline full snapshot. BattleId={BattleId}, Frame={Frame}, Reason={Reason}, Bytes={Bytes}",
+                                _battleId, frame, fullReason, wireBytes);
+                        foreach (var observer in observers)
+                            if (UsesFixedBaseline(observer)) SendSnapshotDelivery(observer, push);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Fixed baseline snapshot exceeded the wire budget. Frame={Frame}, Reason={Reason}, Bytes={Bytes}",
+                            frame, fullReason, wireBytes);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    _fixedBaselineStream.RequestFull();
+                    _logger.LogWarning(exception, "Fixed baseline snapshot publication failed. Frame={Frame}", frame);
+                }
+
+                observers = observers.Where(observer => !UsesFixedBaseline(observer)).ToArray();
+                if (observers.Count == 0) return;
+            }
             if (_runtimeSession is IObserverAwareBattleRuntimeSession)
             {
                 _snapshotPublisher.PublishPerObserver(observers, frame, isFullSnapshot, BuildStateSyncPush);
@@ -1029,6 +1143,9 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
         return BuildStateSyncPush(frame, isFullSnapshot);
     }
+
+    private bool UsesFixedBaseline(IStateSyncObserverGrain observer)
+        => _observerContexts.TryGetValue(observer, out var context) && context.UsesFixedBaseline;
 
     private StateSyncPush BuildStateSyncPush(int frame, bool isFullSnapshot)
     {
@@ -1094,7 +1211,31 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return acknowledgements;
     }
 
-    private void SendStateSyncPush(IStateSyncObserverGrain observer, StateSyncPush push)
+    internal static bool TryBuildFixedBaselineDelivery(ServerBattleSyncMode? mode, FixedBaselineSnapshotStream stream,
+        StateSyncPush projection, bool isFullSnapshot, out SnapshotDeliveryPayload delivery, out int wireBytes,
+        out FixedBaselineFullReason fullReason)
+    {
+        delivery = default;
+        if (mode == ServerBattleSyncMode.StateSync)
+        {
+            if (!stream.TryPrepareDelivery(projection, isFullSnapshot, out var prepared, out wireBytes, out fullReason))
+                return false;
+            delivery = new SnapshotDeliveryPayload(prepared);
+        }
+        else
+        {
+            if (!stream.TryEncode(projection, isFullSnapshot, out var structured, out wireBytes, out fullReason))
+                return false;
+            delivery = new SnapshotDeliveryPayload(structured);
+        }
+
+        return true;
+    }
+
+    private void SendStateSyncPush(IStateSyncObserverGrain observer, StateSyncPush push) =>
+        SendSnapshotDelivery(observer, new SnapshotDeliveryPayload(push));
+
+    private void SendSnapshotDelivery(IStateSyncObserverGrain observer, SnapshotDeliveryPayload push)
     {
         if (_snapshotDeliveries.TryGetValue(observer, out var inFlight))
         {
@@ -1120,12 +1261,12 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         }
     }
 
-    private async Task ObserveSnapshotDeliveryAsync(IStateSyncObserverGrain observer, StateSyncPush push)
+    private async Task ObserveSnapshotDeliveryAsync(IStateSyncObserverGrain observer, SnapshotDeliveryPayload push)
     {
         var startedAt = Stopwatch.GetTimestamp();
         try
         {
-            var result = await observer.OnSnapshotPushedAsync(push);
+            var result = await push.SendAsync(observer);
             HandleSnapshotDeliveryResult(observer, push.Frame, result);
         }
         catch (Exception exception)
@@ -1220,14 +1361,9 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return false;
     }
 
-    internal static StateSyncPush CoalescePendingSnapshot(StateSyncPush? current, StateSyncPush candidate)
+    internal static SnapshotDeliveryPayload CoalescePendingSnapshot(SnapshotDeliveryPayload? current, SnapshotDeliveryPayload candidate)
     {
-        if (current == null || candidate.IsFullSnapshot || !current.IsFullSnapshot)
-        {
-            return candidate;
-        }
-
-        return current;
+        return current is { IsFullSnapshot: true } pending && !candidate.IsFullSnapshot ? pending : candidate;
     }
 
     private void HandleSnapshotDeliveryResult(
@@ -1258,7 +1394,10 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return new BattleStateSyncObserverContext(
             info?.ObserverKey ?? string.Empty,
             info?.AccountId ?? string.Empty,
-            info?.RoomId ?? string.Empty);
+            info?.RoomId ?? string.Empty)
+        {
+            UsesFixedBaseline = info?.UsesFixedBaseline == true
+        };
     }
 
     private void StopBattleRuntime()
@@ -1271,6 +1410,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _runtimeSession?.Dispose();
         _runtimeSession = null;
         _runtimeGeneration = Guid.Empty;
+        _settledClockBound = false;
+        _settledClockFaulted = false;
         _initialCheckpoint = null;
         _observerContexts.Clear();
         _snapshotDeliveries.Clear();
@@ -1293,6 +1434,21 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _battleHostState.Reset();
     }
 
+    internal readonly struct SnapshotDeliveryPayload
+    {
+        internal SnapshotDeliveryPayload(StateSyncPush structured) => Structured = structured;
+        internal SnapshotDeliveryPayload(PreparedFixedBaselineSnapshot prepared) => Prepared = prepared;
+
+        internal StateSyncPush? Structured { get; }
+        internal PreparedFixedBaselineSnapshot? Prepared { get; }
+        internal int Frame => Prepared?.Frame ?? Structured!.Frame;
+        internal bool IsFullSnapshot => Prepared?.IsFullSnapshot ?? Structured!.IsFullSnapshot;
+
+        internal Task<StateSyncDeliveryResult> SendAsync(IStateSyncObserverGrain observer) => Prepared is { } prepared
+            ? observer.OnPreparedFixedBaselineSnapshotPushedAsync(prepared)
+            : observer.OnSnapshotPushedAsync(Structured!);
+    }
+
     private sealed class SnapshotDeliveryInFlight
     {
         public SnapshotDeliveryInFlight(Task delivery)
@@ -1302,7 +1458,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
         public Task Delivery { get; set; }
 
-        public StateSyncPush? Pending { get; set; }
+        public SnapshotDeliveryPayload? Pending { get; set; }
     }
 }
 

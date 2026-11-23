@@ -56,7 +56,8 @@ namespace AbilityKit.Game.Flow
                 options.ShouldForceHashMismatch);
 
             options.ResetTickState?.Invoke();
-            CreateInputRuntime(handles, options.Diagnostics, inputDelayFrames);
+            if (!options.Plan.UsesSettledFrames)
+                CreateInputRuntime(handles, options.Diagnostics, inputDelayFrames);
         }
 
         private static void CreateWorldRuntime(
@@ -68,16 +69,20 @@ namespace AbilityKit.Game.Flow
             Func<WorldId, int> resolveIdealFrameLimit,
             Func<bool> shouldForceHashMismatch)
         {
+            var settled = ctx?.SettledFrames;
+            if (plan.UsesSettledFrames && settled == null)
+                throw new InvalidOperationException("V2 requires a settled battle connection.");
             var worldRuntime = RemoteDrivenWorldRuntimeFactory.Create(new RemoteDrivenWorldRuntimeFactoryOptions(
                 plan,
                 fixedDeltaSeconds,
                 inputDelayFrames,
                 plan.Authority.EnableClientPrediction,
                 _ => handles.Consumable,
-                _ => ctx != null ? ctx.LocalInputQueue : null,
+                _ => ctx != null && (settled == null || ctx.CanSubmitGameplayInput) ? ctx.LocalInputQueue : null,
                 resolveIdealFrameLimit,
                 MobaRollbackRegistryBuilder.CreateForPrediction,
-                world => CreateStateHash(world, shouldForceHashMismatch)));
+                world => CreateStateHash(world, shouldForceHashMismatch),
+                resolveSettledFrames: settled != null ? _ => settled.Receiver : null));
 
             handles.BindWorldRuntime(worldRuntime);
             RemoteDrivenPredictionContextBinder.Bind(ctx, plan, handles.Runtime);

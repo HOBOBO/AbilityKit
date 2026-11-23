@@ -4,7 +4,7 @@
 
 > 文档类型：Canonical 测试与门禁设计
 >
-> 事实基线：2026-08-16
+> 事实基线：2026-11-21 复核门禁入口和 CI 状态；其余设计与执行证据保留原有时间点。
 >
 > 适用范围：测试分层、gate 配置、执行器、GitHub Actions 接线与证据解释
 
@@ -367,35 +367,17 @@ ET smoke 的重点是“同输入下输出一致”，适合暴露状态哈希�
 
 ### 10.1 Gate 的三层模型
 
-AbilityKit 的 gate 不是单一文件决定的。一次测试是否真正构成自动化准入，必须同时核对三层：
+| 层 | 入口 | 可以验证什么 |
+|---|---|---|
+| 配置层 | [`tools/test-gates.json`](../../../tools/test-gates.json) | 级别、负责人、步骤、失败策略、`ciPolicy` 接入意图 |
+| 执行层 | [`tools/run_test_gate.ps1`](../../../tools/run_test_gate.ps1) 及专项脚本 | 如何执行步骤并生成退出码、日志与结果 |
+| 编排层 | 实际已接入的 CI 工作流 | 哪些事件触发哪些 job，是否阻断及如何保存结果 |
 
-| 层 | 当前入口 | 能回答的问题 | 不能单独证明的内容 |
-|---|---|---|---|
-| 配置层 | `tools/test-gates.json` | gate 名称、level、步骤、`ciPolicy` 意图、失败策略和 artifact 要求 | workflow 已有对应 job、步骤路径有效、命令实际成功 |
-| 执行层 | `tools/run_test_gate.ps1` 及专项脚本 | 本地或 job 中怎样解释步骤并产生退出码、日志和 artifact | 该入口已被 PR、push 或 schedule 自动调用 |
-| 编排层 | `.github/workflows/abilitykit-test-gates.yml` | 哪些事件实际触发哪些手写 job，依赖和 artifact 怎样上传 | 未接线 gate 的配置意图已经生效 |
+P0/P1/P2 是风险和使用时机分级，不等于 PR、push、schedule。配置存在、静态检查通过、gate 实际执行和自动阻断分别需要不同证据。
 
-因此，`ciPolicy.runOnPullRequest = true` 只是配置声明；只有 workflow 存在等价 job、调用路径有效并由失败退出码阻断时，才能形成 PR 级 E5 证据。P0/P1/P2 是风险和使用时机等级，也不等于 PR、push、schedule 三类触发器。
+### 10.2 当前入口与验证边界
 
-### 10.2 2026-08-16 接线复核
-
-`tools/test-gates.json` 当前声明 28 个 gate，workflow 通过手写 job 覆盖其中一部分，并没有从 JSON 自动生成 job。下表记录影响能力声明的主要差异：
-
-| Gate 或能力 | 配置层 | workflow 实际接线 | 当前结论 |
-|---|---|---|---|
-| `precheck`、`moba-acceptance-dotnet`、`core-stability` | 已声明 | 有对应 job | 可继续按 job 命令和结果评估 E5 |
-| `moba-codegen` | 已声明且有 job | job 存在，但 gate 引用的 framework generator 与 `AbilityKit.CodeGen.Tests` 项目路径不存在 | 配置和 job 存在不等于可执行通过；路径修复前不能作为 E5 |
-| `moba-network-options`、`network-sdk` | 声明 PR/push 等策略 | 未发现对应或等价 workflow job | 仅有配置意图和本地入口，不得写成自动 CI 覆盖 |
-| 六个 MOBA hero Unity gate | 声明 PR 或 schedule 策略 | 未发现对应 workflow job | fixture 存在与 CI 接线是两份证据 |
-| `moba-complete-battle-journey`、`moba-multiprocess` | 已声明 | 未发现对应 workflow job | 可按本地/手动 gate 评估，不能宣称当前 workflow 自动执行 |
-| `shooter-performance` | 一个 gate、两个步骤 | workflow 拆为 smoke 与 full 两个 job | 性能阈值有真实阻断接线，但触发范围应分别读取两个 job |
-| `runtime-performance-measurement` | P2 informational | 有 schedule/manual job | 执行、契约或 artifact 失败会阻断；指标数值在预算批准前只记录、不按预算阻断 |
-
-对自动化覆盖的陈述应以 workflow 为最终编排事实，以 gate JSON 解释设计意图，以具体脚本和最近运行产物证明可执行结果。三者任一缺失，都必须降低证据等级。
-
-当前 workflow 实际调用的 gate 共 15 个：`precheck`、`moba-acceptance-dotnet`、`moba-codegen`、`core-stability`、`shooter-fast`、`shooter-integration`、`shooter-unity-playmode`、`shooter-performance`、`moba-smoke`、`shooter-multiprocess`、`shooter-multiprocess-compatibility`、`shooter-multiprocess-soak`、`shooter-multiprocess-ownership-cleanup`、`runtime-performance-measurement` 和 `regression`。其余声明了 CI policy 的 gate 不能仅凭 JSON 推断为已接线。
-
-`validate_shooter_test_gates.ps1` 会解析 gate 引用的工程、脚本和 Unity project，检查 PowerShell 语法，并重点核对 Shooter 超时预算、workflow 片段与 always-upload。它不是“全部 `ciPolicy` 与 workflow job 自动一致性检查器”，不会因为某个声明 CI 的 gate 没有 job 就自动失败。2026-08-16 本地复核共执行 168 项静态检查，166 项通过；仅 `moba-codegen` 引用的两个缺失工程失败。这份结果证明已发现的引用错误，但不能替代逐 gate 的编排审计。
+查询 `./tools/run_test_gate.ps1 -List`，不要引用历史数量。静态配置校验、当前 CI 状态和接入约定统一见[测试门禁与批量回归规范 §8](../../AbilityKit测试门禁与批量回归规范.md#8-ci-接入与静态校验)。2026-08-16 的接线复核属于历史记录，不用于判断当前 E5 覆盖。
 
 ```mermaid
 flowchart TD
@@ -417,25 +399,7 @@ flowchart TD
     Pass -->|no| Artifact[保留日志/trace/summary 定位]
 ```
 
-`tools/test-gates.json` 中的 P0/P1/P2 是 gate 元数据，不能单独推导运行时机。CI 是否在 pull request、push、schedule 运行，以及是否要求 artifact，必须读取每个 gate 的 `ciPolicy`。例如 `shooter-multiprocess-soak` 标为 P0，但它是 schedule-only 长稳 gate；`moba-smoke` 标为 P1，却在 pull request、push 和 schedule 都执行。
-
-当前代表性 gate：
-
-| Gate | Level | CI policy | 主要边界 |
-|------|-------|-----------|----------|
-| `precheck` | P0 | 以 gate 配置为准 | 仓库和配置前置检查 |
-| `moba-codegen` | P1 | 以 gate 配置为准 | MOBA 代码生成所有权与产物 |
-| `runtime-contracts` / `network-sdk` / `core-stability` | P1 | 以各 gate 配置为准 | runtime、网络 SDK 和核心稳定性契约 |
-| `regression` | P2 | 以 gate 配置为准 | 扩大的跨模块回归集合 |
-| `moba-smoke` | P1 | PR + push + schedule；artifact required | 两客户端 TCP Gateway smoke |
-| `moba-multiprocess` | P2 | schedule only；artifact required | host-only silo 与 client-only 场景进程隔离；双连接、全量恢复与可靠事件 ACK，尚非双客户端进程 |
-| `shooter-fast` / `shooter-integration` / `shooter-unity-playmode` | P1 | PR + push；artifact required | 纯契约、跨边界集成和 Unity PlayMode |
-| `shooter-multiprocess` | P1 | push + schedule；artifact required | 独立进程故障恢复场景 |
-| `shooter-multiprocess-compatibility` | P2 | schedule only；artifact required | payload、客户端数与恢复兼容矩阵 |
-| `shooter-multiprocess-soak` | P0 | schedule only；artifact required | 16/64 observer 长稳、恢复和资源趋势 |
-| `shooter-multiprocess-ownership-cleanup` / `shooter-performance` | P1 | 以各 gate 配置为准 | 进程所有权清理与性能预算 |
-
-本地开发仍应按风险从 targeted test 放大到对应 gate；发布或合入判定则以 gate 的 `requiredBefore`、`failurePolicy` 和 `ciPolicy` 为准。
+本地按风险从聚焦测试放大到对应 gate；合入或发布的自动阻断和证据范围，以实际调用、失败策略和对应运行产物核验。
 
 常用命令可以按改动面选择：
 
@@ -502,4 +466,6 @@ Unity batch 命令需要按本机 Unity Editor 路径执行，核心参数保持
 
 ---
 
-*文档版本：v3.1 | 最后更新：2026-08-16*
+文档类型：Canonical 测试与门禁设计 | 事实基线：2026-11-21（门禁入口与 CI 状态） | 证据等级：E0（入口与配置核验，未新增 E4/E5 执行证据）
+
+*文档版本：v3.2 | 最后更新：2026-11-21*

@@ -12,6 +12,7 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
 {
     private readonly ILogger<BattleFrameSyncGrain> _logger;
     private readonly HashSet<IFrameSyncObserver> _observers = new();
+    private readonly HashSet<ISettledFrameSyncObserver> _settledObservers = new();
 
     // 按帧索引分组。
     private readonly Dictionary<int, List<FrameInputItem>> _inputsByFrame = new();
@@ -31,6 +32,7 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
     private FrameSyncInitialCheckpoint? _initialCheckpoint;
     private Guid _settlementGeneration;
     private int? _lastSettledFrame;
+    private SettledFrameHistory? _settledHistory;
 
     private DateTime _tickWindowStartUtc;
     private int _tickCountInWindow;
@@ -96,6 +98,8 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         _inputsByFrame.Clear();
         _inputHistory.Clear();
         _fullRecording.Clear();
+        _settledHistory = null;
+        _settledObservers.Clear();
         return Task.CompletedTask;
     }
 
@@ -104,6 +108,9 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         if (options is null) throw new ArgumentNullException(nameof(options));
 
         var checkpoint = options.InitialCheckpoint;
+        if (options.UseSettledFrames && (checkpoint == null || options.RoomId == 0 ||
+            (_roomId != 0 && _roomId != options.RoomId)))
+            throw new ArgumentException("Settled frames require a room-bound frame zero checkpoint.", nameof(options));
         if (checkpoint != null && (checkpoint.RuntimeGeneration == Guid.Empty ||
             options.RuntimeMode != (int)ServerBattleRuntimeMode.BattleWorldWithFrameSync ||
             options.WorldId == 0 || string.IsNullOrEmpty(options.BattleId)))
@@ -111,12 +118,25 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
             throw new ArgumentException("Frame zero checkpoint requires an initialized battle runtime.", nameof(options));
         }
 
+        var sameBattle = _initialized && _battleId == options.BattleId;
+        if (sameBattle && ((_settledHistory != null) != options.UseSettledFrames ||
+            (_settledHistory != null && (_worldId != options.WorldId || _enableRecording != options.EnableRecording ||
+                _runtimeMode != options.RuntimeMode || _syncTemplateId != options.SyncTemplateId ||
+                _initialCheckpoint != checkpoint))))
+            throw new InvalidOperationException("Cannot change the settlement contract of a running battle.");
+
         var changed = !_initialized || _worldId != options.WorldId || _battleId != options.BattleId ||
             _runtimeMode != options.RuntimeMode || _syncTemplateId != options.SyncTemplateId ||
             _initialCheckpoint != checkpoint;
         if (changed)
         {
             ClearSettlement();
+            if (_settledHistory != null || options.UseSettledFrames)
+            {
+                _settledObservers.Clear();
+                _observers.Clear();
+                _settledHistory = null;
+            }
             if (_initialCheckpoint != null || checkpoint != null)
             {
                 _inputsByFrame.Clear();
@@ -139,7 +159,10 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
 
         if (changed && checkpoint != null)
         {
-            StoreInputHistory(0, new List<FrameInputItem>(0));
+            if (options.UseSettledFrames)
+                _settledHistory = new SettledFrameHistory(options, MaxHistoryFrames, MaxRecordingFrames);
+            else
+                StoreInputHistory(0, new List<FrameInputItem>(0));
             _frame = 1;
             _settlementGeneration = checkpoint.RuntimeGeneration;
             _lastSettledFrame = 0;
@@ -163,6 +186,8 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
     public Task SubscribeAsync(IFrameSyncObserver observer)
     {
         if (observer == null) throw new ArgumentNullException(nameof(observer));
+        if (_settledHistory != null)
+            throw new InvalidOperationException("This battle only publishes settled frames.");
         _observers.Add(observer);
         return Task.CompletedTask;
     }
@@ -174,12 +199,48 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         return Task.CompletedTask;
     }
 
+    public Task<bool> SubscribeSettledAsync(Guid runtimeGeneration, ISettledFrameSyncObserver observer)
+    {
+        ArgumentNullException.ThrowIfNull(observer);
+        if (_settledHistory is not { FaultFrame: null } history || history.Generation != runtimeGeneration)
+            return Task.FromResult(false);
+        _settledObservers.Add(observer);
+        return Task.FromResult(true);
+    }
+
+    public Task<FrameSyncSettledBinding?> GetSettledBindingAsync() =>
+        Task.FromResult(_settledHistory is { } history
+            ? new FrameSyncSettledBinding(_roomId, _worldId, _battleId!, history.Generation,
+                history.SimulationTickRate > 0 ? history.SimulationTickRate : DefaultTickRate,
+                history.LastSettledFrame, history.FaultFrame.HasValue)
+            : null);
+
+    public Task UnsubscribeSettledAsync(ISettledFrameSyncObserver observer)
+    {
+        if (observer != null) _settledObservers.Remove(observer);
+        return Task.CompletedTask;
+    }
+
     public async Task SubmitInputAsync(ulong worldId, int frame, FrameInputItem input)
     {
         await SubmitInputWithResultAsync(worldId, frame, input);
     }
 
-    public Task<FrameInputSubmitResult> SubmitInputWithResultAsync(ulong worldId, int frame, FrameInputItem input)
+    public Task<FrameInputSubmitResult> SubmitInputWithResultAsync(ulong worldId, int frame, FrameInputItem input) =>
+        _settledHistory != null
+            ? Task.FromResult(new FrameInputSubmitResult(false, _frame, FrameInputSubmitReason.SettlementModeMismatch))
+            : SubmitInputCore(worldId, frame, input);
+
+    public Task<FrameInputSubmitResult> SubmitSettledInputAsync(ulong worldId, Guid runtimeGeneration, int frame, FrameInputItem input)
+    {
+        if (_settledHistory is not { } history || history.Generation != runtimeGeneration)
+            return Task.FromResult(new FrameInputSubmitResult(false, _frame, FrameInputSubmitReason.SettlementModeMismatch));
+        if (history.FaultFrame.HasValue)
+            return Task.FromResult(new FrameInputSubmitResult(false, _frame, FrameInputSubmitReason.SettlementFaulted));
+        return SubmitInputCore(worldId, frame, input);
+    }
+
+    private Task<FrameInputSubmitResult> SubmitInputCore(ulong worldId, int frame, FrameInputItem input)
     {
         if (input == null) throw new ArgumentNullException(nameof(input));
 
@@ -240,6 +301,7 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
     public Task<FrameSyncCatchUpPayload?> RequestCatchUpAsync(FrameSyncCatchUpRequest request)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
+        if (_settledHistory != null) return Task.FromResult<FrameSyncCatchUpPayload?>(null);
 
         var history = request.FromFrameExclusive == -1 && _enableRecording
             ? _fullRecording
@@ -364,9 +426,18 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         return true;
     }
 
+    public Task<FrameSyncSettledCatchUpPayload?> RequestSettledCatchUpAsync(FrameSyncSettledCatchUpRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return Task.FromResult(_settledHistory?.CatchUp(request));
+    }
+
+    public Task<FrameSyncSettledRecording?> DumpSettledRecordingAsync() =>
+        Task.FromResult(_settledHistory?.DumpRecording());
+
     public Task<FrameSyncRecording?> DumpRecordingAsync()
     {
-        if (!_enableRecording || _fullRecording.Count == 0)
+        if (!_enableRecording || _fullRecording.Count == 0 || _settledHistory != null)
         {
             return Task.FromResult<FrameSyncRecording?>(null);
         }
@@ -437,17 +508,18 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
             _battleId,
             _frame,
             (int)(1.0 / _tickInterval.TotalSeconds),
-            _observers.Count,
+            _settledHistory != null ? _settledObservers.Count : _observers.Count,
             avgTickDelta,
             _tickDeltaLastMs,
             hz,
             TotalInputsReceived: _totalInputCount,
-            CatchUpHistoryFrames: _inputHistory.Count,
-            RecordingFrameCount: _enableRecording ? _fullRecording.Count : 0,
+            CatchUpHistoryFrames: _settledHistory?.RecentCount ?? _inputHistory.Count,
+            RecordingFrameCount: _settledHistory?.RecordingCount ?? (_enableRecording ? _fullRecording.Count : 0),
             uptimeSeconds)
         {
             SettlementGeneration = _settlementGeneration,
-            LastSettledFrame = _lastSettledFrame
+            LastSettledFrame = _settledHistory?.LastSettledFrame ?? _lastSettledFrame,
+            SettlementFaultFrame = _settledHistory?.FaultFrame
         };
 
         return Task.FromResult(metrics);
@@ -459,6 +531,8 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         _timer?.Dispose();
         _timer = null;
         _observers.Clear();
+        _settledObservers.Clear();
+        _settledHistory = null;
         _inputsByFrame.Clear();
         _inputHistory.Clear();
         _fullRecording.Clear();
@@ -521,9 +595,47 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         }
     }
 
+    private async Task<bool> CommitSettledTickAsync(SettledFrameHistory history, int frame, List<FrameInputItem> inputs)
+    {
+        BattleFrameSettlement? settlement = null;
+        try
+        {
+            var host = GrainFactory.GetGrain<IBattleLogicHostGrain>(_battleId!);
+            settlement = await host.TickSettledFrameAsync(_worldId, history.Generation, frame, inputs);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[BattleFrameSyncGrain] Settled tick failed. BattleId={BattleId} Frame={Frame}", _battleId, frame);
+        }
+
+        var committed = history.Commit(frame, settlement, inputs.Count);
+        if (committed == null)
+        {
+            _inputsByFrame.Clear();
+            _logger.LogError("[BattleFrameSyncGrain] Settlement halted. BattleId={BattleId} FaultFrame={FaultFrame} LastSettledFrame={LastSettledFrame}",
+                _battleId, history.FaultFrame, history.LastSettledFrame);
+            return false;
+        }
+
+        _frame = frame + 1;
+        _tickCountInWindow++;
+        List<ISettledFrameSyncObserver>? failed = null;
+        foreach (var observer in _settledObservers)
+        {
+            try { observer.OnSettledFramePushed(committed); }
+            catch (Exception ex)
+            {
+                (failed ??= new List<ISettledFrameSyncObserver>()).Add(observer);
+                _logger.LogWarning(ex, "[BattleFrameSyncGrain] Settled observer push failed. BattleId={BattleId} Frame={Frame}", _battleId, frame);
+            }
+        }
+        if (failed != null) foreach (var observer in failed) _settledObservers.Remove(observer);
+        return true;
+    }
+
     private async Task OnTickAsync()
     {
-        if (!_initialized) return;
+        if (!_initialized || _settledHistory?.FaultFrame != null) return;
 
         var now = DateTime.UtcNow;
         var deltaMs = (now - _lastTickUtc).TotalMilliseconds;
@@ -556,6 +668,13 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
             else
             {
                 inputs = new List<FrameInputItem>(0);
+            }
+
+            if (_settledHistory is { } settledHistory)
+            {
+                _inputsByFrame.Remove(cur);
+                if (!await CommitSettledTickAsync(settledHistory, cur, inputs)) return;
+                continue;
             }
 
             StoreInputHistory(cur, inputs);

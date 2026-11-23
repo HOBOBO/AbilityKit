@@ -19,11 +19,17 @@ namespace AbilityKit.Demo.Moba.Rollback
         private readonly MobaEntityManager _entities;
         private readonly MobaSummonService _summons;
         private readonly MobaBrainService _brains;
+        private readonly MobaActorRollbackCommandRuntime _commands;
         private readonly bool _allowMissingActorsRestoredByCommands;
 
         public MobaEntitasEntityRollbackProvider(global::ActorContext context, ActorIdAllocator ids,
             MobaActorRegistry actors, MobaEntityManager entities, MobaSummonService summons = null,
             bool allowMissingActorsRestoredByCommands = false, MobaBrainService brains = null)
+            : this(context, ids, actors, entities, summons, allowMissingActorsRestoredByCommands, brains, null) { }
+
+        internal MobaEntitasEntityRollbackProvider(global::ActorContext context, ActorIdAllocator ids,
+            MobaActorRegistry actors, MobaEntityManager entities, MobaSummonService summons,
+            bool allowMissingActorsRestoredByCommands, MobaBrainService brains, MobaActorRollbackCommandRuntime commands)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _ids = ids ?? throw new ArgumentNullException(nameof(ids));
@@ -31,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             _entities = entities;
             _summons = summons;
             _brains = brains;
+            _commands = commands;
             _allowMissingActorsRestoredByCommands = allowMissingActorsRestoredByCommands;
         }
 
@@ -56,6 +63,12 @@ namespace AbilityKit.Demo.Moba.Rollback
         public void ValidateImport(FrameIndex frame, byte[] payload)
         {
             var snapshot = Read(payload);
+            ValidateRoster(snapshot);
+            ValidateSummonDiscards(frame, new HashSet<int>(snapshot.ActorIds ?? Array.Empty<int>()));
+        }
+
+        private void ValidateRoster(MobaEntitasEntityRollbackPayload snapshot)
+        {
             var actors = new HashSet<int>();
             var casts = new HashSet<long>();
             foreach (var entity in _context.GetEntities())
@@ -68,6 +81,18 @@ namespace AbilityKit.Demo.Moba.Rollback
                     throw new InvalidOperationException($"Confirmed actor {id} was destroyed before rollback.");
             foreach (var id in snapshot.CastIds ?? Array.Empty<long>())
                 if (!casts.Contains(id)) throw new InvalidOperationException($"Confirmed skill cast {id} was destroyed before rollback.");
+        }
+
+        private HashSet<int> ValidateSummonDiscards(FrameIndex frame, HashSet<int> actorIds)
+        {
+            if (_commands == null) return null;
+            /*
+             * 单份名单没有 checkpoint；至少重新验证本地 journal、出生帧和归属，
+             * 不将类型或启用预测等同于静默销毁许可。完整快照另校验实际 checkpoint。
+             */
+            var candidates = _commands.FindLiveSummonDiscards(actorIds.Contains);
+            _commands.ValidateLiveSummonBirths(frame, candidates, _summons);
+            return candidates;
         }
 
         internal static HashSet<int> ReadSnapshotActorIds(byte[] payload)
@@ -99,8 +124,9 @@ namespace AbilityKit.Demo.Moba.Rollback
         public void Import(FrameIndex frame, byte[] payload)
         {
             var snapshot = Read(payload);
-            ValidateImport(frame, payload);
+            ValidateRoster(snapshot);
             var actorIds = new HashSet<int>(snapshot.ActorIds ?? Array.Empty<int>());
+            var summonDiscards = ValidateSummonDiscards(frame, actorIds);
             var castIds = new HashSet<long>(snapshot.CastIds ?? Array.Empty<long>());
             var remove = new List<global::ActorEntity>();
             foreach (var entity in _context.GetEntities())
@@ -114,10 +140,13 @@ namespace AbilityKit.Demo.Moba.Rollback
                 if (entity.hasActorId)
                 {
                     var id = entity.actorId.Value;
-                    // Entity rollback removes predicted actors directly instead of going through
-                    // the normal despawn system. Release Brain first so its BehaviorRuntime and
-                    // decision/blackboard are not left in BehaviorManager after the entity dies.
-                    _brains?.DeactivateBrain(entity);
+                    /*
+                     * 已验证的预测出生不走正常停用，避免回滚触发 Brain 结束回调。
+                     */
+                    if (summonDiscards != null && summonDiscards.Contains(id))
+                        _brains?.DiscardCreatedActorBrain(entity);
+                    else
+                        _brains?.DeactivateBrain(entity);
                     if (_entities != null && _entities.TryGetActorEntity(id, out var indexed) && ReferenceEquals(indexed, entity))
                         _entities.UnregisterSilently(id, out _, publishObjectLifecycle: false);
                     if (_actors.TryGetRegistered(id, out var registered) && ReferenceEquals(registered, entity))

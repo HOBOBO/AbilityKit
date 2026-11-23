@@ -14,9 +14,15 @@ public interface IBattleFrameSyncGrain : IGrainWithStringKey
 
     Task UnsubscribeAsync(IFrameSyncObserver observer);
 
+    Task<bool> SubscribeSettledAsync(Guid runtimeGeneration, ISettledFrameSyncObserver observer);
+
+    Task UnsubscribeSettledAsync(ISettledFrameSyncObserver observer);
+
     Task SubmitInputAsync(ulong worldId, int frame, FrameInputItem input);
 
     Task<FrameInputSubmitResult> SubmitInputWithResultAsync(ulong worldId, int frame, FrameInputItem input);
+
+    Task<FrameInputSubmitResult> SubmitSettledInputAsync(ulong worldId, Guid runtimeGeneration, int frame, FrameInputItem input);
 
     /// <summary>
     /// 请求服务端已缓存的帧输入历史，用于客户端重连后追帧。
@@ -24,12 +30,18 @@ public interface IBattleFrameSyncGrain : IGrainWithStringKey
     /// </summary>
     Task<FrameSyncCatchUpPayload?> RequestCatchUpAsync(FrameSyncCatchUpRequest request);
 
+    Task<FrameSyncSettledCatchUpPayload?> RequestSettledCatchUpAsync(FrameSyncSettledCatchUpRequest request);
+
+    Task<FrameSyncSettledBinding?> GetSettledBindingAsync();
+
     /// <summary>
     /// 导出当前战斗的完整帧输入录制，用于离线回放和 desync 复现。
     /// 仅在 <see cref="FrameSyncStartOptions.EnableRecording"/> 开启时可用。
     /// 录制未启用或战斗未开始时返回 null。
     /// </summary>
     Task<FrameSyncRecording?> DumpRecordingAsync();
+
+    Task<FrameSyncSettledRecording?> DumpSettledRecordingAsync();
 
     /// <summary>
     /// 获取帧同步运行时健康指标，用于运维监控和联调诊断。

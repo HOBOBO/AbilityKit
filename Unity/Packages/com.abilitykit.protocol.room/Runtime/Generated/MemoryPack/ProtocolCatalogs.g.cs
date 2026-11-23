@@ -394,6 +394,36 @@ namespace AbilityKit.Protocol.Generated
                         new[] { "sessionToken" }
                     ),
                     new ProtocolMessageDefinition(
+                        "subscribe-fixed-baseline-state-sync.request",
+                        123u,
+                        ProtocolDirection.ClientToServer,
+                        ProtocolPacketKind.Request,
+                        "AbilityKit.Protocol.Room.WireSubscribeStateSyncReq",
+                        "memorypack",
+                        ProtocolReliability.Reliable,
+                        "subscribe-fixed-baseline-state-sync.response",
+                        1,
+                        1,
+                        1048576,
+                        1d,
+                        new[] { "sessionToken" }
+                    ),
+                    new ProtocolMessageDefinition(
+                        "subscribe-fixed-baseline-state-sync.response",
+                        123u,
+                        ProtocolDirection.ServerToClient,
+                        ProtocolPacketKind.Response,
+                        "AbilityKit.Protocol.Room.WireSubscribeStateSyncRes",
+                        "memorypack",
+                        ProtocolReliability.Reliable,
+                        null,
+                        1,
+                        1,
+                        1048576,
+                        1d,
+                        null
+                    ),
+                    new ProtocolMessageDefinition(
                         "request-full-state-sync.response",
                         108u,
                         ProtocolDirection.ServerToClient,

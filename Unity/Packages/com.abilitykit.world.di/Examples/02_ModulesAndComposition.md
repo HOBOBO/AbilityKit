@@ -27,11 +27,13 @@ var modules = new IWorldModule[]
     // new DebugModule(),
 };
 
-// 组合流程：
-// 1) 创建 container
-// 2) 依次执行 modules.Configure(builder)
-// 3) 创建 scope
-// 4) scope 作为 IWorldResolver 暴露给边界层（而不是深入业务）
+var builder = new WorldContainerBuilder();
+foreach (var module in modules)
+{
+    builder.AddModule(module);
+}
+using var container = builder.Build();
+using var scope = container.CreateScope();
 ```
 
 ## 模块拆分的经验规则
@@ -60,4 +62,4 @@ var modules = new IWorldModule[]
   - 遇到需要替换实现时，改为组合时选择不同模块，而不是重复注册
 
 - **同一个实现暴露多个接口**
-  - 可以用 alias 方式把 `TService` 映射到 `TImpl` 的同一实例（例如 `RegisterServiceAlias<TService, TImpl>`)
+  - 先注册实现类型，再用 `RegisterAlias(typeof(TService), typeof(TImpl), lifetime)` 将接口指向同一实例。需要共享实例时，别名和实现使用相同的缓存生命周期（`Singleton` 或 `Scoped`）。

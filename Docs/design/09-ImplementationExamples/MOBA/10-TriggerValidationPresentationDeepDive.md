@@ -343,7 +343,7 @@ MOBA Trigger、Validation 与 Presentation Cue 覆盖面较宽，以下主题适
 | owner-bound 订阅 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs` |
 | owner-bound gate | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaOwnerBoundTriggerGateService.cs` |
 | gate 接口 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/IMobaOwnerBoundTriggerGate.cs` |
-| passive trace ownership | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Passive/MobaPassiveSkillLifecycleService.cs` |
+| passive trace ownership | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/MobaPassiveSkillLifecycleService.cs` |
 | stage trigger | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaStageTriggerService.cs` |
 | effects step system | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Effects/MobaEffectsStepSystem.cs` |
 | runtime validation | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaRuntimeValidation.cs` |

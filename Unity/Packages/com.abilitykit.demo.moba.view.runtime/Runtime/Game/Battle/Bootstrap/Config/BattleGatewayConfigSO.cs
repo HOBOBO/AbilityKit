@@ -168,7 +168,7 @@ namespace AbilityKit.Game.Flow
                 ProtocolVersion = ProtocolVersion,
                 WorldType = WorldType.Trim(),
                 ClientId = ClientId?.Trim() ?? string.Empty,
-                SyncTemplateId = "frame-sync-authority",
+                SyncTemplateId = "moba-settled-frame-sync-v2",
                 SyncModel = 1
             };
         }

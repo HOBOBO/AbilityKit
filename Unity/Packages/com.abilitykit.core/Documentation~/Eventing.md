@@ -2,6 +2,8 @@
 
 源码统一位于 `Runtime/Eventing`，命名空间保持 `AbilityKit.Core.Eventing`。事件通道由整数标识与参数静态类型共同区分；字符串名称先通过 `StableStringIdRegistry` 映射为稳定 V1 标识，因此字符串入口与对应整数入口共享通道。
 
+`EventDispatcher.cs` 管理通道登记、发布入口和参数释放；同一类型的 `EventDispatcher.Channel.cs` 承载私有通道、监听器排序及快照分发，不引入第二套派发实现。
+
 ## 作用域与调用顺序
 
 `EventDispatcher` 在发布线程同步执行回调，优先级较高者先执行，同优先级保持注册顺序。它不保证线程安全；订阅、退订、发布和清空由单一所有者管理，或在整个操作外同步。`GlobalEventDispatcher` 共享进程实例，不自动提供战斗世界、场景或测试隔离。
@@ -29,7 +31,7 @@
 
 `IEventSubscription` 只提供幂等的 `Unsubscribe`，不继承 `IDisposable`，也不负责释放回调目标。所有者卸载时应显式退订。
 
-`EventKey` 和 `EventKey<TArgs>` 保留构造种类、标识及相等语义。字符串键与整数键不因显示内容相同而相等；默认结构值不等同于显式构造的零值整数键。其 `GetHashCode` 只适用于运行时集合，不是持久化或协议标识。
+`EventKey.cs` 声明带运行时参数类型的非泛型键；`EventKey.Generic.cs` 声明 `EventKey<TArgs>`，在类型参数中表达参数类型。二者保留各自的构造和相等语义。字符串键与整数键不因显示内容相同而相等；默认结构值不等同于显式构造的零值整数键。其 `GetHashCode` 只适用于运行时集合，不是持久化或协议标识。
 
 当前分发器接收字符串或整数事件标识，参数类型通过泛型调用隔离；键值类型的存在不表示分发器提供以键值类型为参数的发布或订阅重载。
 

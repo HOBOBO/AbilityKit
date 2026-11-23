@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 3, "caseId": "karthus-w", "displayName": "Karthus W",
+  "tags": ["skill-presentation", "karthus"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 9000},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3006, "attributeTemplateId": 3006, "teamId": 1, "position": {"x": 9, "y": 0, "z": -10}, "playerId": "player_1"},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 9, "y": 0, "z": -8}},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "ally", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 1, "position": {"x": 10, "y": 0, "z": -8}}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 2, "position": {"x": 9, "y": 0, "z": -6}, "direction": {"x": 0, "y": 0, "z": 1}}
+    ],
+    "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30060301},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42060301, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaExpire", "configId": 42060301, "maxCount": 1}
+    ]
+  }
+}

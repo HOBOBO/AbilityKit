@@ -137,9 +137,17 @@ namespace AbilityKit.Combat.Projectile
             return _areas.Despawn(id, frame, _areaExpireEvents);
         }
 
+        public bool IsAreaActive(AreaId id) => _areas.IsActive(id);
+
         public bool CancelArea(AreaId id)
         {
-            return _areas.Cancel(id);
+            if (!_areas.Cancel(id)) return false;
+            for (var index = _areaSpawnEvents.Count - 1; index >= 0; index--)
+            {
+                if (_areaSpawnEvents[index].Area.Value == id.Value)
+                    _areaSpawnEvents.RemoveAt(index);
+            }
+            return true;
         }
 
         public bool TryConsumeAreaEnter(AreaId id) => _areas.TryConsumeEnter(id);

@@ -1,5 +1,6 @@
 using AbilityKit.Ability.StateSync;
 using AbilityKit.Ability.StateSync.Buffer;
+using AbilityKit.Ability.StateSync.Snapshot;
 using Xunit;
 
 namespace AbilityKit.World.StateSync.Tests;
@@ -52,6 +53,60 @@ public sealed class StateManagerTests
         Assert.False(manager.TryRestore(1));
         Assert.Equal(0, manager.RetainedRollbackFrameCount);
         Assert.Empty(manager.GetCapturedFrames());
+    }
+
+    [Fact]
+    public void EqualSnapshotCountDoesNotKeepAnEvictedRollbackFrame()
+    {
+        var buffer = new SnapshotBuffer(3);
+        var manager = new StateManager(buffer);
+        manager.CaptureState(1);
+        manager.CaptureState(2);
+        buffer.Store(3, new WorldStateSnapshot { Frame = 3 });
+        manager.CaptureState(4);
+
+        Assert.Equal(new[] { 2, 3, 4 }, manager.GetCapturedFrames());
+        Assert.Equal(2, manager.RetainedRollbackFrameCount);
+        Assert.False(manager.TryRestore(1));
+        Assert.False(manager.TryRestore(3));
+        Assert.True(manager.TryRestore(4));
+    }
+
+    [Fact]
+    public void RetainedRollbackCountReflectsResizeAndRemovalBeforeNextCapture()
+    {
+        var buffer = new SnapshotBuffer(3);
+        var manager = new StateManager(buffer);
+        manager.CaptureState(1);
+        manager.CaptureState(2);
+        manager.CaptureState(3);
+
+        Assert.True(buffer.TrySetCapacity(2));
+        Assert.Equal(2, manager.RetainedRollbackFrameCount);
+        Assert.True(buffer.Remove(2));
+        Assert.Equal(1, manager.RetainedRollbackFrameCount);
+        Assert.False(manager.TryRestore(2));
+        Assert.True(manager.TryRestore(3));
+    }
+
+    [Fact]
+    public void CaptureRegistrationSnapshotUpdatesOnlyAfterRegistrationChanges()
+    {
+        var manager = new StateManager(new SnapshotBuffer(4));
+        var originalCaptures = 0;
+        var replacementCaptures = 0;
+        var replacement = new TestRollbackable(1) { OnCreateState = () => replacementCaptures++ };
+        manager.RegisterRollbackable(new TestRollbackable(1) { OnCreateState = () => originalCaptures++ });
+        manager.CaptureState(1);
+        manager.RegisterRollbackable(replacement);
+        manager.CaptureState(2);
+        manager.UnregisterRollbackable(1);
+        manager.CaptureState(3);
+        manager.RegisterRollbackable(replacement);
+        manager.CaptureState(4);
+
+        Assert.Equal(2, originalCaptures);
+        Assert.Equal(1, replacementCaptures);
     }
 
     [Fact]

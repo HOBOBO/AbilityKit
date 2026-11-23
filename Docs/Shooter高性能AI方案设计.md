@@ -7,7 +7,7 @@
   - 将 AI 逻辑拆成更符合 Svelto ECS 的数据驱动流水线，便于扩展到上千、上万单位。
 
 ## 现状分析
-当前 Shooter AI 主要集中在 [`ShooterBotAiSystem`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/AI/ShooterBotAiSystem.cs:10) 一带，特征是：
+当前 Shooter AI 主要集中在 `ShooterBotAiSystem`（历史源码，原路径已移除） 一带，特征是：
 - 每个控制器内部持有状态机和行为对象。
 - 行为对象直接读写黑板、直接生成命令。
 - 目标查找和战斗决策更偏“单体自治式”实现。

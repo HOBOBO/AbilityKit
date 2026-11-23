@@ -9,7 +9,7 @@ namespace AbilityKit.Orleans.Grains.Gameplay;
 
 internal static class ServerGameplayDescriptors
 {
-    public const string MobaFrameSyncTemplate = "frame-sync-authority";
+    public const string MobaSettledFrameSyncTemplate = "moba-settled-frame-sync-v2";
     public const string MobaStateSyncTemplate = "moba-state-sync-authority";
 
     public static GameplayRoomDescriptor Moba { get; } = new(
@@ -19,7 +19,7 @@ internal static class ServerGameplayDescriptors
         RequiresPlayerLoadout: true,
         DefaultWorldType: GameplayRoomTypes.Moba,
         DefaultTickRate: 30,
-        DefaultSyncTemplateId: MobaFrameSyncTemplate);
+        DefaultSyncTemplateId: MobaSettledFrameSyncTemplate);
 
     public static GameplayRoomDescriptor Shooter { get; } = new(
         ShooterGameplay.RoomType,

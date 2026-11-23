@@ -78,6 +78,8 @@ namespace AbilityKit.Triggering.Tests
             private readonly List<long> _registeredOrders = new List<long>();
 
             public long[] RegisteredOrders => _registeredOrders.ToArray();
+            public List<string> ActionFailures { get; } = new List<string>();
+            public List<int> DispatchedExecutionCounts { get; } = new List<int>();
 
             public void OnRegistered<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order)
             {
@@ -94,6 +96,7 @@ namespace AbilityKit.Triggering.Tests
 
             public void OnEventDispatched<TArgs>(EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount)
             {
+                DispatchedExecutionCounts.Add(executedCount);
             }
 
             public void OnBeforeEvaluate<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
@@ -138,6 +141,7 @@ namespace AbilityKit.Triggering.Tests
 
             public void OnActionFailed<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage)
             {
+                ActionFailures.Add(errorMessage);
             }
         }
 
@@ -203,6 +207,60 @@ namespace AbilityKit.Triggering.Tests
             bus.Publish(key, new Ping());
 
             Assert.That(executionCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// 混合注册顺序下，验证阶段、优先级和同值注册顺序的决胜规则。
+        /// </summary>
+        [Test]
+        public void Dispatch_SortsByPhaseThenPriorityThenRegistrationOrder()
+        {
+            var bus = new EventBus();
+            var runner = new TriggerRunner<TestContext>(bus, new FunctionRegistry(), new ActionRegistry());
+            var key = new EventKey<Ping>(StableStringId.Get("test:trigger_runner:dispatch_order"));
+            var executed = new List<string>();
+
+            using var laterPhase = runner.Register(key, new DelegateTrigger<Ping, TestContext>((evt, ctx) => true, (evt, ctx) => executed.Add("later phase")), phase: 1, priority: 30);
+            using var firstTie = runner.Register(key, new DelegateTrigger<Ping, TestContext>((evt, ctx) => true, (evt, ctx) => executed.Add("first tie")), priority: 10);
+            using var lowerPriority = runner.Register(key, new DelegateTrigger<Ping, TestContext>((evt, ctx) => true, (evt, ctx) => executed.Add("lower priority")), priority: -10);
+            using var secondTie = runner.Register(key, new DelegateTrigger<Ping, TestContext>((evt, ctx) => true, (evt, ctx) => executed.Add("second tie")), priority: 10);
+
+            bus.Publish(key, new Ping());
+
+            Assert.That(executed, Is.EqualTo(new[] { "first tie", "second tie", "lower priority", "later phase" }));
+        }
+
+        /// <summary>
+        /// 验证重复释放不会影响同键的剩余注册，退订不会影响其他键或同编号的其他参数类型。
+        /// </summary>
+        [Test]
+        public void Dispose_OnlyRemovesItsRegistrationAndUnsubscribesItsEmptyKey()
+        {
+            var bus = new EventBus();
+            var runner = new TriggerRunner<TestContext>(bus, new FunctionRegistry(), new ActionRegistry());
+            var eventId = StableStringId.Get("test:trigger_runner:subscription_scope");
+            var key = new EventKey<Ping>(eventId);
+            var otherKey = new EventKey<Ping>(StableStringId.Get("test:trigger_runner:other_key"));
+            var otherType = new EventKey<int>(eventId);
+            var executed = new List<string>();
+            var sharedTrigger = new DelegateTrigger<Ping, TestContext>((evt, ctx) => true, (evt, ctx) => executed.Add("shared trigger"));
+
+            using var first = runner.Register(key, sharedTrigger);
+            using var sibling = runner.Register(key, sharedTrigger);
+            using var other = runner.Register(otherKey, new DelegateTrigger<Ping, TestContext>((evt, ctx) => true, (evt, ctx) => executed.Add("other key")));
+            using var typed = runner.Register(otherType, new DelegateTrigger<int, TestContext>((evt, ctx) => true, (evt, ctx) => executed.Add("other type")));
+
+            first.Dispose();
+            first.Dispose();
+            Assert.That(bus.HasSubscribers(key), Is.True);
+            bus.Publish(key, new Ping());
+            sibling.Dispose();
+            Assert.That(bus.HasSubscribers(key), Is.False);
+            bus.Publish(key, new Ping());
+            bus.Publish(otherKey, new Ping());
+            bus.Publish(otherType, 42);
+
+            Assert.That(executed, Is.EqualTo(new[] { "shared trigger", "other key", "other type" }));
         }
 
         [Test]
@@ -284,13 +342,14 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
-        public void PlannedTrigger_ActionScopeObserver_ExitsOnceAsFailedWhenActionThrows()
+        public void PlannedTrigger_ActionFailure_ReportsOnceAndExitsScopeWithoutThrowingFromPublish()
         {
             var bus = new EventBus();
             var actions = new ActionRegistry();
             var context = new ObservingContext();
             var contextSource = new ObservingContextSource { Current = context };
             var actionId = new ActionId(StableStringId.Get("test:trigger_runner:action_scope_failure"));
+            var lifecycle = new RecordingLifecycle<ObservingContext>();
 
             actions.Register<NamedAction0<Ping, object, ObservingContext>>(
                 actionId,
@@ -301,7 +360,8 @@ namespace AbilityKit.Triggering.Tests
                 bus,
                 new FunctionRegistry(),
                 actions,
-                contextSource: contextSource);
+                contextSource: contextSource,
+                lifecycle: lifecycle);
             var key = new EventKey<Ping>(StableStringId.Get("test:trigger_runner:action_scope_failure_event"));
             var plan = new TriggerPlan<Ping>(
                 phase: 0,
@@ -311,8 +371,9 @@ namespace AbilityKit.Triggering.Tests
 
             runner.RegisterPlan<Ping, ObservingContext>(key, in plan);
 
-            var error = Assert.Throws<InvalidOperationException>(() => bus.Publish(key, new Ping()));
-            Assert.That(error.Message, Is.EqualTo("expected action failure"));
+            Assert.DoesNotThrow(() => bus.Publish(key, new Ping()));
+            Assert.That(lifecycle.ActionFailures, Is.EqualTo(new[] { "expected action failure" }));
+            Assert.That(lifecycle.DispatchedExecutionCounts, Is.EqualTo(new[] { 0 }));
             Assert.That(context.EnterCount, Is.EqualTo(1));
             Assert.That(context.ExitCount, Is.EqualTo(1));
             Assert.That(context.LastActionIndex, Is.EqualTo(0));

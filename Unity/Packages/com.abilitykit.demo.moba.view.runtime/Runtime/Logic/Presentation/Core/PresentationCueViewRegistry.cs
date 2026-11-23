@@ -84,6 +84,9 @@ namespace AbilityKit.Game.Flow
             return _instances.Stop(key);
         }
 
+        /// <summary>
+        /// 播放由端口按自身生命周期回收的一次性实例，不加入持续实例基线。
+        /// </summary>
         public bool EmitTransient(TKey key, in TPayload payload)
         {
             return _instances.EmitTransient(key, in payload);

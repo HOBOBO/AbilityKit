@@ -69,13 +69,12 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 _.TryResolve<IMobaConfigLoadProfile>(out var loadProfile);
                 _.TryResolve<IMobaConfigLoadPipeline>(out var loadPipeline);
                 loadPipeline ??= new MobaConfigLoadPipeline(registry ?? MobaConfigRegistry.Instance, textAssetLoader);
-                var db = new MobaConfigDatabase(registry, deserializer, bytesDeserializer, textAssetLoader);
 
                 try
                 {
                     loadProfile ??= new LubanGroupsMobaConfigLoadProfile(textAssetLoader);
-                    loadProfile.Load(db, loadPipeline);
-                    return db;
+                    return MobaConfigDatabaseFactory.Create(
+                        textAssetLoader, registry, deserializer, bytesDeserializer, loadProfile, loadPipeline);
                 }
                 catch (Exception ex)
                 {

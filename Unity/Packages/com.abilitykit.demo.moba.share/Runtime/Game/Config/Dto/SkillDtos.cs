@@ -99,9 +99,53 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public bool ContinueThroughControl;
         public bool PreserveCharacterCastContext;
         public bool UseCommitCooldownFactor;
+        public BasicAttackFlowDTO BasicAttack;
 
         public int RequiredBuffQualificationId;
         public SkillPhaseDTO[] Phases;
+    }
+
+    /// <summary>
+    /// 单发普攻的槽位共享间隔及可选跨槽等级射程。
+    /// </summary>
+    [Serializable]
+    public sealed class BasicAttackFlowDTO
+    {
+        public int RangeLevelSlot;
+        public float[] RangeBonusByLevel;
+
+        /// <summary>
+        /// 解析作者配置的射程。未学习时只使用基础射程。
+        /// </summary>
+        public float ResolveRange(float baseRange, int level) =>
+            RangeLevelSlot > 0 && level > 0 && RangeBonusByLevel?.Length > 0
+                ? baseRange + RangeBonusByLevel[Math.Min(level, RangeBonusByLevel.Length) - 1]
+                : baseRange;
+
+        /// <summary>
+        /// 校验单发及后摇交接结构，返回起手到发射的作者时间。
+        /// </summary>
+        public static int Validate(SkillFlowDTO flow)
+        {
+            var rules = flow.BasicAttack;
+            if (rules == null) return 0;
+            var curve = rules.RangeBonusByLevel;
+            if (rules.RangeLevelSlot < 0 || (rules.RangeLevelSlot > 0) != (curve?.Length > 0))
+                throw new ArgumentException("Basic attack range requires both a level slot and a nonempty curve.");
+            if (curve != null)
+                foreach (var value in curve)
+                    if (value < 0 || float.IsNaN(value) || float.IsInfinity(value))
+                        throw new ArgumentException("Basic attack range bonuses must be finite and nonnegative.");
+
+            var phase = flow.Phases?.Length == 1 ? flow.Phases[0] : null;
+            var timeline = phase?.Timeline;
+            var launch = timeline?.Events?.Length == 1 ? timeline.Events[0] : null;
+            if (phase?.Type != (int)SkillPhaseType.Timeline || launch == null || launch.AtMs <= 0 ||
+                launch.EventTag != "basic_attack_launch" || timeline.RecoveryStartMs != launch.AtMs ||
+                flow.ChildChannelId != 0 || flow.RecastChannelId != 0)
+                throw new ArgumentException("Basic attack cadence requires a single launch timeline with handoff at its launch.");
+            return launch.AtMs;
+        }
     }
 
     public enum SkillPhaseType
@@ -318,6 +362,8 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int DurationMs;
         // -1 disables handoff. Measured from this terminal timeline's own start.
         public int RecoveryStartMs = -1;
+        public int CastGateTagTemplateId;
+        public int CastGateEndMs;
         public SkillTimelineEventDTO[] Events;
     }
 
@@ -349,6 +395,8 @@ namespace AbilityKit.Demo.Moba.Share.Config
             var timeline = phase.Timeline;
             if (timeline != null)
             {
+                ValidateTimelineGate(timeline.DurationMs, timeline.RecoveryStartMs,
+                    timeline.CastGateTagTemplateId, timeline.CastGateEndMs);
                 if (timeline.RecoveryStartMs < -1 || timeline.RecoveryStartMs >= 0 &&
                     (!terminal || phase.Type != (int)SkillPhaseType.Timeline ||
                      timeline.RecoveryStartMs >= timeline.DurationMs))
@@ -361,6 +409,13 @@ namespace AbilityKit.Demo.Moba.Share.Config
             if (phase.Children != null)
                 foreach (var child in phase.Children) ValidatePhase(child, false);
             if (phase.Repeat?.Phase != null) ValidatePhase(phase.Repeat.Phase, false);
+        }
+
+        public static void ValidateTimelineGate(int durationMs, int recoveryStartMs, int templateId, int endMs)
+        {
+            if (templateId < 0 || (templateId == 0 ? endMs != 0 :
+                endMs <= 0 || endMs > durationMs || recoveryStartMs >= 0 && endMs > recoveryStartMs))
+                throw new ArgumentException("Cast gate requires a positive template and end within the Timeline, no later than recovery.");
         }
     }
 }

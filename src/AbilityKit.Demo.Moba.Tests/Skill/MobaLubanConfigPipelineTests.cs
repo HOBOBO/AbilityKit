@@ -618,7 +618,7 @@ public sealed class MobaLubanConfigPipelineTests
     }
 
     [Fact]
-    public void Jhin_e_published_configuration_chain_uses_dedicated_area_and_slow_buff()
+    public void Jhin_e_published_configuration_chain_arms_then_detonates_at_the_trap_center()
     {
         const int heroId = 3001;
         const int skillId = 30010301;
@@ -629,6 +629,10 @@ public sealed class MobaLubanConfigPipelineTests
         const int launcherId = 33010301;
         const int landingTriggerId = 30010312;
         const int enterTriggerId = 30010311;
+        const int fuseAreaId = 42010302;
+        const int detonateTriggerId = 30010313;
+        const int blastQueryId = 52010301;
+        const int blastVisualAreaId = 42010303;
 
         var assets = new ConsoleTextAssetLoader();
         var database = new MobaConfigDatabase(textAssetLoader: assets);
@@ -658,6 +662,22 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.Equal(5000, area["DurationMs"]!.Value<int>());
         Assert.True(area["ConsumeOnFirstEnter"]!.Value<bool>());
         Assert.Contains(enterTriggerId, area["OnEnterTriggerIds"]!.Values<int>());
+        var fuseArea = aoes.Single(row => row!.Value<int>("Id") == fuseAreaId);
+        Assert.Equal(2000, fuseArea["DelayMs"]!.Value<int>());
+        Assert.Equal(90031011, fuseArea["VfxId"]!.Value<int>());
+        Assert.True(File.Exists(Path.Combine(unityResources, "MobaVfx", "Jhin", "E_Charge.prefab")));
+        Assert.Equal(new[] { detonateTriggerId }, fuseArea["OnDelayTriggerIds"]!.Values<int>());
+        var blastVisualArea = aoes.Single(row => row!.Value<int>("Id") == blastVisualAreaId);
+        Assert.Equal(90013018, blastVisualArea["VfxId"]!.Value<int>());
+        Assert.Empty(blastVisualArea["OnDelayTriggerIds"]!.Values<int>());
+        var queries = JArray.Parse(File.ReadAllText(Path.Combine(unityResources, "luban", "moba", "search_query_templates.json")));
+        var blastQuery = Assert.Single(queries, row => row.Value<int>("Id") == blastQueryId);
+        Assert.Equal((int)SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget, blastQuery.Value<int>("ExplicitTargetPolicy"));
+        Assert.Equal((int)SearchTargetProviderKind.EnemyTeam, blastQuery["Provider"]!.Value<int>("Kind"));
+        var blastRule = Assert.Single(blastQuery["Rules"]!.Children());
+        Assert.Equal((int)SearchTargetRuleKind.CircleShape, blastRule.Value<int>("Kind"));
+        Assert.Equal((int)SearchTargetPointKind.AimPosition, blastRule.Value<int>("Center"));
+        Assert.Equal(3f, blastRule.Value<float>("Radius"));
 
         var buffs = JArray.Parse(File.ReadAllText(Path.Combine(unityResources, "luban", "moba", "buffs.json")));
         var slowBuff = buffs.Single(row => row!.Value<int>("Id") == slowBuffId);
@@ -683,15 +703,26 @@ public sealed class MobaLubanConfigPipelineTests
             action["Args"]?["area_id"]?["ConstValue"]?.Value<int>() == areaId);
 
         var enter = triggers.Single(row => row!.Value<int>("TriggerId") == enterTriggerId);
-        var actions = enter["Actions"]!.Children().ToArray();
+        var startFuse = Assert.Single(enter["Actions"]!.Children());
+        Assert.Equal(fuseAreaId, startFuse["Args"]!["area_id"]!["ConstValue"]!.Value<int>());
+        Assert.Equal(2, startFuse["Args"]!["position_mode"]!["ConstValue"]!.Value<int>());
+        Assert.Equal(1, startFuse["Args"]!["replace_event_area"]!["ConstValue"]!.Value<int>());
+        Assert.Single(triggers.Descendants().OfType<JProperty>(), property =>
+            property.Name == "replace_event_area" && property.Value["ConstValue"]?.Value<int>() == 1);
+
+        var detonate = triggers.Single(row => row!.Value<int>("TriggerId") == detonateTriggerId);
+        var actions = detonate["Actions"]!.Children().ToArray();
+        Assert.Equal(3, actions.Length);
         Assert.Contains(actions, action =>
             action["ActionId"]?.Value<int>() == 176148626 &&
-            action["Args"]?["reason_param"]?["ConstValue"]?.Value<int>() == skillId);
+            action["Args"]?["reason_param"]?["ConstValue"]?.Value<int>() == skillId &&
+            action["Args"]?["target_query_id"]?["ConstValue"]?.Value<int>() == blastQueryId);
         Assert.Contains(actions, action =>
-            action["Args"]?["buff_ids"]?["ConstValue"]?.Value<int>() == slowBuffId);
+            action["Args"]?["buff_ids"]?["ConstValue"]?.Value<int>() == slowBuffId &&
+            action["Args"]?["target_query_id"]?["ConstValue"]?.Value<int>() == blastQueryId);
         Assert.Contains(actions, action =>
-            action["ActionId"]?.Value<int>() == 613578853 &&
-            action["Args"]?["template_id"]?["ConstValue"]?.Value<int>() == areaId);
+            action["Args"]?["area_id"]?["ConstValue"]?.Value<int>() == blastVisualAreaId &&
+            action["Args"]?["position_mode"]?["ConstValue"]?.Value<int>() == 2);
     }
 
     [Fact]

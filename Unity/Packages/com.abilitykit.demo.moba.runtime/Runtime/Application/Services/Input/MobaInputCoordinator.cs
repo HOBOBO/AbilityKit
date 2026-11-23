@@ -19,7 +19,8 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(IWorldInputReplaySink))]
     [WorldService(typeof(IMobaInputCoordinator))]
     [WorldService(typeof(MobaInputCoordinator))]
-    public sealed class MobaInputCoordinator : LogicWorldInputCoordinatorBase<MobaInputCommandContext>, IMobaInputCoordinator, IWorldInputReplaySink
+    public sealed class MobaInputCoordinator : LogicWorldInputCoordinatorBase<MobaInputCommandContext>, IMobaInputCoordinator,
+        IWorldInputReplaySink, IWorldSettledTimelineSink
     {
         private readonly MobaLogicWorldRunGateService _phase;
         private readonly MobaPlayerActorMapService _playerActorMap;
@@ -33,6 +34,21 @@ namespace AbilityKit.Demo.Moba.Services
         private IMobaBattleExceptionPolicy _exceptionPolicy;
         private long _nextDiagnosticCommandId;
         private bool _replayActive;
+        private bool _clientBound;
+
+        /// <summary>
+        /// 开始捕获权威输入。调用方须在世界通过帧完成检查后提交捕获。
+        /// </summary>
+        public MobaAuthorityFrameCapture BeginAuthorityFrameCapture(FrameIndex frame)
+        {
+            if (_clientBound || _replayActive || _actionAcks == null)
+                throw new InvalidOperationException("Authority frame capture requires a ready authority coordinator.");
+            if (frame.Value < 0) throw new ArgumentOutOfRangeException(nameof(frame));
+
+            return new MobaAuthorityFrameCapture(frame, _actionAcks,
+                (inputs, before, after) => TrySubmitWithContext(frame, inputs,
+                    CreateContext(MobaInputExecutionKind.Authority), before, after));
+        }
 
         public MobaInputCoordinator(MobaLogicWorldRunGateService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, MobaInputCommandContractRegistry contracts)
         {
@@ -49,6 +65,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             _handlers.BindHandlers(services);
             services.TryResolve(out _actionAcks);
+            if (_clientBound) _actionAcks?.BindClientInput();
             services.TryResolve(out _inputEventSink);
             services.TryResolve(out _exceptionPolicy);
             if (_skills != null) return;
@@ -58,7 +75,86 @@ namespace AbilityKit.Demo.Moba.Services
 
         protected override MobaInputCommandContext CreateContext(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
         {
-            return new MobaInputCommandContext(_phase, _playerActorMap, _entities, _skills, Services, _replayActive);
+            return CreateContext(_replayActive ? MobaInputExecutionKind.Replay :
+                _clientBound ? MobaInputExecutionKind.Received : MobaInputExecutionKind.Authority);
+        }
+
+        private MobaInputCommandContext CreateContext(MobaInputExecutionKind executionKind) =>
+            new MobaInputCommandContext(_phase, _playerActorMap, _entities, _skills, Services, executionKind);
+
+        void IWorldClientInputSink.BindClientInput()
+        {
+            _clientBound = true;
+            _actionAcks?.BindClientInput();
+        }
+
+        void IWorldSettledTimelineSink.BindSettledTimeline()
+        {
+            if (!_clientBound || _actionAcks == null)
+                throw new InvalidOperationException("Settled timeline requires a ready client coordinator.");
+            _actionAcks.BindSettledTimeline();
+        }
+
+        IWorldSettledFrameUpdate IWorldSettledTimelineSink.PrepareSettledFrame(WorldSettledInputFrame frame)
+        {
+            if (!(frame.Metadata is MobaSettledFrameMetadata metadata) || frame.ExecutedInputs.Count > metadata.CommandCount)
+                throw new InvalidOperationException("Invalid MOBA settled frame metadata.");
+            return _actionAcks.PrepareSettledFrame(frame.Frame, metadata);
+        }
+
+        void IWorldClientInputSink.SubmitPredicted(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs) =>
+            SubmitClientInput(frame, inputs, MobaInputExecutionKind.Predicted);
+
+        void IWorldClientInputSink.SubmitReceived(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs) =>
+            SubmitClientInput(frame, inputs, MobaInputExecutionKind.Received);
+
+        /// <summary>
+        /// 提交本地预测，返回实际执行项；成功的幂等重复不属于执行项。
+        /// </summary>
+        public PlayerInputCommand[] ExecutePredictedInputs(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
+        {
+            if (!_clientBound || _replayActive)
+                throw new InvalidOperationException("Observed prediction requires a client coordinator outside legacy input replay.");
+            if (inputs == null) throw new ArgumentNullException(nameof(inputs));
+            if (inputs.Count == 0) return Array.Empty<PlayerInputCommand>();
+
+            var executed = new List<PlayerInputCommand>();
+            var submit = TrySubmitWithContext(frame, inputs, CreateContext(MobaInputExecutionKind.Predicted),
+                afterCommand: (ordinal, result) =>
+                {
+                    if (result.Succeeded && !result.IsDuplicate) executed.Add(inputs[ordinal]);
+                });
+            if (!submit.Succeeded)
+                throw new InvalidOperationException($"Prediction input dispatch failed. frame={frame.Value}: {submit}");
+            return executed.ToArray();
+        }
+
+        /// <summary>
+        /// 执行已验证结算记录中的实际执行项，不以本地 Ack 重新受理。失败时调用方不得提交该帧。
+        /// </summary>
+        public void ExecuteSettledInputs(FrameIndex frame, IReadOnlyList<PlayerInputCommand> executedInputs)
+        {
+            if (!_clientBound || _replayActive)
+                throw new InvalidOperationException("Settled input requires a client coordinator outside legacy input replay.");
+            if (executedInputs == null) throw new ArgumentNullException(nameof(executedInputs));
+            if (executedInputs.Count == 0) return;
+
+            var submit = TrySubmitWithContext(frame, executedInputs, CreateContext(MobaInputExecutionKind.Settled),
+                afterCommand: (ordinal, result) =>
+                {
+                    if (!result.Succeeded || result.IsDuplicate)
+                        throw new InvalidOperationException($"Settled command did not execute. frame={frame.Value}, ordinal={ordinal}: {result}");
+                });
+            if (!submit.Succeeded || submit.HandledCount != executedInputs.Count)
+                throw new InvalidOperationException($"Settled inputs did not execute. frame={frame.Value}: {submit}");
+        }
+
+        private void SubmitClientInput(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs, MobaInputExecutionKind executionKind)
+        {
+            if (!_clientBound || _replayActive)
+                throw new InvalidOperationException("Client input requires a bound coordinator outside active replay.");
+            if (inputs == null || inputs.Count == 0) return;
+            TrySubmitWithContext(frame, inputs, CreateContext(executionKind));
         }
 
         public void BeginReplay(FrameIndex restoredFrame, FrameIndex replayToFrame)

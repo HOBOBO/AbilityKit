@@ -4,7 +4,7 @@
 
 > 文档类型：Canonical Beta 发布规范
 >
-> 事实基线：2026-08-16
+> 事实基线：2026-11-21 仅复核门禁入口和 CI；其余沿用 2026-08-16。
 >
 > 当前状态：仓库已有 cohort 对齐、版本审计、候选批次和本地 tag 工具，但尚无统一 package 发布 E5 gate
 
@@ -37,7 +37,7 @@
 
 - 多个 `src/AbilityKit.*/*.csproj` 已声明 `AbilityKitStable=true`，但仓库根目录当前没有统一的 `Directory.Build.props` 定义该属性的具体警告策略。不能仅凭属性存在就写成“稳定构建零警告”。
 - `tools/test-gates.json` 定义 P0、P1、P2 门禁，`regression` 是发布候选的回归基线；门禁覆盖范围不等于全部 package 的发布验证。
-- `.github/workflows/abilitykit-test-gates.yml` 会运行主要测试门禁，但当前没有统一的 package 发布、CHANGELOG 完整性和全部 manifest 依赖闭包工作流。
+- 门禁脚本、发布计划检查和实际 CI 接入是不同证据；当前接入状态见[门禁执行与 CI 接入](../../AbilityKit测试门禁与批量回归规范.md#8-ci-接入与静态校验)。
 - `world.framesync` 中 `ClientPredictionRunner` 与 `ClientPredictionReconciler` 曾标记废弃，现已恢复为活跃类型（Shooter demo、MOBA test harness、`ClientPredictionDriverModule` 均依赖它们）。规范预测驱动仍以 `host.extension/ClientPredictionDriverModule` 为主。
 - `coordinator` 的 Beta 范围只承诺 Local/Remote；`HybridSyncAdapter` 被禁止创建且保留未完成实现，不属于 `0.1.0` 承诺面。
 
@@ -322,7 +322,7 @@ Beta 是版本阶段，Pilot、Supported、Recommended 是采用成熟度，两�
 
 - 门禁清单：[`tools/test-gates.json`](../../../tools/test-gates.json)
 - 门禁执行器：[`tools/run_test_gate.ps1`](../../../tools/run_test_gate.ps1)
-- CI 工作流：[`.github/workflows/abilitykit-test-gates.yml`](../../../.github/workflows/abilitykit-test-gates.yml)
+- CI 接入：[测试门禁与批量回归规范](../../AbilityKit测试门禁与批量回归规范.md#8-ci-接入与静态校验)
 - package JSON 语法校验：[`tools/validate_abilitykit_package_json.ps1`](../../../tools/validate_abilitykit_package_json.ps1)
 - Unity package 依赖审计：[`tools/audit_unity_package_dependencies.ps1`](../../../tools/audit_unity_package_dependencies.ps1)
 - 当前版本重置脚本：[`tools/update_abilitykit_package_versions.ps1`](../../../tools/update_abilitykit_package_versions.ps1)
@@ -336,4 +336,4 @@ Beta 是版本阶段，Pilot、Supported、Recommended 是采用成熟度，两�
 
 ---
 
-*文档版本：v3.1 | 最后更新：2026-08-16*
+*文档版本：v3.2 | 最后更新：2026-11-21*

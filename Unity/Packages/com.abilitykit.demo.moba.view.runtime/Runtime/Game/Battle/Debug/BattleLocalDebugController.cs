@@ -401,7 +401,7 @@ namespace AbilityKit.Game.Flow
             }
 
             ctx.LocalControlPlayerId = playerId.Value;
-            ctx.LocalActorId = actorId;
+            ctx.ApplyLocalActorIdentity(actorId);
             _hudResolver?.Invoke()?.RefreshLocalControlSkillTemplates();
             message = $"已切换至玩家 {playerId.Value}，角色 ID={actorId}";
             return true;

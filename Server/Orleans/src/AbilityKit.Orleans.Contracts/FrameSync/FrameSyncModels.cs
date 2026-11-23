@@ -16,6 +16,7 @@ public sealed record FrameSyncStartOptions(
     [property: Id(8)] int MaxTickRate = 60)
 {
     [Id(9)] public FrameSyncInitialCheckpoint? InitialCheckpoint { get; init; }
+    [Id(10)] public bool UseSettledFrames { get; init; }
 }
 
 /// <summary>Server-internal proof that this runtime started at frame zero without a gameplay tick or inputs.</summary>
@@ -36,7 +37,9 @@ public enum FrameInputSubmitReason
     NegativeFrame = 2,
     FrameAlreadyProcessed = 3,
     FrameTooFarAhead = 4,
-    RateLimited = 100
+    RateLimited = 100,
+    SettlementModeMismatch = 101,
+    SettlementFaulted = 102
 }
 
 [GenerateSerializer]
@@ -101,4 +104,5 @@ public sealed record FrameSyncMetrics(
 
     /// <summary>仅供服务端联调诊断；null 表示本代次尚无连续完成的权威帧。</summary>
     [Id(14)] public int? LastSettledFrame { get; init; }
+    [Id(15)] public int? SettlementFaultFrame { get; init; }
 }

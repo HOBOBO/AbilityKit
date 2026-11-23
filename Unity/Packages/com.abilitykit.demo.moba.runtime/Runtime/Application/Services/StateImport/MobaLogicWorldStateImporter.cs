@@ -94,6 +94,22 @@ namespace AbilityKit.Demo.Moba.Services.StateImport
         }
 
         public MobaStateImportResult Import(IReadOnlyList<MobaActorStateImport> actors, int frame, bool isFullSnapshot)
+            => ImportCore(actors, frame, isFullSnapshot, previouslyManagedActorIds: null);
+
+        /// <summary>
+        /// 导入受管实体的全量状态。缺席清理仅作用于调用方此前已接管的实体；
+        /// 空集合表示本次不清理其他本地实体。导入失败时不安排缺席清理。
+        /// </summary>
+        public MobaStateImportResult ImportScopedFullSnapshot(
+            IReadOnlyList<MobaActorStateImport> actors, int frame, IReadOnlyCollection<int> previouslyManagedActorIds)
+        {
+            if (previouslyManagedActorIds == null) throw new ArgumentNullException(nameof(previouslyManagedActorIds));
+            return ImportCore(actors, frame, isFullSnapshot: true, previouslyManagedActorIds);
+        }
+
+        private MobaStateImportResult ImportCore(
+            IReadOnlyList<MobaActorStateImport> actors, int frame, bool isFullSnapshot,
+            IReadOnlyCollection<int> previouslyManagedActorIds)
         {
             var result = new MobaStateImportResult();
             if (actors == null) return result;
@@ -139,7 +155,20 @@ namespace AbilityKit.Demo.Moba.Services.StateImport
                 }
             }
 
-            if (isFullSnapshot)
+            if (isFullSnapshot && previouslyManagedActorIds != null)
+            {
+                if (result.Failed == 0)
+                {
+                    var despawnFrame = ResolveDespawnFrame(frame);
+                    foreach (var actorId in previouslyManagedActorIds)
+                    {
+                        if (!seen.Contains(actorId) && _registry.TryGet(actorId, out var entity) &&
+                            ActorLifecycleRequests.RequestDespawn(entity, despawnFrame, ActorDespawnReason.Unknown))
+                            result.Despawned++;
+                    }
+                }
+            }
+            else if (isFullSnapshot)
             {
                 // 全量快照是权威全集：registry 中缺失的 actor 已在断线期间死亡。
                 // despawn 门槛帧取 min(导入帧, 当前 confirmed)——快照对"现在"权威，

@@ -47,29 +47,44 @@ namespace AbilityKit.Game.Battle.Agent
             return snapshot;
         }
 
+        /// <summary>
+        /// 将网关领域快照投影到客户端，复制成员、玩家和技能列表。
+        /// </summary>
         public static ClientRoomSnapshot ToClientSnapshot(RoomGatewaySnapshot source)
+        {
+            return ProjectGatewaySnapshot(source, 0UL, fromSession: false);
+        }
+
+        internal static ClientRoomSnapshot ToSessionSnapshot(RoomGatewaySnapshot source, ulong numericRoomId)
+        {
+            return ProjectGatewaySnapshot(source, numericRoomId, fromSession: true);
+        }
+
+        private static ClientRoomSnapshot ProjectGatewaySnapshot(
+            RoomGatewaySnapshot source, ulong numericRoomId, bool fromSession)
         {
             var anchor = source.WorldStartAnchor;
             return new ClientRoomSnapshot
             {
-                RoomId = source.RoomId ?? string.Empty,
+                RoomId = ProjectGatewayText(source.RoomId, fromSession),
                 GameplayId = source.GameplayId,
-                OwnerAccountId = source.OwnerAccountId ?? string.Empty,
-                Phase = ToClientPhase((int)source.Phase),
-                PhaseReason = source.PhaseReason ?? string.Empty,
+                NumericRoomId = numericRoomId,
+                OwnerAccountId = ProjectGatewayText(source.OwnerAccountId, fromSession),
+                Phase = fromSession ? (ClientRoomPhase)source.Phase : ToClientPhase((int)source.Phase),
+                PhaseReason = ProjectGatewayText(source.PhaseReason, fromSession),
                 LaunchGeneration = source.LaunchGeneration,
                 LoadingDeadlineUnixMs = source.LoadingDeadlineUnixMs,
-                LaunchManifestHash = source.LaunchManifestHash ?? string.Empty,
-                TagBundleVersion = source.TagBundleVersion ?? string.Empty,
+                LaunchManifestHash = ProjectGatewayText(source.LaunchManifestHash, fromSession),
+                TagBundleVersion = ProjectGatewayText(source.TagBundleVersion, fromSession),
                 LaunchManifestVersion = source.LaunchManifestVersion,
-                LastStartFailureCode = source.LastStartFailureCode ?? string.Empty,
+                LastStartFailureCode = ProjectGatewayText(source.LastStartFailureCode, fromSession),
                 RoomRevision = source.RoomRevision,
                 LastEventSequence = source.LastEventSequence,
                 CanStart = source.CanStart,
-                BattleId = source.BattleId ?? string.Empty,
+                BattleId = ProjectGatewayText(source.BattleId, fromSession),
                 WorldId = source.WorldId,
                 Members = ToStringList(source.Members),
-                Players = ToPlayerList(source.Players),
+                Players = ToPlayerList(source.Players, fromSession),
                 SyncCapabilities = source.SyncCapabilities,
                 WorldStartAnchor = ToAnchor(in anchor)
             };
@@ -104,13 +119,21 @@ namespace AbilityKit.Game.Battle.Agent
             };
         }
 
+        /// <summary>
+        /// 将网关领域玩家投影到客户端，复制技能列表。
+        /// </summary>
         public static ClientRoomPlayer ToClientPlayer(RoomGatewayPlayerSnapshot source)
+        {
+            return ToClientPlayer(source, fromSession: false);
+        }
+
+        private static ClientRoomPlayer ToClientPlayer(RoomGatewayPlayerSnapshot source, bool fromSession)
         {
             return new ClientRoomPlayer
             {
-                AccountId = source.AccountId ?? string.Empty,
+                AccountId = ProjectGatewayText(source.AccountId, fromSession),
                 TeamId = source.TeamId,
-                Ready = source.Ready,
+                Ready = fromSession ? source.LobbyReady : source.Ready,
                 HeroId = source.HeroId,
                 SpawnPointId = source.SpawnPointId,
                 Level = source.Level,
@@ -124,10 +147,15 @@ namespace AbilityKit.Game.Battle.Agent
                 IsOnline = source.IsOnline,
                 JoinOrdinal = source.JoinOrdinal,
                 LoadedManifestVersion = source.LoadedManifestVersion,
-                LoadedManifestHash = source.LoadedManifestHash ?? string.Empty,
+                LoadedManifestHash = ProjectGatewayText(source.LoadedManifestHash, fromSession),
                 LastSeenTicks = source.LastSeenTicks,
                 OfflineSinceTicks = source.OfflineSinceTicks
             };
+        }
+
+        private static string ProjectGatewayText(string value, bool fromSession)
+        {
+            return fromSession ? value : value ?? string.Empty;
         }
 
         private static ClientRoomPhase ToClientPhase(int phase)
@@ -196,7 +224,7 @@ namespace AbilityKit.Game.Battle.Agent
             return result;
         }
 
-        private static IReadOnlyList<ClientRoomPlayer> ToPlayerList(IReadOnlyList<RoomGatewayPlayerSnapshot> source)
+        private static IReadOnlyList<ClientRoomPlayer> ToPlayerList(IReadOnlyList<RoomGatewayPlayerSnapshot> source, bool fromSession)
         {
             if (source == null || source.Count == 0)
             {
@@ -206,7 +234,7 @@ namespace AbilityKit.Game.Battle.Agent
             var result = new ClientRoomPlayer[source.Count];
             for (int i = 0; i < source.Count; i++)
             {
-                result[i] = ToClientPlayer(source[i]);
+                result[i] = ToClientPlayer(source[i], fromSession);
             }
 
             return result;

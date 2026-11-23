@@ -58,8 +58,8 @@ AbilityKit 的状态同步不是一个独立网络协议，而是围绕“权威
 | [SnapshotBuffer.cs](../../../Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Buffer/SnapshotBuffer.cs) | 线程安全的帧快照缓存，内部按帧号索引并维护有序帧列表。 |
 | [SnapshotMessage.cs](../../../Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Network/SnapshotMessage.cs) | 网络传输用快照消息、快照请求消息和状态哈希消息。 |
 | [ISnapshotPacker.cs](../../../Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Network/ISnapshotPacker.cs) | 快照打包器接口与 `MemoryPackSnapshotPacker` 默认实现。 |
-| [PredictionCoordinator.cs](../../../Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Prediction/Core/PredictionCoordinator.cs) | 通用预测协调器，管理处理器、输入历史、快照存储和服务器确认帧。 |
-| [StateSlots.cs](../../../Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Prediction/Core/StateSlots.cs) | 预测状态槽位、预测处理器、监听器、快照存储和输入历史。 |
+| [PredictionCoordinator.cs](../../../Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Prediction/Replay/PredictionCoordinator.cs) | 通用预测协调器，管理处理器、输入历史、快照存储和服务器确认帧。 |
+| [StateSlots.cs](../../../Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Prediction/Replay/StateSlots.cs) | 预测状态槽位、预测处理器、监听器、快照存储和输入历史。 |
 
 ### 2.2 Host Extension 与 Shooter 落地
 
@@ -450,7 +450,9 @@ flowchart TD
 
 ---
 
-## 11. 状态同步业务预测回滚契约
+## 11. 固定基线复制与业务预测回滚契约
+
+MOBA 的 StateSync 支持 [D1 固定基线复制](13-StateSyncReplicationAndPredictionProposal.md)：房间声明 schema 4 后客户端可按观察者显式订阅；同一流的各个增量都从当期不可变全量构建，直到全量轮换。接收端按流代数与精确基线校验，缺基线请求全量，不按帧差猜测。订阅与定向恢复不修改旧协议的差分缓存；旧订阅继续使用原协议。这里是**权威投影复制**，未增加输入确认、局部移动预测或重演。
 
 与第 6 节的**通用槽位协调器**不同，本节定义项目接入状态同步网络主链时必须满足的条件。该方案目前不是 MOBA 默认房间已经实现的 StateSync Profile；实际同步模式必须以服务端最终 commit 的 template/profile 和客户端能力声明为准。[03.2 专题](03.2-FrameStatePredictionRollback.md) 给出帧同步与状态同步的逐项对比和完整实施顺序。
 

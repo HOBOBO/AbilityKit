@@ -16,6 +16,20 @@ namespace AbilityKit.World.DI.Tests;
 public sealed class WorldScopeSeedingTests
 {
     [Fact]
+    public void Scope_resolves_itself_through_the_IWorldScope_contract()
+    {
+        using var container = new WorldContainerBuilder().Build();
+        using var scope = container.CreateScope();
+
+        var resolved = scope.Resolve<IWorldScope>();
+        Assert.Same(scope, resolved);
+        Assert.Same(container, resolved.Root);
+        Assert.True(scope.TryResolve<IWorldScope>(out var optional));
+        Assert.Same(resolved, optional);
+        Assert.Same(resolved, ((IServiceProvider)scope).GetService(typeof(IWorldScope)));
+    }
+
+    [Fact]
     public void SeededInstance_IsResolved_FromScope()
     {
         var builder = new WorldContainerBuilder();

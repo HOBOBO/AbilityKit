@@ -5,12 +5,25 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Testing;
+using AbilityKit.Triggering.Runtime;
 using NUnit.Framework;
 
 namespace AbilityKit.Triggering.Tests
 {
     public sealed class TriggeringTestHarnessTests
     {
+        /// <summary>
+        /// 验证测试夹具由独立程序集提供，运行时程序集不再导出夹具类型。
+        /// </summary>
+        [Test]
+        public void TestHarness_IsOwnedByTestSupportAssembly()
+        {
+            var harnessType = typeof(TriggeringTestHarness<>);
+
+            Assert.That(harnessType.Assembly.GetName().Name, Is.EqualTo("AbilityKit.Triggering.TestSupport"));
+            Assert.That(typeof(TriggerRunner<>).Assembly.GetType(harnessType.FullName), Is.Null);
+        }
+
         private sealed class TestContext
         {
             public TestContext(int value)

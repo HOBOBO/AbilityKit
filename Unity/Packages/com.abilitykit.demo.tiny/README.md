@@ -12,7 +12,7 @@
 
 在仓库根目录运行 `./tools/verify-tiny-starter.ps1`。脚本依次检查协议目录与 Room wire schema，执行 Room 和 Tiny 复制器测试，构建客户端及服务端，启动独立端口上的 Host/Gateway，分别运行 Room、State、Frame、Hybrid 逐章双客户端样例、Recovery 四类故障验收，并验证三种同步模式及断线恢复。服务端仍运行时，隔离 Unity 网络 PlayMode 用两套正式会话及角色 View 验证三模式双端投影与访客恢复，结果写入 `tiny-network-playmode.json`。随后运行 Tiny EditMode/PlayMode、无 Starter 消费工程和独立 Logic 工程测试；结果保存在 `local/Logs/tiny-acceptance-<时间戳>/`。测试检查 Unity 对象状态，不检查最终画面。仅验证 .NET 和 TCP 时可传入 `-SkipUnity`。
 
-`./tools/create-tiny-validation-project.ps1` 默认在 `local/Logs/` 生成带时间戳的独立工程，也可用 `-OutputPath` 指定外部目录；非空目录不会被覆盖。生成器将 Tiny/Starter 的本地包依赖闭包嵌入工程的 `Packages/`，manifest 不含源仓库绝对路径。MemoryPack 需要的 `System.Runtime.CompilerServices.Unsafe.dll` 由 `com.abilitykit.thirdparty.unsafe` 包提供，消费工程不从源码工程的 `Assets/Plugins` 补拷插件。工程生成后可整体移动到其他目录。Unity 2022.3.62f3 可打开其中的 `StarterScene`，也可用上述脚本执行 EditMode 测试。首次打开仍需获取 manifest 中声明的 MemoryPack 和 Unity 公共包。
+`./tools/create-tiny-validation-project.ps1` 默认在 `local/Logs/` 生成带时间戳的独立工程，也可用 `-OutputPath` 指定外部目录；非空目录不会被覆盖。生成器将 Tiny/Starter 的本地包依赖闭包嵌入工程的 `Packages/`，manifest 不含源仓库绝对路径。MemoryPack 需要的 `System.Runtime.CompilerServices.Unsafe.dll` 统一由 OpenUPM 的 `org.nuget.system.runtime.compilerservices.unsafe@5.0.0` 提供，消费工程不嵌入旧的 Unsafe 包，也不从源码工程的 `Assets/Plugins` 补拷插件。工程生成后可整体移动到其他目录。Unity 2022.3.62f3 可打开其中的 `StarterScene`，也可用上述脚本执行 EditMode 测试。首次打开仍需从 manifest 配置的注册表获取 MemoryPack、Unsafe 和 Unity 公共包。
 
 两个可视化 Unity 客户端必须使用两个独立的工程目录，以免共用 `Library` 锁。可在仓库根目录执行：
 

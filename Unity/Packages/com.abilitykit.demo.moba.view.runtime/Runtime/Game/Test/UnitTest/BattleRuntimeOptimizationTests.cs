@@ -979,12 +979,14 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsTrue(deduplicator.ShouldHandle(in hitData));
                 Assert.AreEqual(2, deduplicator.Count);
 
-                deduplicator.ForgetLifecycle(in exitData);
+                deduplicator.CompleteLifecycle(in exitData);
                 Assert.AreEqual(0, deduplicator.Count);
 
                 // Exit cleanup is intentionally idempotent because replay/reconnect can resend it.
-                deduplicator.ForgetLifecycle(in exitData);
+                deduplicator.CompleteLifecycle(in exitData);
                 Assert.AreEqual(0, deduplicator.Count);
+                Assert.IsFalse(deduplicator.ShouldHandle(in spawnData));
+                Assert.IsFalse(deduplicator.ShouldHandle(in hitData));
             }
         }
 
@@ -1739,6 +1741,11 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(425, SessionSimRuntimeTuning.ResolveInputObservedFrame(425, 424, 420));
             Assert.AreEqual(202, SessionSimRuntimeTuning.ResolveInputObservedFrame(202, 424, 425, in localPlan));
             Assert.AreEqual(425, SessionSimRuntimeTuning.ResolveInputObservedFrame(202, 424, 425, in minimumLeadGatewayPlan));
+            Assert.AreEqual(202, SessionSimRuntimeTuning.ResolveInputObservedFrame(202, 424, 425, in localPlan, 679));
+            Assert.AreEqual(425, SessionSimRuntimeTuning.ResolveInputObservedFrame(202, 424, 425, in minimumLeadGatewayPlan, 420));
+            var observedSettledFrame = SessionSimRuntimeTuning.ResolveInputObservedFrame(
+                202, 424, 425, in minimumLeadGatewayPlan, 679);
+            Assert.AreEqual(682, SessionSimRuntimeTuning.ResolveInputSubmitFrame(observedSettledFrame, in minimumLeadGatewayPlan));
             Assert.AreEqual(120, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in localPlan));
             Assert.AreEqual(123, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in minimumLeadGatewayPlan));
             Assert.AreEqual(126, SessionSimRuntimeTuning.ResolveInputSubmitFrame(120, in configuredLeadGatewayPlan));
@@ -2452,7 +2459,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     maxPlayers: 5)
                 .Build();
             var bootstrapper = new ExistingGatewayRoomBattleBootstrapper(
-                new FixedBattleBootstrapper(sourcePlan),
+                sourcePlan,
+                null,
                 "authenticated-token",
                 "room-public-id",
                 "battle-authoritative-id",
@@ -2507,7 +2515,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     ReliableEvent = (int)profile.ReliableEvent,
                 });
             var bootstrapper = new ExistingGatewayRoomBattleBootstrapper(
-                new FixedBattleBootstrapper(sourcePlan),
+                sourcePlan,
+                null,
                 "authenticated-token",
                 "room-public-id",
                 "battle-authoritative-id",
@@ -2520,7 +2529,7 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
-        public void ExistingGatewayRoomBattleBootstrapper_SnapshotsSourcePlanForGateAndBuild()
+        public void ExistingGatewayRoomBattleBootstrapper_UsesSuppliedPlanForGateAndBuild()
         {
             var sourcePlan = BattleStartPlanBuilder
                 .ForWorld("preset-world", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
@@ -2538,9 +2547,9 @@ namespace AbilityKit.Game.Test.UnitTest
                     createRoomOpCode: 110,
                     joinRoomOpCode: 111)
                 .Build();
-            var inner = new SingleBuildBattleBootstrapper(sourcePlan);
             var bootstrapper = new ExistingGatewayRoomBattleBootstrapper(
-                inner,
+                sourcePlan,
+                "source-profile",
                 "authenticated-token",
                 "room-public-id",
                 "battle-authoritative-id",
@@ -2548,14 +2557,13 @@ namespace AbilityKit.Game.Test.UnitTest
                 7001UL,
                 42u);
 
-            Assert.AreEqual(1, inner.BuildCount);
+            Assert.AreEqual("source-profile", bootstrapper.FlowProfileId);
             Assert.IsTrue(bootstrapper.IsConnectivityReady);
             Assert.IsTrue(bootstrapper.IsConnectivityReady);
 
             var first = bootstrapper.Build();
             var second = bootstrapper.Build();
 
-            Assert.AreEqual(1, inner.BuildCount);
             Assert.AreEqual("configured.example", first.Gateway.Host);
             Assert.AreEqual(4000, first.Gateway.Port);
             Assert.AreEqual(first.Gateway.Host, second.Gateway.Host);
@@ -2621,7 +2629,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 }
             };
             var bootstrapper = new ExistingGatewayRoomBattleBootstrapper(
-                new FixedBattleBootstrapper(sourcePlan),
+                sourcePlan,
+                null,
                 "token",
                 "room-id",
                 "battle-id",
@@ -2992,29 +3001,6 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
-        private sealed class SingleBuildBattleBootstrapper : IBattleBootstrapper
-        {
-            private readonly BattleStartPlan _plan;
-
-            public SingleBuildBattleBootstrapper(BattleStartPlan plan)
-            {
-                _plan = plan;
-            }
-
-            public int BuildCount { get; private set; }
-
-            public BattleStartPlan Build()
-            {
-                BuildCount++;
-                if (BuildCount > 1)
-                {
-                    throw new InvalidOperationException("Source plan must only be built once.");
-                }
-
-                return _plan;
-            }
-        }
-
         private sealed class TestMobaFeatureFactoryProvider : IMobaFeatureFactoryProvider
         {
             public readonly List<string> CreatedFeatureIds = new List<string>();
@@ -3101,7 +3087,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 uint localPlayerId,
                 ulong roomId,
                 IDispatcher callbackDispatcher,
-                IDispatcher ioDispatcher)
+                IDispatcher ioDispatcher,
+                MobaSettledFrameSession settledFrames)
             {
                 CreateCount++;
                 LastPlan = plan;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Battle.SearchTarget;
@@ -29,13 +30,14 @@ namespace AbilityKit.Demo.Moba.Services.Search
         private readonly IMobaBattleDiagnosticEventSink _eventCollector;
 
         public SearchTargetService(MobaActorRegistry actors, MobaConfigDatabase configs = null,
-            MobaCombatRulesService combatRules = null, IMobaBattleDiagnosticEventSink eventCollector = null)
+            MobaCombatRulesService combatRules = null, IMobaBattleDiagnosticEventSink eventCollector = null,
+            IWorldResolver services = null)
         {
             if (actors == null) throw new ArgumentNullException(nameof(actors));
             _configs = configs;
             _positionProvider = new RegistryPositionProvider(actors);
             _allActorsProvider = new AllActorsCandidateProvider(actors);
-            _queryBuilder = new MobaSearchQueryBuilder(actors, _allActorsProvider, combatRules);
+            _queryBuilder = new MobaSearchQueryBuilder(actors, _allActorsProvider, combatRules, services);
             _eventCollector = eventCollector;
         }
 

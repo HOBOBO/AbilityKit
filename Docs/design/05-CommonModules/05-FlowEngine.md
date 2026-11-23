@@ -69,7 +69,7 @@ Flow 的开箱即用价值来自控制结构和生命周期契约，而不是来
 | `FinallyNode` | [FinallyNode.cs](../../../Unity/Packages/com.abilitykit.flow/Runtime/Flow/Blocks/FinallyNode.cs) | 执行 finally 节点，但保留 try 节点的最终状态 |
 | `UsingResourceNode<T>` | [UsingResourceNode.cs](../../../Unity/Packages/com.abilitykit.flow/Runtime/Flow/Blocks/UsingResourceNode.cs) | 将资源放入 Context，并在退出或中断时移除和释放 |
 | `OrderedStagedFlowRootProvider<TArgs>` | [OrderedStagedFlowRootProvider.cs](../../../Unity/Packages/com.abilitykit.flow/Runtime/Flow/Stages/OrderedStagedFlowRootProvider.cs) | 将阶段、贡献者和核心 provider 编译成根节点 |
-| `HfsmFlowRunner` | [HfsmFlowRunner.cs](../../../Unity/Packages/com.abilitykit.flow/Runtime/Flow/HfsmFlowRunner.cs) | 用事件队列驱动 HFSM 的独立适配器 |
+| `StateMachineFlowRunner` | [StateMachineFlowRunner.cs](../../../Unity/Packages/com.abilitykit.flow/Runtime/Flow/StateMachineFlowRunner.cs) | 用事件队列驱动 HFSM 的独立适配器 |
 
 ---
 
@@ -318,7 +318,7 @@ Flow 不提供跨线程同步。`FlowWakeUp` 和 `AwaitCallbackNode` 的回调�
 
 ### 9.1 HFSM 适配边界
 
-`HfsmFlowRunner<TOwnId,TStateId,TEvent>` 复用了 Flow 的事件队列和启动/停止外观，但不是流程树 runner。`Start` 调用状态机 `OnEnter`；`Step` 先耗尽 `FlowEventQueue<TEvent>` 并逐个 `Trigger`，再调用一次 `OnLogic`；`Stop` 调用 `OnExit` 并清空队列。当前 `Step(deltaTime)` 不消费 `deltaTime`，时间语义由 HFSM 或外部状态自行提供。
+`StateMachineFlowRunner<TOwnId,TStateId,TEvent>` 复用了 Flow 的事件队列和启动/停止外观，但不是流程树 runner。`Start` 调用状态机 `OnEnter`；`Step` 先耗尽 `FlowEventQueue<TEvent>` 并逐个 `Trigger`，再调用一次 `OnLogic`；`Stop` 调用 `OnExit` 并清空队列。当前 `Step(deltaTime)` 不消费 `deltaTime`，时间语义由 HFSM 或外部状态自行提供。
 
 ---
 

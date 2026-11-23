@@ -25,6 +25,10 @@ namespace AbilityKit.Network.Battle
         public uint OpPostAuthentication;
         public Func<ArraySegment<byte>> SerializePostAuthentication;
         public Func<string, long, ArraySegment<byte>> SerializePostAuthenticationWithReliableEventCursor;
+        /// <summary>
+        /// 在连接鉴权完成前校验订阅应答；抛出异常时不开放此连接的输入。
+        /// </summary>
+        public Action<ArraySegment<byte>> ValidatePostAuthenticationResponse;
         public Func<string> GetReliableEventEpoch;
         public Func<long> GetReliableEventLastAcknowledgedSequence;
 

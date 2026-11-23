@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Battle.SearchTarget;
 using AbilityKit.Battle.SearchTarget.Rules;
 using AbilityKit.Battle.SearchTarget.Scorers;
@@ -23,12 +24,15 @@ namespace AbilityKit.Demo.Moba.Services.Search
         private readonly StreamingTopKByScoreSelector _streamingTopKSelector = new StreamingTopKByScoreSelector();
 
         private readonly MobaCombatRulesService _combatRules;
+        private readonly IWorldResolver _services;
 
-        public MobaSearchQueryBuilder(MobaActorRegistry actors, ICandidateProvider allActorsProvider, MobaCombatRulesService combatRules = null)
+        public MobaSearchQueryBuilder(MobaActorRegistry actors, ICandidateProvider allActorsProvider,
+            MobaCombatRulesService combatRules = null, IWorldResolver services = null)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _allActorsProvider = allActorsProvider ?? throw new ArgumentNullException(nameof(allActorsProvider));
             _combatRules = combatRules;
+            _services = services;
             _factories = MobaTargetQueryFactoryRegistry.CreateDefault();
         }
 
@@ -76,6 +80,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
 
             var explicitPolicy = (SearchQueryExplicitTargetPolicy)template.ExplicitTargetPolicy;
             var preferExplicitTarget = explicitTargetActorId > 0
+                && template.Provider.Kind != (int)SearchTargetProviderKind.OwnedLivingSummons
                 && explicitPolicy == SearchQueryExplicitTargetPolicy.PreferExplicitTarget;
             var buildContext = new MobaTargetQueryBuildContext(
                 _actors,
@@ -87,7 +92,8 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 explicitTargetActorId,
                 _zeroScorer,
                 _topKSelector,
-                _streamingTopKSelector);
+                _streamingTopKSelector,
+                _services);
 
             var provider = preferExplicitTarget
                 ? new SingleActorCandidateProvider(explicitTargetActorId)

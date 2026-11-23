@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Moba.Share.Prediction;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.Modules;
@@ -54,7 +55,9 @@ namespace AbilityKit.Game.Flow
         public int LocalActorId { get; internal set; }
         public string LocalControlPlayerId { get; internal set; }
         public BattleSessionHooks Hooks { get; private set; }
-        public bool CanSubmitGameplayInput => _inputBlockReasons == BattleGameplayInputBlockReason.None;
+        internal MobaSettledFrameSession SettledFrames { get; set; }
+        public bool CanSubmitGameplayInput => _inputBlockReasons == BattleGameplayInputBlockReason.None &&
+            (!Plan.UsesSettledFrames || SettledFrames?.CanSubmit == true);
 
         internal void BindRuntimeSession(BattleLogicSession session,
             IBattleTriggerViewEventSource triggerViewEventSource, IWorld world)
@@ -68,6 +71,8 @@ namespace AbilityKit.Game.Flow
 
         internal void ClearRuntimeSession()
         {
+            SettledFrames?.Dispose();
+            SettledFrames = null;
             Session = null;
             TriggerViewEventSource = null;
             RuntimeWorld = null;
@@ -80,7 +85,16 @@ namespace AbilityKit.Game.Flow
             else _inputBlockReasons &= ~reason;
         }
         public int RuntimePlayerLoadoutRevision => _playerLoadouts.Revision;
-        public int ActionInterruptEpoch => _localActionAckTracker?.LatestInterruptEpoch ?? 0;
+        public int ActionInterruptEpoch
+        {
+            get
+            {
+                if (!Plan.UsesSettledFrames) return _localActionAckTracker?.LatestInterruptEpoch ?? 0;
+                return RuntimeWorld?.Services.TryResolve<MobaActionAckSnapshotService>(out var settledAcks) == true
+                    ? settledAcks.GetInterruptEpoch(LocalActorId, GetActorEntityVersion(LocalActorId))
+                    : 0;
+            }
+        }
         public long AcceptedActionAckCount => _localActionAckTracker?.AcceptedCount ?? 0L;
         public long RejectedActionAckCount => _localActionAckTracker?.RejectedCount ?? 0L;
         public long StaleActionAckCount => _localActionAckTracker?.StaleCount ?? 0L;

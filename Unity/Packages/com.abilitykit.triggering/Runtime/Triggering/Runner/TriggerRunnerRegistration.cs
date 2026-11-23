@@ -4,6 +4,9 @@ using AbilityKit.Core.Eventing;
 
 namespace AbilityKit.Triggering.Runtime
 {
+    /// <summary>
+    /// 持有单次注册的释放责任；移除该条目后通知生命周期，再按移除时的列表状态退订。
+    /// </summary>
     internal sealed class TriggerRunnerRegistration<TArgs, TCtx> : IDisposable
     {
         private List<TriggerRunnerEntry<TArgs, TCtx>> _list;
@@ -30,6 +33,9 @@ namespace AbilityKit.Triggering.Runtime
             _unsubscribe = unsubscribe;
         }
 
+        /// <summary>
+        /// 幂等移除条目；注销通知异常保持向上抛出，不保证随后完成退订。
+        /// </summary>
         public void Dispose()
         {
             if (_list == null || _disposed) return;

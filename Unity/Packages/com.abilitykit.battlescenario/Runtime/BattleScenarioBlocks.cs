@@ -209,6 +209,12 @@ namespace AbilityKit.BattleScenario
     /// <summary>一条时间线步骤（通用：Action 决定语义，如 cast_skill/wait/move_to）。项目可继承或复合成「施放技能」等语义积木。</summary>
     public sealed class TimelineStepBlock : BattleAtomicBlock
     {
+        /// <summary>可选的世界空间瞄准落点。</summary>
+        public TestVector3? Position { get; set; }
+
+        /// <summary>可选的世界空间瞄准方向。</summary>
+        public TestVector3? Direction { get; set; }
+
         /// <inheritdoc/>
         public override BattleBlockSection Section => BattleBlockSection.Timeline;
 
@@ -235,6 +241,8 @@ namespace AbilityKit.BattleScenario
             ActorAlias = ActorAlias,
             TargetAlias = TargetAlias,
             Slot = Slot,
+            Position = Position,
+            Direction = Direction,
         });
     }
 

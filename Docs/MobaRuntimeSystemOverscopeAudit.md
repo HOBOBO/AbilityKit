@@ -26,8 +26,8 @@
 ### 1. AOE 生命周期相关 system
 
 重点文件：
-- [`MobaAreaSyncSystem`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Area/MobaAreaSyncSystem.cs:1)
-- [`SpawnAreaPlanActionModule`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/SpawnAreaPlanActionModule.cs:1)
+- [`MobaAreaSyncSystem`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Area/MobaAreaSyncSystem.cs#L1)
+- [`SpawnAreaPlanActionModule`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/SpawnAreaPlanActionModule.cs#L1)
 
 关注点：
 - `area.spawn / area.enter / area.exit / area.tick` 的分发是否应进一步下沉到 `service`。
@@ -41,11 +41,11 @@
 ### 2. Projectile 生命周期相关 system
 
 重点文件：
-- [`MobaProjectileSpawnSyncHandler`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileSpawnSyncHandler.cs:1)
-- [`MobaProjectileTickSyncHandler`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileTickSyncHandler.cs:1)
-- [`MobaProjectileHitSyncHandler`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileHitSyncHandler.cs:1)
-- [`MobaProjectileExitSyncHandler`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileExitSyncHandler.cs:1)
-- [`MobaProjectileStageTriggerExecutor`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileStageTriggerExecutor.cs:1)
+- [`MobaProjectileSpawnSyncHandler`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileSpawnSyncHandler.cs#L1)
+- [`MobaProjectileTickSyncHandler`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileTickSyncHandler.cs#L1)
+- [`MobaProjectileHitSyncHandler`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileHitSyncHandler.cs#L1)
+- [`MobaProjectileExitSyncHandler`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileExitSyncHandler.cs#L1)
+- [`MobaProjectileStageTriggerExecutor`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileStageTriggerExecutor.cs#L1)
 
 关注点：
 - 这些 handler 是否仍保留了过多业务执行细节。
@@ -59,8 +59,8 @@
 ### 3. Triggering / PlanAction system
 
 重点文件：
-- [`SpawnAreaPlanActionModule`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/SpawnAreaPlanActionModule.cs:1)
-- [`MobaTriggerExecutionGateway`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs:1)
+- [`SpawnAreaPlanActionModule`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/SpawnAreaPlanActionModule.cs#L1)
+- [`MobaTriggerExecutionGateway`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs#L1)
 
 关注点：
 - 计划动作模块是否逐渐承担了过多 runtime 逻辑。
@@ -73,8 +73,8 @@
 ### 4. 配置校验与引用解析
 
 重点文件：
-- [`MobaBattleConfigReferenceValidator`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs:1)
-- [`MobaConfigDatabase`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MobaConfigDatabase.cs:1)
+- [`MobaBattleConfigReferenceValidator`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs#L1)
+- [`MobaConfigDatabase`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/MobaConfigDatabase.cs)
 
 关注点：
 - 校验规则是否仍在 system 侧散落。

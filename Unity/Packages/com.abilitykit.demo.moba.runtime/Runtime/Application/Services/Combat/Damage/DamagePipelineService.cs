@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Ability.World.Services;
@@ -25,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
         [WorldInject(required: false)] private MobaCombatActivityService _combatActivity = null;
+        [WorldInject(required: false)] private MobaActorRegistry _actorRegistry = null;
  
         private readonly IMobaBattleDiagnosticsService _diagnostics;
         private readonly IMobaBattleDiagnosticEventSink _eventCollector;
@@ -172,10 +174,11 @@ namespace AbilityKit.Demo.Moba.Services
                     out var applyContext);
                 var applySucceeded = false;
                 DamageResult result;
+                List<(AttackInfo Attack, int SourceVersion, int TargetVersion)> shieldRetaliations;
                 try
                 {
                     result = CommitDamage(attack, calc, target, in applyNode, in applyContext,
-                        () => healthCommitted = true);
+                        () => healthCommitted = true, out shieldRetaliations);
                     applySucceeded = result != null;
                 }
                 finally
@@ -189,6 +192,16 @@ namespace AbilityKit.Demo.Moba.Services
                 RecordCombatActivity(result);
                 Publish(DamagePipelineEvents.AfterApply, result);
                 TryCollectDamage(result, calc);
+                if (shieldRetaliations != null)
+                {
+                    foreach (var retaliation in shieldRetaliations)
+                    {
+                        var response = retaliation.Attack;
+                        if (IsRetaliationActorValid(response.AttackerActorId, retaliation.SourceVersion) &&
+                            IsRetaliationActorValid(response.TargetActorId, retaliation.TargetVersion))
+                            Execute(response);
+                    }
+                }
                 diagnostics?.Counter("moba.damage.applied");
                 diagnostics?.Sample("moba.damage.value", result.Value);
                 attackSucceeded = true;
@@ -210,8 +223,10 @@ namespace AbilityKit.Demo.Moba.Services
             global::ActorEntity target,
             in MobaExecutionContextNode applyNode,
             in MobaCombatExecutionContext applyContext,
-            Action onHealthCommitted)
+            Action onHealthCommitted,
+            out List<(AttackInfo Attack, int SourceVersion, int TargetVersion)> shieldRetaliations)
         {
+            shieldRetaliations = null;
             var diagnostics = _diagnostics;
 
             var shieldCommitted = calc.ShieldPlan == null || _shields == null || _shields.CommitAbsorb(calc.ShieldPlan);
@@ -267,8 +282,10 @@ namespace AbilityKit.Demo.Moba.Services
                     ShieldAbsorb = MobaResourceFixedConvert.ToSingle(calc.ShieldAbsorb.FixedValue),
                     TargetHp = committed.Succeeded ? committed.TargetHp : targetAttributes.Hp,
                     TargetMaxHp = committed.Succeeded ? committed.TargetMaxHp : targetAttributes.MaxHp,
+                    TargetBecameDead = committed.Succeeded && committed.BecameDead,
                 };
 
+                shieldRetaliations = ClaimShieldRetaliations(attack, calc.ShieldPlan);
                 shieldFinalized = true;
                 _shields?.FinalizeAbsorb(calc.ShieldPlan);
 
@@ -294,6 +311,46 @@ namespace AbilityKit.Demo.Moba.Services
                         _shields?.RollbackAbsorb(calc.ShieldPlan);
                 }
             }
+        }
+
+        private List<(AttackInfo Attack, int SourceVersion, int TargetVersion)> ClaimShieldRetaliations(
+            AttackInfo incoming, ShieldAbsorbPlan plan)
+        {
+            if (_actorRegistry == null || plan?.RetaliationLayers == null ||
+                (incoming.ReasonKind != DamageReasonKind.BasicAttack && incoming.ReasonKind != DamageReasonKind.Skill) ||
+                !_actorRegistry.TryGet(incoming.AttackerActorId, out var attacker) || !attacker.hasTeam ||
+                !_actorRegistry.TryGet(incoming.TargetActorId, out var target) || !target.hasTeam ||
+                attacker.team.Value == Team.None || target.team.Value == Team.None || attacker.team.Value == target.team.Value)
+                return null;
+
+            var attackerVersion = _actorRegistry.GetEntityVersion(incoming.AttackerActorId);
+            if (!IsRetaliationActorValid(incoming.AttackerActorId, attackerVersion)) return null;
+            var attackerKey = ((long)incoming.AttackerActorId << 32) | (uint)attackerVersion;
+            List<(AttackInfo Attack, int SourceVersion, int TargetVersion)> result = null;
+            foreach (var layer in plan.RetaliationLayers)
+            {
+                if (!IsRetaliationActorValid(layer.SourceActorId, layer.RetaliationSourceVersion)) continue;
+                if (!(layer.RetaliatedAttackers ??= new HashSet<long>()).Add(attackerKey)) continue;
+                var retaliation = new AttackInfo
+                {
+                    AttackerActorId = layer.SourceActorId,
+                    TargetActorId = incoming.AttackerActorId,
+                    DamageType = DamageType.Magic,
+                    ReasonKind = DamageReasonKind.Buff,
+                    ReasonParam = layer.ShieldId,
+                    FormulaKind = (int)DamageFormulaKind.Standard,
+                };
+                retaliation.BaseDamage.FixedBaseValue = layer.RetaliationDamage;
+                (result ??= new List<(AttackInfo, int, int)>(1)).Add(
+                    (retaliation, layer.RetaliationSourceVersion, attackerVersion));
+            }
+            return result;
+        }
+
+        private bool IsRetaliationActorValid(int actorId, int version)
+        {
+            return _actorRegistry.MatchesEntityVersion(actorId, version) &&
+                _actorRegistry.TryGet(actorId, out var actor) && actor.hasAttributeGroup && actor.GetMobaAttrs().Hp > 0f;
         }
 
         private void ApplyFormula(AttackCalcInfo calc)

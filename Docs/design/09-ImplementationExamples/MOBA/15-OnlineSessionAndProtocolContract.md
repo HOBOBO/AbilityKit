@@ -33,7 +33,7 @@ MOBA 联机链路分成三层协议，不应混成一个“大 start game”对�
 
 MOBA 房间身份存在一个兼容边界：客户端与 HTTP catalog 仍使用 `roomType="moba"`，而 Orleans Contracts 的规范值是 `GameplayRoomTypes.Moba = "battle"`。`RoomDirectoryGrain` 和 `RoomGameplayRegistry` 会把 `moba` 正规化为 `battle`，所以持久化 Room、adapter 和 battle world 都应以 `battle` 为事实；协议层不能把两个字符串当成两种玩法。
 
-同步模板已经收紧为唯一的 `frame-sync-authority`：服务端路线是 `BattleWorldWithFrameSync`，能力 metadata 固定声明 `Lockstep`、schema `0..1`。HTTP descriptor 对 MOBA 标记 `SupportsFrameSync=true`、`SupportsStateSyncPush=false`，且不再列出 `state-sync-authority`。这不妨碍 Battle runtime 为诊断、恢复和表现提供辅助权威 snapshot；“能请求 full snapshot/可靠事件恢复”不能反推 Room 采用 StateSync 模板。
+MOBA 正式锁步仅使用 `moba-settled-frame-sync-v2`：服务端路线为 `BattleWorldWithFrameSync`，客户端依据战局发布的 `Moba.SettledFrameSyncV2` 绑定结算流，再提交玩家输入。实时、补帧和观战共享同一结算协议，不回退旧锁步。独立的 `moba-state-sync-authority` 不是锁步兼容路径；“能请求 full snapshot/可靠事件恢复”也不能反推 Room 采用 StateSync 模板。
 
 > **正式多人模式启动流程**：旧的直接 `StartBattle`（opCode 106）已废弃。客户端必须使用分阶段流程 `BeginLoading` → `ReportAssetsLoaded` → 最后一名成员上报时尝试即时 commit → 订阅 `RoomStateChanged` 推送。服务端 Tick 只承担超时和恢复性补偿，不是正常 commit 的唯一入口。详见 [第 11 节 正式多人模式启动协议](#11-正式多人模式启动协议)。
 
@@ -388,7 +388,7 @@ push 构建由 `RoomStatePushBuilder.BuildRoomStateChangedPayload` 完成（Grai
 
 ### 12.2 MOBA Smoke 能证明什么
 
-`AbilityKit.Orleans.MobaSmoke` 的 `--sync-template` 默认值已是 `frame-sync-authority`。单进程和多进程 PowerShell 脚本当前没有单独暴露模板参数，但调用 Program 默认值，因此现行脚本实际走 FrameSync 主路线，不再是“未透传所以默认 StateSync”。场景还会显式请求 full StateSync snapshot，校验 world/schema/actor、可靠事件 epoch/watermark，并提交 ACK；这些是 FrameSync 战斗的恢复旁路证据，不是第二个 MOBA 同步模板。
+`AbilityKit.Orleans.MobaSmoke` 和多进程 PowerShell 脚本的默认模板均为 `moba-settled-frame-sync-v2`。正式锁步冒烟验证结算流绑定、输入提交、双方实时结算和重连补帧；测试独立状态同步时才显式指定 `moba-state-sync-authority`。
 
 多进程脚本当前拓扑是一个 host-only Silo 进程加一个 client-only 场景进程，owner/member 是场景进程内两条独立 TCP 连接。它证明 host/client 进程隔离和双连接收敛，不证明两个独立客户端进程崩溃恢复。本批只做源码与文档复核，没有重新执行该 Smoke，因此不新增 E4 日期。
 

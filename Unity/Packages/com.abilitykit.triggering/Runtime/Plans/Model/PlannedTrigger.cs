@@ -58,15 +58,22 @@ namespace AbilityKit.Triggering.Runtime.Plan
             return PlannedTriggerPredicateEvaluator<TArgs, TCtx>.Evaluate(in _plan, in args, in ctx);
         }
 
+        /// <summary>
+        /// 执行计划的有效分支；执行根优先于扁平动作列表。
+        /// </summary>
+        /// <exception cref="InvalidOperationException">扁平动作需要调度而上下文未提供管理器；不会执行部分动作。</exception>
         public void Execute(in TArgs args, in ExecCtx<TCtx> ctx)
         {
-            _execCtx = ctx;
             var actions = _plan.Actions;
             var hasExecutionRoot = _executionRoot != null;
             var hasActions = hasExecutionRoot || (actions != null && actions.Length > 0);
-            var canExecuteByControl = CanExecuteByControl(in ctx);
+            var shouldExecute = hasActions && CanExecuteByControl(in ctx);
+            var firstScheduledAction = shouldExecute && !hasExecutionRoot ? FindFirstScheduledAction(actions) : -1;
+            if (firstScheduledAction >= 0 && ctx.ActionSchedulerManager == null)
+                throw MissingScheduler(in _plan, firstScheduledAction);
 
-            if (!hasActions || !canExecuteByControl) return;
+            _execCtx = ctx;
+            if (!shouldExecute) return;
 
             if (hasExecutionRoot)
             {
@@ -75,8 +82,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
 
             Resolve(ctx);
-            var hasScheduledActions = HasScheduledActions(in ctx, actions);
-            if (!hasScheduledActions)
+            if (firstScheduledAction < 0)
             {
                 ExecuteImmediate(in args, in ctx);
                 return;
@@ -100,22 +106,29 @@ namespace AbilityKit.Triggering.Runtime.Plan
             ApplyInterruptControl(control);
         }
 
-        private bool HasScheduledActions(in ExecCtx<TCtx> ctx, ActionCallPlan[] actions)
+        /// <summary>
+        /// 返回首个需要调度的扁平动作索引；没有非即时动作时返回 -1。
+        /// </summary>
+        internal static int FindFirstScheduledAction(ActionCallPlan[] actions)
         {
-            if (ctx.ActionSchedulerManager == null || actions == null || actions.Length == 0)
-            {
-                return false;
-            }
+            if (actions == null) return -1;
 
             for (int i = 0; i < actions.Length; i++)
             {
-                if (IsScheduledAction(actions[i]))
-                {
-                    return true;
-                }
+                if (IsScheduledAction(in actions[i])) return i;
             }
 
-            return false;
+            return -1;
+        }
+
+        /// <summary>
+        /// 为注册检查和执行兜底构造一致的缺依赖诊断。
+        /// </summary>
+        internal static InvalidOperationException MissingScheduler(in TriggerPlan<TArgs> plan, int actionIndex)
+        {
+            var mode = plan.Actions[actionIndex].Schedule.Mode;
+            return new InvalidOperationException(
+                $"TriggerId={plan.TriggerId}, Actions[{actionIndex}], Mode={mode}：非即时扁平动作需要宿主显式装配并推进 ActionSchedulerManager。");
         }
 
         private static bool IsScheduledAction(in ActionCallPlan call)
@@ -135,7 +148,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     var call = actions[i];
                     if (IsScheduledAction(in call))
                     {
-                        RegisterScheduledAction(actionScheduler, call, i, in args, control);
+                        RegisterScheduledAction(actionScheduler, call, i, in args);
                     }
                     else
                     {
@@ -159,14 +172,13 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// <summary>
         /// 将单个 Action 计划注册到触发器级调度器，并按计划索引替换旧实例。
         /// </summary>
-        private void RegisterScheduledAction(RuntimeActionScheduler actionScheduler, ActionCallPlan call, int planIndex, in TArgs args, ExecutionControl control)
+        private void RegisterScheduledAction(RuntimeActionScheduler actionScheduler, ActionCallPlan call, int planIndex, in TArgs args)
         {
-            PlannedTriggerScheduleRegistrar<TArgs, TCtx>.RegisterOrReplace(
+            PlannedTriggerScheduleRegistrar.RegisterOrReplace(
                 actionScheduler,
                 in call,
                 planIndex,
                 in args,
-                control,
                 CreateActionDelegate,
                 CreateConditionDelegate());
         }

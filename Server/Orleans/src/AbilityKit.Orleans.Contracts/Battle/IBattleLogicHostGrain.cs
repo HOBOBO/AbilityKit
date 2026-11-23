@@ -90,6 +90,9 @@ public interface IBattleLogicHostGrain : IGrainWithStringKey
     Task<BattleTickFrameResult> TickFrameAsync(ulong worldId, int frame, float deltaTime,
         IReadOnlyList<FrameInputItem> frameInputs);
 
+    Task<BattleFrameSettlement?> TickSettledFrameAsync(ulong worldId, Guid runtimeGeneration, int frame,
+        IReadOnlyList<FrameInputItem> frameInputs);
+
     /// <summary>
     /// 销毁战斗世界
     /// </summary>

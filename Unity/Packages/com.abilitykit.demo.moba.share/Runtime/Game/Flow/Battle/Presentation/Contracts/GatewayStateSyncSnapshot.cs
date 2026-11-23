@@ -17,6 +17,14 @@ namespace AbilityKit.Game.Battle.Agent
         public readonly int PayloadOpCode;
         public readonly byte[] Payload;
         public readonly long ServerTicks;
+        public readonly bool UsesFixedBaseline;
+        public readonly System.Guid StateStreamGeneration;
+        public readonly long SnapshotId;
+        public readonly long BaseSnapshotId;
+        /// <summary>
+        /// 本帧完整活动 Cue 集；没有负载与携带空活动集的结束标记不同。
+        /// </summary>
+        public readonly byte[] PresentationCueBaseline;
 
         public GatewayStateSyncSnapshot(
             ulong worldId,
@@ -30,7 +38,12 @@ namespace AbilityKit.Game.Battle.Agent
             string eventEpoch = null,
             int payloadOpCode = 0,
             byte[] payload = null,
-            long serverTicks = 0L)
+            long serverTicks = 0L,
+            bool usesFixedBaseline = false,
+            System.Guid stateStreamGeneration = default,
+            long snapshotId = 0L,
+            long baseSnapshotId = 0L,
+            byte[] presentationCueBaseline = null)
         {
             WorldId = worldId;
             Frame = frame;
@@ -44,6 +57,11 @@ namespace AbilityKit.Game.Battle.Agent
             PayloadOpCode = payloadOpCode;
             Payload = payload ?? System.Array.Empty<byte>();
             ServerTicks = serverTicks;
+            UsesFixedBaseline = usesFixedBaseline;
+            StateStreamGeneration = stateStreamGeneration;
+            SnapshotId = snapshotId;
+            BaseSnapshotId = baseSnapshotId;
+            PresentationCueBaseline = presentationCueBaseline;
         }
     }
 

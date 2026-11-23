@@ -48,6 +48,8 @@ namespace AbilityKit.Triggering.Tests
             Assert.That(File.Exists(path), Is.True, "Missing runtime compatibility README.");
 
             var document = File.ReadAllText(path);
+            var catalogPath = Path.Combine(Path.GetDirectoryName(path), "RootRuntimeCompatibilityCatalog.cs");
+            Assert.That(File.Exists(catalogPath), Is.True, "The compatibility overview must be next to the root catalog source.");
             Assert.That(document, Does.Contain("RootRuntimeCompatibilityCatalog.cs"));
             Assert.That(document, Does.Contain("Runtime/Compatibility.md"));
             Assert.That(document, Does.Contain("相关测试"));

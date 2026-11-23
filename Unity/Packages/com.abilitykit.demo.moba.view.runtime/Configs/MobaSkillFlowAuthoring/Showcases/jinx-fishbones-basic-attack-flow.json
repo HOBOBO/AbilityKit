@@ -3,12 +3,17 @@
     "Id": 30020003,
     "Name": "Jinx - Fishbones Basic Attack",
     "PipelineContinuousTagTemplateId": 0,
+    "BasicAttack": {
+      "RangeLevelSlot": 1,
+      "RangeBonusByLevel": [0.8, 1.1, 1.4, 1.7, 2.0]
+    },
     "Phases": [
       {
         "Type": 2,
         "PhaseId": "skill_30020003_attack",
         "Timeline": {
           "DurationMs": 1567,
+          "RecoveryStartMs": 100,
           "Events": [
             {
               "AtMs": 100,

@@ -42,6 +42,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 ValidatePhases(flow);
                 var dto = flow.ToDto();
                 SkillRecoveryContract.Validate(dto);
+                BasicAttackFlowDTO.Validate(dto);
                 rows.Add(dto);
             }
             rows.Sort((a, b) => a.Id.CompareTo(b.Id));

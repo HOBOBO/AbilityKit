@@ -1,6 +1,6 @@
 # MOBA 修改器正式上线与规模化扩展路线
 
-状态：实施中，2026-10-08。本文依据当前实现列出**尚需完成的上线门槛**，与 [正式设计基线](MobaModifierFormalDesign.md)、[配置作者指南](MobaModifierAuthoring.md) 和 [阶段评估](../local/docs/MobaModifierStageAssessment.md) 配套。下文 P0-P4 是新一轮工作优先级，不代表历史同名阶段尚未实施。
+状态：实施中，2026-10-08。本文依据当前实现列出**尚需完成的上线门槛**，与 [正式设计基线](MobaModifierFormalDesign.md)、[配置作者指南](MobaModifierAuthoring.md) 和 `local/docs/MobaModifierStageAssessment.md` 配套。下文 P0-P4 是新一轮工作优先级，不代表历史同名阶段尚未实施。
 
 ## 2026-10-08 第二批：定点 Exp/Ln/Pow 落地，漂移豁免清零
 

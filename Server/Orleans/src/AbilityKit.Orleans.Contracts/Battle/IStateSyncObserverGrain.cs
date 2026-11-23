@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace AbilityKit.Orleans.Contracts.Battle;
 
 /// <summary>
@@ -25,6 +27,11 @@ public interface IStateSyncObserverGrain : IGrainWithStringKey
     Task SubscribeAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor);
 
     /// <summary>
+    /// 为该观察者订阅显式固定基线快照，保持可靠事件游标契约不变。
+    /// </summary>
+    Task SubscribeFixedBaselineAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor);
+
+    /// <summary>
     /// 取消订阅
     /// </summary>
     Task UnsubscribeAsync(string battleGrainKey);
@@ -33,6 +40,8 @@ public interface IStateSyncObserverGrain : IGrainWithStringKey
     /// 序列化并接收战斗状态快照，返回本观察者队列的接纳结果。
     /// </summary>
     Task<StateSyncDeliveryResult> OnSnapshotPushedAsync(StateSyncPush push);
+
+    Task<StateSyncDeliveryResult> OnPreparedFixedBaselineSnapshotPushedAsync(PreparedFixedBaselineSnapshot snapshot);
 
     /// <summary>
     /// 将可靠事件批次加入独立 FIFO 投递队列。
@@ -49,6 +58,13 @@ public interface IStateSyncObserverGrain : IGrainWithStringKey
     /// </summary>
     Task<StateSyncDeliveryMetrics> GetDeliveryMetricsAsync();
 }
+
+[GenerateSerializer, Immutable]
+public sealed record PreparedFixedBaselineSnapshot(
+    [property: Id(0)] int Frame,
+    [property: Id(1)] bool IsFullSnapshot,
+    [property: Id(2)] string NetworkEnvironmentId,
+    [property: Id(3)] ImmutableArray<byte> Payload);
 
 /// <summary>
 /// Gateway 进程内的状态同步推送观察者，通过 Orleans object reference 暴露给 Silo。
@@ -122,4 +138,5 @@ public sealed class StateSyncObserverInfo
     [Id(0)] public string ObserverKey { get; set; } = string.Empty;
     [Id(1)] public string AccountId { get; set; } = string.Empty;
     [Id(2)] public string RoomId { get; set; } = string.Empty;
+    [Id(3)] public bool UsesFixedBaseline { get; set; }
 }

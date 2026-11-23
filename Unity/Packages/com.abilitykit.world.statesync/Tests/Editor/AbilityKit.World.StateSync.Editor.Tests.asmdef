@@ -1,0 +1,8 @@
+{
+  "name": "AbilityKit.World.StateSync.Editor.Tests",
+  "references": ["AbilityKit.World.StateSync", "AbilityKit.Core"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false,
+  "noEngineReferences": true
+}

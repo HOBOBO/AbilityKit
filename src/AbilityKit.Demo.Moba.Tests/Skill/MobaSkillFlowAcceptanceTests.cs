@@ -18,7 +18,6 @@ using AbilityKit.HFSM.Definition;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
-using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Pipeline;
@@ -32,6 +31,105 @@ public sealed class MobaSkillFlowAcceptanceTests
     private const int ActorId = 8401;
     private const int Instant = 8411;
     private const int Charge = 8412;
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Precast_keeps_its_bound_cast_revision_when_only_future_parameters_change(bool repeat)
+    {
+        using var scope = new Scope(withPreCastCommit: true);
+        using var equivalent = new Scope(withPreCastCommit: true);
+        var configs = scope.Services.Resolve<MobaConfigDatabase>();
+        Assert.True(configs.TryGetSkillFlow(8432, out var flow));
+        var equivalentConfigs = equivalent.Services.Resolve<MobaConfigDatabase>();
+        Assert.True(equivalentConfigs.TryGetSkillFlow(8432, out var equivalentFlow));
+        var phase = flow.Phases[1];
+        var equivalentPhase = equivalentFlow.Phases[1];
+        if (repeat)
+        {
+            ConfigureRepeat(phase);
+            ConfigureRepeat(equivalentPhase);
+        }
+
+        Assert.True(scope.Library.TryGetDefinition(Charge, out var original));
+        Assert.True(equivalent.Library.TryGetDefinition(Charge, out var independentlyBuilt));
+        Assert.Equal(original.Revision.Value, independentlyBuilt.Revision.Value);
+        Assert.True(scope.Start(Charge, 2, SkillCastPolicy.Default).Success);
+        var entries = new List<SkillRunnerRollbackEntry>();
+        scope.Runner.CaptureRollbackEntries(entries);
+        var first = Assert.Single(entries);
+        Assert.Equal(0, first.Stage);
+
+        if (repeat) phase.Repeat.IntervalMs += 100;
+        else phase.Delay.DelayMs += 100;
+        scope.Library.Dispose();
+        Assert.True(scope.Library.TryGetDefinition(Charge, out var changed));
+        var progress = PipelineRollbackStateCodec.Deserialize(first.Run);
+        SkillPipelineRollback.ValidateDefinition(changed.PreCastConfig, changed.PreCastPhases, progress);
+        Assert.NotEqual(original.Revision.Value, changed.Revision.Value);
+        Assert.Contains("revision", Assert.Throws<InvalidOperationException>(() => scope.Restore(first)).Message);
+
+        entries.Clear();
+        scope.Runner.CaptureRollbackEntries(entries);
+        Assert.Equal(first.DefinitionRevision, Assert.Single(entries).DefinitionRevision);
+        Assert.Equal(first.Run, Assert.Single(entries).Run);
+
+        static void ConfigureRepeat(SkillPhaseDTO phase)
+        {
+            phase.Type = (int)SkillPhaseType.Repeat;
+            phase.Repeat = new SkillRepeatPhaseDTO { RepeatCount = 2, IntervalMs = 200,
+                Phase = new SkillPhaseDTO { Type = (int)SkillPhaseType.Delay,
+                    Delay = new SkillDelayPhaseDTO { DelayMs = 50 } } };
+            phase.Delay = null;
+        }
+    }
+
+    [Fact]
+    public void Same_id_plan_replacement_changes_revision_and_invalidates_live_binding()
+    {
+        using var scope = new Scope();
+        Assert.True(scope.Start(Volley, 3, SkillCastPolicy.Default).Success);
+        Assert.True(scope.Library.TryGetDefinition(Volley, out var before));
+        var plans = scope.Services.Resolve<TriggerPlanJsonDatabase>();
+        var overlay = new TriggerPlanJsonDatabase();
+        overlay.LoadFromJson("""{"format":"runtime","formatVersion":1,"triggers":[{"triggerId":8442,"actions":[{"actionId":8543,"arity":0}]}]}""");
+        plans.MergeFrom(overlay);
+        Assert.True(scope.Library.TryGetDefinition(Volley, out var after));
+        Assert.NotEqual(before.Revision.Value, after.Revision.Value);
+        Assert.False(before.Revision.IsCurrent);
+        Assert.Throws<InvalidOperationException>(() => scope.Runner.CaptureRollbackEntries(new List<SkillRunnerRollbackEntry>()));
+    }
+
+    [Fact]
+    public void Same_id_tag_template_replacement_changes_the_revision()
+    {
+        using var original = new Scope();
+        using var replacement = new Scope();
+        const int templateId = 504;
+        var dependencies = new MobaSkillPipelineRevisionDependencies();
+        dependencies.Collect(Array.Empty<SkillPhaseDTO>(), templateId);
+        InstallTemplate(original, 1);
+        InstallTemplate(replacement, 2);
+        var before = dependencies.Bind(original.Services, "fixed-flow");
+        var after = dependencies.Bind(replacement.Services, "fixed-flow");
+        Assert.NotNull(before);
+        Assert.NotNull(after);
+        Assert.NotEqual(before.Value, after.Value);
+
+        static void InstallTemplate(Scope scope, ulong blockedMask)
+        {
+            var configs = new MobaConfigDatabase();
+            var result = configs.ReloadFromDtoArrays(new Dictionary<Type, Array>
+            {
+                [typeof(ContinuousTagTemplateDTO)] = new[]
+                {
+                    new ContinuousTagTemplateDTO { Id = templateId, Name = "revision-test", ExecutionBlockedResultMask = blockedMask }
+                }
+            }, strict: false);
+            Assert.True(result.Succeeded, result.Error);
+            scope.Services.Add<IMobaContinuousTagTemplateRegistry>(new MobaContinuousTagTemplateRegistry(configs));
+        }
+    }
     private const int Volley = 8413;
 
     [Fact]
@@ -632,11 +730,16 @@ public sealed class MobaSkillFlowAcceptanceTests
                         if (FailedEffectId == capturedId)
                             actionContext.Control.RejectAction("acceptance failure");
                     }, isDeterministic: true);
-                var plan = new TriggerPlan<object>(0, 0, effectId,
-                    actions: new[] { new ActionCallPlan(actionId) });
-                plans.AddRecord(new TriggerPlanJsonDatabase.Record(effectId, string.Empty, 0,
-                    default, in plan, TriggerPlanExecutableDsl.Action(actionId)));
             }
+            plans.LoadFromJson("""
+                {"format":"runtime","formatVersion":1,"triggers":[
+                    {"triggerId":8441,"actions":[{"actionId":8541,"arity":0}]},
+                    {"triggerId":8442,"actions":[{"actionId":8542,"arity":0}]},
+                    {"triggerId":8443,"actions":[{"actionId":8543,"arity":0}]}
+                ]}
+                """);
+            Services.Add(plans);
+            Services.Add(actions);
             var effects = new MobaEffectExecutionService();
             Inject(effects, "_services", Services);
             Inject(effects, "_planDb", plans);
@@ -708,7 +811,7 @@ public sealed class MobaSkillFlowAcceptanceTests
             Assert.True(load.Succeeded, load.Error);
             Services.Add(configs);
             Services.Add(new SearchTargetService(_registry, configs, combatRules));
-            Library = new TableDrivenMobaSkillPipelineLibrary(configs, invoker);
+            Library = new TableDrivenMobaSkillPipelineLibrary(configs, invoker, Services);
             Runner = new SkillPipelineRunner(ActorId);
         }
 
@@ -746,7 +849,7 @@ public sealed class MobaSkillFlowAcceptanceTests
         public SkillPipelineRunner.SkillPipelineStartResult Start(int id, int slot, SkillCastPolicy policy,
             int targetActorId = 0, MobaPreparedParameterSnapshot[] parameterSnapshots = null)
         {
-            Assert.True(Library.TryGet(id, out var pre, out var prePhases, out var cast, out var phases));
+            Assert.True(Library.TryGetDefinition(id, out var definition));
             var aim = Vec3.Zero;
             var direction = Vec3.Forward;
             var root = _executionContexts.Create(new MobaExecutionContextCreateRequest(
@@ -763,13 +866,12 @@ public sealed class MobaSkillFlowAcceptanceTests
                 ResourceType.Mana, 0, 0, false);
             trigger.RuntimeHandle = runtime.Handle;
             trigger.RuntimeId = runtime.RuntimeId;
-            return Runner.TryStart(pre, prePhases, cast, phases, new object(), in request, trigger, in policy);
+            return Runner.TryStart(definition, new object(), in request, trigger, in policy);
         }
 
         public void Restore(SkillRunnerRollbackEntry state)
         {
-            Assert.True(Library.TryGet(state.SkillId, out var pre, out var prePhases,
-                out var cast, out var castPhases));
+            Assert.True(Library.TryGetDefinition(state.SkillId, out var definition));
             var aimPos = state.Context.AimPos;
             var aimDir = state.Context.AimDir;
             var request = new SkillCastRequest(state.SkillId, state.SkillSlot, ActorId,
@@ -781,7 +883,7 @@ public sealed class MobaSkillFlowAcceptanceTests
                 state.RuntimeGeneration, state.RootContextId);
             trigger.RuntimeId = state.RuntimeId;
             trigger.ResolvedConfiguration = state.Context.ResolvedConfiguration;
-            Runner.RestoreRollbackEntry(state, pre, prePhases, cast, castPhases,
+            Runner.RestoreRollbackEntry(state, definition,
                 new object(), in request, trigger);
         }
 

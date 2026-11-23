@@ -5,6 +5,7 @@
         "AbilityKit.Ability",
         "AbilityKit.Demo.Moba.Environment",
         "AbilityKit.Scenario",
+        "AbilityKit.Trace",
         "AbilityKit.ActionSchema",
         "AbilityKit.Attributes",
         "AbilityKit.Core",

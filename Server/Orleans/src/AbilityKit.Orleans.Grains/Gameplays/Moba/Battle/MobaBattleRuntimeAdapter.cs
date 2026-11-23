@@ -18,6 +18,12 @@ using IWorld = AbilityKit.Ability.World.Abstractions.IWorld;
 
 namespace AbilityKit.Orleans.Grains.Gameplays.Moba.Battle;
 
+internal interface IMobaSettledFrameRuntime
+{
+    bool TryTickSettledFrame(int frame, int tickRate, IReadOnlyList<BattleInputItem> inputs,
+        out IReadOnlyList<MobaFrameInputOutcome> outcomes, out IReadOnlyList<MobaFrameAuthorityEntry> entries);
+}
+
 internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
 {
     private readonly ServerBattleWorldManager _worldManager;
@@ -37,8 +43,10 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
     }
 
     private sealed class MobaBattleRuntimeSession : IBattleRuntimeSession, IBattleRuntimeInputDiagnostics,
-        IBattleRuntimeFrameCompletion, IBattleRuntimeExternalFrameClock
+        IBattleRuntimeFrameCompletion, IBattleRuntimeExternalFrameClock, IMobaSettledFrameRuntime,
+        IFixedBaselineBattleSnapshotSource
     {
+        private bool _settledFrameFaulted;
         private readonly string _battleId;
         private readonly ServerBattleWorldManager _worldManager;
         private readonly IOrleansBattleProtocolMapper _protocolMapper;
@@ -212,6 +220,34 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             var result = _runtimePort.Submit(new FrameIndex(frame), commands);
             LastInputSubmitDiagnostic = result.Succeeded ? string.Empty : result.ToString();
             return result.Succeeded ? result.CommandCount : 0;
+        }
+
+        public bool TryTickSettledFrame(int frame, int tickRate, IReadOnlyList<BattleInputItem> inputs,
+            out IReadOnlyList<MobaFrameInputOutcome> outcomes, out IReadOnlyList<MobaFrameAuthorityEntry> entries)
+        {
+            outcomes = null!;
+            entries = null!;
+            if (_settledFrameFaulted || tickRate <= 0 || _battleWorld == null || _bots.Count != 0 || _hasUnrecordedPlayerJoin ||
+                !_battleWorld.Services.TryResolve<MobaInputCoordinator>(out var coordinator) || coordinator == null)
+                return false;
+
+            var commands = _protocolMapper.CreatePlayerInputCommands(frame, inputs);
+            if (commands.Count != inputs.Count) return false;
+
+            var deltaTime = 1f / tickRate;
+            if (!TryPrepareExternalFrame(frame, deltaTime)) return false;
+
+            try
+            {
+                using var capture = coordinator.BeginAuthorityFrameCapture(new FrameIndex(frame));
+                if (!capture.Submit(commands)) return false;
+                var worldCompleted = Tick(frame, tickRate, deltaTime) && CanFinalizeFrame(frame);
+                return capture.TryComplete(worldCompleted, out outcomes, out entries);
+            }
+            finally
+            {
+                _settledFrameFaulted = outcomes == null;
+            }
         }
 
         public bool Tick(int frame, int tickRate, float deltaTime)
@@ -392,6 +428,12 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         }
 
         public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot)
+            => CaptureStateSyncProjection(worldId, frame, isFullSnapshot, trackLegacyBaseline: true);
+
+        public StateSyncPush CaptureFixedBaselineProjection(ulong worldId, int frame)
+            => CaptureStateSyncProjection(worldId, frame, isFullSnapshot: true, trackLegacyBaseline: false);
+
+        private StateSyncPush CaptureStateSyncProjection(ulong worldId, int frame, bool isFullSnapshot, bool trackLegacyBaseline)
         {
             ulong wId = worldId == 0 ? _worldId : worldId;
 
@@ -404,9 +446,11 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
                 && producer != null)
             {
                 _projectionBuffer ??= new List<ActorProjectionData>(64);
-                _lastProjectionData ??= new Dictionary<int, ActorProjectionData>(64);
+                if (trackLegacyBaseline)
+                    _lastProjectionData ??= new Dictionary<int, ActorProjectionData>(64);
                 push = _protocolMapper.CreateStateSyncPushFromProjection(
-                    wId, frame, producer, isFullSnapshot, _projectionBuffer, _lastProjectionData);
+                    wId, frame, producer, isFullSnapshot, _projectionBuffer,
+                    trackLegacyBaseline ? _lastProjectionData : null);
             }
             else
             {
@@ -422,12 +466,24 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
                     _runtimePort?.GetDiagnosticEntityStates(), isFullSnapshot);
             }
 
-            if (_battleWorld?.Services == null ||
-                !_battleWorld.Services.TryResolve<MobaActorRegistry>(out var registry) || registry == null)
+            if (_battleWorld?.Services == null)
                 return push;
 
-            _battleWorld.Services.TryResolve<AbilityKit.HFSM.Definition.StateMachineDefinition>(out var definition);
-            return MobaCharacterHfsmPushPayload.Attach(push, registry, definition, frame);
+            if (_battleWorld.Services.TryResolve<MobaActorRegistry>(out var registry) && registry != null)
+            {
+                _battleWorld.Services.TryResolve<AbilityKit.HFSM.Definition.StateMachineDefinition>(out var definition);
+                MobaCharacterHfsmPushPayload.Attach(push, registry, definition, frame);
+            }
+
+            if (_battleWorld.Services.TryResolve<MobaPresentationCueSnapshotService>(out var cueService) &&
+                cueService != null && cueService.TryCaptureStateSyncBaseline(new FrameIndex(frame), out var cues))
+            {
+                push.Payload = AbilityKit.Protocol.Moba.StateSync.MobaStateSyncCuePayloadCodec.Encode(
+                    push.PayloadOpCode, push.SchemaVersion, push.Payload, cues.Payload);
+                push.PayloadOpCode = AbilityKit.Protocol.Moba.StateSync.MobaStateSyncCuePayloadCodec.OpCode;
+                push.SchemaVersion = AbilityKit.Protocol.Moba.StateSync.MobaStateSyncCuePayloadCodec.CarrierSchemaVersion;
+            }
+            return push;
         }
 
         public void Dispose()

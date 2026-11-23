@@ -4,7 +4,7 @@
 
 ## 1. 背景
 
-当前 MOBA 示例已经具备较完整的执行上下文和 trace 链路，核心模型包括 [`MobaGameplayOrigin`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs:24)、[`MobaTriggerLineageContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaTriggerLineageContext.cs:20)、[`MobaCombatExecutionContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs:54)、[`MobaContextSourceView`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs:47)。
+当前 MOBA 示例已经具备较完整的执行上下文和 trace 链路，核心模型包括 [`MobaGameplayOrigin`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs#L24)、[`MobaTriggerLineageContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaTriggerLineageContext.cs#L20)、[`MobaCombatExecutionContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs#L54)、[`MobaContextSourceView`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs#L47)。
 
 这些模型主要解决“本次效果从哪条 trace 链路来”：
 
@@ -30,21 +30,21 @@
 
 已有能力：
 
-- projectile 已有 [`ProjectileSourceContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs:6)，可保存 source actor、target actor、root context、owner context、skill runtime handle。
-- summon 已有 [`SummonSourceContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/SummonSourceContext.cs:3)，可保存 spawn 来源和技能运行时归属。
-- area 事件已有 [`AreaEventArgs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/AreaEventArgs.cs:6)，可继续携带 source/root/owner context。
-- plan action 输入已经通过 [`MobaPlanActionInput`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionInput.cs:51) 收敛执行上下文、execution scope、caster/target、aim 等核心事实。
-- damage payload 已经通过 [`AttackInfo`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs:6) 和 [`DamageResult`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs:208) 传递 origin。
+- projectile 已有 [`ProjectileSourceContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs#L6)，可保存 source actor、target actor、root context、owner context、skill runtime handle。
+- summon 已有 [`SummonSourceContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/SummonSourceContext.cs#L3)，可保存 spawn 来源和技能运行时归属。
+- area 事件已有 [`AreaEventArgs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/AreaEventArgs.cs#L6)，可继续携带 source/root/owner context。
+- plan action 输入已经通过 [`MobaPlanActionInput`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionInput.cs#L51) 收敛执行上下文、execution scope、caster/target、aim 等核心事实。
+- damage payload 已经通过 [`AttackInfo`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs#L6) 和 [`DamageResult`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs#L208) 传递 origin。
 
 主要缺口：
 
 - 缺少统一的“来源对象解析 service”，派生对象执行效果时仍容易各自从 payload、caster、owner 中取值。
 - 缺少统一的“属性读取 source policy”。
 - 缺少“source/self/owner/root/self snapshot/live source”这些对象和数值语义的配置化表达。
-- summon 配置已有 [`SummonMO.AttrScales`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs:24)，但 [`MobaSummonService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/MobaSummonService.cs:128) 当前只按属性模板初始化，没有正式应用继承规则。
-- projectile 有 [`ProjectileEffectSnapshotComponent`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/ProjectileEffectSnapshotComponent.cs:7)，但字段只是局部快照，没有形成通用 attribute snapshot/resolve 体系。
-- damage action 当前由 [`GiveDamagePlanActionModule`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/GiveDamagePlanActionModule.cs:62) 直接写入基础伤害，缺少从来源属性计算基础伤害的统一 resolver。
-- mitigation 当前在 [`MobaDamageMitigationService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/MobaDamageMitigationService.cs:18) 中按 attacker/target 实体实时读取防御和穿透，但 attacker 对 projectile/summon/self source 的语义尚未配置化。
+- summon 配置已有 [`SummonMO.AttrScales`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs#L24)，但 [`MobaSummonService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/MobaSummonService.cs#L128) 当前只按属性模板初始化，没有正式应用继承规则。
+- projectile 有 [`ProjectileEffectSnapshotComponent`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/ProjectileEffectSnapshotComponent.cs#L7)，但字段只是局部快照，没有形成通用 attribute snapshot/resolve 体系。
+- damage action 当前由 [`GiveDamagePlanActionModule`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/GiveDamagePlanActionModule.cs#L62) 直接写入基础伤害，缺少从来源属性计算基础伤害的统一 resolver。
+- mitigation 当前在 [`MobaDamageMitigationService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/MobaDamageMitigationService.cs#L18) 中按 attacker/target 实体实时读取防御和穿透，但 attacker 对 projectile/summon/self source 的语义尚未配置化。
 
 ## 3. 核心原则
 
@@ -208,7 +208,7 @@ flowchart TD
 
 ### 6.1 Projectile
 
-Projectile 的 formal source 应继续沿用 [`ProjectileSourceContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs:6)。
+Projectile 的 formal source 应继续沿用 [`ProjectileSourceContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs#L6)。
 
 需要补充：
 
@@ -226,13 +226,13 @@ Projectile 的 formal source 应继续沿用 [`ProjectileSourceContext`](Unity/P
 
 ### 6.2 Summon
 
-Summon 的 formal source 应继续沿用 [`SummonSourceContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/SummonSourceContext.cs:3)。
+Summon 的 formal source 应继续沿用 [`SummonSourceContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/SummonSourceContext.cs#L3)。
 
 需要补充：
 
-- spawn 时读取 [`SummonMO.StatsMode`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs:23) 和 [`SummonMO.AttrScales`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs:24)。
-- [`MobaActorAttributeInitializer.ApplyTemplate()`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityConstruction/MobaActorAttributeInitializer.cs:19) 先应用自身模板，再由 summon inheritance applier 叠加来源继承。
-- 继承结果应写入 summon 自身 [`AttributeGroupComponent`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/AttributeSystemComponents.cs:9)，使 summon 后续作为独立 actor 参与战斗。
+- spawn 时读取 [`SummonMO.StatsMode`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs#L23) 和 [`SummonMO.AttrScales`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs#L24)。
+- [`MobaActorAttributeInitializer.ApplyTemplate()`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityConstruction/MobaActorAttributeInitializer.cs#L19) 先应用自身模板，再由 summon inheritance applier 叠加来源继承。
+- 继承结果应写入 summon 自身 [`AttributeGroupComponent`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/AttributeSystemComponents.cs#L9)，使 summon 后续作为独立 actor 参与战斗。
 - summon 自己释放技能时，默认 source actor 应是 summon 自身，但 origin/root 仍可追溯到 owner skill runtime。
 
 建议 StatsMode 语义：
@@ -249,7 +249,7 @@ Summon 的 formal source 应继续沿用 [`SummonSourceContext`](Unity/Packages/
 
 ### 6.3 Area / AOE
 
-Area 当前事件使用 [`AreaEventArgs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/AreaEventArgs.cs:6) 携带 source/root/owner context。
+Area 当前事件使用 [`AreaEventArgs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/AreaEventArgs.cs#L6) 携带 source/root/owner context。
 
 需要补充：
 
@@ -266,7 +266,7 @@ Area 当前事件使用 [`AreaEventArgs`](Unity/Packages/com.abilitykit.demo.mob
 
 ### 6.4 Buff / Shield
 
-Buff runtime 当前已经保存 source actor、source context、origin 和 runtime context，相关逻辑见 [`BuffRuntime`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffRuntimeContexts.cs:105) 和 [`BuffContinuousRuntime`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs:25)。
+Buff runtime 当前已经保存 source actor、source context、origin 和 runtime context，相关逻辑见 [`BuffRuntime`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Core/BuffRuntimeContexts.cs#L105) 和 [`BuffContinuousRuntime`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Runtime/BuffContinuousRuntime.cs#L25)。
 
 需要补充：
 
@@ -276,14 +276,14 @@ Buff runtime 当前已经保存 source actor、source context、origin 和 runti
 
 ### 6.5 Damage
 
-Damage 当前由 [`GiveDamagePlanActionModule`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/GiveDamagePlanActionModule.cs:22) 创建 [`AttackInfo`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs:6)，再进入 [`DamagePipelineService.Execute()`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineService.cs:46)。
+Damage 当前由 [`GiveDamagePlanActionModule`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/GiveDamagePlanActionModule.cs#L22) 创建 [`AttackInfo`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs#L6)，再进入 [`DamagePipelineService.Execute()`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineService.cs#L46)。
 
 需要补充：
 
 - damage args/schema 支持声明 base damage 的来源策略。
 - damage action 通过 attribute source resolver 计算基础伤害，而不是只使用 literal damage value。
-- [`AttackInfo`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs:6) 可补充 attribute source snapshot 或 formula source metadata，方便后续管线阶段读取。
-- [`MobaDamageMitigationService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/MobaDamageMitigationService.cs:18) 中 attacker 属性读取也应可由 attack source policy 决定，不能永远假设 attacker actor 就是属性来源。
+- [`AttackInfo`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs#L6) 可补充 attribute source snapshot 或 formula source metadata，方便后续管线阶段读取。
+- [`MobaDamageMitigationService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/MobaDamageMitigationService.cs#L18) 中 attacker 属性读取也应可由 attack source policy 决定，不能永远假设 attacker actor 就是属性来源。
 
 ## 7. 配置模型建议
 
@@ -371,7 +371,7 @@ SnapshotFrame
 建议新增服务职责：
 
 - 根据 execution context、source object context、runtime snapshot、policy 解析 actor。
-- 读取 [`MobaAttrs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs:9) 或 stat snapshot。
+- 读取 [`MobaAttrs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs#L9) 或 stat snapshot。
 - 统一处理 actor missing、attribute missing、snapshot missing 的 fallback。
 - 提供诊断日志，说明本次数值从哪个来源解析而来。
 
@@ -401,7 +401,7 @@ TryGetSourceActorOverride
 
 ### 8.3 改造 summon 初始化链路
 
-当前 [`MobaSummonService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/MobaSummonService.cs:128) 在 spawn 后调用 [`ActorEntityInitPipeline.InitializeFromAttributeTemplate()`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityConstruction/ActorEntityInitPipeline.cs:29)。
+当前 [`MobaSummonService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/MobaSummonService.cs#L128) 在 spawn 后调用 [`ActorEntityInitPipeline.InitializeFromAttributeTemplate()`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityConstruction/ActorEntityInitPipeline.cs#L29)。
 
 建议顺序：
 
@@ -420,7 +420,7 @@ TryGetSourceActorOverride
 
 ### 8.4 改造 projectile 创建与命中链路
 
-当前 projectile source 由 [`MobaProjectileLinkService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileLinkService.cs:32) 绑定，spawn/hit 后由 [`MobaStageTriggerService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaStageTriggerService.cs:118) 派发。
+当前 projectile source 由 [`MobaProjectileLinkService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileLinkService.cs#L32) 绑定，spawn/hit 后由 [`MobaStageTriggerService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaStageTriggerService.cs#L118) 派发。
 
 建议补充：
 
@@ -443,7 +443,7 @@ TryGetSourceActorOverride
 
 ### 8.6 配置校验
 
-已有 [`MobaBattleConfigReferenceValidator`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs:346) 会检查 summon attr scales。后续需要增加：
+已有 [`MobaBattleConfigReferenceValidator`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs#L346) 会检查 summon attr scales。后续需要增加：
 
 - source policy 是否合法。
 - attr id 是否存在。
@@ -549,10 +549,10 @@ Required
 正式解析顺序建议固定下来，避免 action 各自猜来源：
 
 1. 优先使用 runtime payload 显式携带的 source object ref。
-2. 如果 payload 没有，则从 [`MobaCombatExecutionContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs:54) 和 [`MobaContextSourceView`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs:47) 推导。
-3. projectile 使用 [`ProjectileSourceContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs:6) 补 execution self runtime、body actor、source actor、target、root、owner。
-4. summon 使用 [`SummonSourceContext`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/SummonSourceContext.cs:3) 补 execution self actor、stat self actor、body actor、source、root、owner。
-5. area 使用 [`AreaEventArgs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/AreaEventArgs.cs:6) 补 execution self runtime、body actor、source、target、runtime。
+2. 如果 payload 没有，则从 [`MobaCombatExecutionContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs#L54) 和 [`MobaContextSourceView`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs#L47) 推导。
+3. projectile 使用 [`ProjectileSourceContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs#L6) 补 execution self runtime、body actor、source actor、target、root、owner。
+4. summon 使用 [`SummonSourceContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/SummonSourceContext.cs#L3) 补 execution self actor、stat self actor、body actor、source、root、owner。
+5. area 使用 [`AreaEventArgs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/AreaEventArgs.cs#L6) 补 execution self runtime、body actor、source、target、runtime。
 6. buff/shield 使用 buff runtime context 补 execution self runtime、source actor、target actor、stat self actor 和 source context id。
 7. 最后才 fallback 到 caster/attacker/target。
 
@@ -577,9 +577,9 @@ Required
 | Policy | 读取来源 | 失败处理 |
 | --- | --- | --- |
 | Literal | 配置固定值 | 直接返回 literal |
-| SourceActorLive | source actor 当前 [`MobaAttrs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs:9) | 按 fallback policy |
-| StatSelfLive | stat self actor 当前 [`MobaAttrs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs:9) | 按 fallback policy |
-| BodyActorLive | body/master actor 当前 [`MobaAttrs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs:9) | 按 fallback policy |
+| SourceActorLive | source actor 当前 [`MobaAttrs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs#L9) | 按 fallback policy |
+| StatSelfLive | stat self actor 当前 [`MobaAttrs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs#L9) | 按 fallback policy |
+| BodyActorLive | body/master actor 当前 [`MobaAttrs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs#L9) | 按 fallback policy |
 | OwnerActorLive | owner/root owner 当前属性 | 按 fallback policy |
 | RuntimeSnapshot | runtime stat snapshot entry | 缺失时报配置或运行时错误 |
 
@@ -596,7 +596,7 @@ Required
 5. 按 apply mode 写入目标属性：set base、add base、modifier、override snapshot。
 6. 记录继承诊断：target attr、source policy、source actor、source attr、source value、final value。
 
-summon 的正式语义应优先让继承结果落到自身 [`AttributeGroupComponent`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/AttributeSystemComponents.cs:38)，这样 summon 后续作为普通 actor 战斗。projectile、area、buff 这类不一定是完整 actor 的 runtime，则优先写入 runtime stat snapshot。
+summon 的正式语义应优先让继承结果落到自身 [`AttributeGroupComponent`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/AttributeSystemComponents.cs#L38)，这样 summon 后续作为普通 actor 战斗。projectile、area、buff 这类不一定是完整 actor 的 runtime，则优先写入 runtime stat snapshot。
 
 ### 9.6 接入点
 
@@ -604,11 +604,11 @@ summon 的正式语义应优先让继承结果落到自身 [`AttributeGroupCompo
 
 | 场景 | 接入点 | 第一阶段目标 |
 | --- | --- | --- |
-| Summon spawn | [`MobaSummonService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/MobaSummonService.cs:74) | 模板初始化后应用 [`SummonMO.AttrScales`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs:24) |
+| Summon spawn | [`MobaSummonService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Summon/MobaSummonService.cs#L74) | 模板初始化后应用 [`SummonMO.AttrScales`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs#L24) |
 | Projectile launch | projectile launch action / link service | 创建 source object ref 和 projectile snapshot |
-| Projectile hit | [`MobaStageTriggerService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaStageTriggerService.cs:118) | hit payload 带 source object ref 和 snapshot id |
-| Damage action | [`GiveDamagePlanActionModule`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/GiveDamagePlanActionModule.cs:62) | base damage 通过 resolver 计算 |
-| Damage mitigation | [`MobaDamageMitigationService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/MobaDamageMitigationService.cs:18) | 穿透来源可配置 |
+| Projectile hit | [`MobaStageTriggerService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaStageTriggerService.cs#L118) | hit payload 带 source object ref 和 snapshot id |
+| Damage action | [`GiveDamagePlanActionModule`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/GiveDamagePlanActionModule.cs#L62) | base damage 通过 resolver 计算 |
+| Damage mitigation | [`MobaDamageMitigationService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/MobaDamageMitigationService.cs#L18) | 穿透来源可配置 |
 | Area tick | area runtime event | tick payload 带 source object ref 和 snapshot id |
 | Buff/shield | buff apply/tick/shield stack | source context id + snapshot 归因 |
 
@@ -631,9 +631,9 @@ summon 的正式语义应优先让继承结果落到自身 [`AttributeGroupCompo
 
 改造边界：
 
-1. [`MobaPlanActionInput`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionInput.cs:51)、[`MobaEffectActionInput`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionInput.cs:115)、projectile/summon action input 应提供统一 source object ref 获取入口。
+1. [`MobaPlanActionInput`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionInput.cs#L51)、[`MobaEffectActionInput`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionInput.cs#L115)、projectile/summon action input 应提供统一 source object ref 获取入口。
 2. plan action module 不直接从 caster、owner、payload 猜 actor，而是调用 `MobaSourceObjectResolver`。
-3. 需要属性的 action 不直接读取 [`MobaAttrs`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs:9)，而是提交 `MobaAttributeSourceRequest` 给 `MobaAttributeSourceResolver`。
+3. 需要属性的 action 不直接读取 [`MobaAttrs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs#L9)，而是提交 `MobaAttributeSourceRequest` 给 `MobaAttributeSourceResolver`。
 4. 创建 runtime 对象的 action 负责把 resolver 结果写入 projectile、summon、area、buff runtime context。
 5. 触发器框架底层不需要知道 MOBA 的 source actor 语义；MOBA adapter/action module 负责把通用触发器上下文映射成 MOBA source object ref。
 
@@ -648,7 +648,7 @@ summon 的正式语义应优先让继承结果落到自身 [`AttributeGroupCompo
 3. 定义 `MobaAttributeSourcePolicy` 和最小 `MobaAttributeSourceRequest`。
 4. 实现 `MobaAttributeSourceResolver`，只支持 Literal、SourceActorLive、StatSelfLive、BodyActorLive。
 5. 实现 `MobaAttributeInheritanceApplier`，支持 set base、add base。
-6. 让 summon 正式消费 [`SummonMO.AttrScales`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs:24)。
+6. 让 summon 正式消费 [`SummonMO.AttrScales`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs#L24)。
 7. 增加 summon 继承测试和来源对象解析测试。
 
 第二阶段：支持 projectile snapshot 和 damage 公式来源。
@@ -657,8 +657,8 @@ summon 的正式语义应优先让继承结果落到自身 [`AttributeGroupCompo
 2. projectile launch 时创建 snapshot。
 3. projectile hit payload 携带 snapshot id 和 source object ref。
 4. damage args/schema 增加 attribute formula source。
-5. [`GiveDamagePlanActionModule`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/GiveDamagePlanActionModule.cs:62) 使用 resolver 计算 base damage。
-6. [`AttackInfo`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs:6) 增加 formula source metadata。
+5. [`GiveDamagePlanActionModule`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/GiveDamagePlanActionModule.cs#L62) 使用 resolver 计算 base damage。
+6. [`AttackInfo`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineModels.cs#L6) 增加 formula source metadata。
 7. 增加 projectile 固化伤害、source live damage、self live damage 测试。
 
 第三阶段：扩展 area、buff、shield 和 mitigation。
@@ -672,7 +672,7 @@ summon 的正式语义应优先让继承结果落到自身 [`AttributeGroupCompo
 第四阶段：配置正式化和工具化。
 
 1. Luban 配置增加 source policy、snapshot timing、apply mode、fallback policy。
-2. [`MobaBattleConfigReferenceValidator`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs:346) 校验 attr id、policy、timing、apply mode。
+2. [`MobaBattleConfigReferenceValidator`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs#L346) 校验 attr id、policy、timing、apply mode。
 3. 增加诊断日志开关，能输出一次伤害或继承的完整解析链。
 4. 增加配置样例和 smoke case，覆盖 projectile、summon、area、buff、shield。
 
@@ -693,7 +693,7 @@ summon 的正式语义应优先让继承结果落到自身 [`AttributeGroupCompo
 1. 定义 source object reference、attribute source policy、stat snapshot、inheritance rule 的最小代码结构。
 2. 新增 source object resolver，先支持 execution self、stat self、body actor、source actor、owner/root actor 的解析。
 3. 新增 attribute source resolver，只支持 literal、source actor live、stat self live、body actor live 四种基础策略。
-4. 让 summon 正式消费 [`SummonMO.AttrScales`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs:24)，完成创建时属性继承。
+4. 让 summon 正式消费 [`SummonMO.AttrScales`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SummonMO.cs#L24)，完成创建时属性继承。
 5. 为 projectile 增加 stat snapshot 绑定和 hit payload provider。
 6. 改造 damage action，使 base damage 可以从 resolver 计算。
 7. 为 area runtime 增加 source object context 和 stat snapshot。
@@ -744,7 +744,7 @@ summon 的正式语义应优先让继承结果落到自身 [`AttributeGroupCompo
 
 ## 12. 风险点
 
-1. 不要让 [`MobaGameplayOrigin`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs:24) 变成属性系统，它只负责来源事实。
+1. 不要让 [`MobaGameplayOrigin`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Origin/MobaGameplayOrigin.cs#L24) 变成属性系统，它只负责来源事实。
 2. 不要让 damage pipeline 识别 projectile/summon/area 具体类型，否则会破坏扩展性。
 3. 不要默认所有派生对象都实时读取 caster 属性，很多 projectile/trap 需要创建时固化。
 4. 不要默认所有 summon 都代理 owner 属性，summon 应优先是独立 actor。

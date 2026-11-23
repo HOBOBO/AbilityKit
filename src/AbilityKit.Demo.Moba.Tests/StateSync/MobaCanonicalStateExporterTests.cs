@@ -3,11 +3,11 @@ using System.Linq;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Core.Mathematics;
-using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Deterministic;
+using AbilityKit.Record.FrameRecord;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.StateSync;

@@ -2,8 +2,8 @@ param(
     [int]$TcpPort = 44201,
     [int]$HostTimeoutSeconds = 60,
     [string]$Configuration = 'Release',
-    [ValidateSet('frame-sync-authority', 'moba-state-sync-authority')]
-    [string]$SyncTemplateId = 'frame-sync-authority',
+    [ValidateSet('moba-settled-frame-sync-v2', 'moba-state-sync-authority')]
+    [string]$SyncTemplateId = 'moba-settled-frame-sync-v2',
     [switch]$NoBuild,
     [switch]$NoCleanup
 )

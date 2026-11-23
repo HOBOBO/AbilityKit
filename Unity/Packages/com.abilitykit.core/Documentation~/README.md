@@ -11,15 +11,18 @@
 
 `com.abilitykit.core` 是 AbilityKit 的 P0 基础底座包，提供上层模块共享的纯 C# 基础设施。它不是业务战斗包，也不是 Demo 包。
 
-Core 的稳定基础面当前覆盖以下能力：
+当前候选的[首发支持清单](./FirstReleaseSupport.md)区分稳定推荐、高级接口、历史兼容与待评审项。首发推荐的基础面覆盖以下能力：
 
 - 数学基础：`Runtime/Math`。
 - 日志：`Runtime/Logging`。
 - 稳定集合：`Runtime/Collections`。
-- 有界缓冲区与托管数组所有权：`Runtime/Buffers`。
-- 稳定标识：`Runtime/Generic`。
+- 托管数组所有权：`Runtime/Buffers`。
+- 稳定标识：`Runtime/Identifiers`。
 - 生命周期注册：`Runtime/Lifetime`。
 - 单调时间：`Runtime/Timing`。
+- 实例对象池与类型化事件键：`Runtime/Pooling`、`Runtime/Eventing`。
+
+帧索引与顺序缓冲区、池管理和现有事件派发面继续随包交付，不作为默认接入。
 
 `Runtime/Continuous`、`Runtime/Config`、`Runtime/Markers`、
 `Runtime/Reflection` 和 `Runtime/DebugDraw` 是迁移中的兼容面，不是新功能落点。
@@ -110,7 +113,7 @@ Core 的稳定基础面当前覆盖以下能力：
 
 **内容概要**：无校验构造、有效性与身份差异、哈希边界、同步接受语义、正式空接收器和独立使用方缺口。
 
-### 14. [旧 Unity 设置引导兼容契约](./UnitySettingsBootstrapCompatibility.md)
+### 14. [旧 Unity 设置引导退役说明](./UnitySettingsBootstrapCompatibility.md)
 
 **阅读对象**：维护旧 Unity 配置引导或迁移应用设置的开发者。
 
@@ -161,7 +164,7 @@ Foundation Starter 的第一阶段只应依赖 `core` 和 `world.di`，用于验
 | Eventing | `Runtime/Eventing` | 轻量事件发布、订阅和取消订阅 |
 | Collections | `Runtime/Collections` | 稳定优先级集合和升序唯一整数索引 |
 | Buffers | `Runtime/Buffers` | 有界帧/顺序存储和租用数组所有权 |
-| Identifiers | `Runtime/Generic` | 版本化稳定哈希和局部名称注册表 |
+| Identifiers | `Runtime/Identifiers` | 版本化稳定哈希和局部名称注册表 |
 | Timing | `Runtime/Timing` | 单调时钟、时长计数与毫秒换算 |
 | Pooling | `Runtime/Pooling` | 对象池、池作用域、池配置与诊断 |
 | Markers | `Runtime/Markers` | 既有标记与注册兼容构件；全局发现及引导已冻结 |
@@ -190,7 +193,7 @@ Foundation Starter 的第一阶段只应依赖 `core` 和 `world.di`，用于验
 - [属性系统模块](../../com.abilitykit.attributes/Document/) - 持久属性系统
 - [Modifiers 包](../../com.abilitykit.modifiers/) - 通用玩法修饰器
 - [能力管线模块](../../com.abilitykit.pipeline/Document/) - 技能执行管线
-- [触发器模块](../../com.abilitykit.triggering/Document/) - 事件触发系统
+- [触发器模块](../../com.abilitykit.triggering/Documentation~/README.md) - 事件触发系统
 
 ---
 

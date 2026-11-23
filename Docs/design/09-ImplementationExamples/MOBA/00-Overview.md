@@ -45,6 +45,11 @@ MOBA 示例已经进一步拆成更细专题，便于单独阅读每个设计点
 | Unity 示例宿主 | Starter、package scene、Profile/Catalog、Root 与战斗会话所有权 | [01-世界启动与运行时装配](01-WorldAndBootstrap.md)、[MOBA Demo 顶层解析](../03-MOBA%20Demo%20Analysis.md) |
 | 快照与表现 | WorldStateSnapshot、SnapshotBuffer、FrameSnapshotDispatcher、BattleSnapshotPipeline | [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md) |
 | 远程驱动 | RemoteDrivenWorldRuntimeFactory、ClientPredictionDriverModule、RollbackRegistry | [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md) |
+| 同步闭环与英雄实现推进 | Lockstep、预测回滚、权威恢复、表现重建、Annie/Jinx 验收矩阵与剩余英雄批次 | [45-MOBA 同步闭环与英雄实现推进计划](45-MobaSynchronizationImplementationProgressPlan.md) |
+| 真实技能回滚验收 | P2 真实 World 捕获/恢复/重演的证据与当前阻断 | [47-真实技能回滚与重演验收](47-MobaRealSkillRollbackReplayAcceptance.md) |
+| actor Blackboard 恢复 | 已确认并实现的有限成员恢复与验证边界 | [48-actor Blackboard 生命周期回滚](48-MobaOwnerBlackboardRollbackProposal.md) |
+| 技能生命周期联合恢复 | 联合恢复与 registry 迁移完成；配套 50 号后两组 Annie Q 同输入各重演两次，完整 registry 字节/hash 一致；事件部分仍阻断 P2 | [49-联合回滚方案](49-MobaSkillLifecycleRollbackPlanProposal.md) |
+| 逻辑时钟与最近战斗时间回滚 | 已确认并完成两个本地 provider、required-state 与资源属性投影修复；战斗状态重演一致，表现事件待推进 | [50-配套状态恢复方案](50-MobaCombatActivityRollbackProposal.md) |
 
 ## 2. 源码分层
 
@@ -179,6 +184,7 @@ flowchart TB
 18. [16-领域连续运行时与临时实体生命周期](16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md)：Motion source、motion.hit、Summon 生命周期与 gameplay trigger 绑定的当前实现。
 19. [17-主动、被动、Buff、Projectile 与 AOE 触发效果设计](17-ActivePassiveBuffProjectileAoeTriggerEffects.md)：主动技能、被动 owner-bound、Buff、Projectile stage 与 AOE stage 如何进入 TriggerPlan 并落到领域服务。
 20. [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md)：逻辑结果怎样进入客户端表现，以及远程驱动和预测回滚目前覆盖到哪里。
+21. [45-MOBA 同步闭环与英雄实现推进计划](45-MobaSynchronizationImplementationProgressPlan.md)：在继续扩展剩余英雄前，按 P0-P5 跑通 Lockstep、预测回滚、权威恢复和表现重建，并用 Annie/Jinx 作为代表内容验收。
 
 ## 6. 单局验收范围
 
@@ -207,13 +213,13 @@ P1 门禁 `moba-complete-battle-journey` 组合运行这两个测试。仓库证
 | System 顺序与协作 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs`、`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaWorldSystemExecution.cs` |
 | 服务基类 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Templates/GameServiceBase.cs` |
 | 输入协调 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Input/MobaInputCoordinator.cs` |
-| 技能释放 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs` |
-| 技能 Flow Pipeline | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/TableDrivenMobaSkillPipelineLibrary.cs` |
+| 技能释放 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs` |
+| 技能 Flow Pipeline | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/TableDrivenMobaSkillPipelineLibrary.cs` |
 | 技能 Flow DTO | `Unity/Packages/com.abilitykit.demo.moba.share/Runtime/Game/Config/Dto/SkillDtos.cs` |
 | 配置门面 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/MobaConfigDatabase.cs` |
 | 实体索引 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityManager/MobaEntityManager.cs` |
 | Actor 生成 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityConstruction/MobaActorSpawnService.cs` |
-| Buff 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs` |
+| Buff 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/MobaBuffService.cs` |
 | Projectile 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs` |
 | Damage 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaDamageService.cs` |
 | Unit 生命周期 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Unit/MobaUnitLifecycleService.cs` |
@@ -224,7 +230,7 @@ P1 门禁 `moba-complete-battle-journey` 组合运行这两个测试。仓库证
 | Canonical provenance | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextResolveExtensions.cs` |
 | Combat Context | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs` |
 | Effect Invoker | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaEffectInvokerService.cs` |
-| Effect/Action lifecycle | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs` |
+| Effect/Action lifecycle | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs` |
 | Transform Snapshot | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Actor/MobaActorTransformSnapshotService.cs` |
 | Trigger Execution Gateway | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs` |
 | Stage Trigger Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaStageTriggerService.cs` |

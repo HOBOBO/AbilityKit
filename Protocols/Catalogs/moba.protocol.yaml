@@ -3,7 +3,7 @@ schemaVersion: 1
 catalogId: abilitykit.moba.battle
 projectId: abilitykit.moba
 domain: battle
-revision: 5
+revision: 6
 defaultCodec: memorypack
 messages:
   - id: frame-sync-submit-input.request
@@ -24,13 +24,6 @@ messages:
     codec: custom-binary
     maximumPayloadBytes: 16384
     captureSampleRate: 0.1
-  - id: frame-sync-catch-up.request
-    opCode: 2002
-    direction: c2s
-    kind: request
-    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireCatchUpRequest
-    codec: custom-binary
-    maximumPayloadBytes: 4096
   - id: frame-sync-metrics.request
     opCode: 2003
     direction: c2s
@@ -46,38 +39,38 @@ messages:
     payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireFrameSyncMetrics
     codec: custom-binary
     maximumPayloadBytes: 65536
-  - id: frame-sync-spectator-subscribe.request
-    opCode: 2004
+  - id: settled-frame-subscribe.request
+    opCode: 2005
     direction: c2s
     kind: request
-    payloadType: System.UInt64
-    codec: custom-binary
-    response: frame-sync-spectator-subscribe.response
+    payloadType: AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeRequest
+    response: settled-frame-subscribe.response
     maximumPayloadBytes: 4096
-  - id: frame-sync-spectator-subscribe.response
-    opCode: 2004
+  - id: settled-frame-subscribe.response
+    opCode: 2005
     direction: s2c
     kind: response
-    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireSpectatorSubscribeRes
-    codec: custom-binary
-    maximumPayloadBytes: 16384
-  - id: frame-sync-frame.push
-    opCode: 9001
+    payloadType: AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeResponse
+    maximumPayloadBytes: 4096
+  - id: settled-frame-catch-up.request
+    opCode: 2006
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpRequest
+    response: settled-frame-catch-up.response
+    maximumPayloadBytes: 4096
+  - id: settled-frame-catch-up.response
+    opCode: 2006
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpResponse
+    maximumPayloadBytes: 4194304
+  - id: settled-frame.push
+    opCode: 9020
     direction: s2c
     kind: push
-    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireFramePushedPush
-    codec: custom-binary
-    reliability: realtime
+    payloadType: AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame
     maximumPayloadBytes: 4194304
-    captureSampleRate: 0.05
-  - id: frame-sync-catch-up.push
-    opCode: 9010
-    direction: s2c
-    kind: push
-    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireCatchUpPayloadPush
-    codec: custom-binary
-    maximumPayloadBytes: 4194304
-    captureSampleRate: 0.25
   - id: move-input.event
     opCode: 3003
     direction: c2s

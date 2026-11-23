@@ -34,12 +34,7 @@ namespace AbilityKit.Game.Flow
 
         public void ShowPressed(int slot, IBattleHudAimPreviewReadPort input)
         {
-            if (!TryGetSpec(slot, out var spec) || spec.PreviewVfxId <= 0 || input == null ||
-                !input.TryResolveLocalActorWorldPosition(out var x, out var y, out var z)) return;
-            _pressedSlot = slot;
-            var state = new BattleHudAimPreviewState(slot, new Vector3(x, y, z), Vector3.forward, spec.Range);
-            EnsurePreview(spec.PreviewVfxId);
-            _preview.Apply(state, spec);
+            TryShowPressed(slot, input, allowVfx: true);
         }
 
         public void HidePressed(int slot)
@@ -53,6 +48,7 @@ namespace AbilityKit.Game.Flow
         {
             if (!_positions.TryResolve(input, out var state) || !TryGetSpec(state.Slot, out var spec))
             {
+                if (_pressedSlot > 0 && TryShowPressed(_pressedSlot, input, allowVfx: false)) return;
                 Hide();
                 return;
             }
@@ -85,6 +81,19 @@ namespace AbilityKit.Game.Flow
 
             EnsurePreview(spec.PreviewVfxId);
             _preview.Apply(state, spec);
+        }
+
+        private bool TryShowPressed(int slot, IBattleHudAimPreviewReadPort input, bool allowVfx)
+        {
+            if (!TryGetSpec(slot, out var spec) || input == null ||
+                !(allowVfx && spec.PreviewVfxId > 0 || !spec.EnableAim && spec.PreviewShape == BattleHudSkillPreviewShape.SelfCircle) ||
+                !input.TryResolveLocalActorWorldPosition(out var x, out var y, out var z)) return false;
+
+            var state = new BattleHudAimPreviewState(slot, new Vector3(x, y, z), Vector3.forward, spec.Range);
+            EnsurePreview(spec.PreviewVfxId);
+            _pressedSlot = slot;
+            _preview.Apply(state, spec);
+            return true;
         }
 
         public void Clear()

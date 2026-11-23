@@ -14,8 +14,8 @@ internal static class GatewayGameplayCatalog
             true,
             "moba",
             30,
-            "frame-sync-authority",
-            new[] { "frame-sync-authority", "moba-state-sync-authority" },
+            "moba-settled-frame-sync-v2",
+            new[] { "moba-settled-frame-sync-v2", "moba-state-sync-authority" },
             SupportsStateSyncPush: true,
             SupportsFrameSync: true),
         new(

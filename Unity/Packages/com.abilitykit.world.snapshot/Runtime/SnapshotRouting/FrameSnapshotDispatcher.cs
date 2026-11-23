@@ -47,6 +47,10 @@ namespace AbilityKit.Core.Snapshots.Routing
             _routes[opCode] = new Route<T>(decoder);
         }
 
+        /// <summary>
+        /// 为已注册的路由追加类型化回调；相同回调可独立注册多次，按注册顺序执行。
+        /// </summary>
+        /// <returns>仅撤销本次注册的令牌，可重复释放。</returns>
         public IDisposable Subscribe<T>(int opCode, Action<ISnapshotEnvelope, T> handler)
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
@@ -61,10 +65,11 @@ namespace AbilityKit.Core.Snapshots.Routing
                 throw new InvalidOperationException($"Snapshot route type mismatch: opCode={opCode} expected={typeof(T).FullName} actual={raw.PayloadType.FullName}");
             }
 
-            route.Add(handler);
+            var registration = new HandlerRegistration<T>(route, handler);
+            route.Add(registration);
             return DisposableRegistration.Create(
-                new HandlerRegistration<T>(route, handler),
-                static registration => registration.Route.Remove(registration.Handler));
+                registration,
+                static entry => entry.Route.Remove(entry));
         }
 
         public void Dispose()
@@ -105,7 +110,7 @@ namespace AbilityKit.Core.Snapshots.Routing
 
         private sealed class Route<T> : IRoute
         {
-            private readonly List<Action<ISnapshotEnvelope, T>> _handlers = new List<Action<ISnapshotEnvelope, T>>(4);
+            private readonly List<HandlerRegistration<T>> _handlers = new List<HandlerRegistration<T>>(4);
 
             public Route(TryDecode<T> decoder)
             {
@@ -115,14 +120,14 @@ namespace AbilityKit.Core.Snapshots.Routing
             public TryDecode<T> Decoder { get; set; }
             public Type PayloadType => typeof(T);
 
-            public void Add(Action<ISnapshotEnvelope, T> handler)
+            public void Add(HandlerRegistration<T> registration)
             {
-                _handlers.Add(handler);
+                _handlers.Add(registration);
             }
 
-            public void Remove(Action<ISnapshotEnvelope, T> handler)
+            public void Remove(HandlerRegistration<T> registration)
             {
-                _handlers.Remove(handler);
+                _handlers.Remove(registration);
             }
 
             public void Dispatch(ISnapshotEnvelope envelope, in WorldStateSnapshot snap)
@@ -134,10 +139,10 @@ namespace AbilityKit.Core.Snapshots.Routing
 
                 for (int i = 0; i < _handlers.Count; i++)
                 {
-                    var h = _handlers[i];
+                    var handler = _handlers[i].Handler;
                     try
                     {
-                        h?.Invoke(envelope, payload);
+                        handler(envelope, payload);
                     }
                     catch (Exception ex)
                     {
@@ -147,7 +152,10 @@ namespace AbilityKit.Core.Snapshots.Routing
             }
         }
 
-        private readonly struct HandlerRegistration<T>
+        /// <summary>
+        /// 一次订阅的独立标识，即使委托相等也不会混淆不同的注册。
+        /// </summary>
+        private sealed class HandlerRegistration<T>
         {
             public readonly Route<T> Route;
             public readonly Action<ISnapshotEnvelope, T> Handler;

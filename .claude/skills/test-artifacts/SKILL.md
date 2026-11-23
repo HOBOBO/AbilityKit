@@ -1,6 +1,6 @@
 ---
 name: test-artifacts
-description: AbilityKit 测试产物管理规范——统一规划 moba headless / shooter StateSync multiprocess / dotnet test / Unity EditMode+PlayMode 四类测试的输出路径、命名、生命周期与清理。涵盖 tools/run_test_gate.ps1 + tools/test-gates.json 的 29 个 gate 体系（P0 3 / P1 18 / P2 8，含 foundation-units 基础叶子包契约与 moba-acceptance-dotnet 白盒验收）、本地 local/Logs/ 与 CI 显式 artifacts/test-gates/ 目录约定、.gitignore 覆盖范围、绕过 gate 体系直接跑命令的注意事项。触发场景：跑测试、写新测试、加 test gate、排查测试产物位置、清理 TestResults、MultiplayerHeadlessHeroReplacement 产物、shooter multiprocess artifact、TRX 文件、NUnit XML、上传 CI artifact、CI workflow 上传测试产物。
+description: AbilityKit 运行产物与测试门禁指引。用于运行测试、构建或 Unity 批处理前指定输出路径，定位本地或 CI 证据、检查暂存区，以及区分运行报告与测试基线。
 ---
 
 # 测试产物指引
@@ -14,9 +14,11 @@ description: AbilityKit 测试产物管理规范——统一规划 moba headless
 
 ## 核心原则
 
-**本地测试产物必须落在 `local/Logs/` 下，永远不要写在项目根或源码目录中。** `tools/run_test_gate.ps1` 的本地默认值为 `local/Logs/test-gates`；直接调用的测试命令也必须显式指定该根目录下的结果路径。
+**本地运行报告统一放 `local/Logs/`，不要写在仓库根、`Unity/` 根或源码目录。** 已有测试 gate 优先用 `tools/run_test_gate.ps1`（默认 `local/Logs/test-gates`）。直接执行测试、构建或 Unity 批处理时，启动前建好带时间戳的运行目录，显式指定日志和结果路径。正式发布物、构建缓存与被测试消费的夹具不随日志迁移。
 
-CI 是唯一例外：`.github/workflows/abilitykit-test-gates.yml` 显式传入 `-ResultsDirectory artifacts\\test-gates\\...`，以便 `actions/upload-artifact` 上传。该覆盖仅适用于短生命周期的 CI 工作区，不能作为本地默认值。
+提交前用 `python -X utf8 tools/check_repo_structure.py --strict --staged-outputs` 检查暂存内容。报告不应暂存；发现问题时只撤销对应文件的暂存，再按[归档规则](../repo-structure-governance/SKILL.md)处理。未改动的历史日志只提示，不因这次检查删除。
+
+CI 如有接线，应显式指定并上传 `artifacts/test-gates/` 下对应的任务目录。是否已接线、如何校验参见[测试门禁与批量回归规范](../../../Docs/AbilityKit测试门禁与批量回归规范.md#8-ci-接入与静态校验)，不要把 CI 目录作为本地默认路径。
 
 历史教训：2026-07-20 之前，`MultiplayerHeadlessHeroReplacementCommand` 默认 resultPath 是 `../MultiplayerHeadlessHeroReplacement.xml`（相对 `Unity/` 即项目根），导致根目录累积了 24 个带 `-fix/-rerun/-probe/-diagnostic` 后缀的调试 XML 快照。
 
@@ -56,13 +58,13 @@ local/Logs/
 ## 分节索引
 
 - [when_to_use.md](when_to_use.md) — 何时启用本 skill
-- [gate_runner.md](gate_runner.md) — `run_test_gate.ps1` + `test-gates.json` 29 gate 体系（推荐入口；含 foundation-units 基础叶子包契约 + moba-acceptance-dotnet 白盒验收判定 gate，trace 基线在 `src/AbilityKit.Demo.Moba.Acceptance.Tests/{Fixtures,Traces}/`，真实基线经 `tools/capture_moba_acceptance_traces.ps1` 刷新）
+- [gate_runner.md](gate_runner.md) — 现有 gate 的发现、执行与产物定位
 - [dotnet_test.md](dotnet_test.md) — dotnet test 直接跑的产物（TRX + local/Logs/dotnet/）
 - [unity_editmode_playmode.md](unity_editmode_playmode.md) — Unity EditMode/PlayMode 测试产物（NUnit XML + Editor Tests）
 - [moba_headless.md](moba_headless.md) — MultiplayerHeadlessHeroReplacementCommand 等无头测试
 - [shooter_state_sync.md](shooter_state_sync.md) — shooter multiprocess + StateSync + restart_shooter_state_sync.bat
 - [ad_hoc_workflows.md](ad_hoc_workflows.md) — 绕过 gate 体系的注意事项 + 清理策略
-- [ci_integration.md](ci_integration.md) — .github/workflows/abilitykit-test-gates.yml + actions/upload-artifact
+- [ci_integration.md](ci_integration.md) — CI 接入约定入口，不代表当前已接线
 
 ## 相关 skill
 

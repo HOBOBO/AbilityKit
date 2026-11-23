@@ -11,8 +11,12 @@ namespace AbilityKit.Triggering.Tests
 {
     public sealed class ValidatingTriggerPlanJsonDatabaseExecutionRootTests
     {
-        [Test]
-        public void Validate_RejectsTimelineActionInsideJsonExecutionRoot()
+        /// <summary>
+        /// 语义校验可手动运行；启用自动拒绝时在写入之后报告相同的违规。
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void Validate_RejectsTimelineActionInsideJsonExecutionRoot(bool validateOnLoad)
         {
             var triggerId = 4101;
             var actionId = StableStringId.Get("test:validating_json_execution_root:timeline_action");
@@ -34,9 +38,24 @@ namespace AbilityKit.Triggering.Tests
     }}
   ]
 }}";
-            var database = new ValidatingTriggerPlanJsonDatabase();
+            var database = new ValidatingTriggerPlanJsonDatabase(new TriggerValidationOptions
+            {
+                ValidateOnLoad = validateOnLoad,
+                ThrowOnValidationFailure = true,
+                LogErrors = false,
+                LogWarnings = false
+            });
 
-            database.LoadFromJson(json, "json-execution-root-timeline-test");
+            if (validateOnLoad)
+            {
+                Assert.Throws<TriggerValidationException>(() => database.LoadFromJson(json, "json-execution-root-timeline-test"));
+            }
+            else
+            {
+                Assert.DoesNotThrow(() => database.LoadFromJson(json, "json-execution-root-timeline-test"));
+            }
+
+            Assert.That(database.InnerDatabase.TryGetRecordByTriggerId(triggerId, out _), Is.True);
             var result = database.Validate();
 
             Assert.That(result.IsValid, Is.False);

@@ -50,6 +50,7 @@ namespace AbilityKit.Game.Flow
         public readonly Func<IWorld, RollbackRegistry> BuildRollbackRegistry;
         public readonly Func<IWorld, Func<FrameIndex, WorldStateHash>> BuildComputeHash;
         public readonly ClientPredictionDriverBufferOptions PredictionBufferOptions;
+        public readonly Func<WorldId, IConsumableRemoteFrameSource<WorldSettledInputFrame>> ResolveSettledFrames;
 
         public RemoteDrivenWorldRuntimeFactoryOptions(
             BattleStartPlan plan,
@@ -61,7 +62,8 @@ namespace AbilityKit.Game.Flow
             Func<WorldId, int> resolveIdealFrameLimit,
             Func<IWorld, RollbackRegistry> buildRollbackRegistry,
             Func<IWorld, Func<FrameIndex, WorldStateHash>> buildComputeHash,
-            ClientPredictionDriverBufferOptions predictionBufferOptions = null)
+            ClientPredictionDriverBufferOptions predictionBufferOptions = null,
+            Func<WorldId, IConsumableRemoteFrameSource<WorldSettledInputFrame>> resolveSettledFrames = null)
         {
             Plan = plan;
             FixedDelta = fixedDelta;
@@ -73,6 +75,7 @@ namespace AbilityKit.Game.Flow
             BuildRollbackRegistry = buildRollbackRegistry;
             BuildComputeHash = buildComputeHash;
             PredictionBufferOptions = predictionBufferOptions;
+            ResolveSettledFrames = resolveSettledFrames;
         }
     }
 
@@ -96,7 +99,7 @@ namespace AbilityKit.Game.Flow
             try
             {
                 world = runtime.CreateWorld(worldOptions);
-                BindAuthorityFrameService(world, options.EnableClientPrediction
+                BindAuthorityFrameService(world, options.EnableClientPrediction || options.ResolveSettledFrames != null
                     ? RemoteDrivenRuntimeModuleFactory.PredictionRollbackHistoryFrames : 0);
                 return new RemoteDrivenWorldRuntime(worldId, worlds, runtime, world);
             }

@@ -174,6 +174,9 @@ namespace AbilityKit.Demo.Moba.Components
     public sealed class ShieldLayer
     {
         public int InstanceId;
+        internal Fixed64 RetaliationDamage;
+        internal int RetaliationSourceVersion;
+        internal HashSet<long> RetaliatedAttackers;
         public int ShieldId;
         public int SourceActorId;
         public int OwnerActorId;

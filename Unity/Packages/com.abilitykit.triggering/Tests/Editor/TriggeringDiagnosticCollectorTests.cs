@@ -57,5 +57,23 @@ namespace AbilityKit.Triggering.Tests
             Assert.That(snapshot.LegacyHits, Is.EqualTo(1));
             Assert.That(snapshot.TotalRecords, Is.EqualTo(3));
         }
+
+        [Test]
+        public void Clear_ResetsLiveRecordsWithoutChangingPublishedSnapshot()
+        {
+            var collector = new TriggeringDiagnosticCollector();
+            var records = collector.Records;
+            collector.RecordExecutionFailure(11, 22, "failed");
+            var previous = collector.Snapshot;
+
+            Assert.That(records, Has.Count.EqualTo(1));
+            collector.Clear();
+
+            Assert.That(records, Is.Empty);
+            Assert.That(collector.Snapshot.ExecutionFailures, Is.Zero);
+            Assert.That(collector.Snapshot.TotalRecords, Is.Zero);
+            Assert.That(previous.ExecutionFailures, Is.EqualTo(1));
+            Assert.That(previous.TotalRecords, Is.EqualTo(1));
+        }
     }
 }

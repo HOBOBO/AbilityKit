@@ -69,7 +69,7 @@ flowchart TB
 
 | 层 | 关键类型 | 职责 |
 |----|---------|------|
-| 表现/会话 | [`ShooterClientSession`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientSession.cs)、[`ShooterClientNetworkLauncher`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientNetworkLauncher.cs:12) | 对外门面、连接/网关启动、诊断上抛 |
+| 表现/会话 | [`ShooterClientSession`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientSession.cs)、[`ShooterClientNetworkLauncher`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientNetworkLauncher.cs#L12) | 对外门面、连接/网关启动、诊断上抛 |
 | 同步适配 | `IShooterClientSyncController`、`ShooterClientSyncStrategyMapping`、`ShooterFastReconnectDriver` | 玩法富类型 ↔ 框架中性类型的双向映射 |
 | 框架能力 | `IClientSyncStrategy`、`NetworkSyncProfile`、`FastReconnectSession`、`RemoteInterpolationPlayback` | 同步语义（A 轴），gameplay 无关 |
 | 玩法 runtime | `IShooterBattleRuntimePort` | 纯确定性推帧、状态哈希、快照打包 |
@@ -78,7 +78,7 @@ flowchart TB
 
 ## 3. 被演示的框架能力清单（A 轴 Profile）
 
-依据基线文档 §10.1，当前**真正具备运行时落地**的 Profile 有三个，Shooter 全部接入演示。示例层不再只暴露松散的模式列表，而是通过 [`ShooterAcceptanceCatalog.SyncModeMatrix`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1) 固化「模板 → `NetworkSyncProfile` → 承载类型 → 验收准则」的正式矩阵，避免纯状态同步、帧同步与混合同步在 Unity 面板里混成同一条临时流程：
+依据基线文档 §10.1，当前**真正具备运行时落地**的 Profile 有三个，Shooter 全部接入演示。示例层不再只暴露松散的模式列表，而是通过 [`ShooterAcceptanceCatalog.SyncModeMatrix`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1) 固化「模板 → `NetworkSyncProfile` → 承载类型 → 验收准则」的正式矩阵，避免纯状态同步、帧同步与混合同步在 Unity 面板里混成同一条临时流程：
 
 ```mermaid
 flowchart LR
@@ -212,7 +212,7 @@ sequenceDiagram
 
 ## 6. DemoHarness 能力矩阵运行模型
 
-DemoHarness 是把上述能力「批量演示并验收」的引擎，核心是 **A×B×C 矩阵 + 四态结果**。Shooter 侧额外提供正式验收矩阵 [`ShooterSyncModeMatrix`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1)，用于把每个同步模板的验收边界显式暴露给 Unity 面板、xUnit 和文档：
+DemoHarness 是把上述能力「批量演示并验收」的引擎，核心是 **A×B×C 矩阵 + 四态结果**。Shooter 侧额外提供正式验收矩阵 [`ShooterSyncModeMatrix`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1)，用于把每个同步模板的验收边界显式暴露给 Unity 面板、xUnit 和文档：
 
 | 模板 | 承载语义 | 必须验收 |
 |------|----------|----------|
@@ -297,7 +297,7 @@ Shooter 多进程 smoke 的 `observer-reactivation` 场景用于验证 Orleans O
 
 ### 6.6 ECS/Svelto 基准入口
 
-同步验收矩阵之外，Shooter runtime 现在提供 [`ShooterSveltoGameplayBenchmark`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/ShooterSveltoGameplayBenchmark.cs:1) 作为高性能 ECS 范式入口。它复用 [`ShooterSveltoGameplayScenarioRunner`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/ShooterSveltoGameplayScenarioRunner.cs:1) 的 `EntitiesDB.QueryEntities<...>()` 批量处理路径，按 profile 多次运行并断言 deterministic outcome：
+同步验收矩阵之外，Shooter runtime 现在提供 [`ShooterSveltoGameplayBenchmark`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/Scenario/ShooterSveltoGameplayBenchmark.cs) 作为高性能 ECS 范式入口。它复用 [`ShooterSveltoGameplayScenarioRunner`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/Scenario/ShooterSveltoGameplayScenarioRunner.cs) 的 `EntitiesDB.QueryEntities<...>()` 批量处理路径，按 profile 多次运行并断言 deterministic outcome：
 
 | Profile | 场景 | 用途 |
 |---------|------|------|

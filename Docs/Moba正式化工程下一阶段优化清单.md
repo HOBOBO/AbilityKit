@@ -135,6 +135,8 @@
 - `MobaSkillCastRuntimeService` 已存在 runtime aggregate、retain/release、children、root execution context 等概念；Trace 不再是业务依赖。
 - `SkillExecutor.StartPreparedCast` 在 runner 启动失败时会 `ForceTerminate` runtime handle。
 - Buff/projectile/summon 侧已有 retain/release 记录，但清理日志和异常处理仍分散。
+- `MobaSkillRuntimeLifecycleHookService` 已按事件开始时的稳定快照派发；回调期间的注册/注销延迟到下一事件，异常隔离并在派发完成后重抛首个异常，避免运行时生命周期观察者改变当前事件的覆盖范围。
+- 两条 child retain 入口现已汇总到同一 `MobaSkillRuntimeRetainHandle` 登记路径；legacy `runtimeId + child` 释放会先消费匹配 capability，并可通过 `ValidateRetentionState` 检查 orphaned/untracked child。
 
 **不足**
 
@@ -176,6 +178,29 @@
 
 - View/ET 主循环消费快照时不需要每帧创建新数组。
 - 表现层缓存所有权清晰，不持有已释放池对象。
+
+**本批落地（BattleClientSnapshotStream）**
+
+- 网关线程只负责入队，表现线程在 `Drain`/`Present` 中消费；actor 字典始终由 stream 私有持有。
+- late attach 与 full-snapshot recovery 使用独立的 baseline actor 数组；投影不会拿到内部字典或可复用缓冲。
+- 排序后的 actor ID 顺序按拓扑变化缓存，避免每次 attach 都重新创建临时 ID 列表；正常 `Present`/`Drain` 不触发该排序分配。
+- `DetachProjection`、session stop 与 stream reset 都会调用 projection reset，之后不再向已解绑投影投递快照。
+
+下一小批继续处理事件快照与表现 cue 的 copy-to-buffer 边界，并增加 ET smoke 的固定帧分配观测；暂不跨包引入通用对象池。
+
+**本轮稳定性审查补充**
+
+- `PresentationCueReconciliationController` 的容量淘汰已改为只淘汰 inactive history；active cue 的预测、确认、修正、拒绝历史不会因容量压力丢失。
+- receipt 队列改为携带 entry identity，避免 key 删除后复用时被旧 receipt 误删。
+- 该边界直接影响金克斯等高频技能表现：预测特效保持 active 期间，后续 authority correction/rejection 仍必须命中同一 request key。
+
+审查中确认暂不需要调整 Pipeline/Trigger 的职责边界；事件快照和表现 cue 在跨线程/跨 generation 时的批次生命周期继续按恢复窗口验证。可靠事件恢复窗口现在明确：重复进入等待权威基线时清空上一窗口的 pending 批次，并在保留批次前复制 ingress 事件列表，避免旧序列或复用解码缓冲污染新基线后的回放；同时以批次数和事件数双重限制恢复内存，单次溢出在一个恢复窗口内只报告一次，成功采用基线后重新计数。runtime 额外暴露 `RecoveryWindowId` 与累计 `PendingOverflowCount`，用于将重同步请求、批次丢弃和恢复结果按窗口关联，观测字段不参与玩法决策。后续 ET smoke 仍需补充对批次丢弃、重放、回收的可观测性。
+
+**本轮追加的生命周期修复**
+
+- `BattleSessionLifecycleController` 改用全量 best-effort teardown：某一步失败不会阻止后续订阅、快照缓冲和网络绑定清理。
+- 失败结果仍保留失败步骤集合，下一次 detach 只重试未成功步骤；成功步骤不会重复执行。
+- 这项修复属于基础生命周期稳定性，和 Pipeline/Trigger 的职责边界无关，但能避免一个表现层清理异常把整场战斗资源留在半释放状态。
 
 ## P2：工程化治理、文档与长期演进
 
@@ -253,3 +278,114 @@
 3. P0-3：随后做被动触发计划 diff apply 和生命周期协调器，降低 Buff/被动/装备扩展风险。
 4. P1-1 与 P1-2：补齐 host contract acceptance tests 与技能 runtime lifecycle tests。
 5. P1-3 与 P2：最后沉淀表现层快照生命周期、validation DTO、压测基线和日志规范。
+
+### 本批继续落地：恢复期间错误事件流早期丢弃
+
+- 可靠事件 runtime 在等待权威基线时先校验 batch 的 `StreamId`。与当前战斗不匹配的旧战斗推送不会进入 pending 队列，也不会触发新的 resync；它只增加 `PendingInvalidBatchCount` 并以 `BatchRejected/InvalidStream` 进入诊断回调。
+- `TimelineId` 不在该阶段提前拒绝：断线恢复可能通过新的 epoch 建立基线，匹配时间线的旧批次也必须保留用于重放。基线建立后仍由 `ReplayOnlyMatchingTimeline` 控制回放范围。
+- SDK 和 MOBA 适配层同步透传计数，业务层只用于诊断和压测，不参与技能、Pipeline 或 Trigger 决策。
+
+本批继续收口可靠事件恢复窗口与 MOBA 恢复协调器的边界：`RecoveryWindowId` 现在参与 `ReliableEventResyncRequired` 的窗口级关联。同一窗口内重复的可靠事件失效只保留首个全量状态请求，后续重复信号计入抑制诊断；新 generation 会清空关联状态，恢复动作调用 `RequireAuthoritativeBaseline` 后产生新窗口，跨窗口失败仍可再次重试。该抑制只影响可靠事件 resync，不改变连接丢失、快照导入失败等其他恢复信号，也不参与 Pipeline、Trigger 或技能玩法决策。
+
+**下一批落地（2026-10-31）**
+
+- `ILogicWorldDriverStateBufferBridge` 为 coordinator 增加可选的调用方缓冲状态桥；`MobaBattleDriverHost` 通过复用逻辑状态缓冲并逐项转换，提供 `FillCoordinatorEntityStates`。
+- coordinator 原有 `GetAllEntityStates()` 数组接口继续保留为兼容入口；高频 ET/View 状态同步可探测并使用 buffer bridge，避免 runtime 已填充缓冲后宿主又转数组的重复边界分配。
+- 状态转换只复制数据值，不把 runtime 实体或内部集合暴露给 coordinator；调用方仍拥有输出缓冲的清理和生命周期。
+### 下一批落地（2026-10-31，coordinator bridge 收口）
+
+- 新增 `LogicWorldDriverStateBufferExtensions.FillAllEntityStates` 统一入口：优先探测 `ILogicWorldDriverStateBufferBridge`，旧宿主自动回退 `GetAllEntityStates()`，调用方不再重复实现类型探测与兼容复制。
+- Shooter 与 Moba driver host 均实现可选 buffer bridge；数组 API 仍保留给低频诊断和旧接入。
+- buffer API 的所有权规则固定为“调用方清理、宿主追加、返回追加数量”；宿主不得暴露内部状态集合，旧数组回退只在不支持 bridge 的宿主发生。
+- ET 已直接使用 Moba runtime 的 `FillAllEntityStates`，当前没有 coordinator 数组消费点；后续新增消费应优先使用统一扩展入口并增加 allocation smoke 观测。
+
+### P1-3 事件快照 list bridge（已完成）
+
+ET 逻辑驱动器的 `DispatchFrameSnapshot` 原先把 `FrameSnapshotData` 中的每个
+`IReadOnlyList<T>` 都先转换成临时数组，再交给 share 层 dispatcher。现在新增可选的
+`IFrameSnapshotListDispatcher`：实现方可以在当前同步调用内直接消费列表，旧的数组接口仍然保留。
+
+- `FrameSnapshotDispatcher` 同时实现 list bridge，并提供 `SubscribeList<T>`；列表订阅收到的是生产者传入的同一个列表引用。
+- 旧数组订阅继续有效。只有存在对应的数组订阅时，list dispatch 才按需复制一次数组，因此兼容成本由实际旧消费者承担。
+- `SnapshotViewAdapter` 已切换到列表订阅，视图 sink 通过 `FrameSnapshotData` 消费列表；列表只保证在本次同步回调期间有效，订阅者需要跨帧保存时自行复制。
+- ET 的 `DispatchFrameSnapshot` 对变换、投射物、区域、伤害、生成、销毁和技能状态事件优先探测 list bridge，旧 dispatcher 自动回退数组路径。变换和生成仍维护历史 `Last*Snapshot` 数组缓存，保证 ET 调试/采样代码兼容。
+- `DispatchViewSnapshot` 已经直接传递完整 `FrameSnapshotData`，不属于本批数组热点；后续不要为了统一接口重新拆成逐事件数组。
+
+验收重点：同一列表的顺序、数量和内容必须保持不变；list 订阅不能持有生产者列表跨帧；旧数组订阅和旧 `IFrameSnapshotDispatcher` 实现继续可用。
+## 阶段性成熟度与英雄铺量准入标准（2026-11-01）
+
+当前 MOBA 英雄技能链路已经达到“机制表达可复制、单英雄可以按固定流程交付”的阶段性稳定水平。对大多数常规英雄，后续工作以新增配置、Timeline、Trigger 计划、HFSM 参数和验收场景为主，不需要重做职责边界。
+
+综合判断：英雄机制生产能力约 **8/10**，基础设施产品化约 **6.5/10**。当前适合受控批量铺量，不适合宣称无限制批量发布。
+
+### 复杂度准入
+
+**A 类**：普通指向伤害、简单 Buff、单次位移、单条投射物、固定区域和短时蓄力，可以直接按既有链路交付。
+
+**B 类**：多段命中、链式投射物、持续区域、召唤物、充能、多来源 Modifier、护盾与伤害混合、反射/弹射。可以铺量，但必须复用扩展点，明确来源、生命周期、取消、销毁、去重和恢复；实体创建不得由英雄组件自行管理。
+
+**C 类**：全图弹道、服务器命中回溯、跨会话召唤/分身、复杂 AOI、高弹量目标排序、并行 HFSM 分支和要求预测/确认/拒绝/重放一致的长链路。先做能力切片，证明固定 tick 可重演、恢复不重复结算、预算降级可观测、Console/dotnet/Unity 使用同一契约。
+
+### 当前链路闭环
+
+| 阶段 | 权威来源 | 最低验收物 |
+|---|---|---|
+| 状态与参数 | HFSM Authoring、Modifier | 状态图、稳定参数 ID、来源和清理规则 |
+| 数值与身份 | Luban Production Excel | 业务 ID、等级、标签和引用可解析 |
+| 单次施放 | SkillFlowCO、ActionEditor logic | phase、提交点、取消和结束 trace |
+| 战斗效果 | Trigger Authoring | target query、来源、命中去重和效果结果 |
+| 表现消费 | presentation timeline、资源模板 | generation、确认/拒绝、打断和恢复 |
+| 快照回滚 | snapshot/rollback provider | 状态、技能阶段、Modifier 和必要实体状态一致 |
+| 发布门禁 | exporter、Luban、test-gates | `--check-published`、内容契约、dotnet 和 Unity artifact |
+
+链路已经足以支撑批量制作。最容易导致返工的是跳过状态规划、从表现或 Trigger 直接开始，或只验证 Action trace 而不验证权威状态、效果和恢复结果。
+
+### 仍需并行治理的风险
+
+1. delta/keyframe/resync 和 pure-state 客户端消费尚未完全收口，应在同步层解决。
+2. AOI slice、快照预算、召唤物和大范围区域的降级策略仍需独立建设，技能不能静默裁剪目标。
+3. ActorId 回滚、Projectile provider、召唤物重建和跨会话恢复必须形成统一契约。
+4. manifest、`test-gates.json`、acceptance coverage 和 Unity 资源登记仍有人工漏项风险。
+5. 发布物与 Console/Unity 副本可能漂移，生产修改必须回到权威来源并通过发布检查。
+6. 完整构建、runtime smoke、view runtime contracts 和部分 Unity gate 尚未全部自动化；这是工程质量风险，不是技能职责边界风险。
+
+### 英雄批次准入标准
+
+- 完成 HFSM/Modifier/Pipeline/Trigger 职责归类；长期模式不能塞进长 Flow，表现回调不能决定玩法结果。
+- 所有引用来自当前权威来源，Unity 与 Console 发布 ID 一致。
+- 每个跨帧对象都有来源、生命周期、取消、销毁、去重和回滚/重建规则。
+- 每个技能至少有真实 dotnet acceptance 场景；复杂技能还要断言 trace、快照或回滚。
+- Unity 验收覆盖逻辑动作、表现动作、特效资源、打断/恢复和 generation。
+- 通过匹配的 `moba-content-contracts`、`moba-acceptance-dotnet`、`moba-console-smoke` 和 Unity hero gate。
+- 失败可按稳定 code、skill ID、trigger ID、phase、generation 或 recovery window 定位。
+
+### 对金克斯的影响
+
+金克斯可以先按普通批次推进：被动加速使用持续 Modifier；Q 双形态使用模式参数，机枪/火箭每次攻击分别走独立 Flow；W 使用投射物与命中 Trigger；E 使用区域/陷阱实体和生命周期；R 先实现单次发射、目标查询、伤害和表现确认，再单独评估全局弹道、AOI 和延迟补偿。
+
+金克斯不会自动要求大规模重构。需要平台扩展的部分应沉淀为可复用能力：模式参数投影、投射物追踪/弹射、区域生命周期、目标查询排序和全局弹道恢复。只有两个以上英雄同时需要同一未表达语义，或现有契约无法满足回滚/恢复/发布一致性时，才升级为框架重构。
+
+阶段性判断：**英雄机制层已达到可铺量水平；网络与产品化基础设施仍需并行收口；后续以局部扩展和门禁强化为主，不需要大规模重构，但 C 类能力必须独立准入。**
+
+### 下一批落地：护盾变更通知闭环（2026-11-05）
+
+- `MobaShieldService.Changed` 现在在个人护盾成功新增/刷新后发布 `Added` / `Refreshed`，携带单调递增 revision、Actor/instance、变更前后数值和当前帧。通知在状态提交后发出；订阅者异常会被隔离，不影响战斗状态。
+- 新增 `MobaShieldChangeEventTests` 覆盖 Added、Refresh 的字段与 revision 顺序，以及表现订阅者抛错时提交仍成立。
+- 本批只收口个人盾 Add/Refresh 的事件语义。共享池成员变化、移除/过期/耗尽事件、回滚时的 presentation correction 以及 UI/VFX 消费联调仍未覆盖；按权威 `ShieldState` 快照重建的协议仍是客户端状态来源。
+
+### 本轮继续：护盾生命周期事件扩展（2026-11-05）
+
+- 在原有个人盾 Added/Refreshed 事件上，补齐个人盾显式移除、替换移除、过期与吸收耗尽通知；共享盾成员加入/离开通过 pool identity、pool version 和 actor identity 暴露。共享池被整体删除时，对活跃成员发出 Removed。
+- 替换事件在替换结果完成重算后发布，避免同步观察者读到新旧盾之间的半提交状态。订阅回调异常仍被隔离，不回滚玩法状态。
+- `MobaShieldChangeEventTests` 覆盖新增/刷新、替换事件的提交可见性、显式移除/过期及共享成员加入/离开。
+
+边界仍需清楚标记：共享池整体过期/耗尽目前的清理事件语义尚未统一验证；回滚恢复仍应以权威快照做 presentation correction，revision 不代表跨回滚持久序号；UI/VFX 实际消费和 generation 对齐尚未联调。下一小批先补共享池生命周期和回滚重建契约，再接表现消费，避免把事件流误当成权威状态同步。
+
+### 本轮继续：共享护盾终止与回滚表现修正（2026-11-05）
+
+- 共享池过期和耗尽现在使用明确的 `Expired` / `Depleted` 终止事件；显式整体移除继续使用 `Removed`。终止前清除成员绑定并移除池，之后对原活跃成员逐一发通知，携带 PoolId、最终版本、旧余额和零余额。吸收耗尽只走池终止事件，避免 `Absorbed` 与终止事件对同一次耗尽重复表达。
+- 个人盾 CleanupExpired 先删除并重算容器，再发布 Expired/Depleted；同步回调读取的是已提交状态。
+- rollback provider 导入盾容器和共享池后，按 Actor 比较导入前后可见护盾总量；只有变化的 Actor 收到 `RollbackCorrection`。它是纠正提示，不代替快照，也不承诺恢复被移除 Shield instance 的事件级身份。
+- 新增测试覆盖共享池过期时的单成员通知、通知时池已删除、回滚导入后 Actor 总量纠正，以及个人过期通知时容器已清理；护盾事件定向测试 8 项通过。
+
+事件流仍是表现层提示。跨帧重连应使用 `MobaShieldStateSnapshotService` 的完整 ShieldState baseline；UI/VFX 消费、回滚后具体实例表现重建和共享池跨 rollback generation 的去重仍需后续接入验证。

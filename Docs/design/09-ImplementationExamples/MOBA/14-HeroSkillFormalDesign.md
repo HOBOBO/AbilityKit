@@ -7,6 +7,8 @@
 
 ## 1. 能力定位
 
+机制扩展的准入要求见 [`MobaMechanismGovernance.md`](../../../MobaMechanismGovernance.md)。英雄差异由正式内容和通用消费者表达；现存英雄专属执行分支属于待治理实现，不能作为模板或证明“零特例”。规范未覆盖、冲突或需要新增/改变机制时，先提交通用方案，等待用户明确确认。
+
 六英雄技能实现承担两类职责：
 
 | 职责 | 设计回答 |
@@ -42,7 +44,7 @@
 | Console 配置副本 | `src/AbilityKit.Demo.Moba.Console/Configs` |
 | Trigger plan 加载 | `Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Serialization/Json/Database/TriggerPlanJsonDatabase.cs` |
 | MOBA 触发执行入口 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs` |
-| 被动生命周期绑定 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Passive/MobaPassiveSkillLifecycleService.cs` |
+| 被动生命周期绑定 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/MobaPassiveSkillLifecycleService.cs` |
 | PlanAction 模块 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions` |
 | MOBA predicate 函数 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Predicates/MobaPlanPredicateFunctions.cs` |
 | 配置/资源测试 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/BattleTestScriptRunnerEditModeTests.cs` |

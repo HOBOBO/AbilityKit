@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     public sealed class MobaProjectileLinkRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider, IRollbackSnapshotPreflightProvider
     {
         public const int DefaultKey = 12002;
-        private const int Version = 1;
+        private const int Version = 2;
         private readonly MobaProjectileLinkService _links;
         private readonly MobaSkillCastRuntimeService _skills;
         private readonly IProjectileService _projectiles;
@@ -41,6 +41,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     var retain = entry.Retain;
                     writer.Write(entry.ProjectileId); writer.Write(entry.ActorId);
                     WriteSource(writer, in source); WriteRetain(writer, in retain);
+                    writer.Write(entry.ConfirmedKills); writer.Write(entry.LastKillingHit);
                 }
                 writer.Write(state.Retired.Length);
                 foreach (var entry in state.Retired) { writer.Write(entry.ProjectileId); writer.Write(entry.ActorId); }
@@ -163,7 +164,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 ValidateSourceContext(in source);
                 var retain = ResolveRetain(entry.Retain, MobaSkillRuntimeChildKind.Projectile, entry.ProjectileId,
                     source.SourceContextId, source.ProjectileConfigId);
-                projectiles[i] = new MobaProjectileLinkRollbackEntry(entry.ProjectileId, entry.ActorId, in source, in retain);
+                projectiles[i] = new MobaProjectileLinkRollbackEntry(entry.ProjectileId, entry.ActorId, in source, in retain,
+                    entry.ConfirmedKills, entry.LastKillingHit);
             }
             var launchers = new MobaProjectileLauncherLinkRollbackEntry[state.Launchers.Length];
             for (var i = 0; i < launchers.Length; i++)
@@ -214,7 +216,9 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (payload == null || payload.Length == 0) throw new InvalidOperationException("Missing Projectile link rollback payload.");
             using (var reader = new BinaryReader(new MemoryStream(payload, false)))
             {
-                if (reader.ReadInt32() != Version) throw new InvalidOperationException("Unsupported Projectile link rollback payload.");
+                var version = reader.ReadInt32();
+                if (version != 1 && version != Version)
+                    throw new InvalidOperationException("Unsupported Projectile link rollback payload.");
                 var projectiles = new List<MobaProjectileLinkRollbackEntry>();
                 var projectileIds = new HashSet<int>(); var actorIds = new HashSet<int>();
                 var retainIds = new HashSet<long>();
@@ -228,7 +232,12 @@ namespace AbilityKit.Demo.Moba.Rollback
                     if (!source.IsValid) throw new InvalidOperationException("Projectile link has no target-frame source context.");
                     ValidateRetainIdentity(retain, MobaSkillRuntimeChildKind.Projectile, id,
                         source.SourceContextId, source.ProjectileConfigId, retainIds);
-                    projectiles.Add(new MobaProjectileLinkRollbackEntry(id, actorId, in source, in retain));
+                    var confirmedKills = version >= 2 ? reader.ReadInt32() : 0;
+                    var lastKillingHit = version >= 2 ? reader.ReadInt32() : 0;
+                    if (confirmedKills < 0 || lastKillingHit < confirmedKills || (confirmedKills == 0 && lastKillingHit != 0))
+                        throw new InvalidOperationException("Invalid Projectile impact kill state.");
+                    projectiles.Add(new MobaProjectileLinkRollbackEntry(id, actorId, in source, in retain,
+                        confirmedKills, lastKillingHit));
                 }
                 var retired = new List<MobaProjectileRetiredLinkRollbackEntry>();
                 var retiredIds = new HashSet<int>();

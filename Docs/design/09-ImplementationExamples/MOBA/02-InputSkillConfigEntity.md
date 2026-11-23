@@ -207,7 +207,7 @@ sequenceDiagram
 | 输入批处理基类 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/LogicWorld/Input/LogicWorldInputCoordinatorBase.cs` |
 | MOBA 输入协调与上下文 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Input/MobaInputCoordinator.cs`、`MobaInputCommandContext.cs` |
 | Handler 注册与移动/技能实现 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Input/MobaInputCommandHandlerRegistry.cs`、`MobaMoveInputCommandHandler.cs`、`MobaSkillInputCommandHandler.cs` |
-| 技能释放与准备 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs`、`SkillCastPreparationService.cs` |
+| 技能释放与准备 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs`、`SkillCastPreparationService.cs` |
 | 配置门面 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/MobaConfigDatabase.cs` |
 | Actor 生成 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityConstruction/MobaActorSpawnService.cs` |
 | 实体索引 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityManager/MobaEntityManager.cs` |

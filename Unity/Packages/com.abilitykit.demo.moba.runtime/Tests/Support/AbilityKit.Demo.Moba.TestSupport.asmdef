@@ -1,0 +1,13 @@
+{
+  "name": "AbilityKit.Demo.Moba.TestSupport",
+  "rootNamespace": "AbilityKit.Demo.Moba.Testing",
+  "references": [
+    "AbilityKit.Ability",
+    "AbilityKit.Demo.Moba.Runtime",
+    "AbilityKit.Triggering",
+    "AbilityKit.Triggering.TestSupport"
+  ],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

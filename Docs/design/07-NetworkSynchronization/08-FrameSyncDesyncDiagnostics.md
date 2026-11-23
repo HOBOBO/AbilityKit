@@ -1,5 +1,7 @@
 # 帧同步不一致诊断工具方案
 
+2026-11-14 已确认 D1：SkillRunnerRollback v3 保留原 Entry/Context 的两个 Int64 诊断槽位，新导出均写 0；旧 v1/v2/v3 按原布局读取并丢弃诊断关联。PipelineContext Capture/Restore 同样不携带本地 DiagnosticCommandId。相同权威输入的快照必须逐字节一致，本地命令编号仍单调递增用于新 trace；Cast/Context/资源身份与 allocator 继续参与权威恢复，不得一并清零或归一化。批准依据及兼容边界见 `plans/MobaSevenHeroNextMechanismDecision.2026-11-14.md`。
+
 > **文档类型：Canonical 方案与实现边界**  
 > **适用对象：** 使用确定性定点数模拟的帧同步战斗，包括 MOBA 客户端、服务端和回放验证。  
 > **当前基线：** FrameRecord v4、FrameRecordDiffAnalyzer report schema v2、AbilityKit.Record.Tools。

@@ -22,8 +22,8 @@
 
 ### 1.2 现状关键事实（已核对）
 
-- **同步模式切换是单一入口**：[`ShooterClientSyncControllerFactory.Create(NetworkSyncModel, ...)`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSyncControllerFactory.cs:37) 是唯一选择策略的地方，`ShooterClientSession` 门面对模式无感知。当前 `switch` 只实现 `PredictRollback`、`AuthoritativeInterpolation`，其余 `throw NotSupportedException`。
-- **view.runtime 已可纯 C# 编译**：测试工程 [`AbilityKit.Demo.Shooter.Runtime.Tests.csproj`](../src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj:12) 直接 `ProjectReference` 了 `AbilityKit.Demo.Shooter.View.Runtime.csproj`，说明 view.runtime 存在与 asmdef 平行的 .csproj 镜像，且能脱离 Unity 被 xUnit 引用。
+- **同步模式切换是单一入口**：[`ShooterClientSyncControllerFactory.Create(NetworkSyncModel, ...)`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSyncControllerFactory.cs#L37) 是唯一选择策略的地方，`ShooterClientSession` 门面对模式无感知。当前 `switch` 只实现 `PredictRollback`、`AuthoritativeInterpolation`，其余 `throw NotSupportedException`。
+- **view.runtime 已可纯 C# 编译**：测试工程 [`AbilityKit.Demo.Shooter.Runtime.Tests.csproj`](../src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj#L12) 直接 `ProjectReference` 了 `AbilityKit.Demo.Shooter.View.Runtime.csproj`，说明 view.runtime 存在与 asmdef 平行的 .csproj 镜像，且能脱离 Unity 被 xUnit 引用。
 - **核心同步链路已被纯 C# 测试覆盖**：`ShooterDemoHarnessCarrierTests`、`ShooterClientSyncStrategyContractTests` 直接 `new ShooterClientPredictRollbackSyncController(...)` 并跑 DemoHarness 场景 —— 即 G2 已在运转。
 - **两层边界清晰**：`runtime` 为纯确定性玩法（Domain/Application/Worlds/Infrastructure(Svelto)），`view.runtime` 为客户端会话+同步适配+表现投影。Unity 耦合集中在 `Presentation/View/Mono*`（如 `MonoShooterViewHandle`）。
 
@@ -97,7 +97,7 @@ flowchart LR
 
 ### 3.2 模式契约统一
 
-所有模式都实现同一接口 [`IShooterClientSyncController`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/IShooterClientSyncController.cs:25)，它已同时绑定框架中性契约 `IClientSyncStrategy<ShooterPlayerCommand, ShooterRemoteSnapshotSample>` 与 `INetworkSyncController`。这保证：
+所有模式都实现同一接口 [`IShooterClientSyncController`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/IShooterClientSyncController.cs#L25)，它已同时绑定框架中性契约 `IClientSyncStrategy<ShooterPlayerCommand, ShooterRemoteSnapshotSample>` 与 `INetworkSyncController`。这保证：
 
 - DemoHarness 通过中性契约统一驱动任意模式（A 轴）；
 - 富类型诊断（`LastReconciliationResult` / `FastReconnectPhase` / `LastFastReconnectHealthEvents`）面向演示可观测。

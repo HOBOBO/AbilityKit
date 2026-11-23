@@ -333,15 +333,15 @@ Area 阶段映射规则：
 
 | 主题 | 源码 |
 |------|------|
-| 技能输入与释放入口 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs` |
-| 技能事件发布 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Events/MobaSkillTriggering.cs` |
-| 技能触发参数 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Events/MobaSkillTriggerArgs.cs` |
-| 被动生命周期 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Passive/MobaPassiveSkillLifecycleService.cs` |
+| 技能输入与释放入口 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs` |
+| 技能事件发布 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Triggering/Events/MobaSkillTriggering.cs` |
+| 技能触发参数 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Triggering/Events/MobaSkillTriggerArgs.cs` |
+| 被动生命周期 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/MobaPassiveSkillLifecycleService.cs` |
 | 触发执行网关 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs` |
 | owner-bound 订阅 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs` |
-| 效果执行服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs` |
+| 效果执行服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs` |
 | 阶段触发服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaStageTriggerService.cs` |
-| Buff 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs` |
+| Buff 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/MobaBuffService.cs` |
 | Projectile 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs` |
 | Area 同步系统 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Area/MobaAreaSyncSystem.cs` |
 | Projectile action | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Skill/ShootProjectilePlanActionModule.cs` |

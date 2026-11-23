@@ -5,6 +5,7 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
 
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -28,7 +29,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             TryReadBlackboardTarget(namedArgs, out var resultTarget, "result", "result_id", "launcher_result");
             TryReadBlackboardTarget(namedArgs, out var resultCountTarget, "result_count", "projectile_count");
 
-            return new ShootProjectileArgs(launcherId, projectileId, continuousProcessId, in targetRequest, trackTarget, resultTarget, resultCountTarget, ReadBool(namedArgs, ctx, true, "use_aim_distance"));
+            var launchMagnitude = MobaEffectMagnitudeSchemaReader.Read(namedArgs, in ctx, 0f);
+            if (launchMagnitude.Enabled &&
+                (launchMagnitude.EvaluationPolicy != MobaEffectEvaluationPolicy.Snapshot ||
+                 !MobaPlanActionOutput.IsConfigured(launchMagnitude.CaptureTarget)))
+                throw new InvalidOperationException("Projectile launch magnitude requires Snapshot and a capture target.");
+
+            return new ShootProjectileArgs(launcherId, projectileId, continuousProcessId, in targetRequest, trackTarget,
+                resultTarget, resultCountTarget, ReadBool(namedArgs, ctx, true, "use_aim_distance"), launchMagnitude);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

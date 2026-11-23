@@ -104,7 +104,7 @@ public sealed class MobaEffectExecutionSnapshotTests
         using var store = new MobaEffectExecutionSnapshotStore(trace, 8, () => true);
         var id = CreateEffect(trace);
         var context = Context(new StagePayload { Throws = true });
-        Assert.Null(Record.Exception(() => Observe(store, id, 101, 201, context)));
+        Assert.Null(Xunit.Record.Exception(() => Observe(store, id, 101, 201, context)));
         Assert.False(Reference(trace, id).IsValid);
         Assert.True(trace.TryGetNodeSnapshot(id, out var node));
         Assert.False(node.IsEnded);

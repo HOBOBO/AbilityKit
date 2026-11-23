@@ -1,11 +1,20 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Services.StateMachine;
+using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Demo.Moba.View.Config;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
@@ -13,6 +22,7 @@ using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Game.Platform.Unity.Presentation;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.World.ECS;
@@ -20,6 +30,7 @@ using AbilityKit.Game.Test.UnitTest;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using Object = UnityEngine.Object;
 
 namespace AbilityKit.Game.Tests
 {
@@ -111,8 +122,11 @@ namespace AbilityKit.Game.Tests
                 var actorId = harness.AssertPlayerActorBound();
                 var targetId = HeroSkillHeadlessContract.SpawnEnemyHero(
                     harness, "jhin_q_projectile_vfx_target", 9701, x: 0f, z: 4f);
+                HeroSkillHeadlessContract.SpawnEnemyHero(harness, "bounce_2", 9702, x: -2f, z: 3f);
+                HeroSkillHeadlessContract.SpawnEnemyHero(harness, "bounce_3", 9703, x: -2f, z: 7f);
+                HeroSkillHeadlessContract.SpawnEnemyHero(harness, "bounce_4", 9704, x: -2f, z: 10f);
                 var cast = harness.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(
-                    actorId, 1, aimPos: new Vec3(0f, 0f, 4f),
+                    actorId, 1, aimPos: default,
                     aimDir: Vec3.Forward, targetActorId: targetId);
                 Assert.IsTrue(cast.Success, "Jhin Q cast failed: " + cast.FailReason);
 
@@ -128,7 +142,7 @@ namespace AbilityKit.Game.Tests
                     vfxWorld, query, manager, in vfxRoot, resources);
                 var projectileActorId = 0;
                 var projectileVfxEntityId = default(IEntityId);
-                var sawHit = false;
+                var hits = new HashSet<int>();
                 var sawExit = false;
 
                 try
@@ -190,9 +204,13 @@ namespace AbilityKit.Game.Tests
                                 }
                                 else if (entry.Kind == (int)ProjectileEventKind.Hit)
                                 {
-                                    sawHit = true;
-                                    Assert.GreaterOrEqual(vfxRoot.ChildCount, 2,
-                                        "A Q hit must retain the moving projectile VFX and add its configured hit VFX.");
+                                    Assert.Greater(entry.SnapshotFrame, 0, "Hit snapshot must carry its original logic frame.");
+                                    Assert.IsTrue(hits.Add(entry.HitCollider), "The bounce should hit a different target.");
+                                    Assert.AreEqual(hits.Count + 1, vfxRoot.ChildCount,
+                                        "Each contact needs one additional hit VFX while the projectile is alive.");
+                                    handler.HandleSnapshot(new[] { data });
+                                    Assert.AreEqual(hits.Count + 1, vfxRoot.ChildCount,
+                                        "Replaying the same snapshot must not create another hit VFX.");
                                 }
                                 else if (entry.Kind == (int)ProjectileEventKind.Exit)
                                 {
@@ -206,10 +224,22 @@ namespace AbilityKit.Game.Tests
 
                     Assert.Greater(projectileActorId, 0,
                         "A real Q cast must emit a projectile spawn snapshot.");
-                    Assert.IsTrue(sawHit, "Q projectile should hit its locked target in the test scenario.");
+                    Assert.AreEqual(4, hits.Count, "The locked target and all three bounces should produce hit VFX.");
                     Assert.IsTrue(sawExit, "Q projectile should emit an exit snapshot after its final available bounce.");
+                    Assert.AreEqual(4, vfxRoot.ChildCount, "Exit releases flight VFX only; impact VFX expire independently.");
+                    for (var index = 0; index < vfxRoot.ChildCount; index++)
+                    {
+                        var impact = vfxRoot.GetChild(index);
+                        Assert.IsTrue(impact.TryGetRef(out BattleVfxComponent vfx));
+                        Assert.AreEqual(90013016, vfx.VfxId);
+                        Assert.IsTrue(impact.TryGetRef(out BattlePresentationLifetimeComponent presentation));
+                        Assert.AreEqual(700, presentation.Request.DurationMs);
+                        Assert.IsTrue(impact.TryGetRef(out BattleVfxLifetimeComponent lifetime));
+                        lifetime.ExpireAtTime = Time.time - 1f;
+                    }
+                    manager.Tick(vfxRoot);
                     Assert.AreEqual(0, vfxRoot.ChildCount,
-                        "Q projectile VFX entity must be removed after projectile exit.");
+                        "The lifetime consumer must release expired impact VFX.");
                 }
                 finally
                 {
@@ -253,12 +283,15 @@ namespace AbilityKit.Game.Tests
                     vfxWorld, query, manager, in vfxRoot, resources);
                 var projectileActorId = 0;
                 var projectileVfxEntityId = default(IEntityId);
+                var hitVfxEntityId = default(IEntityId);
+                var hitAndExit = new List<ProjectileEventData>();
+                PresentationCueData? impactCue = null;
                 var sawHit = false;
                 var sawExit = false;
 
                 try
                 {
-                    for (var tick = 0; tick < 180 && !sawExit; tick++)
+                    for (var tick = 0; tick < 180 && (!sawExit || !impactCue.HasValue); tick++)
                     {
                         harness.Tick(1);
                         var snapshots = new List<WorldStateSnapshot>();
@@ -266,6 +299,16 @@ namespace AbilityKit.Game.Tests
                             .CollectSnapshots(harness.FrameTime.Frame, snapshots, 32);
                         for (var snapshotIndex = 0; snapshotIndex < snapshots.Count; snapshotIndex++)
                         {
+                            if (snapshots[snapshotIndex].OpCode == MobaOpCodes.Snapshot.PresentationCue)
+                            {
+                                foreach (var entry in MobaPresentationCueSnapshotCodec.Deserialize(snapshots[snapshotIndex].Payload))
+                                {
+                                    if (entry.TemplateId != 32010201 || entry.VfxId != 90013017) continue;
+                                    Assert.IsFalse(impactCue.HasValue, "W should emit a single impact cue.");
+                                    impactCue = PresentationCueSnapshotMapper.Map(in entry);
+                                }
+                                continue;
+                            }
                             if (snapshots[snapshotIndex].OpCode != MobaOpCodes.Snapshot.ProjectileEvent)
                                 continue;
                             var entries = MobaProjectileEventSnapshotCodec.Deserialize(
@@ -317,21 +360,26 @@ namespace AbilityKit.Game.Tests
                                     sawHit = true;
                                     Assert.GreaterOrEqual(vfxRoot.ChildCount, 2,
                                         "A W hit must retain the moving projectile VFX and add its configured hit VFX.");
-                                    var sawConfiguredHitVfx = false;
+                                    hitAndExit.Add(data);
                                     for (var childIndex = 0; childIndex < vfxRoot.ChildCount; childIndex++)
                                     {
                                         var child = vfxRoot.GetChild(childIndex);
                                         if (child.TryGetRef(out BattleVfxComponent hitVfx) && hitVfx.VfxId == 90013017)
                                         {
-                                            sawConfiguredHitVfx = true;
+                                            hitVfxEntityId = child.Id;
+                                            Assert.IsTrue(child.TryGetRef(out BattleViewGameObjectComponent hitView));
+                                            Assert.IsNotNull(hitView.GameObject.GetComponent<BattleVfxPoolableTag>());
+                                            Assert.Less(Vector3.Distance(hitView.GameObject.transform.position,
+                                                new Vector3(entry.X, entry.Y, entry.Z)), 0.001f);
                                             break;
                                         }
                                     }
-                                    Assert.IsTrue(sawConfiguredHitVfx,
+                                    Assert.IsTrue(vfxWorld.IsAlive(hitVfxEntityId),
                                         "W hit snapshot must instantiate the configured Battlecast hit VFX.");
                                 }
                                 else if (entry.Kind == (int)ProjectileEventKind.Exit)
                                 {
+                                    hitAndExit.Add(data);
                                     sawExit = true;
                                     Assert.IsFalse(vfxWorld.IsAlive(projectileVfxEntityId),
                                         "W projectile exit snapshot must release the following VFX.");
@@ -344,8 +392,34 @@ namespace AbilityKit.Game.Tests
                         "A real W cast must emit a projectile spawn snapshot.");
                     Assert.IsTrue(sawHit, "W projectile should hit the locked target in the test scenario.");
                     Assert.IsTrue(sawExit, "W projectile should emit an exit snapshot after its single hit.");
-                    Assert.AreEqual(0, vfxRoot.ChildCount,
-                        "W projectile VFX entity must be removed after projectile exit.");
+                    Assert.IsTrue(vfxWorld.IsAlive(hitVfxEntityId), "Exit must not stop the detached hit VFX.");
+                    handler.HandleSnapshot(hitAndExit.ToArray());
+                    Assert.AreEqual(1, vfxRoot.ChildCount, "A replayed Hit + Exit batch must not spawn another hit.");
+                    Assert.AreEqual(hitVfxEntityId, vfxRoot.GetChild(0).Id);
+
+                    Assert.IsTrue(impactCue.HasValue, "W must emit its configured impact cue.");
+                    var hit = hitAndExit.Find(entry => entry.Kind == ProjectilePresentationEventKind.Hit);
+                    Assert.Greater(hit.SnapshotFrame, 0);
+                    Assert.AreEqual(hit.SnapshotFrame, impactCue.Value.SourceFrame,
+                        "Both impact snapshots must retain the collision frame.");
+                    Assert.AreEqual((long)hit.ProjectileId, impactCue.Value.InstanceId);
+                    var cues = new[] { impactCue.Value };
+                    var cuePacketFrame = hit.SnapshotFrame + 2;
+
+                    var cueHandler = new BattlePresentationCueViewEventHandler(vfxWorld, query, manager, in vfxRoot);
+                    cueHandler.HandleSnapshot(cues, handler, cuePacketFrame);
+                    Assert.AreEqual(1, vfxRoot.ChildCount, "A delayed cue must pair with the impact already shown.");
+                    Assert.AreEqual(hitVfxEntityId, vfxRoot.GetChild(0).Id);
+
+                    handler.Clear();
+                    manager.Clear(vfxRoot);
+                    var cueFirstHandler = new BattlePresentationCueViewEventHandler(vfxWorld, query, manager, in vfxRoot);
+                    cueFirstHandler.HandleSnapshot(cues, handler, cuePacketFrame);
+                    Assert.AreEqual(1, vfxRoot.ChildCount, "The cue must render when it arrives before the hit snapshot.");
+                    var cueVfxEntityId = vfxRoot.GetChild(0).Id;
+                    handler.HandleSnapshot(hitAndExit.ToArray(), cuePacketFrame + 1);
+                    Assert.AreEqual(1, vfxRoot.ChildCount, "The later hit must pair with the previously rendered cue.");
+                    Assert.AreEqual(cueVfxEntityId, vfxRoot.GetChild(0).Id);
                 }
                 finally
                 {
@@ -355,6 +429,183 @@ namespace AbilityKit.Game.Tests
             }
 
             yield return null;
+        }
+
+        /// <summary>
+        /// 在真实预测宿主内跨过 W 命中回滚，另用下一次 W 检查新 Cue 没有被过滤。
+        /// </summary>
+        [Test]
+        public void W_PredictionRollbackDoesNotReplayImpactOrDropNextCue()
+        {
+            const int projectileTemplateId = 32010201;
+            const int impactVfxId = 90013017;
+            using var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(
+                new[] { 30010201 }, worldId: "jhin_w_rollback_vfx", heroId: 3001, attributeTemplateId: 3001);
+            harness.EnterGameAndWarmup();
+            var casterId = harness.AssertPlayerActorBound();
+            var targetId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "jhin_w_rollback_target", 9702, x: 0f, z: 8f);
+            var world = harness.World;
+            var actors = world.Services.Resolve<MobaActorRegistry>();
+            var gate = world.Services.Resolve<MobaLogicWorldRunGateService>();
+            var calculator = new MobaAuthoritativeStateHashCalculator();
+            var provider = world.Services.Resolve<IWorldStateSnapshotBatchProvider>();
+            var frameLimit = harness.FrameTime.Frame.Value;
+            var mismatchFrame = -1;
+            var sequence = 0;
+            var impacts = new List<PresentationCueData>();
+            var hits = new List<ProjectileEventData>();
+            var originalImpactPackets = new List<FramePacket>();
+            var aim = new Vec3(0f, 0f, 8f);
+            var options = new HostRuntimeOptions();
+            var host = new HostRuntime(harness.Worlds, options);
+            using var remote = new FrameJitterBuffer<PlayerInputCommand[]>(0);
+            uint BattleHash() => calculator.Compute(gate.InGame, actors);
+            var prediction = new ClientPredictionDriverModule(_ => remote, _ => null,
+                resolveIdealFrameLimit: _ => frameLimit, minPredictionWindow: 4, enableRollback: true,
+                buildRollbackRegistry: MobaRollbackRegistryBuilder.CreateForPrediction,
+                buildComputeHash: _ => frame => new WorldStateHash(BattleHash() ^ (frame.Value == mismatchFrame ? 1u : 0u)));
+
+            var viewWorld = new EntityWorld();
+            var vfxRoot = viewWorld.Create("jhin-w-rewind-vfx");
+            var query = new BattleEntityQuery(viewWorld, new BattleEntityLookup());
+            var vfxDb = BattleViewFactory.GetOrLoadVfxDb();
+            Assert.IsNotNull(vfxDb);
+            var vfx = new BattleVfxManager(vfxDb);
+            var context = BattleContext.Rent();
+            context.EntityWorld = viewWorld;
+            context.PredictionRuntime.Bind(prediction, null, null, null);
+            var sink = new BattleViewEventSink(context, query, null, vfx, vfxRoot, null, null,
+                new BattleViewResourceProvider(harness.Config, vfxDb));
+            var projectileRouteEnabled = true;
+            prediction.Install(host, options);
+            try
+            {
+                options.WorldCreated.Invoke(world);
+                Assert.IsTrue(prediction.TryRebase(world.Id, harness.FrameTime.Frame));
+                Push(SkillInputPhase.Press);
+                Push(SkillInputPhase.Release);
+                for (var tick = 0; tick < 120 && hits.Count == 0; tick++) Push(injectMismatch: true);
+                Assert.That(hits, Has.Count.EqualTo(1), "The first W must hit in the prediction host.");
+                Assert.That(impacts, Has.Count.EqualTo(1), "The first W must emit both impact notifications.");
+                var original = impacts[0];
+                var hitFrame = hits[0].SnapshotFrame;
+                Assert.AreEqual(frameLimit, hitFrame);
+                Assert.AreEqual(hitFrame, original.SourceFrame);
+                Assert.That(ImpactViews(), Has.Length.EqualTo(1));
+                var originalView = ImpactViews()[0];
+                var expectedHash = BattleHash();
+                Assert.IsTrue(actors.TryGet(targetId, out var target));
+                var hpAfterHit = new MobaAttrs(target).Hp;
+                Assert.That(originalImpactPackets, Has.Count.EqualTo(2));
+
+                mismatchFrame = -1;
+                prediction.OnAuthoritativeStateHash(world.Id, new FrameIndex(hitFrame), new WorldStateHash(expectedHash));
+                Assert.That(prediction.TotalRollbackRestoreFailed, Is.Zero, $"Restore before W hit at frame {hitFrame}.");
+                Assert.That(prediction.TotalRollbackCount, Is.EqualTo(1));
+                var restoredFrame = prediction.LastRollbackFrame.Value;
+                Assert.That(restoredFrame, Is.EqualTo(hitFrame - 1));
+                Assert.IsTrue(prediction.IsReplaying);
+                Assert.That(new MobaAttrs(target).Hp, Is.GreaterThan(hpAfterHit), "Rewind must undo the first W damage.");
+                sink.Tick();
+                Advance(hitFrame);
+                Assert.AreEqual(expectedHash, BattleHash(), "Replaying W must reach the same authority hash.");
+                Assert.AreEqual(hpAfterHit, new MobaAttrs(target).Hp);
+                host.Tick(harness.FixedDelta);
+                Assert.IsFalse(prediction.IsReplaying);
+                Push();
+                var viewsAfterReplay = ImpactViews();
+                TestContext.WriteLine($"W: restored={restoredFrame}; hit={hitFrame}; " +
+                    $"hits after replay={hits.Count}; cues after replay={impacts.Count}; impact views={viewsAfterReplay.Length}");
+
+                foreach (var packet in originalImpactPackets)
+                    Consume(packet, record: false);
+                var viewsAfterRedelivery = ImpactViews();
+                TestContext.WriteLine($"W: impact views after delayed original packets={viewsAfterRedelivery.Length}");
+
+                projectileRouteEnabled = false;
+                var sourceCuesAfterReplay = impacts.Count;
+                for (var tick = 0; tick < 600; tick++) Push();
+                Push(SkillInputPhase.Press);
+                Push(SkillInputPhase.Release);
+                for (var tick = 0; tick < 120 && impacts.Count == sourceCuesAfterReplay; tick++) Push();
+                Assert.That(impacts, Has.Count.EqualTo(sourceCuesAfterReplay + 1), "A later real W must emit a fresh cue.");
+                Assert.AreNotEqual(original.InstanceId, impacts.Last().InstanceId);
+                TestContext.WriteLine($"Next W: cue generation={impacts.Last().Generation}; instance={impacts.Last().InstanceId}; " +
+                    $"impact views={ImpactViews().Length}");
+                Assert.That(new[] { viewsAfterReplay.SequenceEqual(new[] { originalView }),
+                    viewsAfterRedelivery.SequenceEqual(new[] { originalView }), ImpactViews().Except(viewsAfterRedelivery).Count() == 1 },
+                    Is.EqualTo(new[] { true, true, true }), "Expected [no duplicate replay impact, no duplicate redelivery, next Cue played].");
+            }
+            finally
+            {
+                prediction.Uninstall(host, options);
+                sink.Clear();
+                vfx.Clear(vfxRoot);
+                BattleContext.Return(context);
+            }
+
+            void Push(SkillInputPhase? phase = null, bool injectMismatch = false)
+            {
+                var frame = new FrameIndex(++frameLimit);
+                if (injectMismatch) mismatchFrame = frame.Value;
+                var commands = Array.Empty<PlayerInputCommand>();
+                if (phase.HasValue)
+                {
+                    var input = new SkillInputEvent(2, phase.Value, aimPos: in aim, targetActorId: targetId,
+                        predictionKey: ++sequence, targetFrame: frame.Value, inputSequence: sequence,
+                        entityVersion: actors.GetEntityVersion(casterId));
+                    commands = new[] { new PlayerInputCommand(frame, harness.PlayerId, MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in input)) };
+                }
+                remote.Add(frame.Value, commands);
+                Advance(frame.Value);
+            }
+
+            void Advance(int frame)
+            {
+                host.Tick(harness.FixedDelta);
+                Assert.IsTrue(prediction.TryGetFrames(world.Id, out var confirmed, out var predicted));
+                Assert.AreEqual(frame, predicted.Value);
+                Assert.AreEqual(frame, confirmed.Value);
+                sink.Tick();
+                var snapshots = new List<WorldStateSnapshot>();
+                provider.CollectSnapshots(new FrameIndex(frame), snapshots, 32);
+                foreach (var snapshot in snapshots)
+                    Consume(new FramePacket(world.Id, new FrameIndex(frame), null, snapshot), record: true);
+            }
+
+            void Consume(FramePacket packet, bool record)
+            {
+                var snapshot = packet.Snapshot.Value;
+                if (snapshot.OpCode == MobaOpCodes.Snapshot.ProjectileEvent)
+                {
+                    var data = MobaProjectileEventSnapshotCodec.Deserialize(snapshot.Payload)
+                        .Where(entry => entry.TemplateId == projectileTemplateId)
+                        .Select(entry => ProjectileEventSnapshotMapper.Map(in entry)).ToArray();
+                    if (record)
+                    {
+                        if (hits.Count == 0 && data.Any(entry => entry.Kind == ProjectilePresentationEventKind.Hit))
+                            originalImpactPackets.Add(packet);
+                        hits.AddRange(data.Where(entry => entry.Kind == ProjectilePresentationEventKind.Hit));
+                    }
+                    if (projectileRouteEnabled) sink.OnProjectileEventSnapshot(packet, data);
+                }
+                else if (snapshot.OpCode == MobaOpCodes.Snapshot.PresentationCue)
+                {
+                    var data = MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload)
+                        .Where(entry => entry.TemplateId == projectileTemplateId && entry.VfxId == impactVfxId)
+                        .Select(entry => PresentationCueSnapshotMapper.Map(in entry)).ToArray();
+                    if (record)
+                    {
+                        if (impacts.Count == 0 && data.Length > 0) originalImpactPackets.Add(packet);
+                        impacts.AddRange(data);
+                    }
+                    sink.OnPresentationCueSnapshot(packet, data);
+                }
+            }
+
+            IEntityId[] ImpactViews() => Enumerable.Range(0, vfxRoot.ChildCount).Select(vfxRoot.GetChild)
+                .Where(child => child.TryGetRef(out BattleVfxComponent component) && component.VfxId == impactVfxId)
+                .Select(child => child.Id).ToArray();
         }
 
         [UnityTest]

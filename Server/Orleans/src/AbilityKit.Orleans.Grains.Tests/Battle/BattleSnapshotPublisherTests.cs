@@ -129,9 +129,10 @@ public sealed class BattleSnapshotPublisherTests
         var baseline = CreateStateSyncPush(frame: 34, isFullSnapshot: true);
         var delta = CreateStateSyncPush(frame: 35, isFullSnapshot: false);
 
-        var result = BattleLogicHostGrain.CoalescePendingSnapshot(baseline, delta);
+        var result = BattleLogicHostGrain.CoalescePendingSnapshot(
+            new BattleLogicHostGrain.SnapshotDeliveryPayload(baseline), new BattleLogicHostGrain.SnapshotDeliveryPayload(delta));
 
-        Assert.Same(baseline, result);
+        Assert.Same(baseline, result.Structured);
     }
 
     [Fact]
@@ -140,9 +141,10 @@ public sealed class BattleSnapshotPublisherTests
         var delta = CreateStateSyncPush(frame: 34, isFullSnapshot: false);
         var baseline = CreateStateSyncPush(frame: 35, isFullSnapshot: true);
 
-        var result = BattleLogicHostGrain.CoalescePendingSnapshot(delta, baseline);
+        var result = BattleLogicHostGrain.CoalescePendingSnapshot(
+            new BattleLogicHostGrain.SnapshotDeliveryPayload(delta), new BattleLogicHostGrain.SnapshotDeliveryPayload(baseline));
 
-        Assert.Same(baseline, result);
+        Assert.Same(baseline, result.Structured);
     }
 
     private static StateSyncPush CreateStateSyncPush(int frame, bool isFullSnapshot)

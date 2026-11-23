@@ -37,6 +37,7 @@
                          "com.abilitykit.record":  "0.1.0",
                          "com.abilitykit.game.battle.runtime":  "0.1.0",
                          "com.abilitykit.network.battle":  "0.1.0",
+                         "com.abilitykit.network.runtime":  "0.1.0",
                          "com.abilitykit.gameplaytags":  "0.1.0",
                          "com.abilitykit.host.extension":  "0.1.0",
                          "com.abilitykit.demo.moba.host":  "0.0.1",
@@ -49,7 +50,7 @@
                          "com.abilitykit.world.networkfragments":  "0.1.0",
                          "com.abilitykit.world.statesync":  "0.1.0",
                          "com.cysharp.memorypack":  "1.10.0",
-                         "com.abilitykit.thirdparty.unsafe":  "5.0.0",
+                         "org.nuget.system.runtime.compilerservices.unsafe":  "5.0.0",
                          "com.abilitykit.deterministic":  "0.1.0",
                          "com.abilitykit.environment":  "0.1.0"
                      }

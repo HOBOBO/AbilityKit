@@ -21,6 +21,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly MobaEffectMagnitudeSpec Magnitude;
         public readonly BlackboardWriteTarget ResultTarget;
         public readonly BlackboardWriteTarget ResultCountTarget;
+        internal readonly string RetaliationLevelParameter;
+        internal readonly float RetaliationMagicRatio;
 
         public AddShieldArgs(
             int shieldId,
@@ -37,9 +39,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             in MobaActionTargetRequest targetRequest,
             MobaEffectMagnitudeSpec magnitude = default,
             BlackboardWriteTarget resultTarget = default,
-            BlackboardWriteTarget resultCountTarget = default)
+            BlackboardWriteTarget resultCountTarget = default,
+            string retaliationLevelParameter = null,
+            float retaliationMagicRatio = 0f)
         {
             ShieldId = shieldId;
+            RetaliationLevelParameter = retaliationLevelParameter;
+            RetaliationMagicRatio = retaliationMagicRatio;
             Value = value;
             AbsorbRatio = absorbRatio;
             Priority = priority;

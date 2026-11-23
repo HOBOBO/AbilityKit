@@ -66,6 +66,11 @@ namespace AbilityKit.Network.Runtime.Sync
 
         public int LastAcceptedFrame => _lastAcceptedFrame;
 
+        /// <summary>
+        /// 判断快照是否属于当前绑定的权威世界，不推进帧游标。
+        /// </summary>
+        public bool IsExpectedWorld(ulong worldId) => _activeWorldId != 0 && worldId == _activeWorldId;
+
         public void Reset(ulong activeWorldId)
         {
             _activeWorldId = activeWorldId;
@@ -78,37 +83,63 @@ namespace AbilityKit.Network.Runtime.Sync
             _hasBaseline = false;
         }
 
+        /// <summary>
+        /// 先检查世界、版本及恢复状态。仅在调用方已验证精确基线和发布顺序时，允许同帧发布和跨帧跳包。
+        /// </summary>
         public AuthoritativeSnapshotAdmissionResult Admit(
             ulong worldId,
             int frame,
             bool isFullSnapshot,
-            int schemaVersion = 0)
+            int schemaVersion = 0,
+            bool explicitBaselineAndOrderValidated = false)
         {
-            if (_activeWorldId == 0 || worldId != _activeWorldId)
+            var result = Check(worldId, frame, isFullSnapshot, schemaVersion, explicitBaselineAndOrderValidated);
+            if (!result.Accepted)
+            {
+                if (result.Status is AuthoritativeSnapshotAdmissionStatus.UnsupportedSchemaVersion or
+                    AuthoritativeSnapshotAdmissionStatus.FrameGapTooLarge)
+                    RequireFullBaseline();
+                return result;
+            }
+
+            _hasBaseline = true;
+            _lastAcceptedFrame = frame;
+            return Accept();
+        }
+
+        /// <summary>
+        /// 只检查候选快照，结果中的帧仍为已提交游标；不会推进游标或使基线失效。
+        /// 调用方成功应用后，使用同一组参数调用 Admit 提交。
+        /// </summary>
+        public AuthoritativeSnapshotAdmissionResult Check(
+            ulong worldId,
+            int frame,
+            bool isFullSnapshot,
+            int schemaVersion = 0,
+            bool explicitBaselineAndOrderValidated = false)
+        {
+            if (!IsExpectedWorld(worldId))
             {
                 return Reject(AuthoritativeSnapshotAdmissionStatus.WrongWorld, false);
             }
 
             if (schemaVersion < _minSchemaVersion || schemaVersion > _maxSchemaVersion)
             {
-                _hasBaseline = false;
                 return Reject(AuthoritativeSnapshotAdmissionStatus.UnsupportedSchemaVersion, true);
             }
 
-            if (frame < 0)
+            if (frame < 0 || (explicitBaselineAndOrderValidated && frame < _lastAcceptedFrame))
             {
                 return Reject(AuthoritativeSnapshotAdmissionStatus.StaleOrDuplicate, false);
             }
 
             if (isFullSnapshot)
             {
-                if (_hasBaseline && frame <= _lastAcceptedFrame)
+                if (_hasBaseline && !explicitBaselineAndOrderValidated && frame <= _lastAcceptedFrame)
                 {
                     return Reject(AuthoritativeSnapshotAdmissionStatus.StaleOrDuplicate, false);
                 }
 
-                _hasBaseline = true;
-                _lastAcceptedFrame = frame;
                 return Accept();
             }
 
@@ -117,18 +148,16 @@ namespace AbilityKit.Network.Runtime.Sync
                 return Reject(AuthoritativeSnapshotAdmissionStatus.BaselineRequired, true);
             }
 
-            if (frame <= _lastAcceptedFrame)
+            if (!explicitBaselineAndOrderValidated && frame <= _lastAcceptedFrame)
             {
                 return Reject(AuthoritativeSnapshotAdmissionStatus.StaleOrDuplicate, false);
             }
 
-            if ((long)frame - _lastAcceptedFrame > _maxDeltaFrameGap)
+            if (!explicitBaselineAndOrderValidated && (long)frame - _lastAcceptedFrame > _maxDeltaFrameGap)
             {
-                _hasBaseline = false;
                 return Reject(AuthoritativeSnapshotAdmissionStatus.FrameGapTooLarge, true);
             }
 
-            _lastAcceptedFrame = frame;
             return Accept();
         }
 

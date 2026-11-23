@@ -44,7 +44,7 @@ namespace AbilityKit.Pipeline.Editor.Tests
 
             _registry.Initialize();
             _registry.CaptureRunStarted(run.StartedData);
-            Assert.That(_registry.GetEntries(), Has.Count.EqualTo(1));
+            Assert.That(_registry.GetEntries().Count, Is.EqualTo(1));
             Assert.That(_registry.SelectedRunId, Is.EqualTo(101));
 
             _registry.Shutdown();
@@ -69,7 +69,7 @@ namespace AbilityKit.Pipeline.Editor.Tests
                 first.Run);
 
             Assert.That(PipelineEditorInitializer.IsInstalled, Is.True);
-            Assert.That(_registry.GetEntries(), Has.Count.EqualTo(1));
+            Assert.That(_registry.GetEntries().Count, Is.EqualTo(1));
 
             PipelineEditorInitializer.Uninstall();
             Assert.That(PipelineEditorInitializer.IsInstalled, Is.False);

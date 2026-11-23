@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
@@ -11,8 +12,10 @@ using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.Network.Battle;
-using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
-using MemoryPack;
+using AbilityKit.Network.Room;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Protocol.Moba.SettledFrames;
+using AbilityKit.Protocol.Room;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
@@ -20,6 +23,82 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class SpectatorSessionRuntimeTests
     {
+        [UnityTest]
+        public IEnumerator SettledSpectator_RequiresCheckpointAndNeverSynthesizesMissingFrames()
+        {
+            yield return AwaitTask(SettledSpectatorCore());
+        }
+
+        private static async Task SettledSpectatorCore()
+        {
+            var capabilities = CreateSettledCapabilities();
+            var identity = new WireSettledIdentity
+            {
+                Version = SettledFrameProtocol.Version, RoomId = 17, WorldId = 71,
+                BattleId = "settled-spectator", RuntimeGeneration = Guid.NewGuid().ToString("N")
+            };
+            var plan = new BattleStartPlan(new BattleStartPlanOptions(
+                new BattleStartPlanWorldOptions("71", "moba", "spectator", "", 30, 3),
+                default, default, default,
+                new BattleStartPlanGatewayOptions(true, "local", 4000, 17, "token", "dev", "local",
+                    false, false, "", 0, 0, identity.BattleId),
+                default, default, default, default, remoteSyncCapabilities: capabilities));
+
+            WireSettledFrame Frame(int index, params WireSettledCommand[] commands) => new WireSettledFrame
+            {
+                Identity = identity, Frame = index, InitialCheckpoint = index == 0,
+                Commands = commands, Decisions = Array.Empty<WireSettledDecision>()
+            };
+
+            using var client = new ControllableNetworkClient();
+            using var runtime = new SpectatorSessionRuntime();
+            var sink = new TrackingSettledSink();
+            var world = new TrackingWorld("71", sink);
+            var start = runtime.StartAsync(client, plan, () => world);
+            var subscribe = client.TakeRequest();
+            Assert.That(subscribe.OpCode, Is.EqualTo(SettledFrameProtocol.Subscribe));
+            Assert.That(SettledFrameProtocol.Decode<WireSettledSubscribeRequest>(
+                new ArraySegment<byte>(subscribe.Payload)).Spectator, Is.True);
+            subscribe.Complete(SettledFrameProtocol.Encode(new WireSettledSubscribeResponse
+            {
+                Identity = identity, LastSettledFrame = 2, TickRate = 30
+            }));
+            await AwaitWithTimeoutAsync(start);
+
+            await client.SendServerPushAsync(SettledFrameProtocol.FramePushed, SettledFrameProtocol.Encode(Frame(2,
+                new WireSettledCommand { Disposition = 1, PlayerId = 1, OpCode = 4, ExecutedPayload = new byte[] { 1 } },
+                new WireSettledCommand { Ordinal = 1, Disposition = 2, PlayerId = 2, OpCode = 4, ExecutedPayload = Array.Empty<byte>() })));
+            runtime.Tick(10);
+            Assert.That(world.TickCount, Is.Zero);
+            var page = client.TakeRequest();
+            Assert.That(page.OpCode, Is.EqualTo(SettledFrameProtocol.CatchUp));
+            var range = SettledFrameProtocol.Decode<WireSettledCatchUpRequest>(new ArraySegment<byte>(page.Payload));
+            Assert.That(range.FromFrameExclusive, Is.EqualTo(-1));
+            Assert.That(range.ToFrameInclusive, Is.EqualTo(2));
+            page.Complete(SettledFrameProtocol.Encode(new WireSettledCatchUpResponse { Frames = new[] { Frame(0), Frame(1) } }));
+            for (var attempt = 0; attempt < 100 && runtime.Driver.CurrentFrame < 2; attempt++)
+            {
+                runtime.Tick(10);
+                await Task.Delay(5);
+            }
+            Assert.That(sink.Bound, Is.True);
+            Assert.That(sink.ExecutedCounts, Is.EqualTo(new[] { 0, 1 }));
+            Assert.That(sink.CommittedFrames, Is.EqualTo(new[] { 1, 2 }));
+            Assert.That(world.TickCount, Is.EqualTo(2));
+            Assert.That(runtime.Driver.CurrentFrame, Is.EqualTo(2));
+
+            await client.SendServerPushAsync(SettledFrameProtocol.FramePushed, SettledFrameProtocol.Encode(Frame(4)));
+            runtime.Tick(10);
+            var repair = client.TakeRequest();
+            Assert.That(repair.OpCode, Is.EqualTo(SettledFrameProtocol.CatchUp));
+            var gap = SettledFrameProtocol.Decode<WireSettledCatchUpRequest>(new ArraySegment<byte>(repair.Payload));
+            Assert.That(gap.FromFrameExclusive, Is.EqualTo(2));
+            Assert.That(gap.ToFrameInclusive, Is.EqualTo(4));
+            Assert.That(runtime.Driver.CurrentFrame, Is.EqualTo(2));
+            runtime.Stop();
+            Assert.That(client.PushSubscriberCount, Is.Zero);
+        }
+
         [UnityTest]
         public IEnumerator StartAsync_PublishesOnlyAfterSubscribeCompletes()
         {
@@ -32,15 +111,15 @@ namespace AbilityKit.Game.Test.UnitTest
             var world = new TrackingWorld("spectator-a");
             var runtime = new SpectatorSessionRuntime();
 
-            var startTask = runtime.StartAsync(client, 17UL, () => world);
+            var startTask = runtime.StartAsync(client, CreateSettledPlan(17), () => world);
             var request = await client.WaitForRequestAsync();
 
-            Assert.That(request.OpCode, Is.EqualTo(OpCodes.SpectatorSubscribe));
+            Assert.That(request.OpCode, Is.EqualTo(SettledFrameProtocol.Subscribe));
             Assert.That(runtime.IsStarting, Is.True);
             Assert.That(runtime.Driver, Is.Null);
             Assert.That(client.PushSubscriberCount, Is.EqualTo(1));
 
-            request.Complete(CreateSubscriptionResponse(worldId: 71UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(request, 0));
             await AwaitWithTimeoutAsync(startTask);
 
             Assert.That(runtime.IsStarting, Is.False);
@@ -64,7 +143,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var world = new TrackingWorld("spectator-cancel");
             var runtime = new SpectatorSessionRuntime();
 
-            var startTask = runtime.StartAsync(client, 18UL, () => world);
+            var startTask = runtime.StartAsync(client, CreateSettledPlan(18), () => world);
             var request = await client.WaitForRequestAsync();
 
             var stopTask = runtime.StopAsync();
@@ -72,7 +151,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(request.CancellationToken.IsCancellationRequested, Is.True);
             await AwaitWithTimeoutAsync(stopTask);
             Assert.That(client.PushSubscriberCount, Is.Zero);
-            request.Complete(CreateSubscriptionResponse(worldId: 72UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(request, 0));
 
             Assert.That(await IsCanceledAsync(startTask), Is.True);
             Assert.That(runtime.Driver, Is.Null);
@@ -93,14 +172,14 @@ namespace AbilityKit.Game.Test.UnitTest
             var activeWorld = new TrackingWorld("spectator-active");
             var runtime = new SpectatorSessionRuntime();
 
-            var staleTask = runtime.StartAsync(staleClient, 19UL, () => staleWorld);
+            var staleTask = runtime.StartAsync(staleClient, CreateSettledPlan(19), () => staleWorld);
             var staleRequest = await staleClient.WaitForRequestAsync();
-            var activeTask = runtime.StartAsync(activeClient, 20UL, () => activeWorld);
+            var activeTask = runtime.StartAsync(activeClient, CreateSettledPlan(20), () => activeWorld);
             var activeRequest = await activeClient.WaitForRequestAsync();
 
-            activeRequest.Complete(CreateSubscriptionResponse(worldId: 73UL, currentFrame: 0));
+            activeRequest.Complete(CreateSubscriptionResponse(activeRequest, 0));
             await AwaitWithTimeoutAsync(activeTask);
-            staleRequest.Complete(CreateSubscriptionResponse(worldId: 74UL, currentFrame: 0));
+            staleRequest.Complete(CreateSubscriptionResponse(staleRequest, 0));
 
             Assert.That(await IsCanceledAsync(staleTask), Is.True);
             Assert.That(runtime.World, Is.SameAs(activeWorld));
@@ -126,9 +205,9 @@ namespace AbilityKit.Game.Test.UnitTest
             };
             var runtime = new SpectatorSessionRuntime();
 
-            var startTask = runtime.StartAsync(client, 21UL, () => world);
+            var startTask = runtime.StartAsync(client, CreateSettledPlan(21), () => world);
             var request = await client.WaitForRequestAsync();
-            request.Complete(CreateSubscriptionResponse(worldId: 75UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(request, 0));
             await AwaitWithTimeoutAsync(startTask);
 
             Assert.Throws<InvalidOperationException>(() => runtime.Stop());
@@ -155,21 +234,19 @@ namespace AbilityKit.Game.Test.UnitTest
             var world = new TrackingWorld("spectator-catch-up");
             var runtime = new SpectatorSessionRuntime();
 
-            var startTask = runtime.StartAsync(client, 22UL, () => world);
+            var startTask = runtime.StartAsync(client, CreateSettledPlan(22), () => world);
             var subscribeRequest = await client.WaitForRequestAsync();
-            subscribeRequest.Complete(CreateSubscriptionResponse(worldId: 76UL, currentFrame: 12));
-            var catchUpRequest = await client.WaitForRequestAsync();
+            subscribeRequest.Complete(CreateSubscriptionResponse(subscribeRequest, 12));
+            await AwaitWithTimeoutAsync(startTask);
+            runtime.Tick(10);
+            var catchUpRequest = client.TakeRequest();
 
-            Assert.That(catchUpRequest.OpCode, Is.EqualTo(OpCodes.CatchUpRequest));
-            Assert.That(runtime.Driver, Is.Null);
+            Assert.That(catchUpRequest.OpCode, Is.EqualTo(SettledFrameProtocol.CatchUp));
+            Assert.That(runtime.Driver.CurrentFrame, Is.Zero);
             Assert.That(world.DisposeCount, Is.Zero);
-
-            var stopTask = runtime.StopAsync();
-            await AwaitWithTimeoutAsync(stopTask);
-            catchUpRequest.Complete(Array.Empty<byte>());
-
+            await AwaitWithTimeoutAsync(runtime.StopAsync());
             Assert.That(catchUpRequest.CancellationToken.IsCancellationRequested, Is.True);
-            Assert.That(await IsCanceledAsync(startTask), Is.True);
+            catchUpRequest.Complete(Array.Empty<byte>());
             Assert.That(world.DisposeCount, Is.EqualTo(1));
             Assert.That(runtime.World, Is.Null);
             Assert.That(client.PushSubscriberCount, Is.Zero);
@@ -187,9 +264,9 @@ namespace AbilityKit.Game.Test.UnitTest
             var runtime = new SpectatorSessionRuntime();
             var failure = new InvalidOperationException("world factory failed");
 
-            var startTask = runtime.StartAsync(client, 23UL, () => throw failure);
+            var startTask = runtime.StartAsync(client, CreateSettledPlan(23), () => throw failure);
             var request = await client.WaitForRequestAsync();
-            request.Complete(CreateSubscriptionResponse(worldId: 77UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(request, 0));
 
             Exception thrown = null;
             try
@@ -219,9 +296,9 @@ namespace AbilityKit.Game.Test.UnitTest
             var world = new TrackingWorld("spectator-idempotent");
             var runtime = new SpectatorSessionRuntime();
 
-            var startTask = runtime.StartAsync(client, 24UL, () => world);
+            var startTask = runtime.StartAsync(client, CreateSettledPlan(24), () => world);
             var request = await client.WaitForRequestAsync();
-            request.Complete(CreateSubscriptionResponse(worldId: 78UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(request, 0));
             await AwaitWithTimeoutAsync(startTask);
 
             runtime.Stop();
@@ -246,7 +323,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var runtime = new SpectatorSessionRuntime();
             var startTask = runtime.StartAsync(
                 client,
-                25UL,
+                CreateSettledPlan(25),
                 () => new TrackingWorld("spectator-concurrent-stop"));
             var request = await client.WaitForRequestAsync();
 
@@ -257,7 +334,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(request.CancellationToken.IsCancellationRequested, Is.True);
 
             await AwaitWithTimeoutAsync(firstStop);
-            request.Complete(CreateSubscriptionResponse(worldId: 79UL, currentFrame: 0));
+            request.Complete(CreateSubscriptionResponse(request, 0));
             Assert.That(await IsCanceledAsync(startTask), Is.True);
             Assert.That(client.PushSubscriberCount, Is.Zero);
         }
@@ -275,13 +352,13 @@ namespace AbilityKit.Game.Test.UnitTest
             var runtime = new SpectatorSessionRuntime();
             var staleStart = runtime.StartAsync(
                 staleClient,
-                26UL,
+                CreateSettledPlan(26),
                 () => new TrackingWorld("spectator-stale-stop"));
             var staleRequest = await staleClient.WaitForRequestAsync();
 
             var activeStart = runtime.StartAsync(
                 activeClient,
-                27UL,
+                CreateSettledPlan(27),
                 () => new TrackingWorld("spectator-active-stop"));
             var stopTask = runtime.StopAsync();
 
@@ -291,7 +368,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(staleClient.PushSubscriberCount, Is.Zero);
             Assert.That(activeClient.PushSubscriberCount, Is.Zero);
 
-            staleRequest.Complete(CreateSubscriptionResponse(worldId: 81UL, currentFrame: 0));
+            staleRequest.Complete(CreateSubscriptionResponse(staleRequest, 0));
         }
 
         [UnityTest]
@@ -309,12 +386,12 @@ namespace AbilityKit.Game.Test.UnitTest
             var first = new SpectatorSessionRuntime();
             var second = new SpectatorSessionRuntime();
 
-            var firstTask = first.StartAsync(firstClient, 25UL, () => firstWorld);
-            var secondTask = second.StartAsync(secondClient, 26UL, () => secondWorld);
+            var firstTask = first.StartAsync(firstClient, CreateSettledPlan(25), () => firstWorld);
+            var secondTask = second.StartAsync(secondClient, CreateSettledPlan(26), () => secondWorld);
             var firstRequest = await firstClient.WaitForRequestAsync();
             var secondRequest = await secondClient.WaitForRequestAsync();
-            firstRequest.Complete(CreateSubscriptionResponse(worldId: 79UL, currentFrame: 0));
-            secondRequest.Complete(CreateSubscriptionResponse(worldId: 80UL, currentFrame: 0));
+            firstRequest.Complete(CreateSubscriptionResponse(firstRequest, 0));
+            secondRequest.Complete(CreateSubscriptionResponse(secondRequest, 0));
             await AwaitWithTimeoutAsync(Task.WhenAll(firstTask, secondTask));
 
             first.Stop();
@@ -328,10 +405,43 @@ namespace AbilityKit.Game.Test.UnitTest
             second.Stop();
         }
 
-        private static byte[] CreateSubscriptionResponse(ulong worldId, int currentFrame)
+        private static BattleStartPlan CreateSettledPlan(ulong roomId) => new BattleStartPlan(new BattleStartPlanOptions(
+            new BattleStartPlanWorldOptions(roomId.ToString(), "moba", "spectator", "", 30, 0),
+            default, default, default,
+            new BattleStartPlanGatewayOptions(true, "local", 4000, roomId, "token", "dev", "local",
+                false, false, "", 0, 0, "spectator-" + roomId),
+            default, default, default, default, remoteSyncCapabilities: CreateSettledCapabilities()));
+
+        private static RoomGatewayNetworkSyncCapabilities CreateSettledCapabilities()
         {
-            return MemoryPackSerializer.Serialize(
-                new WireSpectatorSubscribeRes(worldId, 30, currentFrame));
+            var profile = NetworkSyncProfiles.Lockstep;
+            return RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(new WireNetworkSyncCapabilities
+            {
+                MetadataVersion = RoomGatewayNetworkSyncCapabilitiesConverter.CurrentMetadataVersion,
+                ProfileName = SettledFrameProtocol.CapabilityProfile,
+                MaximumSchemaVersion = 1,
+                ClientPlayback = (int)profile.ClientPlayback,
+                Input = (int)profile.Input,
+                Snapshot = (int)profile.Snapshot,
+                Interest = (int)profile.Interest,
+                Recovery = (int)profile.Recovery,
+                ServerValidation = (int)profile.ServerValidation,
+                ReliableEvent = (int)profile.ReliableEvent
+            });
+        }
+
+        private static byte[] CreateSubscriptionResponse(PendingRequest pending, int currentFrame)
+        {
+            var request = SettledFrameProtocol.Decode<WireSettledSubscribeRequest>(new ArraySegment<byte>(pending.Payload));
+            return SettledFrameProtocol.Encode(new WireSettledSubscribeResponse
+            {
+                Identity = new WireSettledIdentity
+                {
+                    Version = request.Version, RoomId = request.RoomId, WorldId = request.WorldId,
+                    BattleId = request.BattleId, RuntimeGeneration = Guid.NewGuid().ToString("N")
+                },
+                TickRate = 30, LastSettledFrame = currentFrame
+            });
         }
 
         private static IEnumerator AwaitTask(Task task)
@@ -447,6 +557,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 return await waiter.Task;
             }
 
+            internal PendingRequest TakeRequest()
+            {
+                Assert.That(_requests.Count, Is.Positive, "Expected a spectator network request.");
+                return _requests.Dequeue();
+            }
+
             public void Dispose()
             {
                 while (_waiters.Count > 0)
@@ -485,14 +601,16 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private sealed class TrackingWorld : IWorld
         {
-            internal TrackingWorld(string id)
+            internal TrackingWorld(string id, IWorldInputSink sink = null)
             {
                 Id = new WorldId(id);
+                Services = new EmptyWorldResolver(sink ?? new TrackingSettledSink());
             }
 
             public WorldId Id { get; }
             public string WorldType => "spectator-test";
-            public IWorldResolver Services { get; } = new EmptyWorldResolver();
+            public IWorldResolver Services { get; }
+            public int TickCount { get; private set; }
             public int DisposeCount { get; private set; }
             public Exception DisposeFailure { get; set; }
 
@@ -502,6 +620,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public void Tick(float deltaTime)
             {
+                TickCount++;
             }
 
             public void Dispose()
@@ -513,6 +632,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private sealed class EmptyWorldResolver : IWorldResolver
         {
+            private readonly IWorldInputSink _sink;
+
+            internal EmptyWorldResolver(IWorldInputSink sink) => _sink = sink;
+
             public object Resolve(Type serviceType)
             {
                 throw new KeyNotFoundException(serviceType.FullName);
@@ -531,8 +654,41 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public bool TryResolve<T>(out T instance)
             {
+                if (_sink is T compatible)
+                {
+                    instance = compatible;
+                    return true;
+                }
                 instance = default;
                 return false;
+            }
+        }
+
+        private sealed class TrackingSettledSink : IWorldSettledTimelineSink
+        {
+            internal bool Bound;
+            internal readonly List<int> ExecutedCounts = new List<int>();
+            internal readonly List<int> CommittedFrames = new List<int>();
+
+            public void BindSettledTimeline() => Bound = true;
+            public void Dispose() { }
+            public IWorldSettledFrameUpdate PrepareSettledFrame(WorldSettledInputFrame frame) =>
+                new FrameUpdate(() => CommittedFrames.Add(frame.Frame.Value));
+            public void ExecuteSettledInputs(FrameIndex frame, IReadOnlyList<PlayerInputCommand> executedInputs) =>
+                ExecutedCounts.Add(executedInputs.Count);
+            public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs) => throw new NotSupportedException();
+            public void BindClientInput() => throw new NotSupportedException();
+            public void SubmitPredicted(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs) => throw new NotSupportedException();
+            public void SubmitReceived(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs) => throw new NotSupportedException();
+            public PlayerInputCommand[] ExecutePredictedInputs(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs) =>
+                throw new NotSupportedException();
+
+            private sealed class FrameUpdate : IWorldSettledFrameUpdate
+            {
+                private readonly Action _commit;
+                internal FrameUpdate(Action commit) => _commit = commit;
+                public bool InvalidatesPrediction => false;
+                public void Commit() => _commit();
             }
         }
     }

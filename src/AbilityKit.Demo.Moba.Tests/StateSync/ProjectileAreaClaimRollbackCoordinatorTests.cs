@@ -10,6 +10,26 @@ namespace AbilityKit.Demo.Moba.Tests.StateSync;
 public sealed class ProjectileAreaClaimRollbackCoordinatorTests
 {
     [Fact]
+    public void Cancelling_failed_area_spawn_suppresses_only_its_pending_notification()
+    {
+        using var collisions = new CollisionService();
+        using var projectiles = new ProjectileService(collisions);
+        var parameters = new AreaSpawnParams(7, Vec3.Zero, 3, 10, -1, 0);
+        var existing = projectiles.SpawnArea(in parameters, frame: 0);
+        var failed = projectiles.SpawnArea(in parameters, frame: 0);
+        Assert.True(projectiles.CancelArea(failed));
+        Assert.True(projectiles.IsAreaActive(existing));
+        Assert.False(projectiles.IsAreaActive(failed));
+
+        var spawns = new List<AreaSpawnEvent>();
+        var expires = new List<AreaExpireEvent>();
+        projectiles.DrainAreaSpawnEvents(spawns);
+        projectiles.DrainAreaExpireEvents(expires);
+        Assert.Equal(existing.Value, Assert.Single(spawns).Area.Value);
+        Assert.Empty(expires);
+    }
+
+    [Fact]
     public void Coordinator_restore_reinstates_expired_area_group_claims()
     {
         using var collisions = new CollisionService();

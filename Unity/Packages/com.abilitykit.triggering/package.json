@@ -11,6 +11,23 @@
     "com.abilitykit.modifiers": "0.1.0",
     "com.abilitykit.world.di": "0.1.0",
     "com.abilitykit.deterministic": "0.1.0",
-    "com.abilitykit.analyzer": "0.1.0"
-  }
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  },
+  "samples": [
+    {
+      "displayName": "Triggering Mainline",
+      "description": "Validate and dispatch immediate event-driven rules without setting up a scheduler.",
+      "path": "Samples~/FormalMainline"
+    },
+    {
+      "displayName": "Triggering Rule Scheduling",
+      "description": "Opt in to business rule scheduling and advance it from the host.",
+      "path": "Samples~/RuleScheduling"
+    },
+    {
+      "displayName": "Triggering Queued Events",
+      "description": "Flush queued events and observe phase and priority ordering.",
+      "path": "Samples~/QueuedEvents"
+    }
+  ]
 }

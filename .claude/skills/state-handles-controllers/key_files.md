@@ -88,7 +88,7 @@ Controller 是无状态的，所有状态读写都通过 `_state.*` / `_handles.
 
 真实子类例子：
 
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs` — `OnTearDown` 遍历 group 反注册被动技能 + 取消订阅
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs` — `OnTearDown` 遍历 group 反注册被动技能 + 取消订阅
 - `Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Systems/ProjectileTickSystem.cs` — 纯 `OnExecute`，无 `OnTearDown`（多数系统这样）
 
 ## Console Demo 简化镜像（**不推荐作主例**）

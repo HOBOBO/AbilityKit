@@ -1,0 +1,8 @@
+{
+  "name": "AbilityKit.Triggering.TestSupport",
+  "rootNamespace": "AbilityKit.Triggering.Testing",
+  "references": ["AbilityKit.Core", "AbilityKit.Triggering", "com.abilitykit.triggering.abstractions"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

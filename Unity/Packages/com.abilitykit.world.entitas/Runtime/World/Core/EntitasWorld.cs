@@ -148,26 +148,21 @@ namespace AbilityKit.Ability.World
         /// </summary>
         public void Dispose()
         {
-            if (_container == null && _scope == null) return;
-
-            try
+            if (_container != null || _scope != null)
             {
-                Systems.TearDown();
+                try { Systems.TearDown(); }
+                catch (Exception ex) { Log.Exception(ex); }
+
+                _scope?.Dispose();
+                _scope = null;
+
+                _container?.Dispose();
+                _container = null;
             }
-            catch (Exception ex)
-            {
-                Log.Exception(ex);
-            }
 
-            _scope?.Dispose();
-            _scope = null;
-
-            _container?.Dispose();
-            _container = null;
-
-            try { _contextsFactory?.Release(_contexts); }
-            catch (Exception ex) { Log.Exception(ex); }
+            var contexts = _contexts;
             _contexts = null;
+            if (contexts != null) _contextsFactory.Release(contexts);
         }
     }
 }

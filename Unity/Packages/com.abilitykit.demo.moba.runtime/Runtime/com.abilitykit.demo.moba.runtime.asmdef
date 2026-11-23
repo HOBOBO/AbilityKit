@@ -44,6 +44,7 @@
     "AbilityKit.Demo.Moba.Diagnostics.Core",
     "AbilityKit.Game.Battle.Runtime",
     "AbilityKit.Network.Battle",
+    "AbilityKit.Network.Runtime",
     "AbilityKit.BehaviorTree",
     "AbilityKit.Environment",
     "MemoryPack"

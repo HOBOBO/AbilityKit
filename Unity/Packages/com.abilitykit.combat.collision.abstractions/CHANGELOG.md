@@ -2,6 +2,10 @@
 
 本包遵循 [Keep a Changelog](https://keepachangelog.com/) 风格；版本号遵循语义化版本。
 
+## [Unreleased]
+
+- `IColliderBoundsSource` 和 `ColliderBounds` 从 `AbilityKit.Core.Mathematics` 迁至 `AbilityKit.Combat.Collision`，不保留旧类型名。升级时，碰撞边界调用方应更新命名空间并重新编译；使用 `Vec3` 等原数学类型时保留相应导入。包名、程序集和边界查询行为不变。
+
 ## [0.1.0] — 2026-07-31 — Beta
 
 首个 Beta 里程碑。碰撞几何原语（Aabb / Obb / Sphere / Capsule / ColliderShape）是

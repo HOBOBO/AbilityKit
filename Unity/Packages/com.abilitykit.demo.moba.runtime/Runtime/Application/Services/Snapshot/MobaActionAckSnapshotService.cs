@@ -86,9 +86,115 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaSnapshotBuffer<MobaActionAckEntry> _pending =
             new MobaSnapshotBuffer<MobaActionAckEntry>(16, 256);
         private long _nextAuthoritySequence;
+        internal Action<MobaActionAckEntry> AuthorityEntryCapture { get; set; }
+        private bool _clientBound;
+        private bool _settledTimelineBound;
+        private int _settledFrame;
+        private long _settledSequence;
         private bool _replayActive;
         private FrameIndex _replayRestoredFrame;
         private FrameIndex _replayToFrame;
+
+        internal void BindClientInput()
+        {
+            if (_clientBound) return;
+            _clientBound = true;
+            _pending.ClearAndTrim();
+        }
+
+        internal void BindSettledTimeline()
+        {
+            if (!_clientBound || _settledTimelineBound || _replayActive)
+                throw new InvalidOperationException("Settled timeline requires a new client session.");
+
+            _settledTimelineBound = true;
+            _decisions.Clear();
+            _interruptEpochs.Clear();
+        }
+
+        private sealed class SettledFrameUpdate : IWorldSettledFrameUpdate
+        {
+            private readonly MobaActionAckSnapshotService _owner;
+            private readonly int _frame;
+            public long Sequence;
+            public Dictionary<ActionKey, MobaActionAckEntry> Decisions;
+            public Dictionary<ActorKey, int> Epochs;
+
+            public SettledFrameUpdate(MobaActionAckSnapshotService owner, int frame)
+            {
+                _owner = owner;
+                _frame = frame;
+                Sequence = owner._settledSequence;
+            }
+
+            public bool InvalidatesPrediction => Decisions != null || Epochs != null;
+
+            public void Commit()
+            {
+                if (Decisions != null)
+                    foreach (var entry in Decisions) _owner._decisions.Add(entry.Key, entry.Value);
+                if (Epochs != null)
+                    foreach (var epoch in Epochs) _owner._interruptEpochs[epoch.Key] = epoch.Value;
+                _owner._settledFrame = _frame;
+                _owner._settledSequence = Sequence;
+            }
+        }
+
+        internal IWorldSettledFrameUpdate PrepareSettledFrame(FrameIndex frame, MobaSettledFrameMetadata metadata)
+        {
+            if (!_settledTimelineBound || frame.Value != _settledFrame + 1)
+                throw new InvalidOperationException("MOBA settled timeline requires the next contiguous frame.");
+
+            var update = new SettledFrameUpdate(this, frame.Value);
+            var previousOrdinal = -1;
+            foreach (var item in metadata.Entries)
+            {
+                var entry = item.Entry;
+                if (item.Ordinal < 0 || item.Ordinal < previousOrdinal || item.Ordinal > metadata.CommandCount ||
+                    entry.ActorId <= 0 || entry.EntityVersion <= 0 || entry.PredictionKey < 0 ||
+                    entry.AuthoritySequence <= 0 || entry.AuthoritativeFrame < 0 || entry.AuthoritativeFrame > frame.Value ||
+                    entry.InterruptEpoch < 0)
+                    throw new InvalidOperationException($"Invalid authority timeline entry at frame {frame.Value}.");
+                previousOrdinal = item.Ordinal;
+
+                var actor = new ActorKey(entry.ActorId, entry.EntityVersion);
+                if (entry.PredictionKey == 0)
+                {
+                    if (entry.AuthoritySequence <= update.Sequence) continue;
+                    if (entry.InterruptEpoch == 0 || entry.AuthoritativeFrame != frame.Value || entry.Accepted ||
+                        entry.Reason != (int)MobaActionAckReason.Interrupted)
+                        throw new InvalidOperationException($"Invalid interrupt entry at frame {frame.Value}.");
+
+                    (update.Epochs ??= new Dictionary<ActorKey, int>())[actor] = entry.InterruptEpoch;
+                }
+                else
+                {
+                    var key = new ActionKey(entry.ActorId, entry.EntityVersion, entry.PredictionKey);
+                    if (TryGetSettledDecision(update, key, out var previous))
+                    {
+                        if (!previous.Equals(entry))
+                            throw new InvalidOperationException($"Conflicting authority decision at frame {frame.Value}.");
+                        continue;
+                    }
+
+                    var epoch = update.Epochs != null && update.Epochs.TryGetValue(actor, out var stagedEpoch)
+                        ? stagedEpoch : GetInterruptEpoch(entry.ActorId, entry.EntityVersion);
+                    if (entry.AuthoritySequence <= update.Sequence || entry.AuthoritativeFrame != frame.Value ||
+                        item.Ordinal == metadata.CommandCount || entry.InterruptEpoch != epoch)
+                        throw new InvalidOperationException($"Missing or out-of-order authority decision at frame {frame.Value}.");
+
+                    (update.Decisions ??= new Dictionary<ActionKey, MobaActionAckEntry>()).Add(key, entry);
+                }
+                update.Sequence = entry.AuthoritySequence;
+            }
+            return update;
+        }
+
+        private bool TryGetSettledDecision(SettledFrameUpdate update, ActionKey key, out MobaActionAckEntry entry)
+        {
+            if (_decisions.TryGetValue(key, out entry)) return true;
+            return update.Decisions != null && update.Decisions.TryGetValue(key, out entry);
+        }
 
         public void BeginReplay(FrameIndex restoredFrame, FrameIndex replayToFrame)
         {
@@ -230,7 +336,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryAcceptInputSequence(int actorId, int entityVersion, long inputSequence)
         {
-            if (actorId <= 0 || entityVersion <= 0 || inputSequence <= 0L) return false;
+            if (_clientBound || actorId <= 0 || entityVersion <= 0 || inputSequence <= 0L) return false;
 
             var key = new ActorKey(actorId, entityVersion);
             if (_inputSequenceWatermarks.TryGetValue(key, out var latest) && inputSequence <= latest)
@@ -248,8 +354,8 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// Advances the authoritative interrupt epoch and queues a prediction-key-zero control
-        /// entry so clients learn about server-side cancellation before submitting another action.
+        /// 权威世界推进中断代数并排队控制消息；客户端只读取已收到的权威代数，
+        /// 不用本地模拟的中断更新它。
         /// </summary>
         public int AdvanceInterruptEpoch(int actorId, int entityVersion, int authoritativeFrame = 0)
         {
@@ -257,12 +363,13 @@ namespace AbilityKit.Demo.Moba.Services
             if (entityVersion <= 0) throw new ArgumentOutOfRangeException(nameof(entityVersion));
             if (authoritativeFrame < 0) throw new ArgumentOutOfRangeException(nameof(authoritativeFrame));
 
-            var key = new ActorKey(actorId, entityVersion);
             var current = GetInterruptEpoch(actorId, entityVersion);
+            if (_clientBound) return current;
+            var key = new ActorKey(actorId, entityVersion);
             var next = current == int.MaxValue ? 1 : current + 1;
             _interruptEpochs[key] = next;
 
-            _pending.Add(new MobaActionAckEntry
+            EnqueueAuthorityEntry(new MobaActionAckEntry
             {
                 ActorId = actorId,
                 EntityVersion = entityVersion,
@@ -277,6 +384,9 @@ namespace AbilityKit.Demo.Moba.Services
             return next;
         }
 
+        /// <summary>
+        /// 记录并排队权威处理结果；绑定到客户端后不生产权威回执。
+        /// </summary>
         public MobaActionAckEntry Report(
             int actorId,
             int entityVersion,
@@ -286,12 +396,12 @@ namespace AbilityKit.Demo.Moba.Services
             int authoritativeFrame,
             MobaActionAckReason reason)
         {
-            if (predictionKey <= 0) return default;
+            if (_clientBound || predictionKey <= 0) return default;
 
             var key = new ActionKey(actorId, entityVersion, predictionKey);
             if (_decisions.TryGetValue(key, out var existing))
             {
-                _pending.Add(existing);
+                EnqueueAuthorityEntry(existing);
                 return existing;
             }
 
@@ -308,13 +418,22 @@ namespace AbilityKit.Demo.Moba.Services
                 AuthoritySequence = NextAuthoritySequence(),
             };
             _decisions.Add(key, entry);
-            _pending.Add(entry);
+            EnqueueAuthorityEntry(entry);
             return entry;
         }
 
+        /// <summary>
+        /// 重发已有权威结果；客户端不发送收到的回执。
+        /// </summary>
         public void Repeat(in MobaActionAckEntry decision)
         {
-            if (decision.PredictionKey > 0) _pending.Add(decision);
+            if (!_clientBound && decision.PredictionKey > 0) EnqueueAuthorityEntry(decision);
+        }
+
+        private void EnqueueAuthorityEntry(MobaActionAckEntry entry)
+        {
+            _pending.Add(entry);
+            AuthorityEntryCapture?.Invoke(entry);
         }
 
         /// <summary>
@@ -323,7 +442,7 @@ namespace AbilityKit.Demo.Moba.Services
         /// </summary>
         public void ApplyAuthoritative(IReadOnlyList<MobaActionAckEntry> entries)
         {
-            if (entries == null) return;
+            if (entries == null || _settledTimelineBound) return;
 
             for (var i = 0; i < entries.Count; i++)
             {

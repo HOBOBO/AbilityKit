@@ -1,5 +1,5 @@
 using System.Text.Json;
-using AbilityKit.Core.Recording.FrameRecord;
+using AbilityKit.Record.FrameRecord;
 using Xunit;
 
 namespace AbilityKit.Record.Tests;

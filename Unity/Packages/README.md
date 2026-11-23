@@ -82,11 +82,12 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 ---
 
-### 3. [通用录像模块](./com.abilitykit.record/Document/)
+### 3. [通用录像模块](./com.abilitykit.record/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.record/Document/通用录像模块开发设计文档.md) | 设计理念、录制/回放机制 |
+| [包内使用契约](./com.abilitykit.record/Documentation~/Usage.md) | 记录入口、轨道、随包示例 |
+| [仓库回放设计](../../Docs/design/07-NetworkSynchronization/04-ReplaySystem.md) | Record、FrameRecord 与项目回放边界 |
 
 **核心内容**：帧同步游戏的输入录制和回放，支持确定性验证
 
@@ -112,31 +113,33 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 ---
 
-### 6. [技能库模块](./com.abilitykit.combat.skilllibrary/Document/)
+### 6. [技能库模块](./com.abilitykit.combat.skilllibrary/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.combat.skilllibrary/Document/技能库模块开发设计文档.md) | 设计理念、索引机制、查询优化 |
+| [包内使用契约](./com.abilitykit.combat.skilllibrary/Documentation~/Usage.md) | 派生索引、更新和失败边界 |
+| [仓库索引设计](../../Docs/design/08-GameplayModules/09-EntityAndSkillIndexing.md) | EntityManager 与 SkillLibrary 的分工和证据 |
 
 **核心内容**：用索引表实现高效技能查询，支持单键和多键索引
 
 ---
 
-### 7. [触发器模块](./com.abilitykit.triggering/Document/)
+### 7. [触发器模块](./com.abilitykit.triggering/Documentation~/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.triggering/Document/触发器模块开发设计文档.md) | 设计理念、事件驱动、条件表达式 |
+| [模块设计概览](./com.abilitykit.triggering/Documentation~/Overview.md) | 设计理念、事件驱动与现行接入边界 |
 
 **核心内容**：基于事件的触发器引擎，支持 RPN 条件表达式、确定性回放
 
 ---
 
-### 8. [属性系统模块](./com.abilitykit.attributes/Document/)
+### 8. [属性系统模块](./com.abilitykit.attributes/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.attributes/Document/属性系统模块开发设计文档.md) | 设计理念、修饰器叠加、公式约束 |
+| [包内使用契约](./com.abilitykit.attributes/Documentation~/Usage.md) | 注册、修改器与静默求值 |
+| [仓库设计](../../Docs/design/08-GameplayModules/05-AttributeSystem.md) | Attributes、Modifiers 与玩法集成边界 |
 
 **核心内容**：高性能属性系统，支持 Buff/Debuff 管理、自定义公式、脏标记优化
 
@@ -174,41 +177,52 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 ---
 
-### 13. [投射物系统模块](./com.abilitykit.combat.projectile/Document/)
+### 13. [投射物系统模块](./com.abilitykit.combat.projectile/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.combat.projectile/Document/投射物系统模块开发设计文档.md) | 设计理念、命中策略、范围效果 |
+| [包内使用契约](./com.abilitykit.combat.projectile/Documentation~/Usage.md) | 装配、发射、事件消费 |
+| [仓库投射物设计](../../Docs/design/08-GameplayModules/04-ProjectileSystem.md) | 运动、碰撞、玩法绑定与回滚边界 |
 
 **核心内容**：高性能投射物系统，支持对象池、帧同步、命中策略、范围效果
 
 ---
 
-### 14. [MOBA 技能管线示例](./com.abilitykit.demo.moba.runtime/Document/)
+### 14. [MOBA 逻辑运行时](./com.abilitykit.demo.moba.runtime/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.demo.moba.runtime/Document/MOBA技能管线模块开发设计文档.md) | 设计理念、时间轴阶段、技能工厂 |
+| [包内使用与源码导航](./com.abilitykit.demo.moba.runtime/Documentation~/Usage.md) | 装配顺序、逻辑职责与源码入口 |
+| [仓库 MOBA 专题](../../Docs/design/09-ImplementationExamples/MOBA/00-Overview.md) | 逻辑、表现、工具与验收的整体分工 |
 
 **核心内容**：基于通用能力管线的 MOBA 技能实现，支持时间轴事件、技能库、效果追踪
 
 ---
 
-### 15. [表现层游戏流程示例](./com.abilitykit.demo.moba.view.runtime/Document/)
+### 15. [MOBA 表现与会话运行时](./com.abilitykit.demo.moba.view.runtime/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.demo.moba.view.runtime/Document/表现层游戏流程模块开发设计文档.md) | 设计理念、Feature 机制、数据流 |
+| [包内使用与源码导航](./com.abilitykit.demo.moba.view.runtime/Documentation~/Usage.md) | 客户端装配、表现、调试与兼容入口 |
+| [仓库客户端流程设计](../../Docs/design/04-PresentationLayerDesign/04-ClientGameFlowAndPhaseArchitecture.md) | 流程状态机、Feature 与会话边界 |
 
 **核心内容**：基于分层状态机和 Feature 扩展的表现层游戏流程管理
 
-### 16. [World 依赖注入模块](./com.abilitykit.world.di/Document/)
+### 16. [World 依赖注入模块](./com.abilitykit.world.di/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.world.di/Document/World依赖注入与组合系统开发设计文档.md) | 设计理念、服务容器、生命周期隔离、模块化注册 |
+| [包内使用契约](./com.abilitykit.world.di/Documentation~/Usage.md) | 生命周期、所有权与解析 |
+| [仓库设计](../../Docs/design/02-LogicalWorldDesign/05-ServiceContainer.md) | 服务容器与逻辑世界装配 |
 
 **核心内容**：逻辑世界的服务依赖注入框架，支持 Singleton/Scoped/Transient 三种生命周期，提供模块化服务注册
+
+### 17. [World ECS](./com.abilitykit.world.ecs/README.md)
+
+| 文档 | 定位 |
+|------|------|
+| [包内使用契约](./com.abilitykit.world.ecs/Documentation~/Usage.md) | 实体标识、组件和资源边界 |
+| [仓库实体设计](../../Docs/design/02-LogicalWorldDesign/02-EntityDesign.md) | 实体生命周期及 Unity/.NET 实现边界 |
 
 ---
 
@@ -225,7 +239,7 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 | 扩展 Host 模块 | [Host 模块扩展指南](./com.abilitykit.host.extension/Document/Host模块扩展指南.md) |
 | 编排复杂流程 | [Flow 模块扩展指南](./com.abilitykit.flow/Document/Flow模块扩展指南.md) |
 | 开发自定义节点 | [Flow 模块扩展指南 - 第二章](./com.abilitykit.flow/Document/Flow模块扩展指南.md#二自定义节点开发) |
-| 管理世界服务依赖 | [World DI 开发设计文档](./com.abilitykit.world.di/Document/World依赖注入与组合系统开发设计文档.md) |
+| 管理世界服务依赖 | [World DI 包入口](./com.abilitykit.world.di/README.md) |
 
 ### 想理解架构设计？
 
@@ -233,19 +247,19 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 |------|----------|
 | 为什么用 Hook/Feature | [Host 模块扩展指南 - 设计理念](./com.abilitykit.host.extension/Document/Host模块扩展指南.md#一设计理念host-为什么是一个扩展框架) |
 | 为什么用节点树 | [Flow 模块开发设计文档 - 设计理念](./com.abilitykit.flow/Document/Flow模块开发设计文档.md#一设计理念为什么要做-flow-模块) |
-| 为什么用 Scope | [World DI 开发设计文档 - 生命周期](./com.abilitykit.world.di/Document/World依赖注入与组合系统开发设计文档.md#23-什么是生命周期lifetime) |
-| 为什么用 Module | [World DI 开发设计文档 - 模块系统](./com.abilitykit.world.di/Document/World依赖注入与组合系统开发设计文档.md#四五-iworldmodule---模块接口) |
-| 为什么分 Track | [通用录像模块开发设计文档 - 设计理念](./com.abilitykit.record/Document/通用录像模块开发设计文档.md#一设计理念为什么要做录像模块) |
+| 为什么用 Scope | [服务容器 - 作用域与播种](../../Docs/design/02-LogicalWorldDesign/05-ServiceContainer.md#6-作用域与播种) |
+| 为什么用 Module | [服务容器 - 设计意图](../../Docs/design/02-LogicalWorldDesign/05-ServiceContainer.md#9-设计意图与解决的问题) |
+| 为什么分 Track | [回放系统 - 通用 Record 容器](../../Docs/design/07-NetworkSynchronization/04-ReplaySystem.md#4-通用-record-容器) |
 | 为什么用 Phase | [能力管线模块开发设计文档 - 设计理念](./com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md#一设计理念为什么要做-pipeline-模块) |
-| 为什么用索引 | [技能库模块开发设计文档 - 设计理念](./com.abilitykit.combat.skilllibrary/Document/技能库模块开发设计文档.md#一设计理念为什么要做技能库模块) |
-| 为什么用 Trigger | [触发器模块开发设计文档 - 设计理念](./com.abilitykit.triggering/Document/触发器模块开发设计文档.md#一设计理念为什么要做触发器模块) |
-| 为什么用修饰器 | [属性系统模块开发设计文档 - 设计理念](./com.abilitykit.attributes/Document/属性系统模块开发设计文档.md#一设计理念为什么要做属性系统模块) |
+| 为什么用索引 | [战斗索引 - SkillLibrary 主数据与派生索引](../../Docs/design/08-GameplayModules/09-EntityAndSkillIndexing.md#4-skilllibrary主数据与派生索引) |
+| 为什么用 Trigger | [触发器模块设计概览](./com.abilitykit.triggering/Documentation~/Overview.md#一定位) |
+| 为什么用修饰器 | [属性系统 - 系统定位](../../Docs/design/08-GameplayModules/05-AttributeSystem.md#1-系统定位) |
 | 为什么用轻量修饰器 | [数值系统模块开发设计文档 - 设计理念](./com.abilitykit.core/Documentation~/数值系统模块开发设计文档.md#一设计理念为什么要做数值系统) |
 | 为什么用管线模式 | [目标查找模块开发设计文档 - 设计理念](./com.abilitykit.combat.targeting/Documentation~/Design/目标查找模块开发设计文档.md#一设计理念为什么要做目标查找模块) |
 | 为什么用来源组合 | [移动系统模块开发设计文档 - 设计理念](./com.abilitykit.world.motion/Document/移动系统模块开发设计文档.md#一设计理念为什么要做移动系统模块) |
-| 为什么用对象池 | [投射物系统模块开发设计文档 - 设计理念](./com.abilitykit.combat.projectile/Document/投射物系统模块开发设计文档.md#一设计理念为什么要做投射物系统模块) |
-| 为什么用阶段化 | [MOBA 技能管线开发设计文档 - 设计理念](./com.abilitykit.demo.moba.runtime/Document/MOBA技能管线模块开发设计文档.md#一设计理念为什么要做技能管线) |
-| 为什么用分层状态机 | [表现层游戏流程开发设计文档 - 设计理念](./com.abilitykit.demo.moba.view.runtime/Document/表现层游戏流程模块开发设计文档.md#一设计理念为什么要用分层状态机管理游戏流程) |
+| 投射物如何创建和回收 | [投射物系统 - 生命周期主线](../../Docs/design/08-GameplayModules/04-ProjectileSystem.md#5-生命周期主线) |
+| 为什么用阶段化 | [MOBA 技能 Flow 与 Pipeline 配置设计](../../Docs/design/09-ImplementationExamples/MOBA/18-SkillFlowPipelineConfigDesign.md) |
+| 为什么用分层状态机 | [客户端游戏流程运行时架构](../../Docs/design/04-PresentationLayerDesign/04-ClientGameFlowAndPhaseArchitecture.md) |
 
 ---
 

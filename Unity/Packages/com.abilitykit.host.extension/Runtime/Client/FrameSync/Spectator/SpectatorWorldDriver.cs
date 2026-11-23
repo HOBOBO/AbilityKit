@@ -5,6 +5,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync.CatchUp;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
+using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync.Spectator
@@ -23,6 +24,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync.Spectator
     {
         private IWorld? _world;
         private IWorldInputSink? _inputSink;
+        private IWorldSettledTimelineSink? _settledSink;
+        private IConsumableRemoteFrameSource<WorldSettledInputFrame>? _settledSource;
+        private bool _settledFaulted;
         private ulong _worldId;
         private int _tickRate = 30;
         private int _currentFrame;
@@ -68,6 +72,21 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync.Spectator
         }
 
         /// <summary>
+        /// 从新建世界的帧零边界消费权威记录。调用方必须先校验显式帧零，缺帧时不会填空帧。
+        /// </summary>
+        public void InitializeSettled(ulong worldId, int tickRate, Func<IWorld> worldFactory,
+            IConsumableRemoteFrameSource<WorldSettledInputFrame> source)
+        {
+            if (source == null) throw new ArgumentNullException(nameof(source));
+            Initialize(worldId, tickRate, worldFactory);
+            _settledSink = _inputSink as IWorldSettledTimelineSink ??
+                throw new InvalidOperationException("The spectator world does not support settled inputs.");
+            _settledSink.BindSettledTimeline();
+            _settledSource = source;
+            _currentFrame = 0;
+        }
+
+        /// <summary>
         /// 从服务端 FramePushed 事件投喂一帧输入到 jitter buffer。
         /// </summary>
         public void FeedFrameInputs(int frame, PlayerInputCommand[] inputs)
@@ -99,6 +118,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync.Spectator
         /// </summary>
         public bool TryTick()
         {
+            if (_settledSource != null) return TryTickSettled(_settledSource);
             if (!_initialized || _world == null || _jitterBuffer == null)
                 return false;
 
@@ -117,6 +137,35 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync.Spectator
             _world.Tick(_fixedDelta);
             _currentFrame = nextFrame;
             return true;
+        }
+
+        private bool TryTickSettled(IConsumableRemoteFrameSource<WorldSettledInputFrame> source)
+        {
+            if (_settledFaulted || _world == null || _settledSink == null ||
+                !source.TryGet(_currentFrame + 1, out var record)) return false;
+
+            try
+            {
+                _world.Services.TryResolve<IWorldFrameGuard>(out var guard);
+                if (guard?.CanAdvance == false)
+                    throw new InvalidOperationException("The spectator world cannot advance the settled record.");
+
+                var update = _settledSink.PrepareSettledFrame(record);
+                _settledSink.ExecuteSettledInputs(record.Frame, record.ExecutedInputs);
+                _world.Tick(_fixedDelta);
+                if (guard?.CanCommit == false || !source.TryConsume(record.Frame.Value, out var consumed) ||
+                    !ReferenceEquals(record, consumed))
+                    throw new InvalidOperationException("The spectator world cannot commit the settled record.");
+
+                update.Commit();
+                _currentFrame = record.Frame.Value;
+                return true;
+            }
+            catch
+            {
+                _settledFaulted = true;
+                throw;
+            }
         }
 
         /// <summary>
@@ -167,6 +216,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync.Spectator
         {
             _world = null;
             _inputSink = null;
+            _settledSink = null;
+            _settledSource = null;
+            _settledFaulted = false;
             _jitterBuffer = null;
             _initialized = false;
             _currentFrame = -1;

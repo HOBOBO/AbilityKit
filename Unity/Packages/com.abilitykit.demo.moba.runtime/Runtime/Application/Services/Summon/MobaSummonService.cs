@@ -15,6 +15,7 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Effect;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services.Observability;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
@@ -136,6 +137,31 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly List<int> _queryBuffer = new List<int>(16);
 
         public int ActiveCount => CountAllTrackedSummons();
+
+        internal long ValidateLiveRollbackBirth(global::ActorEntity actor, int birthFrame)
+        {
+            var actorId = actor.actorId.Value;
+            if (!actor.hasOwnerLink || !_sourceBySummonActorId.TryGetValue(actorId, out var source) ||
+                !source.IsValid || source.SummonActorId != actorId || source.SummonConfigId != actor.summonMeta.SummonId ||
+                source.SourceActorId != actor.ownerLink.OwnerActorId ||
+                !_summonsByRootOwner.TryGetValue(actor.ownerLink.RootOwnerActorId, out var owned) || !owned.Contains(actorId) ||
+                !_executionContexts.TryGet(source.SourceContextId, out var node) || node.IsEnded ||
+                node.Kind != MobaExecutionKind.SummonSpawn || node.CreatedFrame != birthFrame ||
+                node.SourceActorId != source.SourceActorId || node.TargetActorId != actorId ||
+                node.ConfigId != source.SummonConfigId || node.RootContextId != source.RootContextId ||
+                node.OwnerContextId != source.OwnerContextId)
+                throw new InvalidOperationException($"Summon {actorId} has no matching rollback birth source or owner.");
+
+            var hasRetain = _skillRuntimeRetainsBySummonActorId.TryGetValue(actorId, out var retain);
+            if (hasRetain != source.SkillRuntimeHandle.IsValid || hasRetain &&
+                (!retain.IsValid || !retain.Runtime.Equals(source.SkillRuntimeHandle) ||
+                 retain.Child.Kind != MobaSkillRuntimeChildKind.Summon || retain.Child.ChildId != actorId ||
+                 retain.Child.ContextId != source.SourceContextId || retain.Child.ConfigId != source.SummonConfigId ||
+                 _skillRuntimes == null || !_skillRuntimes.TryFindRetain(retain.Runtime, retain.Child, out var actual) ||
+                 !actual.Equals(retain) || actual.Child.ContextId != retain.Child.ContextId || actual.Child.ConfigId != retain.Child.ConfigId))
+                throw new InvalidOperationException($"Summon {actorId} has an invalid rollback SkillRuntime retain.");
+            return source.SourceContextId;
+        }
 
         internal MobaSummonRollbackState CaptureRollbackState()
         {
@@ -488,7 +514,6 @@ namespace AbilityKit.Demo.Moba.Services
             if (retain)
             {
                 _brains.RetainExpiredBrain(e);
-                _spawnSnapshots?.CancelPendingActorSpawn(summonActorId);
             }
             else if (_brains != null && e.hasActorBrain)
             {
@@ -501,10 +526,13 @@ namespace AbilityKit.Demo.Moba.Services
             _despawnSnapshots?.Enqueue(summonActorId, (byte)ToActorDespawnReason(reason));
 
             StopOwnerBoundTriggers(e);
-            new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
+            if (new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
                 summonActorId,
                 out _,
-                publishDespawn: true);
+                publishDespawn: true))
+            {
+                _spawnSnapshots?.CancelPendingActorSpawn(summonActorId);
+            }
 
             UntrackSummon(rootOwner, summonActorId);
             var sourceContext = ConsumeSourceContext(summonActorId);
@@ -679,6 +707,28 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return results.Count > 0;
+        }
+
+        /// <summary>
+        /// 按 ActorId 收集根主人名下指定模板的存活召唤物，不修改召唤名单。
+        /// </summary>
+        internal void CollectLivingSummons(int rootOwnerActorId, int summonId, List<int> results)
+        {
+            results.Clear();
+            if (rootOwnerActorId <= 0 || summonId <= 0 ||
+                !_summonsByRootOwner.TryGetValue(rootOwnerActorId, out var owned)) return;
+
+            var nowMs = NowMs();
+            foreach (var actorId in owned)
+            {
+                if (!_registry.TryGet(actorId, out var actor) || actor == null || !actor.isEnabled ||
+                    !actor.hasSummonMeta || actor.summonMeta.SummonId != summonId ||
+                    !actor.hasOwnerLink || actor.ownerLink.RootOwnerActorId != rootOwnerActorId ||
+                    actor.hasActorDespawnRequest || !actor.hasAttributeGroup || new MobaAttrs(actor).Hp <= 0f ||
+                    (actor.hasLifetime && actor.lifetime.EndTimeMs > 0 && nowMs >= actor.lifetime.EndTimeMs)) continue;
+                results.Add(actorId);
+            }
+            results.Sort();
         }
 
         public int RemoveSummons(int rootOwnerActorId, int summonId, bool removeAll, SummonDespawnReason reason)

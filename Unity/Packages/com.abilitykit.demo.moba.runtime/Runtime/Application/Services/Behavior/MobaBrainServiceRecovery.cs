@@ -34,6 +34,24 @@ namespace AbilityKit.Demo.Moba.Services
             if (runtimeId > 0) _behaviors.ReleaseRetainedForRecovery(runtimeId);
         }
 
+        internal void ValidateCreatedActorBrainRollback(global::ActorEntity actor, bool retained)
+        {
+            if (!actor.hasActorBrain || actor.actorBrain.BehaviorInstanceId == 0) return;
+            var brain = actor.actorBrain;
+            if (!_behaviors.MatchesRecoveryRuntime(brain.BehaviorInstanceId, new BehaviorEntityId(actor.actorId.Value),
+                    brain.BrainId, retained))
+                throw new InvalidOperationException($"Actor {actor.actorId.Value} does not own rollback Brain runtime {brain.BehaviorInstanceId}.");
+        }
+
+        internal void DiscardCreatedActorBrain(global::ActorEntity actor)
+        {
+            ValidateCreatedActorBrainRollback(actor, retained: false);
+            var runtimeId = actor.hasActorBrain ? actor.actorBrain.BehaviorInstanceId : 0L;
+            if (runtimeId > 0 && (!_behaviors.RetainForRecovery(runtimeId) || !_behaviors.ReleaseRetainedForRecovery(runtimeId)))
+                throw new InvalidOperationException($"Cannot discard rollback Brain runtime {runtimeId}.");
+            _failedCreations.Remove(actor.actorId.Value);
+        }
+
         internal BrainRecoveryState CaptureRollbackState(bool includeLocalIdentity = true)
         {
             var entries = new List<BrainRecoveryActor>();
@@ -66,7 +84,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         internal void ValidateRollbackState(BrainRecoveryState value, IReadOnlyDictionary<int, int> projected,
-            bool validateManager = true, int? restoreFrame = null)
+            bool validateManager = true, int? restoreFrame = null, ISet<int> discardActors = null)
         {
             if (value == null || value.Version != 3 || value.Actors == null || value.Failures == null || value.Manager == null)
                 throw new InvalidOperationException("Incomplete Brain state; v3 is required.");
@@ -117,9 +135,20 @@ namespace AbilityKit.Demo.Moba.Services
                     throw new InvalidOperationException($"Brain runtime '{entry.RuntimeId}' is missing, replaced or has different provenance.");
                 if (retained) retainedRuntimeIds.Add(entry.RuntimeId);
             }
-            if (runtimeIds.Count != _behaviors.TotalCount + retainedRuntimeIds.Count)
+            var discardRuntimes = new HashSet<long>();
+            if (discardActors != null)
+                foreach (var id in discardActors)
+                {
+                    if (expected.ContainsKey(id) || !_registry.TryGet(id, out var actor))
+                        throw new InvalidOperationException($"Brain rollback cannot discard target or missing actor {id}.");
+                    ValidateCreatedActorBrainRollback(actor, retained: false);
+                    var runtimeId = actor.hasActorBrain ? actor.actorBrain.BehaviorInstanceId : 0;
+                    if (runtimeId > 0 && (runtimeIds.Contains(runtimeId) || !discardRuntimes.Add(runtimeId)))
+                        throw new InvalidOperationException($"Brain runtime {runtimeId} overlaps the projected survivors or discards.");
+                }
+            if (runtimeIds.Count != _behaviors.TotalCount + retainedRuntimeIds.Count - discardRuntimes.Count)
                 throw new InvalidOperationException("Brain manager contains orphaned or additional runtimes; cross-roster recovery is unsupported.");
-            if (validateManager) _behaviors.ValidateRecoveryState(value.Manager, retainedRuntimeIds);
+            if (validateManager) _behaviors.ValidateRecoveryState(value.Manager, retainedRuntimeIds, discardRuntimes);
             var previousFailure = 0;
             foreach (var failed in value.Failures)
             {

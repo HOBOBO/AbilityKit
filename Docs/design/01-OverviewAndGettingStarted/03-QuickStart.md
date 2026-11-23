@@ -249,7 +249,7 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 
 ### 5.1 Core 事件链路
 
-源码入口：`Unity/Packages/com.abilitykit.core/Runtime/Event/EventDispatcher.cs`、`Unity/Packages/com.abilitykit.core/Runtime/Generic/StableStringIdRegistry.cs`。
+源码入口：`Unity/Packages/com.abilitykit.core/Runtime/Eventing/EventDispatcher.cs`、`Unity/Packages/com.abilitykit.core/Runtime/Identifiers/StableStringIdRegistry.cs`。
 
 ```mermaid
 sequenceDiagram

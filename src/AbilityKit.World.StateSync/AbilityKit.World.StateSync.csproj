@@ -13,6 +13,7 @@
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.world.statesync/Runtime/**/*.cs" 
              Exclude="../../Unity/Packages/com.abilitykit.world.statesync/Runtime/**/*.asmdef" />
+    <InternalsVisibleTo Include="AbilityKit.World.StateSync.Tests" />
   </ItemGroup>
 
   <ItemGroup>

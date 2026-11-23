@@ -29,7 +29,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly BattleViewDirtyEntityRefresher _dirtyViews;
         private readonly bool _presentDamageTriggers;
         private readonly bool _presentDamageSnapshots;
-        private long _observedRollbackCount;
+        private long _projectileRollbackCount;
 
         public BattleViewEventSink(
             BattleContext ctx,
@@ -80,7 +80,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 : BattleViewEventSourceMode.SnapshotOnly;
             _presentDamageTriggers = BattleDamagePresentationSourcePolicy.ShouldPresentTrigger(sourceMode);
             _presentDamageSnapshots = BattleDamagePresentationSourcePolicy.ShouldPresentSnapshot(sourceMode);
-            _observedRollbackCount = ResolveRollbackCount();
+            _projectileRollbackCount = ResolveRollbackCount();
         }
 
         public void OnDamageResult(in DamageResult result)
@@ -93,6 +93,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         public void OnProjectileHit(in ProjectileHitEvent evt)
         {
+            ObserveProjectileRollbackGeneration();
             _projectileEvents.HandleTriggerHit(in evt);
         }
 
@@ -116,7 +117,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         public void OnProjectileEventSnapshot(ISnapshotEnvelope packet, ProjectileEventData[] entries)
         {
-            _projectileEvents.HandleSnapshot(entries);
+            ObserveProjectileRollbackGeneration();
+            _projectileEvents.HandleSnapshot(entries, packet is FramePacket frame ? frame.Frame.Value : 0);
         }
 
         public void OnAreaEventSnapshot(ISnapshotEnvelope packet, AreaEventData[] entries)
@@ -134,7 +136,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         public void OnPresentationCueSnapshot(ISnapshotEnvelope packet, PresentationCueData[] entries)
         {
-            _presentationCues.HandleSnapshot(entries);
+            ObserveProjectileRollbackGeneration();
+            _presentationCues.HandleSnapshot(entries, _projectileEvents, packet is FramePacket frame ? frame.Frame.Value : 0);
         }
 
         /// <summary>
@@ -157,7 +160,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         /// </summary>
         public void Tick()
         {
-            ObservePresentationRollbackGeneration();
+            ObserveProjectileRollbackGeneration();
             _projectileEvents?.Tick();
         }
 
@@ -170,23 +173,21 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _projectileEvents?.Clear();
             _projectileEvents?.ClearPool();
             _presentationCues?.Clear();
-            _observedRollbackCount = ResolveRollbackCount();
-        }
-
-        private void ObservePresentationRollbackGeneration()
-        {
-            var rollbackCount = ResolveRollbackCount();
-            if (rollbackCount == _observedRollbackCount) return;
-
-            _observedRollbackCount = rollbackCount;
-            _presentationCues?.BeginReconciliationGeneration(
-                _presentationCues.ReconciliationGeneration + 1);
+            _projectileRollbackCount = ResolveRollbackCount();
         }
 
         private long ResolveRollbackCount()
         {
             var count = _context?.PredictionStats?.TotalRollbackCount ?? 0L;
             return count > 0L ? count : 0L;
+        }
+
+        private void ObserveProjectileRollbackGeneration()
+        {
+            var rollbackCount = ResolveRollbackCount();
+            if (rollbackCount == _projectileRollbackCount) return;
+            _projectileRollbackCount = rollbackCount;
+            _projectileEvents?.ResetCompletedProjectilesForReplay();
         }
     }
 

@@ -46,22 +46,6 @@ namespace AbilityKit.Protocol.Generated
                 null),
             new ProtocolMessageMetadata(
                 "abilitykit.moba.battle",
-                "frame-sync-catch-up.request",
-                2002u,
-                ProtocolDirection.ClientToServer,
-                ProtocolPacketKind.Request,
-                "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireCatchUpRequest",
-                "custom-binary",
-                ProtocolReliability.Reliable,
-                null,
-                "moba.protocol.yaml",
-                1,
-                1,
-                4096,
-                1d,
-                null),
-            new ProtocolMessageMetadata(
-                "abilitykit.moba.battle",
                 "frame-sync-metrics.request",
                 2003u,
                 ProtocolDirection.ClientToServer,
@@ -94,14 +78,14 @@ namespace AbilityKit.Protocol.Generated
                 null),
             new ProtocolMessageMetadata(
                 "abilitykit.moba.battle",
-                "frame-sync-spectator-subscribe.request",
-                2004u,
+                "settled-frame-subscribe.request",
+                2005u,
                 ProtocolDirection.ClientToServer,
                 ProtocolPacketKind.Request,
-                "System.UInt64",
-                "custom-binary",
+                "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeRequest",
+                "memorypack",
                 ProtocolReliability.Reliable,
-                "frame-sync-spectator-subscribe.response",
+                "settled-frame-subscribe.response",
                 "moba.protocol.yaml",
                 1,
                 1,
@@ -110,51 +94,67 @@ namespace AbilityKit.Protocol.Generated
                 null),
             new ProtocolMessageMetadata(
                 "abilitykit.moba.battle",
-                "frame-sync-spectator-subscribe.response",
-                2004u,
+                "settled-frame-subscribe.response",
+                2005u,
                 ProtocolDirection.ServerToClient,
                 ProtocolPacketKind.Response,
-                "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireSpectatorSubscribeRes",
-                "custom-binary",
+                "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeResponse",
+                "memorypack",
                 ProtocolReliability.Reliable,
                 null,
                 "moba.protocol.yaml",
                 1,
                 1,
-                16384,
+                4096,
                 1d,
                 null),
             new ProtocolMessageMetadata(
                 "abilitykit.moba.battle",
-                "frame-sync-frame.push",
-                9001u,
-                ProtocolDirection.ServerToClient,
-                ProtocolPacketKind.Push,
-                "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireFramePushedPush",
-                "custom-binary",
-                ProtocolReliability.Realtime,
-                null,
+                "settled-frame-catch-up.request",
+                2006u,
+                ProtocolDirection.ClientToServer,
+                ProtocolPacketKind.Request,
+                "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpRequest",
+                "memorypack",
+                ProtocolReliability.Reliable,
+                "settled-frame-catch-up.response",
                 "moba.protocol.yaml",
                 1,
                 1,
-                4194304,
-                0.05d,
+                4096,
+                1d,
                 null),
             new ProtocolMessageMetadata(
                 "abilitykit.moba.battle",
-                "frame-sync-catch-up.push",
-                9010u,
+                "settled-frame-catch-up.response",
+                2006u,
                 ProtocolDirection.ServerToClient,
-                ProtocolPacketKind.Push,
-                "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireCatchUpPayloadPush",
-                "custom-binary",
+                ProtocolPacketKind.Response,
+                "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpResponse",
+                "memorypack",
                 ProtocolReliability.Reliable,
                 null,
                 "moba.protocol.yaml",
                 1,
                 1,
                 4194304,
-                0.25d,
+                1d,
+                null),
+            new ProtocolMessageMetadata(
+                "abilitykit.moba.battle",
+                "settled-frame.push",
+                9020u,
+                ProtocolDirection.ServerToClient,
+                ProtocolPacketKind.Push,
+                "AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame",
+                "memorypack",
+                ProtocolReliability.Reliable,
+                null,
+                "moba.protocol.yaml",
+                1,
+                1,
+                4194304,
+                1d,
                 null),
             new ProtocolMessageMetadata(
                 "abilitykit.moba.battle",
@@ -846,6 +846,38 @@ namespace AbilityKit.Protocol.Generated
                 new[] { "sessionToken" }),
             new ProtocolMessageMetadata(
                 "abilitykit.room",
+                "subscribe-fixed-baseline-state-sync.request",
+                123u,
+                ProtocolDirection.ClientToServer,
+                ProtocolPacketKind.Request,
+                "AbilityKit.Protocol.Room.WireSubscribeStateSyncReq",
+                "memorypack",
+                ProtocolReliability.Reliable,
+                "subscribe-fixed-baseline-state-sync.response",
+                "room.protocol.yaml",
+                1,
+                1,
+                1048576,
+                1d,
+                new[] { "sessionToken" }),
+            new ProtocolMessageMetadata(
+                "abilitykit.room",
+                "subscribe-fixed-baseline-state-sync.response",
+                123u,
+                ProtocolDirection.ServerToClient,
+                ProtocolPacketKind.Response,
+                "AbilityKit.Protocol.Room.WireSubscribeStateSyncRes",
+                "memorypack",
+                ProtocolReliability.Reliable,
+                null,
+                "room.protocol.yaml",
+                1,
+                1,
+                1048576,
+                1d,
+                null),
+            new ProtocolMessageMetadata(
+                "abilitykit.room",
                 "request-full-state-sync.response",
                 108u,
                 ProtocolDirection.ServerToClient,
@@ -1442,13 +1474,13 @@ namespace AbilityKit.Protocol.Generated
         {
             public const uint abilitykit_moba_battle_frame_sync_submit_input_request = 2001u;
             public const uint abilitykit_moba_battle_frame_sync_submit_input_response = 2001u;
-            public const uint abilitykit_moba_battle_frame_sync_catch_up_request = 2002u;
             public const uint abilitykit_moba_battle_frame_sync_metrics_request = 2003u;
             public const uint abilitykit_moba_battle_frame_sync_metrics_response = 2003u;
-            public const uint abilitykit_moba_battle_frame_sync_spectator_subscribe_request = 2004u;
-            public const uint abilitykit_moba_battle_frame_sync_spectator_subscribe_response = 2004u;
-            public const uint abilitykit_moba_battle_frame_sync_frame_push = 9001u;
-            public const uint abilitykit_moba_battle_frame_sync_catch_up_push = 9010u;
+            public const uint abilitykit_moba_battle_settled_frame_subscribe_request = 2005u;
+            public const uint abilitykit_moba_battle_settled_frame_subscribe_response = 2005u;
+            public const uint abilitykit_moba_battle_settled_frame_catch_up_request = 2006u;
+            public const uint abilitykit_moba_battle_settled_frame_catch_up_response = 2006u;
+            public const uint abilitykit_moba_battle_settled_frame_push = 9020u;
             public const uint abilitykit_moba_battle_move_input_event = 3003u;
             public const uint abilitykit_moba_battle_skill_input_event = 3020u;
             public const uint abilitykit_moba_battle_debug_spawn_unit_event = 3030u;
@@ -1492,6 +1524,8 @@ namespace AbilityKit.Protocol.Generated
             public const uint abilitykit_room_subscribe_state_sync_request = 103u;
             public const uint abilitykit_room_subscribe_state_sync_response = 103u;
             public const uint abilitykit_room_request_full_state_sync_request = 108u;
+            public const uint abilitykit_room_subscribe_fixed_baseline_state_sync_request = 123u;
+            public const uint abilitykit_room_subscribe_fixed_baseline_state_sync_response = 123u;
             public const uint abilitykit_room_request_full_state_sync_response = 108u;
             public const uint abilitykit_room_state_sync_metrics_request = 117u;
             public const uint abilitykit_room_state_sync_metrics_response = 117u;
@@ -1536,13 +1570,13 @@ namespace AbilityKit.Protocol.Generated
             {
                 ["abilitykit.moba.battle/frame-sync-submit-input.request"] = "moba.protocol.yaml",
                 ["abilitykit.moba.battle/frame-sync-submit-input.response"] = "moba.protocol.yaml",
-                ["abilitykit.moba.battle/frame-sync-catch-up.request"] = "moba.protocol.yaml",
                 ["abilitykit.moba.battle/frame-sync-metrics.request"] = "moba.protocol.yaml",
                 ["abilitykit.moba.battle/frame-sync-metrics.response"] = "moba.protocol.yaml",
-                ["abilitykit.moba.battle/frame-sync-spectator-subscribe.request"] = "moba.protocol.yaml",
-                ["abilitykit.moba.battle/frame-sync-spectator-subscribe.response"] = "moba.protocol.yaml",
-                ["abilitykit.moba.battle/frame-sync-frame.push"] = "moba.protocol.yaml",
-                ["abilitykit.moba.battle/frame-sync-catch-up.push"] = "moba.protocol.yaml",
+                ["abilitykit.moba.battle/settled-frame-subscribe.request"] = "moba.protocol.yaml",
+                ["abilitykit.moba.battle/settled-frame-subscribe.response"] = "moba.protocol.yaml",
+                ["abilitykit.moba.battle/settled-frame-catch-up.request"] = "moba.protocol.yaml",
+                ["abilitykit.moba.battle/settled-frame-catch-up.response"] = "moba.protocol.yaml",
+                ["abilitykit.moba.battle/settled-frame.push"] = "moba.protocol.yaml",
                 ["abilitykit.moba.battle/move-input.event"] = "moba.protocol.yaml",
                 ["abilitykit.moba.battle/skill-input.event"] = "moba.protocol.yaml",
                 ["abilitykit.moba.battle/debug-spawn-unit.event"] = "moba.protocol.yaml",
@@ -1586,6 +1620,8 @@ namespace AbilityKit.Protocol.Generated
                 ["abilitykit.room/subscribe-state-sync.request"] = "room.protocol.yaml",
                 ["abilitykit.room/subscribe-state-sync.response"] = "room.protocol.yaml",
                 ["abilitykit.room/request-full-state-sync.request"] = "room.protocol.yaml",
+                ["abilitykit.room/subscribe-fixed-baseline-state-sync.request"] = "room.protocol.yaml",
+                ["abilitykit.room/subscribe-fixed-baseline-state-sync.response"] = "room.protocol.yaml",
                 ["abilitykit.room/request-full-state-sync.response"] = "room.protocol.yaml",
                 ["abilitykit.room/state-sync-metrics.request"] = "room.protocol.yaml",
                 ["abilitykit.room/state-sync-metrics.response"] = "room.protocol.yaml",

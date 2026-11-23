@@ -152,7 +152,7 @@ public sealed class MobaObservationRecorderAdapterTests
 
         var throwingAdapter = (IMobaEffectLifecycleHook)new MobaBattleObservationRecorderAdapter(
             new ThrowingSink());
-        var error = Record.Exception(() => throwingAdapter.OnObserved(in observation));
+        var error = Xunit.Record.Exception(() => throwingAdapter.OnObserved(in observation));
         Assert.Null(error);
     }
 
@@ -176,7 +176,7 @@ public sealed class MobaObservationRecorderAdapterTests
             SourceContextId = 500L,
         };
 
-        var error = Record.Exception(() => notifier.AppliedNew(buff, 7, 9, 10f, runtime));
+        var error = Xunit.Record.Exception(() => notifier.AppliedNew(buff, 7, 9, 10f, runtime));
 
         Assert.Null(error);
         Assert.DoesNotContain(

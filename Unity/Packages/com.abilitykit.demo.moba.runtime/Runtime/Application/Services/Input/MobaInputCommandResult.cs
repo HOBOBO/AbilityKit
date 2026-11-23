@@ -39,6 +39,7 @@ namespace AbilityKit.Demo.Moba.Services
         public readonly int SkillPhase;
         public readonly int TargetActorId;
         public readonly MobaSkillCastRuntimeHandle SkillRuntimeHandle;
+        internal readonly bool IsDuplicate;
 
         public MobaInputCommandResult(
             bool succeeded,
@@ -52,6 +53,14 @@ namespace AbilityKit.Demo.Moba.Services
             int skillPhase = 0,
             int targetActorId = 0,
             MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
+            : this(succeeded, failureCode, message, playerId, actorId, opCode,
+                diagnosticCommandId, skillSlot, skillPhase, targetActorId, skillRuntimeHandle, false)
+        {
+        }
+
+        private MobaInputCommandResult(bool succeeded, MobaInputCommandFailureCode failureCode, string message,
+            string playerId, int actorId, int opCode, long diagnosticCommandId, int skillSlot, int skillPhase,
+            int targetActorId, MobaSkillCastRuntimeHandle skillRuntimeHandle, bool isDuplicate)
         {
             Succeeded = succeeded;
             FailureCode = failureCode;
@@ -64,20 +73,25 @@ namespace AbilityKit.Demo.Moba.Services
             SkillPhase = skillPhase;
             TargetActorId = targetActorId;
             SkillRuntimeHandle = skillRuntimeHandle;
+            IsDuplicate = isDuplicate;
         }
 
         public MobaInputCommandResult WithDiagnosticCommandId(long commandId)
         {
             return new MobaInputCommandResult(Succeeded, FailureCode, Message, PlayerId, ActorId,
-                OpCode, commandId, SkillSlot, SkillPhase, TargetActorId, SkillRuntimeHandle);
+                OpCode, commandId, SkillSlot, SkillPhase, TargetActorId, SkillRuntimeHandle, IsDuplicate);
         }
 
         public MobaInputCommandResult WithSkillDiagnostic(int slot, int phase, int targetActorId,
             in MobaSkillCastRuntimeHandle runtimeHandle)
         {
             return new MobaInputCommandResult(Succeeded, FailureCode, Message, PlayerId, ActorId,
-                OpCode, DiagnosticCommandId, slot, phase, targetActorId, runtimeHandle);
+                OpCode, DiagnosticCommandId, slot, phase, targetActorId, runtimeHandle, IsDuplicate);
         }
+
+        internal MobaInputCommandResult AsDuplicate() =>
+            new MobaInputCommandResult(Succeeded, FailureCode, Message, PlayerId, ActorId,
+                OpCode, DiagnosticCommandId, SkillSlot, SkillPhase, TargetActorId, SkillRuntimeHandle, true);
 
         public static MobaInputCommandResult Accepted(PlayerInputCommand command, int actorId = 0)
         {

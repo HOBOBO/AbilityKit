@@ -68,6 +68,10 @@ namespace AbilityKit.Core.Snapshots.Routing
             _routes[opCode] = new Route<T>(decoder);
         }
 
+        /// <summary>
+        /// 为已注册路由添加处理阶段，按 order 升序执行，同序阶段按注册顺序执行。
+        /// </summary>
+        /// <returns>仅撤销本次注册的令牌，可重复释放。</returns>
         public IDisposable AddStage<T>(int opCode, int order, Action<object, ISnapshotEnvelope, T> handler)
         {
             if (handler == null) throw new ArgumentNullException(nameof(handler));
@@ -148,10 +152,10 @@ namespace AbilityKit.Core.Snapshots.Routing
 
                 for (int i = 0; i < _stages.Count; i++)
                 {
-                    var s = _stages[i];
+                    var stage = _stages[i];
                     try
                     {
-                        s.Handler?.Invoke(ctx, envelope, payload);
+                        stage.Handler(ctx, envelope, payload);
                     }
                     catch (Exception ex)
                     {
@@ -161,7 +165,10 @@ namespace AbilityKit.Core.Snapshots.Routing
             }
         }
 
-        private readonly struct Stage<T>
+        /// <summary>
+        /// 一次阶段注册的独立标识，相同顺序和委托不共享注册身份。
+        /// </summary>
+        private sealed class Stage<T>
         {
             public readonly int Order;
             public readonly Action<object, ISnapshotEnvelope, T> Handler;

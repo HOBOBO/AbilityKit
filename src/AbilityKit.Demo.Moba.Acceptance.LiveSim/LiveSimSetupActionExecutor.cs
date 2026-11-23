@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Mathematics;
@@ -305,11 +306,31 @@ public sealed class LiveSimSetupActionExecutor : IAcceptanceObservationSource
                     value = new TestVector3(position.X, position.Y, position.Z);
                     break;
                 }
-                default: continue;
+                default:
+                    const string summonCountPrefix = "summoncount:";
+                    if (!property.StartsWith(summonCountPrefix, StringComparison.Ordinal) ||
+                        !int.TryParse(property.AsSpan(summonCountPrefix.Length), NumberStyles.None,
+                            CultureInfo.InvariantCulture, out var summonId) || summonId <= 0)
+                        continue;
+                    value = CountRegisteredSummons(actorId, summonId);
+                    break;
             }
             values.Add(new AcceptanceObservation(alias, actorId.ToString(), null, state.property ?? string.Empty, value));
         }
         return new AcceptanceObservations { States = values };
+    }
+
+    private int CountRegisteredSummons(int rootOwnerActorId, int summonId)
+    {
+        var count = 0;
+        foreach (var entry in Services.Resolve<MobaActorRegistry>().Entries)
+        {
+            var actor = entry.Value;
+            if (actor.hasSummonMeta && actor.summonMeta.SummonId == summonId &&
+                actor.hasOwnerLink && actor.ownerLink.RootOwnerActorId == rootOwnerActorId)
+                count++;
+        }
+        return count;
     }
 
     AcceptanceObservations IAcceptanceObservationSource.Capture(TestScenario scenario)

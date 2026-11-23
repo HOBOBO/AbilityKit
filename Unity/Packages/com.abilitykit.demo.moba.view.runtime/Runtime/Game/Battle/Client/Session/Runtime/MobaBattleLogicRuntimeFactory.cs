@@ -41,9 +41,14 @@ namespace AbilityKit.Game.Battle
 
                 return new BattleLogicSessionRuntime(worldManager, runtime.Runtime, runtime.RollbackModule);
             }
-            catch
+            catch (Exception startupFailure)
             {
-                worldManager.DisposeAll();
+                try { worldManager.DisposeAll(); }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException("Battle logic runtime startup and cleanup failed.",
+                        startupFailure, cleanupFailure);
+                }
                 throw;
             }
         }

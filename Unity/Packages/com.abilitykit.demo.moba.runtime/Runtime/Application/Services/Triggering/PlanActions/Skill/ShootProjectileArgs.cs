@@ -1,4 +1,5 @@
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
@@ -23,6 +24,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly bool UseAimDistance;
         public readonly BlackboardWriteTarget ResultTarget;
         public readonly BlackboardWriteTarget ResultCountTarget;
+        /// <summary>
+        /// 发射前按配置计算数值，后续效果读取本次施法黑板中的结果。
+        /// </summary>
+        public readonly MobaEffectMagnitudeSpec LaunchMagnitude;
 
         public ShootProjectileArgs(
             int launcherId,
@@ -31,7 +36,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             in MobaActionTargetRequest targetRequest,
             bool trackTarget,
             BlackboardWriteTarget resultTarget = default,
-            BlackboardWriteTarget resultCountTarget = default, bool useAimDistance = true)
+            BlackboardWriteTarget resultCountTarget = default, bool useAimDistance = true,
+            MobaEffectMagnitudeSpec launchMagnitude = default)
         {
             LauncherId = launcherId;
             ProjectileId = projectileId;
@@ -40,6 +46,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             TrackTarget = trackTarget; UseAimDistance = useAimDistance;
             ResultTarget = resultTarget;
             ResultCountTarget = resultCountTarget;
+            LaunchMagnitude = launchMagnitude;
         }
 
         public static ShootProjectileArgs Default => new ShootProjectileArgs(0, 0, 0, default, false);

@@ -839,5 +839,53 @@
     "VfxId": 0,
     "ConsumeOnFirstEnter": false,
     "OnCrossTriggerIds": []
+  },
+  {
+    "Id": 42010302,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 2000,
+    "DurationMs": 2000,
+    "IntervalMs": 0,
+    "MaxTargets": 2147483647,
+    "ModelId": 0,
+    "Name": "Jhin - Captive Audience fuse",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [
+      30010313
+    ],
+    "OnEnterTriggerIds": [],
+    "OnExitTriggerIds": [],
+    "OnIntervalTriggerIds": [],
+    "InnerRadius": 0,
+    "Radius": 3,
+    "VfxId": 90031011,
+    "ConsumeOnFirstEnter": false,
+    "OnCrossTriggerIds": []
+  },
+  {
+    "Id": 42010303,
+    "AttachMode": 0,
+    "CollisionLayerMask": 1,
+    "DelayMs": 0,
+    "DurationMs": 700,
+    "IntervalMs": 0,
+    "MaxTargets": 2147483647,
+    "ModelId": 0,
+    "Name": "Jhin - Captive Audience blast presentation",
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "OnDelayTriggerIds": [],
+    "OnEnterTriggerIds": [],
+    "OnExitTriggerIds": [],
+    "OnIntervalTriggerIds": [],
+    "InnerRadius": 0,
+    "Radius": 3,
+    "VfxId": 90013018,
+    "ConsumeOnFirstEnter": false,
+    "OnCrossTriggerIds": []
   }
 ]

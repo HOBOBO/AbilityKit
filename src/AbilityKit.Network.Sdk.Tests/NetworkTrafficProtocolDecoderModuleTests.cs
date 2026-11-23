@@ -2,6 +2,7 @@ using AbilityKit.Protocol.Catalog;
 using AbilityKit.Protocol.Generated;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
+using AbilityKit.Protocol.Moba.SettledFrames;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
@@ -90,14 +91,14 @@ public sealed class NetworkTrafficProtocolDecoderModuleTests
         Assert.True(decodedRequest.Success, decodedRequest.Error);
         Assert.Equal(4, Assert.IsType<WireSubmitFrameInputReq>(decodedRequest.Value).Frame);
 
-        var subscriptionBytes = MemoryPack.MemoryPackSerializer.Serialize(
-            new WireSpectatorSubscribeRes(2UL, 30, 12));
+        var subscriptionBytes = SettledFrameProtocol.Encode(
+            new WireSettledSubscribeResponse { TickRate = 30, LastSettledFrame = 12 });
         var decodedSubscription = registry.Decode(
             MobaProtocolDecoderModule.CatalogId,
-            "frame-sync-spectator-subscribe.response",
+            "settled-frame-subscribe.response",
             new ArraySegment<byte>(subscriptionBytes));
         Assert.True(decodedSubscription.Success, decodedSubscription.Error);
-        Assert.Equal(12, Assert.IsType<WireSpectatorSubscribeRes>(decodedSubscription.Value).CurrentFrame);
+        Assert.Equal(12, Assert.IsType<WireSettledSubscribeResponse>(decodedSubscription.Value).LastSettledFrame);
     }
 
     [Fact]

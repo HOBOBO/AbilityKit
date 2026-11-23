@@ -64,11 +64,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 ReadFloat(namedArgs, ctx, 0f, "target_max_hp_ratio_coefficient"),
                 MobaEffectMagnitudeSchemaReader.ReadString(namedArgs, in ctx, "target_max_hp_ratio_skill_level_parameter"),
                 ReadFloat(namedArgs, ctx, 0f, "target_missing_hp_damage_scale_coefficient"),
-                ReadFloat(namedArgs, ctx, 0f, "target_missing_hp_damage_scale_max_bonus"));
+                ReadFloat(namedArgs, ctx, 0f, "target_missing_hp_damage_scale_max_bonus"),
+                ReadFloat(namedArgs, ctx, 0f, "projectile_impact_kill_bonus"));
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (HasAny(args, "projectile_impact_kill_bonus") &&
+                (!TryReadConstantNumber(args, out var killBonus, "projectile_impact_kill_bonus") ||
+                 double.IsNaN(killBonus) || double.IsInfinity(killBonus) || killBonus < 0d || killBonus > 1d))
+            { error = "projectile_impact_kill_bonus must be a constant in the range [0, 1]"; return false; }
             foreach (var key in new[] { "target_missing_hp_damage_scale_coefficient", "target_missing_hp_damage_scale_max_bonus" })
                 if (HasAny(args, key) && (!TryReadConstantNumber(args, out var value, key) ||
                     double.IsNaN(value) || double.IsInfinity(value) || value < 0))

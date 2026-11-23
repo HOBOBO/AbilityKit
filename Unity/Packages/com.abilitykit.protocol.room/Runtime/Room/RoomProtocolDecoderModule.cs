@@ -41,6 +41,8 @@ namespace AbilityKit.Protocol.Room
             Register<WireSubmitBattleInputRes>(registry, "submit-battle-input.response");
             Register<WireSubscribeStateSyncReq>(registry, "subscribe-state-sync.request");
             Register<WireSubscribeStateSyncRes>(registry, "subscribe-state-sync.response");
+            Register<WireSubscribeStateSyncReq>(registry, "subscribe-fixed-baseline-state-sync.request");
+            Register<WireSubscribeStateSyncRes>(registry, "subscribe-fixed-baseline-state-sync.response");
             Register<WireRequestFullStateSyncReq>(registry, "request-full-state-sync.request");
             Register<WireRequestFullStateSyncRes>(registry, "request-full-state-sync.response");
             Register<WireGetStateSyncDeliveryMetricsReq>(registry, "state-sync-metrics.request");

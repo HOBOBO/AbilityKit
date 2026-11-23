@@ -37,12 +37,12 @@ MOBA 的依赖注入与协作模式，核心不是“把对象都注入进去”
 | 系统顺序定义 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs` | 规定 System 执行顺序并校验关键依赖 |
 | 系统协作辅助 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaWorldSystemExecution.cs` | 统一 Resolve / Warn / Require / HandleException / Sample |
 | 服务基类 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Templates/GameServiceBase.cs` | 统一日志、生命周期、resolver 持有和事件发布 |
-| 技能调度 System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaSkillPipelineStepSystem.cs` | 遍历实体并调用 `SkillCastCoordinator.Step(actorId)` |
-| 技能协调 Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs` | 处理技能输入、释放准备、策略、runner 生命周期 |
-| Buff 调度 System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs` | 触发 `MobaBuffService.DrainPending()` |
-| Buff Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs` | 维护命令队列、生命周期执行器、重入保护、诊断和异常 |
-| 玩法 Tick System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Gameplay/Systems/MobaGameplayTickSystem.cs` | 读取时钟和运行门禁，驱动玩法服务 Tick |
-| 玩法 Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Gameplay/Core/MobaGameplayService.cs` | 维护玩法阶段、配置解析、触发绑定和生命周期事件 |
+| 技能调度 System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/MobaSkillPipelineStepSystem.cs` | 遍历实体并调用 `SkillCastCoordinator.Step(actorId)` |
+| 技能协调 Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs` | 处理技能输入、释放准备、策略、runner 生命周期 |
+| Buff 调度 System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Systems/MobaBuffCommandDrainSystem.cs` | 触发 `MobaBuffService.DrainPending()` |
+| Buff Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/MobaBuffService.cs` | 维护命令队列、生命周期执行器、重入保护、诊断和异常 |
+| 玩法 Tick System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Gameplay/Match/Systems/MobaGameplayTickSystem.cs` | 读取时钟和运行门禁，驱动玩法服务 Tick |
+| 玩法 Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Gameplay/Match/MobaGameplayService.cs` | 维护玩法阶段、配置解析、触发绑定和生命周期事件 |
 | 进场流程 Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Lifecycle/MobaEnterGameFlowService.cs` | 处理开局校验、Actor 生成、索引注册和 gameplay 启动 |
 | 投射物同步 System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileSyncSystem.cs` | 调度投射物事件处理和快照输出 |
 | 移动 Tick System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Motion/MobaMotionTickSystem.cs` | 示例中的例外边界：系统内保留 component 局部推进和写回 |

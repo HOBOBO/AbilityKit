@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 3, "caseId": "annie-e-tibbers", "displayName": "Annie E with Living Tibbers",
+  "tags": ["skill-presentation", "annie"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 4500},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3003, "attributeTemplateId": 3003, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 4, "position": {"x": 10, "y": 0, "z": -4}, "direction": {"x": 1, "y": 0, "z": 0}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 2300, "action": "cast_skill", "actorAlias": "caster", "slot": 3}
+    ],
+    "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SummonSpawn", "configId": 30030502},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30030401}
+    ]
+  }
+}

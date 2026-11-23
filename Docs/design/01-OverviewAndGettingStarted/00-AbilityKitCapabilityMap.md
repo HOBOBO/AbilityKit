@@ -214,8 +214,8 @@ Core 提供跨模块复用的事件、对象池、标识、日志、基础数学
 
 | 类型/能力 | 源码 | 设计意义 |
 |-----------|------|----------|
-| `EventDispatcher` | `Unity/Packages/com.abilitykit.core/Runtime/Event/EventDispatcher.cs` | 支持按事件 ID 和参数类型分 channel，按优先级和注册顺序派发 |
-| `StableStringIdRegistry` | `Unity/Packages/com.abilitykit.core/Runtime/Generic/StableStringIdRegistry.cs` | 把字符串事件/标识稳定映射为整数 ID |
+| `EventDispatcher` | `Unity/Packages/com.abilitykit.core/Runtime/Eventing/EventDispatcher.cs` | 支持按事件 ID 和参数类型分 channel，按优先级和注册顺序派发 |
+| `StableStringIdRegistry` | `Unity/Packages/com.abilitykit.core/Runtime/Identifiers/StableStringIdRegistry.cs` | 把字符串事件/标识稳定映射为整数 ID |
 | `PoolRegistry` / ObjectPool | `Unity/Packages/com.abilitykit.core/Runtime/Pooling` | 降低帧循环中的 GC 压力 |
 | Log/Mathematics | `Unity/Packages/com.abilitykit.core/Runtime` | 为纯 C#、Unity、Demo 提供共同基础类型 |
 
@@ -362,7 +362,7 @@ flowchart LR
 | 类型 | 源码 | 说明 |
 |------|------|------|
 | `FrameSnapshotDispatcher` | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/FrameSnapshotDispatcher.cs` | 快照解码路由与订阅分发 |
-| `PredictionCoordinator` | `Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Prediction/Core/PredictionCoordinator.cs` | 记录输入、执行预测、应用服务器快照、冲突后回滚重演 |
+| `PredictionCoordinator` | `Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Prediction/Replay/PredictionCoordinator.cs` | 记录输入、执行预测、应用服务器快照、冲突后回滚重演 |
 | `RollbackCoordinator` | `Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackCoordinator.cs` | 捕获、存储、恢复回滚快照 |
 | `RecordContainer` / `ReplayController` | `Unity/Packages/com.abilitykit.record/Runtime` | 记录轨道、回放控制和调试复现 |
 

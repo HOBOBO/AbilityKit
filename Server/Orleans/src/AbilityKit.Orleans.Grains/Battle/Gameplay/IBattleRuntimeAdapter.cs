@@ -27,6 +27,7 @@ public readonly record struct BattleStateSyncObserverContext(
     string RoomId)
 {
     public BattleCommandAcknowledgement[]? AcknowledgedCommands { get; init; }
+    public bool UsesFixedBaseline { get; init; }
 }
 
 public interface IBattleRuntimeSession : IDisposable
@@ -99,6 +100,17 @@ public interface IBattleRuntimeInputDiagnostics
 public interface IObserverAwareBattleRuntimeSession
 {
     StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot, in BattleStateSyncObserverContext observerContext);
+}
+
+/// <summary>
+/// 提供可跳包的完整帧投影，不推进旧协议的链式差分缓存。
+/// </summary>
+public interface IFixedBaselineBattleSnapshotSource
+{
+    /// <summary>
+    /// 返回该帧完整可见投影和独立可导入的玩法负载。
+    /// </summary>
+    StateSyncPush CaptureFixedBaselineProjection(ulong worldId, int frame);
 }
 
 /// <summary>可选：可靠事件源，供服务端可靠事件投递消费。</summary>

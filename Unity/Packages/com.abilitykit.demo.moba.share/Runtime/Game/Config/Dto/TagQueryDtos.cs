@@ -40,6 +40,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         EnemyTeam = 6,
         MainType = 7,
         UnitSubType = 8,
+        OwnedLivingSummons = 9,
     }
 
     public enum SearchTargetRuleKind
@@ -55,6 +56,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         Whitelist = 0x0201,
         Blacklist = 0x0202,
         RequireUnitSubType = 0x0206,
+        RequireCasterTeam = 0x0207,
     }
 
     public enum SearchTargetScorerKind

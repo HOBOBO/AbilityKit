@@ -31,6 +31,9 @@ Runtime/
   UI/
     App/                   大厅与调试界面
     Battle/                战斗 HUD
+      Controls/             控件和输入协调
+      Match/                对局时钟、结果、重生倒计时与模式 HUD
+      Projection/           角色世界位置到 HUD 坐标的投影
     Framework/             通用 Unity UI 基础设施
   Game/
     App/                   应用装配、配置和流程宿主
@@ -42,6 +45,8 @@ Editor/                   Unity Editor 专用实体调试程序集
 `Logic` 下的 asmdef 均禁用 Unity 引擎引用，.NET 工程直接编译同一份源码。技能时间轴只调用 `IMobaSkillPresentationTimelineSink`，Unity 视图负责实现动画和特效输出。`Platform/Unity/Assets` 承载 `Resources` 实现及带 `UnityEngine.Object` 约束的接口；纯 C# 的 `IBattleAssetLoadService`、`IBattleAssetDependencyProvider` 和清单解析仍在逻辑层。加载屏幕由 feature factory 注入服务，默认 Unity 实现在 `UnityMobaFeatureFactoryProvider` 选择。`Platform`、`Networking`、`UI` 和 `Game` 中没有独立 asmdef 的代码仍归主 View Runtime 程序集；目录迁移不改变命名空间。跨项目复用需要实际消费者验证后再分包，不能只根据目录名判断。
 
 玩法表现 profile 的映射和校验现在由 `Logic/Presentation/Gameplay` 承担；`Platform/Unity/Presentation/Gameplay` 负责读取 `Resources` 并把 Unity JSON 文档转换为纯 C# profile。Unity 玩法模块注册表负责验证 HUD、投影和结算实现是否齐全。
+
+`UI/Battle` 根目录保留 `BattleHudFeature`、总 Binder、实体生命周期绑定与快照订阅编排；查输入链从 `Controls` 入手，查对局展示从 `Match` 入手。`Match` 只显示投影状态，不结算玩法；权威逻辑不在 HUD 中。
 
 ## 表现层后续优先级
 

@@ -597,11 +597,12 @@ public abstract class AbilityInterruptiblePhaseBase<TCtx> : AbilityDurationalPha
 | AbilityInstantPhaseBase | 瞬时执行 | 无 |
 | AbilityDurationalPhaseBase | 持续执行 | 无 |
 | AbilityInterruptiblePhaseBase | 可中断 | 无 |
-| AbilityTimelinePhase | 时间轴 | 无 |
 | AbilitySequencePhase | 序列 | 无 |
 | AbilityParallelPhase | 并行 | 无 |
 | AbilityConditionalPhase | 条件 | 无 |
-| AbilityDelayPhase | 延迟 | CancelAbility |
+| AbilityDelayPhase | 延迟 | — |
+
+通用 Pipeline 不提供时间线阶段。有关技能授予、单次应用参数与持续状态的区分，见 [Pipeline 与 Continuous 状态边界审查](design/10-EngineeringQuality/13-PipelineContinuousStateReview.md)。
 
 #### 对比
 

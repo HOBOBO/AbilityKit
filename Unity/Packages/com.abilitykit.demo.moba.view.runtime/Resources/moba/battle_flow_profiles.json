@@ -32,6 +32,20 @@
       ]
     },
     {
+      "ProfileId": "moba.skill_preview",
+      "Version": 3,
+      "AllowedHostModes": ["Local"],
+      "SessionModuleIds": ["session_events", "gateway_room", "snapshot_routing", "session_dispatchers", "session_editor_hooks", "session_lifecycle", "session_net_adapter", "session_replay", "session_tick_loop", "session_plan"],
+      "Phases": [
+        { "StateId": "Battle.Prepare", "FeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation", "dungeon_context", "dungeon_scene"], "RetainOnExitFeatureIds": ["context", "entity", "session", "battle_outcome", "gameplay_presentation", "dungeon_context", "dungeon_scene"] },
+        { "StateId": "Battle.Connect" },
+        { "StateId": "Battle.CreateOrJoinWorld" },
+        { "StateId": "Battle.LoadAssets", "FeatureIds": ["loading_screen"] },
+        { "StateId": "Battle.InMatch", "FeatureIds": ["sync", "view"] },
+        { "StateId": "Battle.End" }
+      ]
+    },
+    {
       "ProfileId": "moba.staged",
       "TopologyId": "moba.staged.v1",
       "TopologyStartStateId": "Battle.Prepare",

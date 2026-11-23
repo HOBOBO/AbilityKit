@@ -15,8 +15,11 @@ namespace AbilityKit.Game.Flow
 
         private BattleLogicSession StartBattleLogicSession(BattleLogicSessionOptions opts)
         {
+            _ctx.SettledFrames = _plan.UsesSettledFrames
+                ? new MobaSettledFrameSession(_plan)
+                : null;
             return _connectionRuntime.Start(
-                _plan, opts, _unityDispatcher, _networkIoDispatcher);
+                _plan, opts, _unityDispatcher, _networkIoDispatcher, _ctx.SettledFrames);
         }
 
         public MobaSynchronizationHealthSnapshot SynchronizationHealth =>

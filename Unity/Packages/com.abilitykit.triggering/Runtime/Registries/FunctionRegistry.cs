@@ -7,6 +7,11 @@ namespace AbilityKit.Triggering.Registry
     {
         private readonly Dictionary<int, Entry> _functions = new Dictionary<int, Entry>();
 
+        /// <summary>
+        /// 获取当前实例的注册代次；不能作为委托内容的版本。
+        /// </summary>
+        public long RegistrationVersion { get; private set; }
+
         private readonly struct Entry
         {
             public readonly Delegate Delegate;
@@ -26,6 +31,7 @@ namespace AbilityKit.Triggering.Registry
         {
             if (function == null) throw new ArgumentNullException(nameof(function));
             _functions[id.Value] = new Entry(function, typeof(TDelegate), isDeterministic);
+            RegistrationVersion++;
         }
 
         public bool TryGet<TDelegate>(FunctionId id, out TDelegate function, out bool isDeterministic)

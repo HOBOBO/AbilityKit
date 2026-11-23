@@ -438,7 +438,7 @@ flowchart TD
 3. `src/AbilityKit.Demo.Moba.Console/Battle/Flow/Phases/InMatchPhase.cs`：看进入对局后如何创建实体并启动 Feature。
 4. `src/AbilityKit.World.ECS/Impl/EntityWorld.cs`：看轻量 ECS 的真实实体、组件、查询模型。
 5. `Unity/Packages/com.abilitykit.world.framesync/Runtime/Host/PlayerInputCommand.cs`：看同步输入的最小数据结构。
-6. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineContext.cs`：看一次技能释放携带哪些事实。
+6. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineContext.cs`：看一次技能释放携带哪些事实。
 7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatContextSource.cs`：看技能、触发、效果之间如何传播来源。
 8. `Unity/Packages/com.abilitykit.triggering/Runtime/Context/TriggerContext.cs`：看触发器运行时依赖哪些服务。
 

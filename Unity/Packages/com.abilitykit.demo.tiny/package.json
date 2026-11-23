@@ -14,7 +14,7 @@
     "com.abilitykit.network.runtime": "0.1.0",
     "com.abilitykit.protocol.room": "0.1.0",
     "com.abilitykit.world.framesync": "0.1.0",
-    "com.abilitykit.thirdparty.unsafe": "5.0.0"
+    "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0"
   },
   "samples": [
     {

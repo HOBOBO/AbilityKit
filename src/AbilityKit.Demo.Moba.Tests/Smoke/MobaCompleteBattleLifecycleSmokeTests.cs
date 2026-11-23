@@ -21,11 +21,15 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Config;
 using AbilityKit.Combat.Projectile;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.StateImport;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Network.Battle.Projection;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Trace;
 using Newtonsoft.Json.Linq;
@@ -35,6 +39,43 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
 public sealed class MobaCompleteBattleLifecycleSmokeTests
 {
+    [Theory]
+    [InlineData(SpawnEntityKind.Minion)]
+    [InlineData(SpawnEntityKind.Summon)]
+    [InlineData(SpawnEntityKind.Building)]
+    public void StateImport_full_candidate_with_unsupported_projection_is_rejected_before_mutating_world(SpawnEntityKind kind)
+    {
+        ActorProjectionData projection;
+        using (var source = CreateLaneBattle())
+        {
+            StartStateImportBattle(source);
+            var services = source.RuntimeServices!;
+            var producer = services.Resolve<IActorProjectionProducer>();
+            var projections = new List<ActorProjectionData>();
+            if (kind == SpawnEntityKind.Minion)
+            {
+                var waves = services.Resolve<MobaMinionWaveService>();
+                for (var step = 0; step < 40 && waves.ActiveCount == 0; step++) source.Tick();
+                Assert.True(waves.ActiveCount > 0);
+            }
+            else if (kind == SpawnEntityKind.Summon)
+            {
+                producer.ExtractAll(projections);
+                var caster = projections.First(actor => actor.Kind == (int)SpawnEntityKind.Character);
+                var spawn = new Vec3(caster.PosX + 2f, caster.PosY, caster.PosZ);
+                Assert.True(services.Resolve<MobaSummonService>().TrySummon(caster.ActorId, 30030502, in spawn));
+            }
+
+            producer.ExtractAll(projections);
+            projection = projections.First(actor => actor.Kind == (int)kind);
+            AssertImportRejectsBeforeMutating(source, in projection, expectedPresent: true);
+        }
+
+        using var target = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        StartStateImportBattle(target);
+        AssertImportRejectsBeforeMutating(target, in projection, expectedPresent: false);
+    }
+
     [Fact]
     public void Structure_gameplay_events_are_in_the_generated_event_mapping_manifest()
     {
@@ -813,6 +854,99 @@ public sealed class MobaCompleteBattleLifecycleSmokeTests
         Assert.True(gameplay.GetClockState().ElapsedMilliseconds > 0);
         Assert.Equal(2d, scores.Get(1002));
         Assert.Equal(0, gameplay.LastResult.WinTeamId);
+    }
+
+    [Fact]
+    public void Scoped_state_import_only_despawns_previously_managed_actors()
+    {
+        using var battle = CreateLaneBattle();
+        StartStateImportBattle(battle);
+        var services = battle.RuntimeServices!;
+        var registry = services.Resolve<MobaActorRegistry>();
+        var importer = services.Resolve<MobaLogicWorldStateImporter>();
+        var projections = new List<ActorProjectionData>();
+        services.Resolve<IActorProjectionProducer>().ExtractAll(projections);
+        var characters = projections.Where(actor => actor.Kind == (int)SpawnEntityKind.Character).Take(3).ToArray();
+        Assert.Equal(3, characters.Length);
+        var building = projections.First(actor => actor.Kind == (int)SpawnEntityKind.Building);
+        var kept = ToImport(characters[0]);
+        var removed = ToImport(characters[1]);
+        var frame = battle.Context.LastFrame;
+        Assert.True(registry.TryGet(removed.ActorId, out var managedEntity));
+        Assert.True(registry.TryGet(characters[2].ActorId, out var unownedCharacter));
+        Assert.True(registry.TryGet(building.ActorId, out var unownedBuilding));
+
+        var initial = importer.ImportScopedFullSnapshot(new[] { kept, removed }, frame, Array.Empty<int>());
+        Assert.Equal(0, initial.Failed);
+        Assert.Equal(2, initial.Updated);
+        Assert.Equal(0, initial.Despawned);
+        var previous = new[] { kept.ActorId, removed.ActorId };
+        var malformed = importer.ImportScopedFullSnapshot(new[] { kept, kept }, frame + 1, previous);
+        Assert.Equal(1, malformed.Failed);
+        Assert.False(managedEntity.hasActorDespawnRequest);
+
+        var replacement = importer.ImportScopedFullSnapshot(new[] { kept }, frame + 1, previous);
+        Assert.Equal(0, replacement.Failed);
+        Assert.Equal(1, replacement.Despawned);
+        Assert.True(managedEntity.hasActorDespawnRequest);
+        Assert.False(unownedCharacter.hasActorDespawnRequest);
+        Assert.False(unownedBuilding.hasActorDespawnRequest);
+    }
+
+    private static void StartStateImportBattle(ConsoleBattleBootstrapper battle)
+    {
+        battle.Initialize();
+        battle.Start();
+        for (var step = 0; step < 8 && battle.Context.EcsWorld == null; step++) battle.Tick();
+        battle.SetupBattle();
+    }
+
+    private static void AssertImportRejectsBeforeMutating(
+        ConsoleBattleBootstrapper battle, in ActorProjectionData unsupported, bool expectedPresent)
+    {
+        var services = battle.RuntimeServices!;
+        var actorRegistry = services.Resolve<MobaActorRegistry>();
+        var importer = services.Resolve<MobaLogicWorldStateImporter>();
+        var importActorId = expectedPresent ? unsupported.ActorId : actorRegistry.Entries.Max(entry => entry.Key) + 1;
+        Assert.Equal(expectedPresent, actorRegistry.TryGet(importActorId, out var original));
+
+        var projections = new List<ActorProjectionData>();
+        services.Resolve<IActorProjectionProducer>().ExtractAll(projections);
+        var characters = projections.Where(actor => actor.Kind == (int)SpawnEntityKind.Character).Take(2).ToArray();
+        Assert.Equal(2, characters.Length);
+        Assert.True(actorRegistry.TryGet(characters[0].ActorId, out var updated));
+        Assert.True(actorRegistry.TryGet(characters[1].ActorId, out var omitted));
+        Assert.False(omitted.hasActorDespawnRequest);
+        var positionBefore = updated.transform.Value.Position;
+        var update = ToImport(characters[0], offsetX: 100f);
+        var frame = battle.Context.LastFrame;
+
+        var unsupportedImport = ToImport(in unsupported, actorId: importActorId);
+        var result = importer.Import(new[] { update, unsupportedImport }, frame, isFullSnapshot: true);
+
+        Assert.Equal(1, result.Failed);
+        Assert.Equal(0, result.Updated);
+        Assert.Equal(0, result.Spawned);
+        Assert.Equal(0, result.Despawned);
+        Assert.Equal(positionBefore, updated.transform.Value.Position);
+        Assert.False(omitted.hasActorDespawnRequest);
+        Assert.Equal(expectedPresent, actorRegistry.TryGet(importActorId, out var after));
+        if (expectedPresent) Assert.Same(original, after);
+
+        var accepted = importer.Import(new[] { update }, frame, isFullSnapshot: false);
+        Assert.Equal(0, accepted.Failed);
+        Assert.Equal(1, accepted.Updated);
+        Assert.Equal(update.PosX, updated.transform.Value.Position.X);
+    }
+
+    private static MobaActorStateImport ToImport(in ActorProjectionData projection, float offsetX = 0f, int? actorId = null)
+    {
+        var yaw = MathF.Atan2(
+            2f * (projection.RotW * projection.RotY + projection.RotX * projection.RotZ),
+            1f - 2f * (projection.RotY * projection.RotY + projection.RotZ * projection.RotZ));
+        return new MobaActorStateImport(
+            actorId ?? projection.ActorId, projection.PosX + offsetX, projection.PosY, projection.PosZ, yaw,
+            projection.Hp, projection.HpMax, projection.TeamId, projection.Kind, projection.Code, projection.OwnerNetId);
     }
 
     private static ConsoleBattleBootstrapper CreateLaneBattle()

@@ -1,3 +1,5 @@
+using AbilityKit.Triggering.Eventing;
+using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -7,6 +9,88 @@ namespace AbilityKit.Triggering.Tests;
 
 public sealed class TriggerExecutionSchedulerRuntimeAccessTests
 {
+    private static readonly ActionId ApplyDeltaActionId = new(1);
+
+    [Fact]
+    public void Scheduled_plan_actions_replay_twice_with_explicit_host_state_restore()
+    {
+        var scheduler = new TriggerExecutionScheduler(retainFinishedEntries: true);
+        var world = new ReplayState { Score = 10 };
+        var context = CreateReplayContext(world, scheduler, totalTimeMs: 0f);
+        ScheduleAction(new ReplayPayload(2), EScheduleMode.Timed, 1, in context);
+        ScheduleAction(new ReplayPayload(1000), EScheduleMode.Timed, 1, in context);
+        ScheduleAction(new ReplayPayload(3), EScheduleMode.Periodic, 2, in context);
+        scheduler.Tick(4f);
+
+        var checkpoint = scheduler.CaptureProgress();
+        var checkpointScore = world.Score;
+        var interrupted = new TriggerScheduledExecutionHandle(checkpoint.Entries[1].Id);
+        Assert.Empty(world.Applied);
+
+        void ReplayFrames()
+        {
+            Assert.True(scheduler.Interrupt(in interrupted, "cancelled by replay input"));
+            scheduler.Tick(5f);
+            Assert.Equal(10, world.Score);
+            Assert.Empty(world.Applied);
+            Assert.Equal(2, scheduler.ActiveCount);
+
+            scheduler.Tick(1f);
+            Assert.Equal(15, world.Score);
+            Assert.Equal(new[] { (2, 0f), (3, 0f) }, world.Applied);
+            Assert.Equal(1, scheduler.ActiveCount);
+
+            scheduler.Tick(10f);
+            Assert.Equal(18, world.Score);
+            Assert.Equal(new[] { (2, 0f), (3, 0f), (3, 0f) }, world.Applied);
+            Assert.Equal(0, scheduler.ActiveCount);
+        }
+
+        ReplayFrames();
+        var expected = scheduler.CaptureProgress();
+        Assert.Equal(TriggerScheduledExecutionState.Interrupted, expected.Entries[1].State);
+        Assert.Equal("cancelled by replay input", expected.Entries[1].FailureReason);
+        Assert.Equal(0, expected.Entries[1].ExecutionCount);
+
+        for (var replayIndex = 0; replayIndex < 2; replayIndex++)
+        {
+            scheduler.ValidateProgress(in checkpoint);
+            scheduler.RestoreProgress(in checkpoint);
+            Assert.Equal(checkpoint.Entries, scheduler.GetExecutions());
+            Assert.Equal(3, scheduler.ActiveCount);
+            Assert.Equal(18, world.Score);
+            Assert.Equal(new[] { (2, 0f), (3, 0f), (3, 0f) }, world.Applied);
+
+            world.Score = checkpointScore;
+            world.Applied.Clear();
+            ReplayFrames();
+            var actual = scheduler.CaptureProgress();
+            Assert.Equal(expected.Entries, actual.Entries);
+            Assert.Equal(expected.NextExecutionId, actual.NextExecutionId);
+        }
+    }
+
+    [Fact]
+    public void Scheduled_plan_copies_policy_values_but_keeps_payload_and_context_references()
+    {
+        var scheduler = new TriggerExecutionScheduler();
+        var originalWorld = new ReplayState { Score = 1 };
+        var replacementWorld = new ReplayState();
+        var payload = new ReplayPayload(2);
+        var context = CreateReplayContext(originalWorld, scheduler, totalTimeMs: 4f);
+        ScheduleAction(payload, EScheduleMode.Timed, 1, in context);
+
+        context = CreateReplayContext(replacementWorld, scheduler, totalTimeMs: 14f);
+        payload.Delta = 7;
+        originalWorld.Score = 9;
+        scheduler.Tick(10f);
+
+        Assert.Equal(new[] { (7, 4f) }, originalWorld.Applied);
+        Assert.Equal(16, originalWorld.Score);
+        Assert.Empty(context.Context.Applied);
+        Assert.Equal(0, scheduler.ActiveCount);
+    }
+
     [Fact]
     public void Progress_replays_next_due_once_in_order_and_restores_allocator()
     {
@@ -183,6 +267,59 @@ public sealed class TriggerExecutionSchedulerRuntimeAccessTests
         Assert.Equal(1, later.Count);
         Assert.Equal(0, scheduler.ActiveCount);
         Assert.Empty(scheduler.GetExecutions());
+    }
+
+    [Theory]
+    [InlineData(EScheduleMode.Timed)]
+    [InlineData(EScheduleMode.Periodic)]
+    public void Scheduled_node_without_host_scheduler_fails_without_executing_child(EScheduleMode mode)
+    {
+        var child = new CountingExecutable();
+        var node = new ScheduledTriggerPlanExecutable(child, mode, intervalMs: 10f, maxExecutions: 1);
+        var context = default(ExecCtx<ReplayState>);
+
+        var result = node.Execute(new object(), in context);
+
+        Assert.True(result.IsFailed);
+        Assert.Contains(nameof(ITriggerExecutionScheduler), result.Reason);
+        Assert.Equal(0, result.ExecutedCount);
+        Assert.Equal(0, child.Count);
+    }
+
+    private static void ScheduleAction(ReplayPayload payload, EScheduleMode mode, int executions, in ExecCtx<ReplayState> context)
+    {
+        var action = new ActionCallTriggerPlanExecutable(new ActionCallPlan(ApplyDeltaActionId));
+        var scheduled = new ScheduledTriggerPlanExecutable(action, mode, intervalMs: 10f, maxExecutions: executions);
+        var result = scheduled.Execute(payload, in context);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, result.ExecutedCount);
+    }
+
+    private static ExecCtx<ReplayState> CreateReplayContext(ReplayState world, TriggerExecutionScheduler scheduler, float totalTimeMs)
+    {
+        var actions = new ActionRegistry();
+        actions.Register<NamedAction0<object, object, ReplayState>>(ApplyDeltaActionId, static (args, _, context) =>
+        {
+            var delta = ((ReplayPayload)args).Delta;
+            context.Context.Score += delta;
+            context.Context.Applied.Add((delta, context.Policy.TotalTimeMs));
+        }, isDeterministic: true);
+
+        return new ExecCtx<ReplayState>(world, new EventBus(), new FunctionRegistry(), actions,
+            blackboards: null!, payloads: null!, idNames: null!, numericDomains: null!, numericFunctions: null!,
+            policy: new ExecPolicy(requireDeterministic: true, totalTimeMs: totalTimeMs), control: new ExecutionControl(),
+            executionScheduler: scheduler);
+    }
+
+    private sealed class ReplayState
+    {
+        public int Score { get; set; }
+        public List<(int Delta, float PolicyTotalTimeMs)> Applied { get; } = new();
+    }
+
+    private sealed class ReplayPayload(int delta)
+    {
+        public int Delta { get; set; } = delta;
     }
 
     private sealed class CountingExecutable : ITriggerPlanExecutable

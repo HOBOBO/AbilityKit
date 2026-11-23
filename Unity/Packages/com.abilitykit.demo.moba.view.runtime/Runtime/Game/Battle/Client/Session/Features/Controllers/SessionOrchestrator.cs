@@ -274,7 +274,10 @@ namespace AbilityKit.Game.Flow
 
             if (plan.Authority.EnableConfirmedAuthorityWorld)
             {
-                _host.StartConfirmedAuthorityWorld();
+                if (plan.UsesSettledFrames)
+                    UnityEngine.Debug.LogWarning("[SessionOrchestrator] V2 does not attach the legacy confirmed authority world.");
+                else
+                    _host.StartConfirmedAuthorityWorld();
             }
         }
 

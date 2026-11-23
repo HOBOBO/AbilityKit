@@ -123,13 +123,23 @@ Buff 的直接标签与所引模板授予标签合并；持续流程也可在模
 
 ## 持续行为执行门禁
 
-`持续标签模板` 的 `ExecutionBlockedFlagIds` 引用 `结果标志定义.Id`，逗号分隔，留空表示不设置执行阻断。发布器校验引用并编译为结果位掩码；运行时由持续对象持有该模板需求，统一执行入口按拥有者的有效标签结果位进行一次位运算。业务持续对象不比较具体标签，也不引用结果枚举。激活、移除和持续生效条件由各阶段的平铺 Required/Blocked 标签与可选规则组共同判断；执行阻断只冻结该对象的执行推进，不结束对象，也不撤销它授予的标签。
+`持续标签模板` 的 `ExecutionBlockedFlagIds` 引用 `结果标志定义.Id`，逗号分隔，留空表示不设置执行阻断。发布器校验引用并编译为结果位掩码；运行时由持续对象持有该模板需求，并将活跃持续对象的掩码合成为拥有者级行为门禁。业务持续对象不比较具体标签，也不引用结果枚举。激活、移除和持续生效条件由各阶段的平铺 Required/Blocked 标签与可选规则组共同判断；执行阻断不会结束对象，也不撤销它授予的标签。持续对象推进时排除自身贡献的掩码，避免“自身授予不可移动”导致自身时间轴永远无法完成。
 
-技能 Pipeline 使用相同门禁检查自身更新时间轴。Buff 与周期行为在阻断帧跳过计时和周期触发；位移及投射物发射的外部源不依赖持续管理器的 Tick，因此命中阻断位时结束对应持续对象，由其生命周期回调停止运动源或发射器。强制位移模板不配置“不能移动”，以免禁足误挡击飞。其他使用持续标签模板的行为可逐条配置自己的阻断结果位。
+技能 Pipeline 使用相同门禁检查自身更新时间轴。Buff 与周期行为在阻断帧跳过计时和周期触发；位移及投射物发射的外部源不依赖持续管理器的 Tick，因此命中阻断位时结束对应持续对象，由其生命周期回调停止运动源或发射器。强制位移模板不配置“不能移动”，以免禁足误挡击飞。其他使用持续标签模板的行为可逐条配置自己的阻断结果位；同一拥有者的门禁来源按位或合并，来源全部结束后门禁恢复。
 
-`J-技能表.xlsx` 的 `技能.ExecutionBlockedFlagIds` 是每个技能的通用高频执行门禁，引用结果标志定义的 ID；Luban 发布时校验并编译为 `ExecutionBlockedResultMask`。普通攻击当前引用结果标志 ID `8`，其余主动技能引用 ID `3`，保持原有控制效果范围。施法前及世界帧中的运行技能检查该掩码；Pipeline 持续对象也合并该掩码，在直接推进时间轴时阻断执行。通用施法霸体模板 `10010001` 仍被廉颇 Pipeline 引用，但不再重复配置 ID `3`。新增技能需显式填写所需门禁；空列表表示没有标签结果位门禁。生命与配置存在性等非标签条件仍由代码检查。位移表迁移方案见 `Docs/MobaMotionConfigPlan.md`。
+`J-技能表.xlsx` 的 `技能.ExecutionBlockedFlagIds` 是每个技能的通用高频执行门禁，引用结果标志定义的 ID；Luban 发布时校验并编译为 `ExecutionBlockedResultMask`。普通攻击当前引用结果标志 ID `8`，其余主动技能引用 ID `3`，保持原有控制效果范围。施法前及世界帧中的运行技能检查该掩码；Pipeline 持续对象也合并该掩码，在直接推进时间轴时阻断执行。技能表掩码只消费外部结果位，不授予拥有者对应结果位；Pipeline 通过 `IMobaContinuousOwnerExecutionGateConfig` 单独保留持续模板授予的拥有者门禁，避免一个运行技能阻止其它技能或持续对象推进。通用施法霸体模板 `10010001` 仍被廉颇 Pipeline 引用，但不再重复配置 ID `3`。新增技能需显式填写所需门禁；空列表表示没有标签结果位门禁。生命与配置存在性等非标签条件仍由代码检查。位移表迁移方案见 `Docs/MobaMotionConfigPlan.md`。
 
 运行中的施法 Pipeline 遇到配置的执行阻断位时暂停时间轴推进，阻断解除后继续；死亡或角色无效仍取消技能。施法开始前的门禁保持拒绝启动语义。需要打断已开始技能的控制效果应使用明确的中断动作。
+
+## 移动与转向结果
+
+`State.Casting.CannotMove` 映射到既有 `CannotMove` 结果位并由 `Move` 门禁消费；`State.Casting.CannotTurn` 映射到 `CannotTurn` 并由 `Turn` 门禁消费。运行时统一经 `MobaCombatRulesService.CanMove/CanTurn` 查询，移动输入、AI 移动、寻路和运动方向提交不能各自比较标签名或技能身份。
+
+运动位移与角色转向是独立行为：`CannotMove` 不会取消技能的主动 Dash/Blink/强制位移；`CannotTurn` 保留权威角色朝向，但不取消位移位置更新。施法提交时的初始 Cast 面向先于 Pipeline 标签生效，后续 AI/运动方向更新服从 `Turn` 门禁，瞄准输入和 Cast 快照仍按原契约更新。
+
+`PipelineContinuousTagTemplateId` 覆盖整个 Pipeline。只有锁定窗口与 Pipeline 生命周期一致时才授予上述标签。七英雄正式 Flow 中，Jhin R 模式（`30010401`）和 Karthus R 生/死态（`30060501`、`30060605`）保留整段移动与转向锁。Gragas Q（`30050201`）不使用整段锁。没有整段锁不等于所有阶段都允许走位或转向，仍受 HFSM、恢复交接、死亡态和位移规则约束。普通攻击与强化替换普攻不使用覆盖完整恢复期的 Pipeline 锁。
+
+只锁 Timeline 的前摇或引导时，使用 `CastGateTagTemplateId`（纯移动/转向标签模板）和 `CastGateEndMs`（自该阶段进入时起算）。两项不配置默认为零；解除点必须为正且不超过完整时长，也不能晚于已配置的恢复交接点。同点效果先提交，然后撤销此阶段的标签贡献；既有整段、控制、死亡态或并行 Cast 的来源不受影响。Gragas W（`30050301`）和 Lux R（`30070501`）均在 1000 ms 的效果提交后解除两道门禁，Flow 分别运行到 1167 ms 和 2500 ms。见[七英雄正式技能复核](../plans/MobaCastTurnGateDecision.2026-11-16.md#2026-11-21-正式技能复核)。
 
 ## 校验与测试
 
@@ -143,7 +153,7 @@ Trigger Authoring 的 `remove_buff` 使用标签定义 ID 选择 Buff 的授予�
 
 导出器检查标签/组/节点/模板/映射 ID、命名空间、父节点归属、唯一根、节点孤岛、循环组引用、重复兄弟顺序、叶字段、Not 子节点数量、规则深度和展开后节点预算，以及稳定结果位。深度上限为 16 层，展开后不超过 64 个节点。
 
-`python -m unittest discover -s LubanConfig/Moba -p "test_*.py"` 覆盖异常引用、组复用、规则环和结果位；`MobaLubanConfigPipelineTests` 检查二进制模板与 JSON 基线等价；`MobaTagResultTests` 覆盖层级条件、标记标签、结果位、多持续对象叠加、激活/暂停/恢复/结束的缓存刷新、表现 Cue 稳定键和初始化快照、AI 标签查询、外部容器修改隔离、无模板技能 Pipeline 桥接，以及沉默、硬控、霸体和免伤门禁。`GameplayTagManager` 对并行世界加载提供同步，目录并发回归由 `TagManagerTests` 覆盖。技能修改仍需运行六英雄冒烟和受影响英雄的 Unity 验收。
+`python -m unittest discover -s LubanConfig/Moba -p "test_*.py"` 覆盖异常引用、组复用、规则环和结果位；`MobaLubanConfigPipelineTests` 检查二进制模板与 JSON 基线等价；`MobaTagResultTests` 覆盖层级条件、标记标签、结果位、多持续对象叠加、激活/暂停/恢复/结束的缓存刷新、表现 Cue 稳定键和初始化快照、AI 标签查询、外部容器修改隔离、无模板技能 Pipeline 桥接，以及沉默、硬控、霸体和免伤门禁。`GameplayTagManager` 对并行世界加载提供同步，目录并发回归由 `TagManagerTests` 覆盖。技能修改仍需运行七英雄冒烟和受影响英雄的 Unity 验收。
 
 ```powershell
 python -m unittest discover -s LubanConfig/Moba -p "test_*.py"

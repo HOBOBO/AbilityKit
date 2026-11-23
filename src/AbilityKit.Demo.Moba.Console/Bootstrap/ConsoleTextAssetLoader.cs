@@ -16,6 +16,8 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
     {
         private readonly string _basePath;
 
+        internal string BasePath => _basePath;
+
         public ConsoleTextAssetLoader() : this(GetDefaultBasePath())
         {
         }

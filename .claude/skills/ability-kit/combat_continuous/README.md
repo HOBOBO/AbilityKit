@@ -54,9 +54,9 @@
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/ActorEntityMobaAttrs.cs`
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttributeIds.cs`
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Modifiers/MobaSkillParamGroupResolver.cs`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Modifiers/MobaModifierResolveContext.cs`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Modifiers/MobaSkillParamModifierService.cs` — 技能参数修改器（如普攻换技能 ID）
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Modifiers/Skill/MobaSkillParamGroupResolver.cs`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Modifiers/MobaModifierResolveContext.cs`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Modifiers/MobaSkillParamModifierService.cs` — 技能参数修改器（如普攻换技能 ID）
 
 ## Summon（召唤物）
 

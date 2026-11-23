@@ -4,12 +4,19 @@
   "displayName": "AbilityKit World FrameSync",
   "unity": "2022.3",
   "description": "Frame sync and rollback utilities.",
+  "samples": [
+    {
+      "displayName": "Local Frame Commands",
+      "description": "Step a local simulation from typed frame commands without a transport.",
+      "path": "Samples~/LocalFrameCommands"
+    }
+  ],
   "author": { "name": "AbilityKit" },
   "dependencies": {
     "com.abilitykit.core": "0.1.0",
     "com.abilitykit.deterministic": "0.1.0",
     "com.abilitykit.world.di": "0.1.0",
-    "com.abilitykit.thirdparty.unsafe": "5.0.0",
+    "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0",
     "com.cysharp.memorypack": "1.10.0"
   }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Protocol.Room;
 using Xunit;
 
@@ -7,6 +8,39 @@ namespace AbilityKit.Demo.Moba.Presentation.ProtocolAdapter.Tests;
 
 public sealed class GatewayStateSyncSnapshotMapperTests
 {
+    /// <summary>
+    /// 固定基线外壳与压缩投影的版本独立，解包不会丢失 Cue 或 HFSM 字节。
+    /// </summary>
+    [Fact]
+    public void FixedBaselineDecodesBundledProjectionAndCompleteCueSet()
+    {
+        var generation = System.Guid.NewGuid();
+        var projection = new byte[] { 15, 20, 25 };
+        var baseline = MobaPresentationCueSnapshotCodec.Serialize(new[]
+        {
+            new MobaPresentationCueSnapshotEntry { SnapshotKind = (int)PresentationCueSnapshotKind.ActiveBaselineEnd },
+        });
+        var wire = new WireStateSyncSnapshotPush
+        {
+            WorldId = 7,
+            Frame = 10,
+            IsFullSnapshot = true,
+            SchemaVersion = FixedBaselineStateSyncProtocol.SchemaVersion,
+            EventEpoch = "epoch",
+            PayloadOpCode = MobaStateSyncCuePayloadCodec.OpCode,
+            Payload = FixedBaselineStateSyncProtocol.Encode(generation, 2, 0,
+                MobaStateSyncCuePayloadCodec.CarrierSchemaVersion,
+                MobaStateSyncCuePayloadCodec.Encode(11017, 4, projection, baseline)),
+        };
+        var actual = GatewayStateSyncSnapshotDecoder.Decode(WireRoomGatewayBinary.Serialize(in wire));
+        Assert.Equal(generation, actual.StateStreamGeneration);
+        Assert.Equal(2, actual.SnapshotId);
+        Assert.Equal(4, actual.SchemaVersion);
+        Assert.Equal(11017, actual.PayloadOpCode);
+        Assert.Equal(projection, actual.Payload);
+        Assert.Equal(baseline, actual.PresentationCueBaseline);
+    }
+
     [Fact]
     public void DecoderPreservesSnapshotAndActorFields()
     {

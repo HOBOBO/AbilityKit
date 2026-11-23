@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Combat.Collision;
 
 namespace AbilityKit.Core.Mathematics
 {

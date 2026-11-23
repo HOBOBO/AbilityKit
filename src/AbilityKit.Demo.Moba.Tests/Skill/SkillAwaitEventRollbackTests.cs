@@ -159,6 +159,58 @@ public sealed class SkillAwaitEventRollbackTests
         Assert.Equal(1, completed);
     }
 
+    [Fact]
+    public void Failed_rebind_detaches_the_new_run_and_releases_its_binding()
+    {
+        var registry = new PipelineRegistry();
+        var runtime = new PipelineRuntime(registry);
+        runtime.Initialize();
+        var pipeline = new SkillCastPipeline { Runtime = runtime };
+        var injected = new InvalidOperationException("rebind failed");
+        var bindingChanges = new List<int>();
+        pipeline.AddPhase(new FailingRebindPhase(bindingChanges.Add, injected));
+        var config = new TestConfig();
+        var source = pipeline.Start(config, new SkillPipelineContext());
+        var saved = SkillPipelineRollback.Capture(source, config);
+        SkillPipelineRollback.Detach(source);
+        var starts = 0;
+        pipeline.Events.OnPipelineStart += _ => starts++;
+
+        var failure = Assert.Throws<InvalidOperationException>(() =>
+            SkillPipelineRollback.Restore(pipeline, config, new SkillPipelineContext(), saved));
+
+        Assert.Same(injected, failure);
+        Assert.Equal(0, registry.ActiveCount);
+        Assert.Equal(new[] { 1, -1 }, bindingChanges);
+        Assert.Equal(0, starts);
+    }
+
+    private sealed class FailingRebindPhase(Action<int> updateBindings, Exception failure)
+        : SkillRollbackPhaseBase(new AbilityPipelinePhaseId("failing-rebind")),
+            IAbilityPipelinePhaseInstanceFactory<SkillPipelineContext>,
+            IAbilityPhaseRollbackRebind<SkillPipelineContext>, IAbilityPhaseRollbackDetach
+    {
+        private bool _bound;
+
+        protected override void OnExecute(SkillPipelineContext context) { }
+
+        public IAbilityPipelinePhase<SkillPipelineContext> CreateRunPhase() => new FailingRebindPhase(updateBindings, failure);
+
+        public void RebindAfterRollback(SkillPipelineContext context)
+        {
+            _bound = true;
+            updateBindings(1);
+            throw failure;
+        }
+
+        public void DetachForRollback()
+        {
+            if (!_bound) return;
+            _bound = false;
+            updateBindings(-1);
+        }
+    }
+
     private sealed class TestConfig : IAbilityPipelineConfig
     {
         public int ConfigId => 1;

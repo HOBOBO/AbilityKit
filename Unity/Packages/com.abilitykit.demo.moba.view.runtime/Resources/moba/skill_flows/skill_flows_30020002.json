@@ -2,12 +2,23 @@
   "Id": 30020002,
   "Name": "Jinx - Pow-Pow Basic Attack",
   "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": false,
+  "BasicAttack": {
+    "RangeLevelSlot": 0
+  },
+  "RequiredBuffQualificationId": 0,
   "Phases": [
     {
       "Type": 2,
       "PhaseId": "skill_30020002_attack",
       "Timeline": {
         "DurationMs": 1567,
+        "RecoveryStartMs": 100,
         "Events": [
           {
             "AtMs": 100,

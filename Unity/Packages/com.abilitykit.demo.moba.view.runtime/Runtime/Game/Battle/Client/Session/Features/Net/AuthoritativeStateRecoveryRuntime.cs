@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
@@ -11,6 +13,8 @@ using AbilityKit.HFSM.Definition;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Protocol.Room;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Network.Sdk;
 
@@ -35,6 +39,8 @@ namespace AbilityKit.Game.Flow
     {
         private readonly BattleSimulationRuntime _simulation;
         private readonly BattleSessionHandles _handles;
+        private readonly HashSet<int> _managedActorIds = new HashSet<int>();
+        private IWorld _managedWorld;
         private BattleStartPlan _plan;
         private BattleContext _context;
         private float _fixedDeltaSeconds;
@@ -57,6 +63,7 @@ namespace AbilityKit.Game.Flow
             Func<bool> shouldForceHashMismatch)
         {
             _plan = plan;
+            ResetImportScope();
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _fixedDeltaSeconds = fixedDeltaSeconds;
             _resolveIdealFrameLimit = resolveIdealFrameLimit ?? throw new ArgumentNullException(nameof(resolveIdealFrameLimit));
@@ -147,6 +154,7 @@ namespace AbilityKit.Game.Flow
 
         public void ResetAfterReconnect()
         {
+            ResetImportScope();
             _simulation.DisposeRemoteDrivenWorld();
             var reconcile = _context?.PredictionReconcileControl;
             if (reconcile == null) return;
@@ -160,30 +168,48 @@ namespace AbilityKit.Game.Flow
             reconcile.SetReconcileEnabled(worldId, true);
         }
 
-        private static MobaStateImportResult ImportAuthoritativeState(
+        private void ResetImportScope()
+        {
+            _managedWorld = null;
+            _managedActorIds.Clear();
+        }
+
+        internal static bool UsesScopedLogicImport(in BattleStartPlan plan) =>
+            string.Equals(plan.RemoteSyncCapabilities?.ProfileName, BattleReplicationRuntime.SyncProfileName,
+                StringComparison.OrdinalIgnoreCase);
+
+        internal static List<MobaActorStateImport> CreateLogicImports(
+            IReadOnlyList<GatewayStateSyncActorSnapshot> actors, bool scoped)
+        {
+            var imports = new List<MobaActorStateImport>(actors.Count);
+            for (var index = 0; index < actors.Count; index++)
+            {
+                var actor = actors[index];
+                if (scoped && (actor.Kind == (int)SpawnEntityKind.Minion ||
+                               actor.Kind == (int)SpawnEntityKind.Summon ||
+                               actor.Kind == (int)SpawnEntityKind.Building)) continue;
+
+                imports.Add(new MobaActorStateImport(
+                    actor.ActorId, actor.X, actor.Y, actor.Z, actor.Rotation, actor.Hp, actor.HpMax,
+                    actor.TeamId, actor.Kind, actor.Code, actor.OwnerNetId));
+            }
+
+            return imports;
+        }
+
+        private MobaStateImportResult ImportAuthoritativeState(
             MobaLogicWorldStateImporter importer,
             IWorld world,
             in GatewayStateSyncSnapshot snapshot)
         {
-            var actors = snapshot.Actors ?? Array.Empty<GatewayStateSyncActorSnapshot>();
-            var imports = new MobaActorStateImport[actors.Length];
-            for (var i = 0; i < actors.Length; i++)
+            var scoped = UsesScopedLogicImport(in _plan);
+            if (scoped && !ReferenceEquals(world, _managedWorld))
             {
-                var actor = actors[i];
-                imports[i] = new MobaActorStateImport(
-                    actor.ActorId,
-                    actor.X,
-                    actor.Y,
-                    actor.Z,
-                    actor.Rotation,
-                    actor.Hp,
-                    actor.HpMax,
-                    actor.TeamId,
-                    actor.Kind,
-                    actor.Code,
-                    actor.OwnerNetId);
+                ResetImportScope();
+                _managedWorld = world;
             }
 
+            var imports = CreateLogicImports(snapshot.Actors ?? Array.Empty<GatewayStateSyncActorSnapshot>(), scoped);
             var requiresHfsm = snapshot.SchemaVersion >= 2 ||
                 snapshot.PayloadOpCode == MobaCharacterHfsmRollbackProvider.DefaultKey ||
                 snapshot.PayloadOpCode == MobaCharacterHfsmWireCodec.CompressedOpCode;
@@ -210,10 +236,19 @@ namespace AbilityKit.Game.Flow
                     result.Failed++;
                     return result;
                 }
-                result = importer.Import(imports, snapshot.Frame, isFullSnapshot: true);
+                result = scoped
+                    ? importer.ImportScopedFullSnapshot(imports, snapshot.Frame, _managedActorIds)
+                    : importer.Import(imports, snapshot.Frame, isFullSnapshot: true);
                 if (result.Failed == 0 && registry != null &&
                     !CharacterHfsmGatewayStateImporter.TryApply(in snapshot, registry, definition))
                     result.Failed++;
+
+                if (scoped && result.Failed == 0)
+                {
+                    _managedActorIds.Clear();
+                    for (var index = 0; index < imports.Count; index++)
+                        _managedActorIds.Add(imports[index].ActorId);
+                }
             }
             catch (Exception ex)
             {
@@ -363,17 +398,42 @@ namespace AbilityKit.Game.Flow
 
         internal void HandleSnapshot(object rawSnapshot)
         {
+            var snapshotAdmission = _replication.SnapshotAdmission;
             if (rawSnapshot is not GatewayStateSyncSnapshot snapshot ||
-                _replication.SnapshotAdmission == null)
+                snapshotAdmission == null)
             {
                 return;
             }
 
-            var admission = _replication.SnapshotAdmission.Admit(
-                snapshot.WorldId,
-                snapshot.Frame,
-                snapshot.IsFullSnapshot,
-                snapshot.SchemaVersion);
+            var authoritativeState = _replication.AuthoritativeSnapshotState;
+            var generation = _operation.Generation;
+            GatewayStateSyncSnapshot fixedMaterialized = default;
+            if (snapshot.UsesFixedBaseline)
+            {
+                if (!snapshotAdmission.IsExpectedWorld(snapshot.WorldId) || authoritativeState == null)
+                    return;
+                var status = authoritativeState.PrepareFixed(in snapshot, out fixedMaterialized);
+                if (status != MobaSnapshotAdmissionStatus.Accepted)
+                {
+                    if (status == MobaSnapshotAdmissionStatus.BaselineRequired)
+                    {
+                        snapshotAdmission.RequireFullBaseline();
+                        ReportAndExecute(NetworkSessionRecoverySignalKind.SnapshotResyncRequired,
+                            SyncHealthSeverity.Error, "snapshot-fixed-baseline-mismatch",
+                            snapshotAdmission.LastAcceptedFrame);
+                    }
+                    return;
+                }
+            }
+            else if (authoritativeState?.HasFixedStream == true)
+            {
+                return;
+            }
+
+            var admission = snapshot.UsesFixedBaseline
+                ? snapshotAdmission.CheckFixed(in snapshot)
+                : snapshotAdmission.Admit(snapshot.WorldId, snapshot.Frame, snapshot.IsFullSnapshot,
+                    MobaSnapshotAdmission.ResolveAdmissionSchema(in snapshot));
             if (!admission.Accepted)
             {
                 Log.Warning(
@@ -381,6 +441,7 @@ namespace AbilityKit.Game.Flow
                     $"status={admission.Status} worldId={snapshot.WorldId} frame={snapshot.Frame}");
                 if (admission.ShouldRequestFullResync)
                 {
+                    snapshotAdmission.RequireFullBaseline();
                     ReportAndExecute(
                         NetworkSessionRecoverySignalKind.SnapshotResyncRequired,
                         SyncHealthSeverity.Error,
@@ -400,48 +461,72 @@ namespace AbilityKit.Game.Flow
                         snapshot.EventWatermark))
                 {
                     _worldRecovery.ResetAfterReconnect();
-                    _replication.PendingStateImport = true;
-                    _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
-                    _replication.SnapshotAdmission?.RequireFullBaseline();
-                    ReportAndExecute(
-                        NetworkSessionRecoverySignalKind.SnapshotResyncRequired,
-                        SyncHealthSeverity.Error,
-                        "state-import-failed",
-                        snapshot.Frame);
+                    FailSnapshotApplication(snapshot.Frame, "state-import-failed");
                     return;
                 }
 
-                _replication.PendingStateImport = false;
-                _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, false);
-                var recovered = new NetworkSessionRecoverySignal(
-                    NetworkSessionRecoverySignalKind.Recovered,
-                    SyncHealthSeverity.Info,
-                    snapshot.Frame,
-                    correlationContext: CreateRecoveryCorrelationContext(_operation.Generation),
-                    detail: "authoritative-baseline-adopted");
-                _sessionRecovery.TryReport(in recovered, out _);
+                if (!snapshot.UsesFixedBaseline)
+                    FinishStateImport(snapshot.Frame);
             }
 
-            var materialized = _replication.AuthoritativeSnapshotState?.Apply(in snapshot) ?? snapshot;
+            var materialized = snapshot.UsesFixedBaseline
+                ? fixedMaterialized
+                : authoritativeState?.Apply(in snapshot) ?? snapshot;
             if (!pendingStateImport && !_worldRecovery.TryApplyAuthoritativeState(in materialized))
             {
-                _replication.PendingStateImport = true;
-                _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
-                _replication.SnapshotAdmission?.RequireFullBaseline();
-                ReportAndExecute(
-                    NetworkSessionRecoverySignalKind.SnapshotResyncRequired,
-                    SyncHealthSeverity.Error,
-                    "state-apply-failed",
-                    snapshot.Frame);
+                FailSnapshotApplication(snapshot.Frame, "state-apply-failed");
                 return;
             }
 
+            if (snapshot.UsesFixedBaseline)
+            {
+                if (!_operation.IsCurrent(generation)) return;
+                if (!snapshotAdmission.CommitFixed(in snapshot).Accepted)
+                {
+                    _worldRecovery.ResetAfterReconnect();
+                    FailSnapshotApplication(snapshot.Frame, "state-admission-changed");
+                    return;
+                }
+
+                authoritativeState?.CommitFixed(in snapshot, in materialized);
+                if (pendingStateImport)
+                    FinishStateImport(snapshot.Frame);
+            }
             _firstFrameReceived?.Invoke();
             var sample = new MobaRemoteSnapshotSample(
                 materialized.WorldId,
                 materialized.Frame,
                 materialized.Actors);
             _replication.ReplicationPipeline?.ObserveRemote(in sample);
+            if (_operation.IsCurrent(generation) && snapshot.PresentationCueBaseline is { Length: > 0 } cueBaseline &&
+                _context?.FrameSnapshots is { } presentation)
+            {
+                var worldId = _context.HasRuntimeWorldId ? _context.RuntimeWorldId : default;
+                var cueSnapshot = new WorldStateSnapshot(MobaOpCodes.Snapshot.PresentationCue, cueBaseline);
+                presentation.Feed(new FramePacket(worldId, new FrameIndex(snapshot.Frame), null, cueSnapshot));
+            }
+        }
+
+        private void FinishStateImport(int frame)
+        {
+            _replication.PendingStateImport = false;
+            _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, false);
+            var recovered = new NetworkSessionRecoverySignal(
+                NetworkSessionRecoverySignalKind.Recovered,
+                SyncHealthSeverity.Info,
+                frame,
+                correlationContext: CreateRecoveryCorrelationContext(_operation.Generation),
+                detail: "authoritative-baseline-adopted");
+            _sessionRecovery.TryReport(in recovered, out _);
+        }
+
+        private void FailSnapshotApplication(int frame, string reason)
+        {
+            _replication.PendingStateImport = true;
+            _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
+            _replication.SnapshotAdmission?.RequireFullBaseline();
+            ReportAndExecute(NetworkSessionRecoverySignalKind.SnapshotResyncRequired, SyncHealthSeverity.Error,
+                reason, frame);
         }
 
         internal void HandleReliableEvents(object rawPush)
@@ -557,7 +642,7 @@ namespace AbilityKit.Game.Flow
             _replication.PendingStateImport = true;
             _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
             _replication.SnapshotAdmission?.RequireFullBaseline();
-            _replication.AuthoritativeSnapshotState?.Reset();
+            _replication.AuthoritativeSnapshotState?.ResetForRecovery();
             _replication.InterpolationController?.Reset();
             _reliableEvents.RequireAuthoritativeBaseline();
 

@@ -28,22 +28,7 @@ public sealed class SomeService
 }
 ```
 
-## 是否需要考虑“注册顺序”？
-
-一般不需要。
-
-在 `world.di` 中，模块 `Configure(...)` 阶段只是把 `serviceType -> factory` 写入注册表，并不会立刻创建实例。
-真正会创建实例的是 `Resolve(...)`（通常发生在某个服务/系统第一次被解析、或者某个服务构造函数里触发解析）。
-
-因此你真正要关注的不是“模块先后顺序”，而是：
-
-- **解析时机（Resolve time）**
-  - 如果你在 compose 过程中就提前 `Resolve` 某个服务，而它依赖的服务尚未注册完成，就会失败。
-- **循环依赖（A -> B -> A）**
-  - 服务 A 的构造函数里解析 B，同时 B 的构造函数里又解析 A，会在创建时直接抛异常。
-- **生命周期穿透（Singleton -> Scoped）**
-  - 如果 singleton 服务在构造时解析了 scoped 服务，可能导致 scoped 实例被“提升”并泄漏到 singleton 生命周期中。
-  - 建议：singleton 不直接依赖 scoped；如有需要，改为依赖工厂/提供器（延迟到 scope 内解析）。
+解析失败不一定是可选模块未安装。注册覆盖、异常和作用域边界见[使用契约](../Documentation~/Usage.md#注册与解析)。
 
 ## 更推荐的方式：Null 对象 + 构造注入
 

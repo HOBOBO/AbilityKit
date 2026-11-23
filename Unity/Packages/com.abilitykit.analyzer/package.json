@@ -8,6 +8,6 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.thirdparty.unsafe": "5.0.0"
+    "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0"
   }
 }

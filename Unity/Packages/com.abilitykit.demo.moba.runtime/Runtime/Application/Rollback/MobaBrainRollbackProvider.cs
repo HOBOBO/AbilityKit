@@ -14,22 +14,30 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// v3 拒绝旧载荷；运行依赖、值覆盖和失败诊断由所属服务负责。
     /// </summary>
     [MobaRollbackProvider(DefaultKey)]
-    public sealed class MobaBrainRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider,
-        IRollbackSnapshotPreflightProvider, IMobaStateRecoveryProvider
+    public sealed class MobaBrainRollbackProvider : IRollbackStateProvider,
+        IRollbackStatePreflightProvider, IRollbackSnapshotPreflightProvider, IMobaStateRecoveryProvider
     {
         /// <summary>
         /// Brain 权威状态的稳定 Provider 键。
         /// </summary>
         public const int DefaultKey = 10006;
         private readonly MobaBrainService _brains;
+        private readonly MobaActorRollbackCommandRuntime _commands;
+        private readonly MobaSummonService _summons;
 
         /// <summary>
         /// 为同一世界的 Actor 与 Brain 服务创建可选适配。
         /// </summary>
         public MobaBrainRollbackProvider(MobaActorRegistry actors, MobaBrainService brains)
+            : this(actors, brains, null, null) { }
+
+        internal MobaBrainRollbackProvider(MobaActorRegistry actors, MobaBrainService brains,
+            MobaActorRollbackCommandRuntime commands, MobaSummonService summons)
         {
             if (actors == null) throw new ArgumentNullException(nameof(actors));
             _brains = brains ?? throw new ArgumentNullException(nameof(brains));
+            _commands = commands;
+            _summons = summons;
         }
 
         /// <summary>
@@ -48,8 +56,8 @@ namespace AbilityKit.Demo.Moba.Rollback
         public byte[] Export(FrameIndex frame) => MemoryPackSerializer.Serialize(_brains.CaptureRollbackState());
 
         /// <summary>
-        /// 只读预检载荷中的目标锚点。结构恢复前允许多余无 Brain Actor 和待重建无 Brain 骨架；
-        /// 独立 Import 仍要求当前完整名单相符，完整快照另与实体载荷交叉验证。
+        /// 单份预检不推定任何活体 Brain 会被 Actor 命令撤销。
+        /// 允许既有的无 Brain 骨架差异；实际导入仍要求当前完整名单相符。
         /// </summary>
         public void ValidateImport(FrameIndex frame, byte[] payload)
         {
@@ -61,16 +69,28 @@ namespace AbilityKit.Demo.Moba.Rollback
             _brains.ValidateRollbackState(state, anchors, restoreFrame: frame.Value);
         }
 
+        void IRollbackStatePreflightProvider.ValidateImport(FrameIndex frame, byte[] payload)
+        {
+            /*
+             * 联合装配已在整份快照中验证结构投影；独立装配保留单份严格预检。
+             * 实际导入在结构恢复后重新验证，不保留跨调用的投影结果。
+             */
+            if (_commands == null) ValidateImport(frame, payload);
+            else Read(payload);
+        }
+
         /// <summary>
-        /// 按目标实体名单预检，允许结构恢复删除多余无运行时 Actor。
-        /// 不能跨 Brain 创建、销毁或替换恢复。
+        /// 完整快照预检以实际 Actor 命令检查点证明可撤销的活体召唤。
+        /// 其余 Brain 必须继续满足同实例恢复，独立导入不接受结构投影。
         /// </summary>
         public void ValidateSnapshot(RollbackSnapshotPreflightContext context)
         {
             Dictionary<int, int> projected = null;
             if (context.TryGetPayload(MobaEntitasEntityRollbackProvider.DefaultKey, out var entities))
                 projected = MobaEntitasEntityRollbackProvider.ReadSnapshotActorEntityVersions(entities.ToArray());
-            _brains.ValidateRollbackState(Read(context.RequirePayload(Key).ToArray()), projected, restoreFrame: context.Frame.Value);
+            var discards = projected == null ? null : _commands?.ProjectLiveSummonDiscards(context, projected, _summons);
+            _brains.ValidateRollbackState(Read(context.RequirePayload(Key).ToArray()), projected,
+                restoreFrame: context.Frame.Value, discardActors: discards);
         }
 
         /// <summary>

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Protocol.Room;
@@ -84,9 +85,18 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
     /// <summary>
     /// 订阅战斗状态同步
     /// </summary>
-    public async Task SubscribeAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor)
+    private bool _usesFixedBaseline;
+
+    public Task SubscribeAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor)
+        => SubscribeCoreAsync(battleGrainKey, eventCursor, usesFixedBaseline: false);
+
+    public Task SubscribeFixedBaselineAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor)
+        => SubscribeCoreAsync(battleGrainKey, eventCursor, usesFixedBaseline: true);
+
+    private async Task SubscribeCoreAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor, bool usesFixedBaseline)
     {
         eventCursor ??= new ReliableBattleEventSubscribeCursor();
+        _usesFixedBaseline = usesFixedBaseline;
         var battleGrain = GrainFactory.GetGrain<IBattleLogicHostGrain>(battleGrainKey);
         var decision = _subscriptionState.DecideSubscribe(battleGrainKey);
         _logger.LogInformation(
@@ -139,30 +149,15 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
     {
         try
         {
-            var wire = ToWireSnapshotPush(push);
-            var payload = WireRoomGatewayBinary.Serialize(in wire).ToArray();
-            var opCode = push.IsFullSnapshot
-                ? RoomGatewayOpCodes.SnapshotPushed
-                : RoomGatewayOpCodes.DeltaSnapshotPushed;
-            var priority = push.IsFullSnapshot
-                ? SnapshotDeliveryPriority.FullBaseline
-                : SnapshotDeliveryPriority.Delta;
-            var nowTicks = DateTime.UtcNow.Ticks;
-            var outbound = new OutboundSnapshot(opCode, payload);
-            var item = new SnapshotSendQueueItem<OutboundSnapshot>(
-                outbound,
-                push.Frame,
-                payload.Length,
-                priority,
-                replaceable: !push.IsFullSnapshot,
-                producedAtTicks: nowTicks);
-            var result = GetSendQueue(nowTicks, push.NetworkEnvironmentId).Enqueue(in item, nowTicks);
-            if (result.BaselineInvalidated)
+            if ((push.SchemaVersion == FixedBaselineStateSyncProtocol.SchemaVersion) != _usesFixedBaseline)
+                return Task.FromResult(new StateSyncDeliveryResult { Status = StateSyncDeliveryStatus.Failed });
+            var encoded = StateSyncSnapshotWireCodec.Serialize(push);
+            if (_usesFixedBaseline && encoded.Count > FixedBaselineStateSyncProtocol.MaximumSnapshotBytes)
             {
-                _baselineRefresh.Request();
+                _logger.LogWarning("Fixed baseline snapshot exceeded the wire budget. Frame={Frame}, Bytes={Bytes}", push.Frame, encoded.Count);
+                return Task.FromResult(new StateSyncDeliveryResult { Status = StateSyncDeliveryStatus.Failed });
             }
-
-            return Task.FromResult(ToDeliveryResult(in result));
+            return Task.FromResult(EnqueueSnapshot(encoded.ToArray(), push.Frame, push.IsFullSnapshot, push.NetworkEnvironmentId));
         }
         catch (Exception ex)
         {
@@ -172,6 +167,38 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
                 Status = StateSyncDeliveryStatus.Failed
             });
         }
+    }
+
+    public Task<StateSyncDeliveryResult> OnPreparedFixedBaselineSnapshotPushedAsync(PreparedFixedBaselineSnapshot snapshot)
+    {
+        try
+        {
+            if (!_usesFixedBaseline || ImmutableCollectionsMarshal.AsArray(snapshot.Payload) is not { Length: > 0 } payload
+                || payload.Length > FixedBaselineStateSyncProtocol.MaximumSnapshotBytes)
+                return Task.FromResult(new StateSyncDeliveryResult { Status = StateSyncDeliveryStatus.Failed });
+
+            return Task.FromResult(EnqueueSnapshot(payload, snapshot.Frame, snapshot.IsFullSnapshot, snapshot.NetworkEnvironmentId));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[StateSyncObserver] Error queuing prepared snapshot for account: {AccountId}", _accountId);
+            return Task.FromResult(new StateSyncDeliveryResult { Status = StateSyncDeliveryStatus.Failed });
+        }
+    }
+
+    private StateSyncDeliveryResult EnqueueSnapshot(byte[] payload, int frame, bool isFullSnapshot, string networkEnvironmentId)
+    {
+        var opCode = isFullSnapshot ? RoomGatewayOpCodes.SnapshotPushed : RoomGatewayOpCodes.DeltaSnapshotPushed;
+        var priority = isFullSnapshot ? SnapshotDeliveryPriority.FullBaseline : SnapshotDeliveryPriority.Delta;
+        var nowTicks = DateTime.UtcNow.Ticks;
+        var outbound = new OutboundSnapshot(opCode, payload);
+        var item = new SnapshotSendQueueItem<OutboundSnapshot>(outbound, frame, payload.Length, priority,
+            replaceable: !isFullSnapshot, producedAtTicks: nowTicks);
+        var result = GetSendQueue(nowTicks, networkEnvironmentId).Enqueue(in item, nowTicks);
+        if (result.BaselineInvalidated)
+            _baselineRefresh.Request();
+
+        return ToDeliveryResult(in result);
     }
 
     public Task OnReliableEventsPushedAsync(ReliableBattleEventBatch batch)
@@ -258,7 +285,8 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
         {
             ObserverKey = _observerKey,
             AccountId = _accountId,
-            RoomId = _roomId
+            RoomId = _roomId,
+            UsesFixedBaseline = _usesFixedBaseline
         };
     }
 
@@ -424,55 +452,6 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
         var dequeued = queue.TryDequeue(nowTicks, out item);
         baselineInvalidated = queue.CreateMetrics(nowTicks).ResyncCount > resyncCountBeforeDrain;
         return dequeued;
-    }
-
-    private static WireStateSyncSnapshotPush ToWireSnapshotPush(StateSyncPush push)
-    {
-        var source = push.Actors;
-        var actors = source == null || source.Count == 0
-            ? null
-            : new List<WireStateSyncActorSnapshot>(source.Count);
-
-        if (actors != null && source != null)
-        {
-            foreach (var actor in source)
-            {
-                actors.Add(new WireStateSyncActorSnapshot
-                {
-                    ActorId = actor.ActorId,
-                    X = actor.X,
-                    Y = actor.Y,
-                    Z = actor.Z,
-                    Rotation = actor.Rotation,
-                    VelocityX = actor.VelocityX,
-                    VelocityZ = actor.VelocityZ,
-                    Hp = actor.Hp,
-                    HpMax = actor.HpMax,
-                    TeamId = actor.TeamId,
-                    Kind = actor.Kind,
-                    Code = actor.Code,
-                    OwnerNetId = actor.OwnerNetId
-                });
-            }
-        }
-
-        return new WireStateSyncSnapshotPush
-        {
-            WorldId = push.WorldId,
-            Frame = push.Frame,
-            Timestamp = push.Timestamp,
-            IsFullSnapshot = push.IsFullSnapshot,
-            Actors = actors,
-            PayloadOpCode = push.PayloadOpCode,
-            Payload = push.Payload,
-            ServerTicks = push.ServerTicks,
-            EventWatermark = push.EventWatermark,
-            SchemaVersion = push.SchemaVersion,
-            RemovedActorIds = push.RemovedActorIds == null || push.RemovedActorIds.Count == 0
-                ? null
-                : new List<int>(push.RemovedActorIds),
-            EventEpoch = push.EventEpoch ?? string.Empty
-        };
     }
 
     private static OutboundReliableEvents CreateReliableEventGap(ReliableBattleEventBatch batch)

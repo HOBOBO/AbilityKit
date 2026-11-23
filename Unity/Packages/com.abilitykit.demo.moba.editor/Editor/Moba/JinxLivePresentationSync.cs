@@ -19,7 +19,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Adapt("AA_Minigun_Projectile", "AA_Minigun_Projectile", particleSizeScale: 2f);
             Adapt("AA_Rocket_Projectile", "AA_Rocket_Projectile");
             Adapt("E_Activation_center", "E_Trap");
-            Adapt("W", "W_Projectile", true);
+            PublishWProjectileResource();
             Adapt("R_Projectile", "R_Projectile", particleSizeScale: 3f);
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             foreach (var id in new[] { 30020201, 30020301, 30020401 })
@@ -50,6 +50,17 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Adapt("R_Projectile", "R_Projectile", particleSizeScale: 3f);
             AssetDatabase.SaveAssets();
             Debug.Log("[JinxLivePresentationSync] R projectile resource published.");
+        }
+
+        /// <summary>
+        /// 单独从正式美术源重新发布 W 的飞行特效，不改动技能配置。
+        /// </summary>
+        public static void PublishWProjectileResource()
+        {
+            Directory.CreateDirectory(Destination);
+            Adapt("W", "W_Projectile", true);
+            AssetDatabase.SaveAssets();
+            Debug.Log("[JinxLivePresentationSync] W projectile resource published.");
         }
 
         private static void Adapt(string source, string destination, bool bolt = false, float particleSizeScale = 1f)
@@ -131,7 +142,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     {
                         branch.localPosition = new Vector3(0f, 0.8f, 0f);
                         branch.localRotation = Quaternion.identity;
-                        branch.localScale = new Vector3(0.1f, 1f, 0.12f);
+                        branch.localScale = new Vector3(0.075f, 1f, 0.25f);
                         foreach (var renderer in branch.GetComponentsInChildren<Renderer>(true))
                         {
                             renderer.enabled = true;
@@ -159,8 +170,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             material.SetTexture("_MainTexture", source.GetTexture("_MainTexture"));
             material.SetTexture("_Noise", source.GetTexture("_Mask"));
             material.SetTextureScale("_Noise", source.GetTextureScale("_Mask"));
-            material.SetColor("_Color", new Color(0.1f, 0.65f, 1f, 1f));
-            material.SetFloat("_EmissiveIntensity", 1f);
+            material.SetColor("_Color", new Color(0.4f, 0.85f, 1f, 1f));
+            material.SetFloat("_EmissiveIntensity", 2f);
             material.SetFloat("_OpacityIntensity", 4f);
             material.SetFloat("_HasNoiseEmissive", 1f);
             // Preserve readable texture silhouettes on the bright gameplay floor;

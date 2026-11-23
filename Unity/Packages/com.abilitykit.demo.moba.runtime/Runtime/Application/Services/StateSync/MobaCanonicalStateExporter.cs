@@ -5,7 +5,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Core.Recording.FrameRecord;
+using AbilityKit.Record.FrameRecord;
 
 namespace AbilityKit.Demo.Moba.Services.StateSync
 {

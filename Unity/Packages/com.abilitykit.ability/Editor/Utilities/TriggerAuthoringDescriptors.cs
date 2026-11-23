@@ -604,6 +604,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             catalog.Register(Action("spawn_area", "生成区域", "Action/Area", WithTargets(
                 Required("area_id", TriggerValueType.Integer),
+                new TriggerParameterDescriptor("replace_event_area", TriggerValueType.Boolean, false, TriggerValueSourceMask.Constant),
                 Optional("position_mode", TriggerValueType.Integer),
                 Optional("radius", TriggerValueType.Number),
                 Optional("duration_frames", TriggerValueType.Integer),

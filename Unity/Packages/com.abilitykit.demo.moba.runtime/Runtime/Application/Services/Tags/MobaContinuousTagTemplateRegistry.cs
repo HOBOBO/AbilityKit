@@ -10,10 +10,19 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaConfigDatabase _db;
         private readonly Dictionary<int, ContinuousTagRequirements> _cacheById = new Dictionary<int, ContinuousTagRequirements>();
         private readonly Dictionary<string, ContinuousTagRequirements> _cacheByName = new Dictionary<string, ContinuousTagRequirements>();
+        private readonly Dictionary<int, string> _revisionsById = new Dictionary<int, string>();
 
         public MobaContinuousTagTemplateRegistry(MobaConfigDatabase db)
         {
             _db = db;
+        }
+
+        internal long SourceVersion => _db?.Version ?? 0L;
+
+        internal string GetDefinitionRevision(int id)
+        {
+            if (_revisionsById.TryGetValue(id, out var revision)) return revision;
+            return _db != null && _db.TryGetContinuousTagTemplate(id, out var template) ? template?.DefinitionRevision : null;
         }
 
         public bool TryGet(int templateId, out ContinuousTagRequirements requirements)
@@ -32,6 +41,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             cached = CreateRequirements(mo);
             _cacheById[templateId] = cached;
+            _revisionsById[templateId] = mo.DefinitionRevision;
             requirements = CopyRequirements(cached);
             return true;
         }
@@ -53,6 +63,7 @@ namespace AbilityKit.Demo.Moba.Services
             cached = CreateRequirements(mo);
             _cacheByName[name] = cached;
             _cacheById[mo.Id] = cached;
+            _revisionsById[mo.Id] = mo.DefinitionRevision;
             requirements = CopyRequirements(cached);
             return true;
         }
@@ -75,7 +86,7 @@ namespace AbilityKit.Demo.Moba.Services
                 source.Exact, source.Query);
         }
 
-        private static ContinuousTagRequirements CreateRequirements(ContinuousTagTemplateMO mo)
+        internal static ContinuousTagRequirements CreateRequirements(ContinuousTagTemplateMO mo)
         {
             return new ContinuousTagRequirements
             {

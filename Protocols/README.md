@@ -14,6 +14,14 @@ catalog advertisements. Its dynamic payload is deliberately owned by the bounded
 `ProtocolCatalogAdvertisementCodec` custom-binary codec; applications should not duplicate this
 contract in a business catalog or model it as a Wire Schema DTO.
 
+For room state sync, `subscribe-fixed-baseline-state-sync` (123) opts the observer into
+outer snapshot schema 4. Snapshot opcodes and `WireStateSyncSnapshotPush` layout are unchanged.
+The bounded `FixedBaselineStateSyncProtocol` codec owns its opaque `Payload`: 16-byte .NET GUID,
+little-endian int64 snapshot ID and base ID, int32 inner schema, then the original gameplay
+payload bytes. A zero base ID denotes a full snapshot; a nonzero base ID identifies one full
+snapshot in the same stream generation and world. The event cursor and payload opcode retain
+their existing meanings. Legacy subscribers continue using opcode 103 and the original envelope.
+
 ## Grouped wire schema
 
 The canonical wire format groups related types that share a project, stable business-domain

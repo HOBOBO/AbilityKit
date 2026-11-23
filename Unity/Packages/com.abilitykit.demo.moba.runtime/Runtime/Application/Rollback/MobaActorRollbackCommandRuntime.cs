@@ -84,7 +84,9 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             var actorId = entity.actorId.Value;
             var payload = MemoryPackSerializer.Serialize(new MobaActorRollbackIdPayload(actorId));
+            var birthOrder = Log.NextOrder;
             Log.Record(_frameTime.Frame, DestroyCreatedActorCommand, PayloadVersion, payload);
+            if (kind == MobaEntityKind.Summon) _actors.RecordSummonBirth(actorId, entity, Log.Epoch, birthOrder);
             _actorKinds[actorId] = kind;
         }
 
@@ -201,11 +203,41 @@ namespace AbilityKit.Demo.Moba.Rollback
                 return;
             }
 
+            _expiryBrains?.DiscardCreatedActorBrain(entity);
             _entities.UnregisterSilently(actorId, out _, publishObjectLifecycle: false);
             _actors.Unregister(actorId);
             _actors.ForgetEntityIdentity(actorId);
             _actorKinds.Remove(actorId);
             if (entity.isEnabled) entity.Destroy();
+        }
+
+        private void ValidateDestroyCreatedActor(int actorId, in RollbackCommandContext context)
+        {
+            ValidateRegistrationConsistency(actorId);
+            if (_expiryBrains == null) return;
+            if (_actors.TryGetRegistered(actorId, out var actor))
+            {
+                _expiryBrains.ValidateCreatedActorBrainRollback(actor, retained: false);
+                return;
+            }
+
+            if (!_actors.TryGetRetainedForRecovery(actorId, context.TargetFrame.Value, out var retained)) return;
+            if (context.CommandFrame.Value <= context.TargetFrame.Value)
+                throw new InvalidOperationException($"Retained Actor {actorId} was not created after the rollback target frame.");
+
+            for (var index = Log.Count - 1; index >= 0; index--)
+            {
+                var record = Log.GetRecord(index);
+                if (record.Order <= context.CommandOrder) break;
+                if (record.CommandType != RestoreDestroyedActorCommand) continue;
+                var tombstone = ReadTombstone(record.PayloadVersion, record.Payload);
+                if (tombstone.ActorId != actorId) continue;
+                if (tombstone.Kind != MobaEntityKind.Summon || !_actors.MatchesEntityVersion(actorId, tombstone.EntityVersion))
+                    throw new InvalidOperationException($"Retained Actor {actorId} does not match its rollback tombstone.");
+                _expiryBrains.ValidateCreatedActorBrainRollback(retained, retained: true);
+                return;
+            }
+            throw new InvalidOperationException($"Retained Actor {actorId} would not be reattached before its creation is undone.");
         }
 
         private void RestoreDestroyedActor(in MobaActorRollbackTombstone tombstone, FrameIndex targetFrame)
@@ -288,7 +320,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 ReadOnlyMemory<byte> payload)
             {
                 var value = ReadId(payloadVersion, payload);
-                _runtime.ValidateRegistrationConsistency(value.ActorId);
+                _runtime.ValidateDestroyCreatedActor(value.ActorId, in context);
             }
 
             public void Rollback(

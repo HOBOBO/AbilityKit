@@ -298,6 +298,74 @@ public sealed partial class MobaProjectileAreaMotionCompositionTests(ITestOutput
     }
 
     [Fact]
+    public void Jhin_trap_replacement_replays_from_the_armed_area_checkpoint()
+    {
+        const int trapTemplate = 42010301;
+        const int fuseTemplate = 42010302;
+        const int blastTemplate = 42010303;
+        using var battle = new Battle(3001, "jhin-e-area-replacement");
+        var target = battle.Spawn("entrant", 2, 106, 108);
+        battle.Setup.Tick(2);
+        battle.Cast(3, new Vec3(100, 0, 108));
+        for (var tick = 0; tick < 90 && battle.Areas(trapTemplate).Count == 0; tick++)
+            battle.Setup.Tick(1);
+        var trap = Assert.Single(battle.Areas(trapTemplate));
+        battle.Setup.Tick(20);
+        var initialHp = battle.Setup.GetActorHp(target);
+        var seen = new List<AreaEventArgs>();
+        using var listener = battle.ObserveAreas(seen);
+        battle.ExecuteAreaTrigger(30010311, new AreaEventArgs
+        {
+            EventId = "area.tick",
+            AreaId = trap.AreaId,
+            OwnerActorId = trap.OwnerActorId,
+            TargetActorId = target,
+            TemplateId = trapTemplate,
+            Center = trap.Center,
+            SourceContextId = trap.SourceContextId,
+            RootContextId = trap.RootContextId,
+            OwnerContextId = trap.OwnerContextId,
+            SkillRuntimeHandle = trap.SkillRuntimeHandle,
+            ExecutionKind = MobaExecutionKind.AreaStay,
+            Frame = battle.Frame
+        });
+        Assert.Equal(trap.AreaId, Assert.Single(battle.Areas(trapTemplate)).AreaId);
+        Assert.Empty(battle.Areas(fuseTemplate));
+        battle.VerifyReplay(8, output,
+            command: () =>
+            {
+                seen.Clear();
+                battle.Setup.MoveScenarioActor(target, new MobaAcceptanceVector3Expectation
+                {
+                    x = trap.Center.X,
+                    y = battle.Setup.GetActorPosition(target).Y,
+                    z = trap.Center.Z
+                });
+            },
+            restored: () =>
+            {
+                Assert.Equal(trap.AreaId, Assert.Single(battle.Areas(trapTemplate)).AreaId);
+                Assert.Empty(battle.Areas(fuseTemplate));
+                Assert.Equal(initialHp, battle.Setup.GetActorHp(target));
+            },
+            frameResult: index =>
+            {
+                if (index != 7) return;
+                Assert.Empty(battle.Areas(trapTemplate));
+                Assert.Single(seen, entry => entry.AreaId == trap.AreaId && entry.EventId == "area.expire");
+                Assert.Single(seen, entry => entry.TemplateId == fuseTemplate && entry.EventId == "area.spawn");
+                Assert.Single(battle.Areas(fuseTemplate));
+                Assert.Equal(initialHp, battle.Setup.GetActorHp(target));
+            }, saveArtifacts: false);
+        battle.ExecuteAreaTrigger(30010311, Assert.Single(seen,
+            entry => entry.AreaId == trap.AreaId && entry.EventId == "area.enter"));
+        Assert.Single(battle.Areas(fuseTemplate));
+        battle.Setup.Tick(60);
+        Assert.Single(seen, entry => entry.TemplateId == blastTemplate && entry.EventId == "area.spawn");
+        Assert.True(battle.Setup.GetActorHp(target) < initialHp);
+    }
+
+    [Fact]
     public void Area_lifetime_stay_and_expiry_advance_once_and_delay_replays_as_data()
     {
         using var b = new Battle(1001, "area-lifetime-delay");
@@ -975,7 +1043,8 @@ public sealed partial class MobaProjectileAreaMotionCompositionTests(ITestOutput
         }
 
         public void VerifyReplay(int ticks, ITestOutputHelper output, Action? command = null, Action? restored = null,
-            Action? verifyMotion = null, Action<int>? frameInput = null, Action<int>? frameResult = null)
+            Action? verifyMotion = null, Action<int>? frameInput = null, Action<int>? frameResult = null,
+            bool saveArtifacts = true)
         {
             var checkpoint = new FrameIndex(bootstrap.Context.LastFrame);
             Assert.True(rollback.CaptureAndStore(checkpoint));
@@ -992,8 +1061,11 @@ public sealed partial class MobaProjectileAreaMotionCompositionTests(ITestOutput
             }
             var end = new FrameIndex(bootstrap.Context.LastFrame);
             var expected = rollback.Capture(end);
-            Save("checkpoint", before);
-            Save("baseline", expected);
+            if (saveArtifacts)
+            {
+                Save("checkpoint", before);
+                Save("baseline", expected);
+            }
             for (var attempt = 0; attempt < 2; attempt++)
             {
                 var notifications = areaNotifications;
@@ -1856,6 +1928,13 @@ public sealed partial class MobaProjectileAreaMotionCompositionTests(ITestOutput
         }
 
         public bool RemoveArea(int areaId) => Services.Resolve<MobaAreaRuntimeService>().DespawnArea(areaId);
+
+        public void ExecuteAreaTrigger(int triggerId, AreaEventArgs payload)
+        {
+            var request = MobaTriggerExecutionRequest<AreaEventArgs>.Create(triggerId, payload, payload.EventId);
+            Services.Resolve<AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering.MobaTriggerExecutionGateway>()
+                .ExecuteDirectTrigger(in request);
+        }
 
         public IDisposable ObserveAreas(List<AreaEventArgs> seen, Action<AreaEventArgs>? onEvent = null)
         {

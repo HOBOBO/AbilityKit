@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Battle.SearchTarget;
 using AbilityKit.Battle.SearchTarget.Rules;
 using AbilityKit.Battle.SearchTarget.Scorers;
@@ -108,7 +109,8 @@ namespace AbilityKit.Demo.Moba.Services.Search
             int explicitTargetActorId,
             ITargetScorer zeroScorer,
             ITargetSelector topKSelector,
-            ITargetSelector streamingTopKSelector)
+            ITargetSelector streamingTopKSelector,
+            IWorldResolver services = null)
         {
             Actors = actors;
             AllActorsProvider = allActorsProvider;
@@ -120,9 +122,11 @@ namespace AbilityKit.Demo.Moba.Services.Search
             ZeroScorer = zeroScorer;
             TopKSelector = topKSelector;
             StreamingTopKSelector = streamingTopKSelector;
+            Services = services;
         }
 
         public MobaActorRegistry Actors { get; }
+        public IWorldResolver Services { get; }
         public ICandidateProvider AllActorsProvider { get; }
         public SearchContext SearchContext { get; }
         public int CasterActorId { get; }
@@ -644,6 +648,35 @@ namespace AbilityKit.Demo.Moba.Services.Search
         }
     }
 
+    [MobaTargetFilter((int)SearchTargetRuleKind.RequireCasterTeam)]
+    internal sealed class RequireCasterTeamFilterFactory : IMobaTargetFilterFactory
+    {
+        public ITargetRule Create(in MobaTargetQueryBuildContext context, SearchTargetRuleConfig config)
+        {
+            return new RequireCasterTeamRule(context.Actors,
+                context.TryGetActorTeam(context.CasterActorId, out var team) ? team : Team.None);
+        }
+    }
+
+    internal sealed class RequireCasterTeamRule : ITargetRule
+    {
+        private readonly MobaActorRegistry _actors;
+        private readonly Team _team;
+
+        public RequireCasterTeamRule(MobaActorRegistry actors, Team team)
+        {
+            _actors = actors;
+            _team = team;
+        }
+
+        public bool IsMatch(in SearchQuery query, SearchContext context, ST.EntityId candidate)
+        {
+            return _team != Team.None && candidate.Value <= int.MaxValue &&
+                _actors.TryGet((int)candidate.Value, out var actor) && actor != null &&
+                actor.hasTeam && actor.team.Value == _team;
+        }
+    }
+
     [MobaTargetFilter((int)SearchTargetRuleKind.CircleShape)]
     internal sealed class CircleShapeTargetFilterFactory : IMobaTargetFilterFactory
     {
@@ -800,6 +833,38 @@ namespace AbilityKit.Demo.Moba.Services.Search
             where TConsumer : struct, ICandidateConsumer
         {
             if (_actorId > 0) consumer.Consume(new ST.EntityId(_actorId));
+        }
+    }
+
+    /// <summary>
+    /// 从施法者的根主人名单解析指定模板的存活召唤物。
+    /// </summary>
+    [MobaTargetSourceProvider((int)SearchTargetProviderKind.OwnedLivingSummons)]
+    internal sealed class OwnedLivingSummonsTargetSourceFactory : IMobaTargetSourceFactory
+    {
+        public ICandidateProvider Create(in MobaTargetQueryBuildContext context, SearchTargetProviderConfig config)
+        {
+            if (config.Param <= 0)
+                throw new InvalidOperationException("OwnedLivingSummons requires a positive summon template ID.");
+
+            var candidates = new List<int>();
+            if (context.Services != null && context.Services.TryResolve<MobaSummonService>(out var summons))
+                summons.CollectLivingSummons(context.CasterActorId, config.Param, candidates);
+            return new OwnedSummonCandidates(candidates);
+        }
+
+        private sealed class OwnedSummonCandidates : ICandidateProvider
+        {
+            private readonly List<int> _ids;
+
+            public OwnedSummonCandidates(List<int> ids) => _ids = ids;
+
+            public void ForEachCandidate<TConsumer>(in SearchQuery query, SearchContext context, ref TConsumer consumer)
+                where TConsumer : struct, ICandidateConsumer
+            {
+                foreach (var actorId in _ids)
+                    consumer.Consume(new ST.EntityId(actorId));
+            }
         }
     }
 

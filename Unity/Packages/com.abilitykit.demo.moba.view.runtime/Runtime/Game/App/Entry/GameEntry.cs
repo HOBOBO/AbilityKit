@@ -311,24 +311,6 @@ namespace AbilityKit.Game
                     }
                 }
 
-                // Keep old starter configurations working when they only contain
-                // one remote preset; the request still defaults to frame sync.
-                if (remotePreset == null &&
-                    string.Equals(
-                        requestedSyncTemplate,
-                        DemoMultiplayerSyncTemplates.FrameSyncAuthority,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    for (var i = 0; i < _battleStartPresets.Length; i++)
-                    {
-                        var candidate = _battleStartPresets[i];
-                        if (candidate != null && candidate.HostMode == BattleHostMode.GatewayRemote)
-                        {
-                            remotePreset = candidate;
-                            break;
-                        }
-                    }
-                }
             }
 
 #if UNITY_EDITOR
@@ -359,7 +341,7 @@ namespace AbilityKit.Game
                 syncTemplateId,
                 preset.SyncMode == BattleSyncMode.SnapshotAuthority
                     ? DemoMultiplayerSyncTemplates.MobaStateSyncAuthority
-                    : DemoMultiplayerSyncTemplates.FrameSyncAuthority,
+                    : DemoMultiplayerSyncTemplates.MobaSettledFrameSync,
                 StringComparison.OrdinalIgnoreCase);
         }
 

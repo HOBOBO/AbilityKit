@@ -589,6 +589,7 @@ namespace AbilityKit.Network.Room
                 RoomId = string.IsNullOrWhiteSpace(snapshot.RoomId)
                     ? restored.RoomId
                     : snapshot.RoomId,
+                GameplayId = snapshot.GameplayId,
                 OwnerAccountId = snapshot.OwnerAccountId,
                 Phase = snapshot.Phase,
                 PhaseReason = snapshot.PhaseReason,

@@ -198,6 +198,7 @@
         <var name="EnemyTeam" value="6"/>
         <var name="MainType" value="7"/>
         <var name="UnitSubType" value="8"/>
+        <var name="OwnedLivingSummons" value="9"/>
     </enum>
     <enum name="SearchTargetSelectorKind">
         <var name="TopKByScore" value="4097"/>
@@ -211,6 +212,7 @@
         <var name="RequireValidId" value="516"/>
         <var name="RequireHasPosition" value="517"/>
         <var name="RequireUnitSubType" value="518"/>
+        <var name="RequireCasterTeam" value="519"/>
         <var name="ExcludeCaster" value="769"/>
         <var name="ExcludeExplicitTarget" value="770"/>
         <var name="RectangleShape" value="771"/>

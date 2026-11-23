@@ -18,6 +18,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float LateralOffset;
         public readonly float ForwardYawDeg;
         public readonly bool CaptureCastFrame;
+        public readonly bool ReplaceEventArea;
         public readonly int ShapeKind;
         public readonly float HalfAngleDeg;
         public readonly float Width;
@@ -63,7 +64,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             float innerRadius = 0f,
             float forwardYawDeg = 0f,
             bool captureCastFrame = false,
-            int claimUnitSubTypeMask = 0)
+            int claimUnitSubTypeMask = 0,
+            bool replaceEventArea = false)
         {
             AreaId = areaId;
             PositionMode = positionMode;
@@ -79,6 +81,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             LateralOffset = lateralOffset;
             ForwardYawDeg = forwardYawDeg;
             CaptureCastFrame = captureCastFrame;
+            ReplaceEventArea = replaceEventArea;
             ShapeKind = shapeKind;
             HalfAngleDeg = halfAngleDeg;
             Width = width;

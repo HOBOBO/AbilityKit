@@ -79,16 +79,9 @@ TEST-01C 还会生成：
 ./Server/Orleans/tools/restart_shooter_state_sync.bat
 ```
 
-## CI 集成
+## CI 接入
 
-`.github/workflows/abilitykit-test-gates.yml` 定义多个 job：
-
-- `shooter-multiprocess`（push + schedule）
-- `shooter-multiprocess-compatibility`（schedule）
-- `shooter-multiprocess-ownership-cleanup`（schedule）
-- `shooter-performance-smoke` + `shooter-performance-full`
-
-每个 job 都显式覆写结果目录为 `artifacts/test-gates/{job}/`，并用 `actions/upload-artifact@v4 with if: always()` 上传该目录；本地默认仍是 `local/Logs/test-gates/`。
+本地从 gate runner 选择当前可用的 multiprocess 或 performance gate；`ciPolicy` 不能证明这些门禁已经自动触发。接入和产物目录统一见 [CI 接入与产物](ci_integration.md)。
 
 ## 端口约定（避免冲突）
 

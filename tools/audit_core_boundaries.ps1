@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $runtimeRoot = Join-Path $repoRoot 'Unity\Packages\com.abilitykit.core\Runtime'
 $foundationAsmdefPath = Join-Path $runtimeRoot 'com.abilitykit.core.asmdef'
-$unityAsmdefPath = Join-Path $runtimeRoot 'Unity\AbilityKit.Core.Unity.asmdef'
+$retiredUnityAdapterRoot = Join-Path $runtimeRoot 'Unity'
 $coreProjectPath = Join-Path $repoRoot 'src\AbilityKit.Core\AbilityKit.Core.csproj'
 $shippedApiPath = Join-Path $repoRoot 'src\AbilityKit.Core\PublicAPI.Shipped.txt'
 $unshippedApiPath = Join-Path $repoRoot 'src\AbilityKit.Core\PublicAPI.Unshipped.txt'
@@ -65,6 +65,35 @@ function Get-PrunedFiles {
     }
 }
 
+function Get-AuditedProjectFiles {
+    if (-not (Test-Path -LiteralPath (Join-Path $repoRoot '.git'))) {
+        Get-PrunedFiles @($repoRoot) '*.csproj' @('obj', 'bin', 'temp', 'Library', 'artifacts', 'TestResults', '.kilo', '.git')
+        return
+    }
+
+    $git = Get-Command git -CommandType Application -ErrorAction Stop | Select-Object -First 1
+    $originalEncoding = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+        $paths = & $git.Source -C $repoRoot ls-files -z --cached --others --exclude-standard -- '*.csproj'
+        Assert-Contract ($LASTEXITCODE -eq 0) "Git could not enumerate project files (exit code $LASTEXITCODE)."
+    }
+    finally {
+        [Console]::OutputEncoding = $originalEncoding
+    }
+
+    foreach ($relativePath in (($paths -join "`n").Split([char]0))) {
+        if ([string]::IsNullOrEmpty($relativePath)) {
+            continue
+        }
+
+        $path = Join-Path $repoRoot $relativePath
+        if ([System.IO.File]::Exists($path)) {
+            [System.IO.FileInfo]::new($path)
+        }
+    }
+}
+
 $foundationAsmdef = Get-Content -LiteralPath $foundationAsmdefPath -Raw | ConvertFrom-Json
 Assert-Contract ($foundationAsmdef.name -eq 'AbilityKit.Core') 'Foundation asmdef name must remain AbilityKit.Core.'
 Assert-Contract ($foundationAsmdef.noEngineReferences -eq $true) 'AbilityKit.Core must keep noEngineReferences enabled.'
@@ -79,11 +108,8 @@ $coreReferencesMessage = 'AbilityKit.Core may reference only AbilityKit.Determin
 Assert-Contract $coreReferencesOk $coreReferencesMessage
 Assert-Contract ($foundationAsmdef.allowUnsafeCode -eq $false) 'AbilityKit.Core must not enable unsafe code without a reviewed boundary change.'
 
-$unityAsmdef = Get-Content -LiteralPath $unityAsmdefPath -Raw | ConvertFrom-Json
-Assert-Contract ($unityAsmdef.name -eq 'AbilityKit.Core.Unity') 'Unity adapter asmdef name must remain AbilityKit.Core.Unity.'
-Assert-Contract ($unityAsmdef.noEngineReferences -eq $false) 'AbilityKit.Core.Unity is the explicit engine adapter boundary.'
-$unityReferences = @($unityAsmdef.references)
-Assert-Contract ($unityReferences.Count -eq 1 -and $unityReferences[0] -eq 'AbilityKit.Core') 'AbilityKit.Core.Unity may reference only AbilityKit.Core.'
+Assert-Contract (-not (Test-Path -LiteralPath (Join-Path $retiredUnityAdapterRoot 'AbilityKit.Core.Unity.asmdef'))) 'The retired AbilityKit.Core.Unity assembly must not return to Core.'
+Assert-Contract (-not (Test-Path -LiteralPath (Join-Path $retiredUnityAdapterRoot 'UnityJsonSettingsBootstrap.cs'))) 'Application settings bootstrap belongs to its application owner, not Core.'
 
 Assert-Contract (Test-Path -LiteralPath $continuousPackageRoot -PathType Container) 'The extracted com.abilitykit.continuous package is missing.'
 $continuousAsmdef = Get-Content -LiteralPath $continuousAsmdefPath -Raw | ConvertFrom-Json
@@ -110,14 +136,11 @@ Assert-Contract ($mobaEditorPackage.dependencies.'com.abilitykit.diagnostics' -e
 $legacyCoreUnityConsumers = New-Object System.Collections.Generic.List[string]
 $packageAsmdefs = Get-PrunedFiles @($packagesRoot) '*.asmdef'
 foreach ($asmdefPath in $packageAsmdefs) {
-    if ($asmdefPath.FullName -eq $unityAsmdefPath) {
-        continue
-    }
 
     $asmdef = Get-Content -LiteralPath $asmdefPath.FullName -Raw | ConvertFrom-Json
     if (@($asmdef.references) -contains 'AbilityKit.Core.Unity') {
         $relativePath = $asmdefPath.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
-        $legacyCoreUnityConsumers.Add("$relativePath references deprecated AbilityKit.Core.Unity; use an owner-local Unity adapter.")
+        $legacyCoreUnityConsumers.Add("$relativePath references retired AbilityKit.Core.Unity; use an owner-local Unity adapter.")
     }
 }
 Assert-Contract ($legacyCoreUnityConsumers.Count -eq 0) ("Core.Unity consumer violations:`n" + ($legacyCoreUnityConsumers -join "`n"))
@@ -428,35 +451,18 @@ if ($null -ne $ripgrep) {
             $configurationOwnershipViolations.Add("$relativePath declares '$namespace' outside its owner package.")
         }
     }
-
-    $directCoreSourceLinks = @(& $ripgrep.Source -n --glob '*.csproj' --glob '!**/obj/**' --glob '!**/bin/**' 'com\.abilitykit\.core[/\\]Runtime[/\\](Config|Reflection)' $repoRoot)
-    if ($LASTEXITCODE -gt 1) {
-        throw "rg failed while auditing direct Core configuration/reflection source links with exit code $LASTEXITCODE."
-    }
-
-    foreach ($line in $directCoreSourceLinks) {
-        $path = ($line -split ':\d+:', 2)[0]
-        $fullPath = [System.IO.Path]::GetFullPath($path)
-        if ($fullPath -ne $coreProjectPath -and $fullPath -ne $unityCoreProjectPath) {
-            $relativePath = $fullPath.Substring($repoRoot.Length).TrimStart('\', '/')
-            $configurationOwnershipViolations.Add(
-                "$relativePath directly links deprecated Core Config/Reflection sources; compile the owner-package implementation instead.")
-        }
-    }
 }
-else {
-    $projects = Get-PrunedFiles @($repoRoot) '*.csproj' @('obj', 'bin', '.kilo', '.git')
-    foreach ($project in $projects) {
-        if ($project.FullName -eq $coreProjectPath -or $project.FullName -eq $unityCoreProjectPath) {
-            continue
-        }
 
-        $text = [System.IO.File]::ReadAllText($project.FullName)
-        if ($text -match 'com\.abilitykit\.core[/\\]Runtime[/\\](Config|Reflection)') {
-            $relativePath = $project.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
-            $configurationOwnershipViolations.Add(
-                "$relativePath directly links deprecated Core Config/Reflection sources; compile the owner-package implementation instead.")
-        }
+foreach ($project in (Get-AuditedProjectFiles)) {
+    if ($project.FullName -eq $coreProjectPath -or $project.FullName -eq $unityCoreProjectPath) {
+        continue
+    }
+
+    $text = [System.IO.File]::ReadAllText($project.FullName)
+    if ($text -match 'com\.abilitykit\.core[/\\]Runtime[/\\](Config|Reflection)') {
+        $relativePath = $project.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
+        $configurationOwnershipViolations.Add(
+            "$relativePath directly links deprecated Core Config/Reflection sources; compile the owner-package implementation instead.")
     }
 }
 

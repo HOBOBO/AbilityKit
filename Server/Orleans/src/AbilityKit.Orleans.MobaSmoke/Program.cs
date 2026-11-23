@@ -10,9 +10,12 @@ using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Orleans.Hosting;
 using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.SettledFrames;
+using AbilityKit.Demo.Moba.Services;
+using MobaFrameWire = AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
+using MemoryPack;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Protocol.Room;
-using RoomFrameInputPush = AbilityKit.Protocol.Room.WireRoomFramePush;
 using RoomSubscribeStateSyncReq = AbilityKit.Protocol.Room.WireSubscribeStateSyncReq;
 using RoomSubscribeStateSyncRes = AbilityKit.Protocol.Room.WireSubscribeStateSyncRes;
 using System.Threading.Channels;
@@ -26,6 +29,8 @@ var tcpPort = ParseIntArgument(args, "--tcp-port", 41101, 1, 65535);
 var hostOnly = HasArgument(args, "--host-only");
 var clientOnly = HasArgument(args, "--client-only");
 var probeFrameCommit = HasArgument(args, "--probe-frame-commit");
+var probeSettledHistory = HasArgument(args, "--probe-settled-history");
+var probeFixedBaseline = HasArgument(args, "--probe-fixed-baseline");
 var connectPort = ParseIntArgument(args, "--connect-port", tcpPort, 1, 65535);
 var hostTimeoutSeconds = ParseIntArgument(args, "--host-timeout-seconds", 180, 1, 3600);
 var syncTemplateId = ParseStringArgument(args, "--sync-template", MobaSmokeConstants.DefaultSyncTemplateId);
@@ -37,7 +42,8 @@ if (clientOnly)
     try
     {
         Console.WriteLine($"MOBA_SMOKE_CLIENT_ONLY connecting to {MobaSmokeConstants.HostAddress}:{connectPort} syncTemplate={syncTemplateId}");
-        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, connectPort, TimeSpan.FromSeconds(60), syncTemplateId);
+        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, connectPort, TimeSpan.FromSeconds(60), syncTemplateId,
+            probeFixedBaseline: probeFixedBaseline);
         Console.WriteLine(
             $"MOBA_SMOKE_PASSED RoomId={result.RoomId} NumericRoomId={result.NumericRoomId} " +
             $"BattleId={result.BattleId} WorldId={result.WorldId} Phase={result.Phase} " +
@@ -82,6 +88,12 @@ try
         return;
     }
 
+    if (probeSettledHistory)
+    {
+        await SettledHistoryProbe.RunAsync(host.Services.GetRequiredService<Orleans.IClusterClient>());
+        return;
+    }
+
     var transport = host.Services.GetRequiredService<GatewayNetworking.TcpTransportServer>();
     transportTask = transport.StartAsync(transportCancellation.Token);
     await WaitForTcpAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(10));
@@ -97,7 +109,8 @@ try
     else
     {
         var cluster = host.Services.GetRequiredService<Orleans.IClusterClient>();
-        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(60), syncTemplateId, cluster);
+        var result = await RunScenarioAsync(MobaSmokeConstants.HostAddress, tcpPort, TimeSpan.FromSeconds(60), syncTemplateId, cluster,
+            probeFixedBaseline: probeFixedBaseline);
         if (syncTemplateId == MobaSmokeConstants.DefaultSyncTemplateId)
         {
             var frames = cluster.GetGrain<IBattleFrameSyncGrain>(result.NumericRoomId.ToString());
@@ -145,7 +158,7 @@ finally
 }
 
 static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeSpan timeout, string syncTemplateId,
-    Orleans.IClusterClient? cluster = null)
+    Orleans.IClusterClient? cluster = null, bool probeFixedBaseline = false)
 {
     using var timeoutCts = new CancellationTokenSource(timeout);
     using var owner = new MobaSmokeClient("owner", host, port, syncTemplateId);
@@ -205,57 +218,127 @@ static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeS
     await ownerBattle.BindSessionAsync(owner.SessionToken, timeoutCts.Token);
     await memberBattle.BindSessionAsync(member.SessionToken, timeoutCts.Token);
 
-    if (string.Equals(syncTemplateId, "frame-sync-authority", StringComparison.OrdinalIgnoreCase))
+    if (string.Equals(syncTemplateId, MobaSmokeConstants.SettledSyncTemplateId, StringComparison.OrdinalIgnoreCase))
     {
-        await ownerBattle.SubscribeFrameSyncAsync(final.Snapshot.BattleId, created.RoomId, final.Snapshot.WorldId, timeoutCts.Token);
-        await memberBattle.SubscribeFrameSyncAsync(final.Snapshot.BattleId, created.RoomId, final.Snapshot.WorldId, timeoutCts.Token);
-        var ownerFrame = await ownerBattle.WaitForFrameAfterAsync(-1, timeoutCts.Token);
-        var memberFrame = await memberBattle.WaitForFrameAfterAsync(-1, timeoutCts.Token);
-        Require(ownerFrame.WorldId == final.Snapshot.WorldId && memberFrame.WorldId == final.Snapshot.WorldId,
-            "FrameSync pushes did not match the room's authoritative world.");
-        Require(ownerFrame.Frame >= 1 && memberFrame.Frame >= 1, "Frame zero was broadcast as a gameplay frame.");
-        var frameMovePayload = MobaMoveCodec.Serialize(1f, 0f);
-        var rejected = await ownerBattle.SubmitFrameInputAsync(created.RoomId, final.Snapshot.BattleId,
-            final.Snapshot.WorldId, ownerPlayerId, 0, MobaOpCodes.Input.Move, frameMovePayload, timeoutCts.Token);
-        Require(!rejected.Accepted && rejected.ServerFrame >= 1, "TCP accepted input for the frame-zero checkpoint.");
-        if (cluster != null)
-        {
-            var battleHost = cluster.GetGrain<IBattleLogicHostGrain>(final.Snapshot.BattleId);
-            var directInput = await battleHost.SubmitInputAsync(final.Snapshot.WorldId, 0, new BattleInputItem
-            {
-                PlayerId = ownerPlayerId, OpCode = MobaOpCodes.Input.Move, Payload = frameMovePayload
-            });
-            Require(!directInput.Accepted && directInput.Status == "RejectedInvalidFrame", "The host remapped or accepted frame-zero input.");
-            var directTick = await battleHost.TickFrameAsync(final.Snapshot.WorldId, 0, 1f / 30f,
-                new[] { new FrameInputItem(ownerPlayerId, MobaOpCodes.Input.Move, frameMovePayload) });
-            Require(!directTick.WorldTicked && !directTick.SettlementEligible && directTick.StateHash == 0,
-                "The host ran gameplay for frame zero.");
-        }
+        var token = timeoutCts.Token;
+        var worldId = final.Snapshot.WorldId;
+        var battleId = final.Snapshot.BattleId;
+        var roomId = created.NumericRoomId;
+        var oldInput = new MobaFrameWire.WireSubmitFrameInputReq(roomId, worldId, ownerPlayerId, 0,
+            MobaOpCodes.Input.Move, MobaMoveCodec.Serialize(1f, 0f));
+        await ExpectVersionRejection(() => ownerBattle.SubscribeFrameSyncAsync(battleId, created.RoomId, worldId, token));
+        await ExpectVersionRejection(() => ownerBattle.SubmitFrameInputAsync(created.RoomId, battleId, worldId, ownerPlayerId,
+            oldInput.Frame, oldInput.InputOpCode, oldInput.InputPayload, token));
+        await ExpectVersionRejection(() => ownerBattle.SubmitSettledInputAsync(oldInput, token));
+        var ownerBinding = await ownerBattle.SubscribeSettledAsync(roomId, worldId, battleId, false, token);
+        var memberBinding = await memberBattle.SubscribeSettledAsync(roomId, worldId, battleId, false, token);
+        Require(ownerBinding.Identity.Equals(memberBinding.Identity), "V2 clients bound different runtime identities.");
+        var ownerStart = await ownerBattle.ReadSettledAfterAsync(ownerBinding.LastSettledFrame, token);
+        var memberStart = await memberBattle.ReadSettledAfterAsync(memberBinding.LastSettledFrame, token);
+        var inputFrame = Math.Max(ownerStart.Frame, memberStart.Frame) + 30;
+        var input = new MobaFrameWire.WireSubmitFrameInputReq(roomId, worldId, ownerPlayerId, inputFrame,
+            oldInput.InputOpCode, oldInput.InputPayload);
+        Require((await ownerBattle.SubmitSettledInputAsync(input, token)).Accepted, "V2-bound input did not enter the frame queue.");
+        var ownerRecord = await ownerBattle.ReadSettledAfterAsync(inputFrame - 1, token);
+        var memberRecord = await memberBattle.ReadSettledAfterAsync(inputFrame - 1, token);
+        Require(ownerRecord.Frame == inputFrame && memberRecord.Frame == inputFrame &&
+            MemoryPackSerializer.Serialize(ownerRecord).AsSpan().SequenceEqual(MemoryPackSerializer.Serialize(memberRecord)) &&
+            ownerRecord.Commands.Any(command => command.Disposition == 1 && command.PlayerId == ownerPlayerId &&
+                command.ExecutedPayload.AsSpan().SequenceEqual(input.InputPayload)),
+            "V2 TCP clients did not receive the same executed record.");
 
-        var frameInput = await ownerBattle.SubmitFrameInputAsync(
-            created.RoomId, final.Snapshot.BattleId, final.Snapshot.WorldId, ownerPlayerId,
-            Math.Max(ownerFrame.Frame, memberFrame.Frame) + 30, MobaOpCodes.Input.Move,
-            frameMovePayload, timeoutCts.Token);
-        Require(frameInput.Accepted, $"Frame input was rejected. ServerFrame={frameInput.ServerFrame}, Reason={frameInput.Reason}.");
-        var ownerAppliedFrame = await ownerBattle.WaitForFrameInputAsync(ownerPlayerId, timeoutCts.Token);
-        var memberAppliedFrame = await memberBattle.WaitForFrameInputAsync(ownerPlayerId, timeoutCts.Token);
-        Require(ownerAppliedFrame.WorldId == memberAppliedFrame.WorldId &&
-                ownerAppliedFrame.Frame == memberAppliedFrame.Frame,
-            "FrameSync clients did not observe the same authoritative input frame.");
-        if (cluster != null)
-        {
-            var relay = cluster.GetGrain<IBattleFrameSyncGrain>(final.NumericRoomId.ToString());
-            var history = await relay.RequestCatchUpAsync(new FrameSyncCatchUpRequest(final.NumericRoomId, final.Snapshot.WorldId,
-                -1, ownerAppliedFrame.Frame));
-            Require(history != null && history.StartFrame == 0 && history.FrameInputs.Count == ownerAppliedFrame.Frame + 1 &&
-                history.FrameInputs[0].Count == 0 && history.FrameInputs[^1].Any(input => input.PlayerId == ownerPlayerId &&
-                    input.OpCode == MobaOpCodes.Input.Move && input.Payload.AsSpan().SequenceEqual(frameMovePayload)),
-                "Cold CatchUp did not return the empty initial checkpoint and original TCP input.");
-            Console.WriteLine($"MOBA_SMOKE_FRAME_ZERO_VERIFIED FirstHistoryFrame=0 CatchUpFrames={history!.FrameInputs.Count}");
-        }
-        Console.WriteLine($"MOBA_SMOKE_FRAME_SYNC_VERIFIED Frame={ownerAppliedFrame.Frame} PlayerId={ownerPlayerId} WorldId={ownerAppliedFrame.WorldId}");
-        return new MobaSmokeResult(created.RoomId, final.NumericRoomId, final.Snapshot.BattleId,
-            final.Snapshot.WorldId, final.Snapshot.Phase, final.Snapshot.Players?.Count ?? 0, final.Snapshot.RoomRevision);
+        using var reconnected = new MobaSmokeClient("v2-reconnect", host, port, syncTemplateId);
+        await reconnected.BindSessionAsync(owner.SessionToken, token);
+        await ExpectVersionRejection(() => reconnected.SubmitSettledInputAsync(oldInput, token));
+        var rebound = await reconnected.SubscribeSettledAsync(roomId, worldId, battleId, false, token);
+        Require(ownerBinding.Identity.Equals(rebound.Identity), "Reconnect changed the V2 identity.");
+        using var receiver = new MobaSettledFrameReceiver(rebound);
+        receiver.Receive(ownerRecord);
+        Require(!receiver.TryGet(inputFrame, out _), "Receiver exposed gameplay before the frame zero checkpoint.");
+        var cold = await reconnected.CatchUpSettledAsync(rebound.Identity, -1, inputFrame, token);
+        receiver.ReceiveCatchUp(cold, -1, inputFrame);
+        Require(receiver.HasCheckpoint && cold.Frames.Length == inputFrame + 1 &&
+            MemoryPackSerializer.Serialize(cold.Frames[^1]).AsSpan().SequenceEqual(MemoryPackSerializer.Serialize(ownerRecord)),
+            "V2 cold history did not include frame zero and the same live record.");
+        var shortHistory = await memberBattle.CatchUpSettledAsync(memberBinding.Identity, inputFrame - 1, inputFrame, token);
+        receiver.ReceiveCatchUp(shortHistory, inputFrame - 1, inputFrame);
+        for (var frame = 1; frame <= inputFrame; frame++)
+            Require(receiver.TryConsume(frame, out _), $"Missing V2 cold replay input frame {frame}.");
+
+        using var spectator = new MobaSmokeClient("v2-spectator", host, port, syncTemplateId);
+        await spectator.LoginAsync(token);
+        var spectatorBinding = await spectator.SubscribeSettledAsync(roomId, worldId, battleId, true, token);
+        var spectatorHistory = await spectator.CatchUpSettledAsync(spectatorBinding.Identity, inputFrame - 1, inputFrame, token);
+        Require(spectatorHistory.Frames.Length == 1 && MemoryPackSerializer.Serialize(spectatorHistory.Frames[0]).AsSpan()
+            .SequenceEqual(MemoryPackSerializer.Serialize(ownerRecord)), "Spectator did not receive the same settlement.");
+
+        var rejectionFrame = spectatorBinding.LastSettledFrame + 60;
+        const int rejectedKey = 37;
+        var invalidIdentity = new SkillInputEvent(1, SkillInputPhase.Press, predictionKey: rejectedKey,
+            targetFrame: rejectionFrame, inputSequence: 1, entityVersion: int.MaxValue);
+        var rejectedInput = new MobaFrameWire.WireSubmitFrameInputReq(roomId, worldId, ownerPlayerId,
+            rejectionFrame, MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in invalidIdentity));
+        Require((await ownerBattle.SubmitSettledInputAsync(rejectedInput, token)).Accepted,
+            "Rejection probe did not enter the frame queue.");
+        var ownerRejection = await ownerBattle.ReadSettledAfterAsync(rejectionFrame - 1, token);
+        var memberRejection = await memberBattle.ReadSettledAfterAsync(rejectionFrame - 1, token);
+        Require(ownerRejection.Frame == rejectionFrame && memberRejection.Frame == rejectionFrame &&
+            MemoryPackSerializer.Serialize(ownerRejection).AsSpan().SequenceEqual(MemoryPackSerializer.Serialize(memberRejection)) &&
+            ownerRejection.Commands.Any(command => command.Disposition == (byte)MobaFrameInputDisposition.Rejected &&
+                command.PlayerId == ownerPlayerId && command.OpCode == MobaOpCodes.Input.SkillInput &&
+                command.ExecutedPayload.Length == 0) &&
+            ownerRejection.Decisions.Any(decision => decision.PredictionKey == rejectedKey && !decision.Accepted &&
+                decision.AuthoritativeFrame == rejectionFrame && decision.Reason == (int)MobaActionAckReason.EntityVersionChanged),
+            $"V2 peers did not receive the same authoritative rejection at frame {rejectionFrame}.");
+        Console.WriteLine($"MOBA_SETTLED_REJECTION_TCP_PASSED Frame={rejectionFrame} Key={rejectedKey}");
+
+        Console.WriteLine($"MOBA_SETTLED_V2_TCP_PASSED Frame={inputFrame} ColdFrames={cold.Frames.Length} Generation={rebound.Identity.RuntimeGeneration}");
+        return new MobaSmokeResult(created.RoomId, roomId, battleId, worldId, final.Snapshot.Phase,
+            final.Snapshot.Players?.Count ?? 0, final.Snapshot.RoomRevision);
+    }
+
+    if (probeFixedBaseline)
+    {
+        var token = timeoutCts.Token;
+        var fixedBattleId = final.Snapshot.BattleId;
+        var fixedWorldId = final.Snapshot.WorldId;
+        await ownerBattle.SubscribeStateSyncAsync(fixedBattleId, created.RoomId, token, fixedBaseline: true);
+        await memberBattle.SubscribeStateSyncAsync(fixedBattleId, created.RoomId, token, fixedBaseline: true);
+        var memberFull = await memberBattle.ReadSnapshotAsync(snapshot => snapshot.IsFullSnapshot, token);
+        var initial = ReadFixedBaselineIdentity(memberFull);
+        var ownerFull = await ownerBattle.ReadSnapshotAsync(snapshot => snapshot.IsFullSnapshot &&
+            ReadFixedBaselineIdentity(snapshot) == initial, token);
+        Require(ownerFull.Frame == memberFull.Frame && ownerFull.WorldId == fixedWorldId &&
+            (memberFull.Actors?.Count ?? 0) >= 2 && ownerFull.Payload!.AsSpan().SequenceEqual(memberFull.Payload),
+            "Fixed baseline subscribers did not receive the same complete projection.");
+
+        var omitted = await memberBattle.ReadSnapshotAsync(snapshot => !snapshot.IsFullSnapshot, token);
+        var skipped = ReadFixedBaselineIdentity(omitted);
+        var afterSkip = await memberBattle.ReadSnapshotAsync(snapshot => !snapshot.IsFullSnapshot &&
+            ReadFixedBaselineIdentity(snapshot).BaseId == skipped.BaseId, token);
+        var next = ReadFixedBaselineIdentity(afterSkip);
+        Require(next.Id > skipped.Id && next.BaseId == initial.Id && next.Generation == initial.Generation,
+            "Skipping a TCP delta broke the reference to the shared full snapshot.");
+
+        var requested = await ownerBattle.RequestFullStateSyncAsync(fixedBattleId, created.RoomId, fixedWorldId, ownerFull.Frame, token);
+        Require(requested.Accepted, "Fixed baseline refresh request was not accepted.");
+        var rotated = await ownerBattle.ReadSnapshotAsync(snapshot => snapshot.IsFullSnapshot &&
+            ReadFixedBaselineIdentity(snapshot).Id > next.Id, token);
+        var rotation = ReadFixedBaselineIdentity(rotated);
+        var peerRotation = await memberBattle.ReadSnapshotAsync(snapshot => snapshot.IsFullSnapshot &&
+            ReadFixedBaselineIdentity(snapshot) == rotation, token);
+        Require(rotated.Frame == peerRotation.Frame && rotated.EventEpoch == peerRotation.EventEpoch &&
+            rotated.EventWatermark == peerRotation.EventWatermark, "Shared refresh did not preserve the event baseline.");
+
+        await ownerBattle.SubscribeStateSyncAsync(fixedBattleId, created.RoomId, token);
+        var legacy = await ownerBattle.ReadSnapshotAsync(snapshot => snapshot.IsFullSnapshot &&
+            snapshot.SchemaVersion < FixedBaselineStateSyncProtocol.SchemaVersion, token);
+        var stillFixed = await memberBattle.ReadSnapshotAsync(snapshot => !snapshot.IsFullSnapshot, token);
+        Require(legacy.WorldId == fixedWorldId && ReadFixedBaselineIdentity(stillFixed).Generation == initial.Generation,
+            "Legacy and fixed baseline subscribers could not coexist.");
+        Console.WriteLine($"MOBA_FIXED_BASELINE_TCP_PASSED Base={initial.Id} Skipped={skipped.Id} Next={next.Id} Rotation={rotation.Id} LegacySchema={legacy.SchemaVersion}");
+        return new MobaSmokeResult(created.RoomId, final.NumericRoomId, fixedBattleId, fixedWorldId, final.Snapshot.Phase,
+            final.Snapshot.Players?.Count ?? 0, final.Snapshot.RoomRevision);
     }
 
     // Subscribe both battle clients to StateSync so they receive actor snapshots.
@@ -394,6 +477,22 @@ static uint ResolvePlayerId(WireRoomSnapshot snapshot, int heroId)
     return player.PlayerId;
 }
 
+static (Guid Generation, long Id, long BaseId) ReadFixedBaselineIdentity(WireStateSyncSnapshotPush snapshot)
+{
+    if (snapshot.SchemaVersion != FixedBaselineStateSyncProtocol.SchemaVersion ||
+        !FixedBaselineStateSyncProtocol.TryDecode(snapshot.Payload, out var generation, out var snapshotId,
+            out var baseId, out _, out _))
+        throw new InvalidOperationException($"Expected a valid fixed baseline envelope at frame {snapshot.Frame}.");
+    return (generation, snapshotId, baseId);
+}
+
+static async Task ExpectVersionRejection(Func<Task> request)
+{
+    try { await request(); }
+    catch (InvalidOperationException exception) when (exception.Message.Contains("statusCode=426", StringComparison.Ordinal)) { return; }
+    throw new InvalidOperationException("Legacy or unbound TCP request did not receive V2 version rejection.");
+}
+
 static async Task WaitForTcpAsync(string host, int port, TimeSpan timeout)
 {
     using var timeoutCts = new CancellationTokenSource(timeout);
@@ -472,7 +571,7 @@ internal sealed class MobaSmokeClient : IDisposable
     private readonly AbilityKit.Network.Abstractions.IConnection _connection;
     private readonly RequestClient _requests;
     private readonly Channel<WireStateSyncSnapshotPush> _snapshots = Channel.CreateUnbounded<WireStateSyncSnapshotPush>();
-    private readonly Channel<RoomFrameInputPush> _frames = Channel.CreateUnbounded<RoomFrameInputPush>();
+    private readonly Channel<WireSettledFrame> _settledFrames = Channel.CreateUnbounded<WireSettledFrame>();
     private string _sessionToken = string.Empty;
     private string _syncTemplateId = string.Empty;
     private long _nextCommandSequence;
@@ -542,7 +641,8 @@ internal sealed class MobaSmokeClient : IDisposable
         _sessionToken = response.SessionToken;
     }
 
-    public async Task SubscribeStateSyncAsync(string battleId, string roomId, CancellationToken cancellationToken)
+    public async Task SubscribeStateSyncAsync(string battleId, string roomId, CancellationToken cancellationToken,
+        bool fixedBaseline = false)
     {
         var request = new RoomSubscribeStateSyncReq
         {
@@ -553,12 +653,36 @@ internal sealed class MobaSmokeClient : IDisposable
             LastEventAck = 0
         };
         var response = await SendAsync<RoomSubscribeStateSyncReq, RoomSubscribeStateSyncRes>(
-            RoomGatewayOpCodes.SubscribeStateSync,
+            fixedBaseline ? RoomGatewayOpCodes.SubscribeFixedBaselineStateSync : RoomGatewayOpCodes.SubscribeStateSync,
             request,
             cancellationToken);
         if (!response.Success)
         {
             throw new InvalidOperationException($"SubscribeStateSync failed: {response.Message}");
+        }
+    }
+
+    public Task<WireSettledSubscribeResponse> SubscribeSettledAsync(ulong roomId, ulong worldId, string battleId, bool spectator,
+        CancellationToken token) => SendAsync<WireSettledSubscribeRequest, WireSettledSubscribeResponse>(SettledFrameProtocol.Subscribe,
+        new WireSettledSubscribeRequest { Version = SettledFrameProtocol.Version, RoomId = roomId, WorldId = worldId, BattleId = battleId, Spectator = spectator }, token);
+
+    public Task<WireSettledCatchUpResponse> CatchUpSettledAsync(WireSettledIdentity identity, int from, int to, CancellationToken token) =>
+        SendAsync<WireSettledCatchUpRequest, WireSettledCatchUpResponse>(SettledFrameProtocol.CatchUp,
+            new WireSettledCatchUpRequest { Identity = identity, FromFrameExclusive = from, ToFrameInclusive = to }, token);
+
+    public async Task<MobaFrameWire.WireSubmitFrameInputRes> SubmitSettledInputAsync(MobaFrameWire.WireSubmitFrameInputReq input,
+        CancellationToken token) => MobaFrameWire.WireCustomBinary.DeserializeSubmitFrameInputRes(
+        await SendRawAsync(MobaFrameWire.OpCodes.SubmitFrameInput, MobaFrameWire.WireCustomBinary.Serialize(input), token));
+
+    public async Task<ArraySegment<byte>> SendRawAsync(uint opCode, ArraySegment<byte> payload, CancellationToken token) =>
+        await _requests.SendRequestAsync(opCode, payload, TimeSpan.FromSeconds(30), token);
+
+    public async Task<WireSettledFrame> ReadSettledAfterAsync(int frame, CancellationToken token)
+    {
+        while (true)
+        {
+            var record = await _settledFrames.Reader.ReadAsync(token);
+            if (record.Frame > frame) return record;
         }
     }
 
@@ -595,30 +719,6 @@ internal sealed class MobaSmokeClient : IDisposable
                 Payload = payload ?? Array.Empty<byte>()
             },
             cancellationToken);
-
-    public async Task<RoomFrameInputPush> WaitForFrameAfterAsync(int frame, CancellationToken cancellationToken)
-    {
-        while (await _frames.Reader.WaitToReadAsync(cancellationToken))
-        {
-            while (_frames.Reader.TryRead(out var push))
-            {
-                if (push.Frame > frame) return push;
-            }
-        }
-        throw new InvalidOperationException("FrameSync push channel completed before a frame arrived.");
-    }
-
-    public async Task<RoomFrameInputPush> WaitForFrameInputAsync(uint playerId, CancellationToken cancellationToken)
-    {
-        while (await _frames.Reader.WaitToReadAsync(cancellationToken))
-        {
-            while (_frames.Reader.TryRead(out var push))
-            {
-                if (push.Inputs?.Any(input => input.PlayerId == playerId) == true) return push;
-            }
-        }
-        throw new InvalidOperationException($"FrameSync push channel completed before player {playerId}'s input arrived.");
-    }
 
     public MobaSmokeRecoverySnapshot CaptureRecoveryBaseline()
     {
@@ -731,6 +831,16 @@ internal sealed class MobaSmokeClient : IDisposable
                 CommandSequence = unchecked((ulong)Interlocked.Increment(ref _nextCommandSequence))
             },
             cancellationToken);
+    }
+
+    public async Task<WireStateSyncSnapshotPush> ReadSnapshotAsync(Func<WireStateSyncSnapshotPush, bool> predicate,
+        CancellationToken token)
+    {
+        while (true)
+        {
+            var snapshot = await _snapshots.Reader.ReadAsync(token);
+            if (predicate(snapshot)) return snapshot;
+        }
     }
 
     public async Task<WireStateSyncActorSnapshot> WaitForCharacterAsync(
@@ -901,7 +1011,6 @@ internal sealed class MobaSmokeClient : IDisposable
     {
         _connection.ServerPushReceived -= OnServerPushReceived;
         _snapshots.Writer.TryComplete();
-        _frames.Writer.TryComplete();
         _requests.Dispose();
         _connection.Dispose();
         _channel.Dispose();
@@ -909,13 +1018,9 @@ internal sealed class MobaSmokeClient : IDisposable
 
     private void OnServerPushReceived(uint opCode, ArraySegment<byte> payload)
     {
-        if (opCode == RoomGatewayOpCodes.FrameSyncFramePushed)
+        if (opCode == SettledFrameProtocol.FramePushed)
         {
-            try { _frames.Writer.TryWrite(WireRoomGatewayBinary.Deserialize<RoomFrameInputPush>(payload)); }
-            catch (Exception exception)
-            {
-                Volatile.Write(ref _lastDecodeError, $"frame-opcode={opCode}, bytes={payload.Count}, error={exception.Message}");
-            }
+            _settledFrames.Writer.TryWrite(MemoryPackSerializer.Deserialize<WireSettledFrame>(payload.AsSpan()));
             return;
         }
 
@@ -1031,7 +1136,8 @@ internal static class MobaSmokeConstants
     public const string TagBundleVersion = "moba-smoke-tag-bundle-v1";
 
     /// <summary>MOBA 示例固定使用帧同步模板。</summary>
-    public const string DefaultSyncTemplateId = "frame-sync-authority";
+    public const string DefaultSyncTemplateId = SettledSyncTemplateId;
+    public const string SettledSyncTemplateId = "moba-settled-frame-sync-v2";
 }
 
 internal readonly record struct MobaSmokeHeroLoadout(

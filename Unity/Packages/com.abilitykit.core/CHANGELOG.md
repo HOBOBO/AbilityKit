@@ -5,6 +5,14 @@ AbilityKit 整体仍处于开发期，0.x 版本不承诺向后兼容；重大�
 
 ## [Unreleased]
 
+### 首发支持范围
+
+- 新增[首发支持清单](./Documentation~/FirstReleaseSupport.md)，区分推荐 API、继续维护的高级接口、历史兼容入口与待评审的 Observability。Core 仍为 `0.1.0` 候选，未改运行时、签名基线、版本或发布状态。
+
+### 移除
+
+- 退役 `AbilityKit.Core.Configuration.UnityJsonSettingsBootstrap` 及只承载该类型的 `AbilityKit.Core.Unity` 程序集。Unity 应用在自己的宿主中实现设置引导；Core 的文件工具、配置存储及 Editor 程序集不变。Core 不再需要 `UnityWebRequest`，MOBA 的应用层实现不受影响。
+
 ### 整理与优化
 
 - 仓库发布工具新增只读 `--verify-inputs`，`--tag` 自动核对固定 HEAD、完整包目录、工具/清单与已有标签依赖闭包；拒绝脏改、未提交输入及同版本不同内容标签，输出 Git 对象证据并将新标签指向已验证提交。原 package.json 脏改警告升级为严格拒绝，普通声明预览保持可用；Core 运行时、API、版本和候选状态保持。
@@ -65,7 +73,10 @@ AbilityKit 整体仍处于开发期，0.x 版本不承诺向后兼容；重大�
 其数学原语/事件/池化/配置/日志/标记系统已被两个生产级 demo（MOBA、Shooter）端到端验证，
 并随本版本首次具备**脱离 demo 的直接契约测试**（`src/AbilityKit.Core.Tests`）。
 
-### API 边界（本包承诺稳定的部分）
+### 当时记录的 API 范围（历史）
+
+下列为早期里程碑记录，不是当前首发支持承诺，也不证明制品已正式发布。现行口径以[首发支持清单](./Documentation~/FirstReleaseSupport.md)为准。
+
 - 数学原语：`Vec2` / `Vec3` / `Quat` / `Transform3` / `MathUtil`。
 - 事件：`EventDispatcher` / `EventKey<TArgs>`（强类型事件总线）。
 - 池化：`ObjectPool` / `PoolManager` / `PoolRegistry` / `Pools`（通用对象池）。

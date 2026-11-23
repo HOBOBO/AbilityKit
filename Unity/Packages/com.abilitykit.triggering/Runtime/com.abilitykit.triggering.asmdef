@@ -7,7 +7,6 @@
         "AbilityKit.Continuous",
         "AbilityKit.Modifiers",
         "AbilityKit.World.DI",
-        "AbilityKit.Analyzer",
         "com.abilitykit.triggering.abstractions"
     ],
     "includePlatforms": [],

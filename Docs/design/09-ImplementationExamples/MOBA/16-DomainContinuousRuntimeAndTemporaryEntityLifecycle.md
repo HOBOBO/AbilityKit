@@ -289,7 +289,9 @@ builder 的关键行为是：
 
 ### 7.2 Damage 后置事件负责击杀清理
 
-`MobaSummonDeathSubscriber` 订阅 `DamagePipelineEvents.AfterApply`。当 damage result 显示目标血量小于等于 0，并且目标 actor 具备 summon meta 时，请求 `SummonDespawnReason.Killed`。
+`MobaSummonDeathSubscriber` 订阅 `DamagePipelineEvents.HealthCommitted`。当提交结果确认目标从存活变为死亡时，先按死亡目标的 actor id 查询其 root owner 召唤物，并为配置 `DespawnOnOwnerDie` 的召唤物请求 `SummonDespawnReason.OwnerDead`；随后如果死亡目标自身是召唤物，再请求 `SummonDespawnReason.Killed`。
+
+主人死亡时英雄实体通常仍留在 Actor 注册表中，以便进入死亡/复活状态，因此不能只靠 `MobaSummonLifecycleSystem` 的“owner 已不在注册表”分支实现此策略。死亡事件是该策略的权威触发点；清理只发出带原因的 despawn request，实际注销、事件发布和实体销毁仍由既有生命周期系统完成。未勾选 `DespawnOnOwnerDie` 的召唤物继续存活。该契约覆盖安妮 R 提伯斯等召唤物的 owner-death 生命周期。
 
 这条链路说明伤害系统不直接销毁召唤物；它只发布 damage after-apply 结果。召唤物死亡语义由 Summon 领域订阅并转成 despawn，避免 Damage service 认识所有临时实体类型。
 

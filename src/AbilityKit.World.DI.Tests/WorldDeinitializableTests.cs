@@ -84,6 +84,49 @@ public sealed class WorldDeinitializableTests
             events);
     }
 
+    [Theory]
+    [InlineData(WorldLifetime.Singleton)]
+    [InlineData(WorldLifetime.Scoped)]
+    public void Dispose_ReentrantCallbackDoesNotReleaseOwnedInstancesTwice(WorldLifetime lifetime)
+    {
+        var events = new List<string>();
+        var builder = new WorldContainerBuilder();
+        builder.Register<ReentrantLifecycleTarget>(lifetime, _ => new ReentrantLifecycleTarget(events));
+        builder.RegisterInstance(new object());
+        using var container = builder.Build();
+        using var scope = container.CreateScope();
+        var resolver = lifetime == WorldLifetime.Singleton ? (IWorldResolver)container : scope;
+        var owner = (IDisposable)resolver;
+        var dependency = resolver.Resolve<object>();
+        var service = resolver.Resolve<ReentrantLifecycleTarget>();
+        service.Reenter = services =>
+        {
+            owner.Dispose();
+            if (ReferenceEquals(dependency, services.Resolve<object>())) events.Add("dependency:available");
+        };
+
+        owner.Dispose();
+        owner.Dispose();
+
+        Assert.Equal(new[] { "deinit", "dependency:available", "dispose" }, events);
+        Assert.False(resolver.TryResolve<object>(out _));
+    }
+
+    private sealed class ReentrantLifecycleTarget(List<string> events) : IWorldDeinitializable
+    {
+        public Action<IWorldResolver>? Reenter { get; set; }
+
+        public void OnDeinit(IWorldResolver services)
+        {
+            events.Add("deinit");
+            var callback = Reenter;
+            Reenter = null;
+            callback?.Invoke(services);
+        }
+
+        public void Dispose() => events.Add("dispose");
+    }
+
     private sealed class ExternalLifecycleTarget : IWorldInitializable, IWorldDeinitializable
     {
         public int InitializeCount { get; private set; }

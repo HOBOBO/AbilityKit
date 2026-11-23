@@ -52,13 +52,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var captureCastFrame = ReadBoolNonZero(namedArgs, ctx, false, "capture_cast_frame");
             if (captureCastFrame && hasTargetRequest)
                 throw new ArgumentException("capture_cast_frame requires a single position, without a target request.");
+            var replaceEventArea = false;
+            if (namedArgs.TryGetValue("replace_event_area", out var replaceArgument) &&
+                !TryReadReplaceOption(in replaceArgument, out replaceEventArea))
+                throw new ArgumentException("replace_event_area requires a Boolean constant.");
+            if (replaceEventArea && hasTargetRequest)
+                throw new ArgumentException("replace_event_area requires a single position, without a target request.");
             var targetRequest = hasTargetRequest ? MobaActionTargetSchemaReader.Read(namedArgs, ctx) : default;
             TryReadBlackboardTarget(namedArgs, out var resultTarget, "result", "result_id", "area_result");
             TryReadBlackboardTarget(namedArgs, out var resultCountTarget, "result_count", "spawn_count");
             return new SpawnAreaArgs(areaId, positionMode, radiusOverride, durationFrames, durationMs, stayIntervalFrames, collisionLayerMaskOverride, offsetX, offsetY, offsetZ,
                 shapeKind, halfAngleDeg, width, length, initialRadius, radiusGrowthPerFrame, anchorAtOrigin,
                 groupKey, claimTargetsWithinGroup,
-                hasTargetRequest, targetRequest, resultTarget, resultCountTarget, directionOffset, lateralOffset, innerRadius, forwardYawDeg, captureCastFrame, (int)claimMask);
+                hasTargetRequest, targetRequest, resultTarget, resultCountTarget, directionOffset, lateralOffset, innerRadius, forwardYawDeg, captureCastFrame, (int)claimMask, replaceEventArea);
         }
 
         private static bool HasExplicitTargetRequest(Dictionary<string, ActionArgValue> namedArgs)
@@ -102,7 +108,38 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
             if (!ValidateClaimMask(args, out error)) return false;
+            foreach (var pair in args)
+            {
+                if (pair.Key != "replace_event_area") continue;
+                var option = pair.Value;
+                if (!TryReadReplaceOption(in option, out var replaceEventArea))
+                {
+                    error = "replace_event_area requires a Boolean constant.";
+                    return false;
+                }
+                if (replaceEventArea)
+                {
+                    var arguments = new Dictionary<string, ActionArgValue>(StringComparer.Ordinal);
+                    foreach (var argument in args) arguments[argument.Key] = argument.Value;
+                    if (HasExplicitTargetRequest(arguments))
+                    {
+                        error = "replace_event_area requires a single position, without a target request.";
+                        return false;
+                    }
+                }
+                break;
+            }
             return RequireAny(args, "area_id", out error, "area_id", "areaid", "aoe_id", "aoeid", "id");
+        }
+
+        private static bool TryReadReplaceOption(in ActionArgValue argument, out bool enabled)
+        {
+            enabled = argument.BooleanValue;
+            if (argument.Kind == ActionArgKind.BooleanValue) return true;
+            if (argument.Kind != ActionArgKind.NumericValue || argument.Ref.Kind != ENumericValueRefKind.Const ||
+                (argument.Ref.ConstValue != 0d && argument.Ref.ConstValue != 1d)) return false;
+            enabled = argument.Ref.ConstValue == 1d;
+            return true;
         }
 
         internal static bool ValidateClaimMask(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

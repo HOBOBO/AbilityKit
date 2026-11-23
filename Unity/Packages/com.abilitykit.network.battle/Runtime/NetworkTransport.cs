@@ -602,7 +602,9 @@ namespace AbilityKit.Network.Battle
                         subscribePayload = _options.SerializePostAuthentication.Invoke();
                     }
 
-                    await _sdkClient.SendRawRequestAsync(_options.OpPostAuthentication, subscribePayload);
+                    var response = await _sdkClient.SendRawRequestAsync(_options.OpPostAuthentication, subscribePayload);
+                    if (!IsCurrentAuthenticationGeneration(generation, completion)) return;
+                    _options.ValidatePostAuthenticationResponse?.Invoke(response);
                     if (!IsCurrentAuthenticationGeneration(generation, completion)) return;
                     Log.Info("[NetworkTransport] Post-authentication request ok (authoritative frame subscription active).");
                 }

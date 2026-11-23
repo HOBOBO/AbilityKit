@@ -22,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         EnemyTeam = SearchTargetProviderKind.EnemyTeam,
         MainType = SearchTargetProviderKind.MainType,
         UnitSubType = SearchTargetProviderKind.UnitSubType,
+        OwnedLivingSummons = SearchTargetProviderKind.OwnedLivingSummons,
         SearchQueryTemplate = 1000,
     }
 
@@ -287,6 +288,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 case MobaActionTargetSourceCode.Self:
                 case MobaActionTargetSourceCode.SameTeam:
                 case MobaActionTargetSourceCode.EnemyTeam:
+                case MobaActionTargetSourceCode.OwnedLivingSummons:
                     return true;
                 default:
                     return false;

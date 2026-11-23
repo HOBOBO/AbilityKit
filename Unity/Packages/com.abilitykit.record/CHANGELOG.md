@@ -3,6 +3,10 @@
 本包遵循 [Keep a Changelog](https://keepachangelog.com/) 风格；版本号遵循语义化版本。
 AbilityKit 整体仍处于开发期，0.x 版本不承诺向后兼容；重大变更会在对应版本条目里写明迁移要点。
 
+## [Unreleased]
+
+- `CanonicalStateDiffAnalyzer` 和同文件的规范状态 DTO、枚举从 `AbilityKit.Core.Recording.FrameRecord` 迁至 `AbilityKit.Record.FrameRecord`，不保留旧类型名。升级时更新这些类型的命名空间并重新编译；仍使用其他旧帧记录 API 的调用方可同时导入两者。JSON 字段、枚举值、格式版本和差异分析行为不变。
+
 ## [0.1.0] — 2026-07-31 — Beta
 
 首个 Beta 里程碑。录制/回放/帧记录适配是确定性回放与对局复盘的基础，已被两个生产级 demo

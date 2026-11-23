@@ -246,17 +246,17 @@ UI 的按下状态、预览目标和本地动画不能成为权威释放条件�
 | 输入协调器 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Input/MobaInputCoordinator.cs` |
 | 输入上下文 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Input/MobaInputCommandContext.cs` |
 | 技能命令 handler | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Input/MobaSkillInputCommandHandler.cs` |
-| 技能 payload codec | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Input/SkillInputCodec.cs` |
+| 技能 payload codec | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Input/SkillInputCodec.cs` |
 | 技能输入协议 | `Unity/Packages/com.abilitykit.protocol.moba/Runtime/Skill/SkillInputStructs.cs` |
-| 技能释放协调器 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs` |
-| 释放准备 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastPreparationService.cs` |
-| 策略解析 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastPolicyResolver.cs` |
-| 上下文与结果 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastContext.cs` |
-| 失败 code | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillFailureCodes.cs` |
-| Runner registry | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillRunnerRegistry.cs` |
-| Pipeline runner | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs` |
-| Runtime 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs` |
-| 每帧推进系统 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaSkillPipelineStepSystem.cs` |
+| 技能释放协调器 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs` |
+| 释放准备 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastPreparationService.cs` |
+| 策略解析 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastPolicyResolver.cs` |
+| 上下文与结果 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastContext.cs` |
+| 失败 code | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillFailureCodes.cs` |
+| Runner registry | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillRunnerRegistry.cs` |
+| Pipeline runner | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineRunner.cs` |
+| Runtime 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs` |
+| 每帧推进系统 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/MobaSkillPipelineStepSystem.cs` |
 
 ## 14. Exactly-once 结束、能力句柄与证据边界
 

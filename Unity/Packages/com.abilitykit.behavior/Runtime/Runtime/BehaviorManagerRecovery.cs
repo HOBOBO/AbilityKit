@@ -26,6 +26,17 @@ namespace AbilityKit.Ability.Behavior
         private long _lastInstanceGeneration;
 
         /// <summary>
+        /// 只读确认回滚运行时仍由指定对象和来源持有，且可静默解绑或释放。
+        /// </summary>
+        public bool MatchesRecoveryRuntime(long instanceId, BehaviorEntityId ownerId, long sourceContextId, bool retained)
+        {
+            var index = retained ? _retainedRecoveryRuntimes : _behaviors;
+            return !_bindings.ContainsKey(instanceId) && index.TryGetValue(instanceId, out var runtime) &&
+                runtime.OwnerId.Equals(ownerId) && runtime.SourceContextId == sourceContextId &&
+                _instanceGenerations.ContainsKey(instanceId);
+        }
+
+        /// <summary>
         /// 将指定同代运行时移出活动索引与 Tick，不退出决策、不触发生命周期事件。
         /// 仅支持没有 BehaviorBinding 的回滚运行时。
         /// </summary>
@@ -111,6 +122,12 @@ namespace AbilityKit.Ability.Behavior
             ParseRecovery(payload, retainedInstances);
 
         /// <summary>
+        /// 按调用者已证明的结构撤销名单预检行为快照。被撤销的活动实例不得出现在目标载荷中。
+        /// </summary>
+        public void ValidateRecoveryState(byte[] payload, IReadOnlyCollection<long> retainedInstances,
+            IReadOnlyCollection<long> discardedInstances) => ParseRecovery(payload, retainedInstances, discardedInstances);
+
+        /// <summary>
         /// 静默恢复同实例状态和索引。写入异常时尝试恢复操作前状态，补偿失败继续显式传播。
         /// </summary>
         public void RestoreRecoveryState(byte[] payload)
@@ -162,22 +179,28 @@ namespace AbilityKit.Ability.Behavior
             BehaviorRecoveryCodec.Text(writer, runtime.World.GetType().AssemblyQualifiedName);
         });
 
-        private ManagerRecovery ParseRecovery(byte[] payload, IReadOnlyCollection<long> retainedInstances = null)
+        private ManagerRecovery ParseRecovery(byte[] payload, IReadOnlyCollection<long> retainedInstances = null,
+            IReadOnlyCollection<long> discardedInstances = null)
         {
             CheckRecoveryDependencies();
             var retained = retainedInstances == null ? null : new HashSet<long>(retainedInstances);
+            var discarded = discardedInstances == null ? null : new HashSet<long>(discardedInstances);
+            if (discarded != null)
+                foreach (var id in discarded)
+                    if (!_behaviors.ContainsKey(id) || retained?.Contains(id) == true)
+                        throw new InvalidOperationException($"Behavior '{id}' is not an active rollback discard candidate.");
             return BehaviorRecoveryCodec.Read(payload, reader =>
             {
                 if (reader.ReadInt32() != 1) throw new InvalidOperationException("Unsupported behavior manager version.");
                 var value = new ManagerRecovery { NextId = reader.ReadInt64() };
                 var count = BehaviorRecoveryCodec.Count(reader);
-                if (count != _behaviors.Count + (retained?.Count ?? 0))
+                if (count != _behaviors.Count + (retained?.Count ?? 0) - (discarded?.Count ?? 0))
                     throw new InvalidOperationException("Behavior rollback requires the same surviving runtime roster.");
                 var seen = new HashSet<long>();
                 for (var i = 0; i < count; i++)
                 {
                     var id = reader.ReadInt64(); var generation = reader.ReadInt64();
-                    if (!seen.Add(id) ||
+                    if (!seen.Add(id) || discarded?.Contains(id) == true ||
                         !(_behaviors.TryGetValue(id, out var runtime) || retained != null && retained.Remove(id) &&
                             _retainedRecoveryRuntimes.TryGetValue(id, out runtime)) ||
                         !_instanceGenerations.TryGetValue(id, out var liveGeneration) || generation != liveGeneration ||

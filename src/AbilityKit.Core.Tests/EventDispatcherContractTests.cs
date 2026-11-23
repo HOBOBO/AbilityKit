@@ -1,4 +1,5 @@
 using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Pooling;
 using Xunit;
 
 namespace AbilityKit.Core.Tests;
@@ -137,6 +138,74 @@ public sealed class EventDispatcherContractTests
         dispatcher.Publish(4, "ready", autoReleaseArgs: false);
 
         Assert.Equal(new[] { "int:7", "string:ready" }, calls);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void PublishWithoutListenersPreservesArgumentReleasePrecedence(bool stringId, bool autoRelease)
+    {
+        var dispatcher = new EventDispatcher();
+        var disposable = new DisposablePoolableArgs();
+        var poolable = new UntrackedPoolableArgs();
+
+        void Publish<TArgs>(TArgs args)
+        {
+            if (stringId) dispatcher.Publish("contract.no-listeners", args, autoRelease);
+            else dispatcher.Publish(123, args, autoRelease);
+        }
+
+        Publish(disposable);
+        Publish(poolable);
+
+        Assert.Equal(autoRelease ? 1 : 0, disposable.DisposeCount);
+        Assert.Equal(0, disposable.ReleaseCount);
+        Assert.Equal(autoRelease ? 1 : 0, poolable.ReleaseCount);
+    }
+
+    [Fact]
+    public void DispatchersWithTheSameEventIdKeepSubscriptionsAndClearingIsolated()
+    {
+        var first = new EventDispatcher();
+        var second = new EventDispatcher();
+        var calls = new List<string>();
+        first.Subscribe<int>(12, value => calls.Add($"first:{value}"));
+        second.Subscribe<int>(12, value => calls.Add($"second:{value}"));
+
+        first.Publish(12, 1, autoReleaseArgs: false);
+        first.Clear();
+        second.Publish(12, 2, autoReleaseArgs: false);
+        first.Publish(12, 3, autoReleaseArgs: false);
+
+        Assert.Equal(new[] { "first:1", "second:2" }, calls);
+    }
+
+    private class UntrackedPoolableArgs : IPoolable
+    {
+        public int ReleaseCount { get; private set; }
+
+        public void OnPoolGet() { }
+
+        public void OnPoolRelease()
+        {
+            ReleaseCount++;
+            throw new InvalidOperationException("模拟未跟踪参数的归还回调失败");
+        }
+
+        public void OnPoolDestroy() { }
+    }
+
+    private sealed class DisposablePoolableArgs : UntrackedPoolableArgs, IDisposable
+    {
+        public int DisposeCount { get; private set; }
+
+        public void Dispose()
+        {
+            DisposeCount++;
+            throw new InvalidOperationException("模拟可释放参数的释放回调失败");
+        }
     }
 
     /// <summary>

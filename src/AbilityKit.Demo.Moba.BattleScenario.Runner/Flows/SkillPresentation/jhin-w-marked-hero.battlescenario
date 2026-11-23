@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 3, "caseId": "jhin-w-marked-hero", "displayName": "烬 W：Q 标记后禁锢英雄",
+  "tags": ["skill-presentation", "jhin", "marked-hero", "crowd-control"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 2600},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3001, "attributeTemplateId": 3001, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1002, "attributeTemplateId": 1002, "teamId": 2, "position": {"x": 7, "y": 0, "z": 0}}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 1, "targetAlias": "target", "position": {"x": 7, "y": 0, "z": 0}, "direction": {"x": 0, "y": 0, "z": 1}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 2600, "action": "cast_skill", "actorAlias": "caster", "slot": 2, "position": {"x": 7, "y": 0, "z": 0}, "direction": {"x": 0, "y": 0, "z": 1}}
+    ],
+    "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30010101, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30010201, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30010201, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "BuffApply", "configId": 30010222, "maxCount": 1}
+    ]
+  }
+}

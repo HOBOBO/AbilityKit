@@ -167,7 +167,7 @@ namespace AbilityKit.Game.Flow
             float fixedDeltaSeconds,
             int lastServerAckFrame)
         {
-            RemoteDrivenLastTickedFrame = RemoteDrivenWorldTickDriver.Tick(new RemoteDrivenWorldTickOptions(
+            var tickOptions = new RemoteDrivenWorldTickOptions(
                 plan,
                 RemoteDriven,
                 worldCatchUp,
@@ -175,7 +175,10 @@ namespace AbilityKit.Game.Flow
                 RemoteDrivenLastTickedFrame,
                 fixedDeltaSeconds,
                 SessionSimRuntimeTuning.MaxCatchUpStepsPerUpdate,
-                lastServerAckFrame));
+                lastServerAckFrame);
+            RemoteDrivenLastTickedFrame = plan.UsesSettledFrames
+                ? RemoteDrivenWorldTickDriver.TickSettled(tickOptions, context?.SettledFrames)
+                : RemoteDrivenWorldTickDriver.Tick(tickOptions);
 
             if (!plan.Authority.EnableClientPrediction || context == null) return;
 

@@ -21,6 +21,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244672
@@ -32,6 +35,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244673
@@ -43,6 +49,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244674
@@ -56,6 +65,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244677
@@ -69,6 +81,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244680
@@ -82,6 +97,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244683
@@ -93,6 +111,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244684
@@ -106,6 +127,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244687
@@ -119,6 +143,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244690
@@ -132,6 +159,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244693
@@ -143,6 +173,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244694
@@ -156,6 +189,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244697
@@ -169,6 +205,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244700
@@ -182,6 +221,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244703
@@ -193,6 +235,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244704
@@ -206,6 +251,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244707
@@ -217,6 +265,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244708
@@ -230,6 +281,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244711
@@ -243,6 +297,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244714
@@ -254,6 +311,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244715
@@ -267,6 +327,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244718
@@ -280,6 +343,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244721
@@ -293,6 +359,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244724
@@ -304,6 +373,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244725
@@ -317,6 +389,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244728
@@ -330,6 +405,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244731
@@ -343,6 +421,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244734
@@ -354,6 +435,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244735
@@ -367,6 +451,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244738
@@ -378,6 +465,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244739
@@ -391,6 +481,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244742
@@ -404,6 +497,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244745
@@ -415,6 +511,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244746
@@ -428,6 +527,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244749
@@ -439,6 +541,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244750
@@ -452,6 +557,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244753
@@ -465,6 +573,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244756
@@ -478,6 +589,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244766
@@ -491,6 +605,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244769
@@ -504,6 +621,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244772
@@ -517,6 +637,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244775
@@ -530,6 +653,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244777
@@ -543,6 +669,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244780
@@ -556,6 +685,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244783
@@ -568,6 +700,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244785
@@ -580,6 +715,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244787
@@ -592,6 +730,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244789
@@ -604,6 +745,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807169044490
@@ -617,6 +761,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807169044483
@@ -631,6 +778,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807169044484
@@ -645,6 +795,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807169044485
@@ -659,6 +812,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261821083910144
@@ -672,11 +828,14 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
-    - rid: 277261898929930240
-    - rid: 277261898929930241
-    - rid: 277261898929930242
+    - rid: 277262132933820416
+    - rid: 277262132933820417
+    - rid: 277262132933820418
   - Id: 30020002
     Name: Jinx - Pow-Pow Basic Attack
     PipelineContinuousTagTemplateId: 0
@@ -685,9 +844,12 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: 277262132933820419
     RequiredBuffQualificationId: 0
     Phases:
-    - rid: 277261898929930243
+    - rid: 277262132933820420
   - Id: 30020003
     Name: Jinx - Fishbones Basic Attack
     PipelineContinuousTagTemplateId: 0
@@ -696,9 +858,12 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: 277262132933820421
     RequiredBuffQualificationId: 0
     Phases:
-    - rid: 277261898929930244
+    - rid: 277262132933820422
   - Id: 30020201
     Name: Jinx - Zap!
     PipelineContinuousTagTemplateId: 0
@@ -707,6 +872,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261898929930245
@@ -720,6 +888,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261898929930248
@@ -733,6 +904,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261898929930251
@@ -746,6 +920,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261898929931253
@@ -759,6 +936,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261898929931256
@@ -774,6 +954,8 @@ MonoBehaviour:
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
     UseCommitCooldownFactor: 1
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261898929931260
@@ -788,6 +970,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261898929931264
@@ -802,6 +987,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261898929931268
@@ -815,6 +1003,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261942003597312
@@ -823,12 +1014,15 @@ MonoBehaviour:
     - rid: 277261942003597315
   - Id: 30050201
     Name: Gragas 30050201
-    PipelineContinuousTagTemplateId: 3018
+    PipelineContinuousTagTemplateId: 0
     ChildChannelId: 1
     RecastChannelId: 0
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261942003597316
@@ -843,6 +1037,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261942003597320
@@ -857,6 +1054,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261942003597324
@@ -871,6 +1071,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261942003597328
@@ -885,6 +1088,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261942003597332
@@ -899,6 +1105,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 30050391
     Phases:
     - rid: 277261942003597336
@@ -913,6 +1122,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 30050392
     Phases:
     - rid: 277261942003597340
@@ -927,6 +1139,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 30050393
     Phases:
     - rid: 277261942003597344
@@ -941,6 +1156,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 30050394
     Phases:
     - rid: 277261942003597348
@@ -955,6 +1173,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 30050395
     Phases:
     - rid: 277261942003597352
@@ -969,6 +1190,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261958716588032
@@ -983,6 +1207,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261958716588036
@@ -997,6 +1224,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261958716588040
@@ -1011,6 +1241,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261958716588044
@@ -1025,6 +1258,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261958716588048
@@ -1039,6 +1275,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261958716588052
@@ -1053,6 +1292,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261958716588056
@@ -1067,6 +1309,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261958716588060
@@ -1081,6 +1326,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261958716588064
@@ -1095,6 +1343,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261957319884800
@@ -1109,6 +1360,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261957319884804
@@ -1123,6 +1377,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261957319884808
@@ -1137,6 +1394,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261957319884812
@@ -1151,6 +1411,9 @@ MonoBehaviour:
     QueueRecastInFlight: 1
     ContinueThroughControl: 0
     PreserveCharacterCastContext: 1
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261957319884816
@@ -1165,6 +1428,9 @@ MonoBehaviour:
     QueueRecastInFlight: 0
     ContinueThroughControl: 1
     PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261957319884820
@@ -1175,6 +1441,8 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
     - rid: 914110140001
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1182,6 +1450,12 @@ MonoBehaviour:
         TriggerIds: 20ecc901
         AbortOnFailure: 1
         FailReason: skill_mode_entry_failed
+    - rid: 914110140002
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: veigar_w_commit_point
+        CommitId: cast
+        RequireEconomyReservation: 1
     - rid: 277261807049244672
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -2574,57 +2848,6 @@ MonoBehaviour:
             AbortOnFailure: 0
             EventTag: annie_r_cast
         MobaLogicTimeline: {fileID: 4900000, guid: da0e79166d594fb0b3c59b0018b81748, type: 3}
-    - rid: 277261898929930240
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: skill_30020101_release
-        TriggerIds: 9373a635
-        AbortOnFailure: 1
-        FailReason: skill_release_failed
-    - rid: 277261898929930241
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: skill_30020101_commit
-        TriggerIds: 9473a6350512ca01
-        AbortOnFailure: 1
-        FailReason: skill_commit_failed
-    - rid: 277261898929930242
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: jinx_q_switch_presentation_window
-        Timeline:
-          DurationMs: 1000
-          RecoveryStartMs: -1
-          Events: []
-        MobaLogicTimeline: {fileID: 4900000, guid: b1191a2a347b1a9498f09767adf8d7e3, type: 3}
-    - rid: 277261898929930243
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: skill_30020002_attack
-        Timeline:
-          DurationMs: 1567
-          RecoveryStartMs: -1
-          Events:
-          - AtMs: 100
-            EffectId: 30020201
-            ExecuteMode: 0
-            AbortOnFailure: 1
-            EventTag: basic_attack_launch
-        MobaLogicTimeline: {fileID: 4900000, guid: 67a95f41fcbeae549a41ee82cd773792, type: 3}
-    - rid: 277261898929930244
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: skill_30020003_attack
-        Timeline:
-          DurationMs: 1567
-          RecoveryStartMs: -1
-          Events:
-          - AtMs: 100
-            EffectId: 30020202
-            ExecuteMode: 0
-            AbortOnFailure: 1
-            EventTag: basic_attack_launch
-        MobaLogicTimeline: {fileID: 4900000, guid: 87efe85c0e70d4c45ab306417f8cd019, type: 3}
     - rid: 277261898929930245
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -2833,12 +3056,6 @@ MonoBehaviour:
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 914110140002
-      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: veigar_w_commit_point
-        CommitId: cast
-        RequireEconomyReservation: 1
     - rid: 277261898929931263
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -3080,6 +3297,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1167
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 3018
+          CastGateEndMs: 1000
           Events:
           - AtMs: 0
             EffectId: 30050301
@@ -3795,6 +4014,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 2500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 3018
+          CastGateEndMs: 1000
           Events:
           - AtMs: 0
             EffectId: 30070500
@@ -4267,3 +4488,69 @@ MonoBehaviour:
             AbortOnFailure: 1
             EventTag: karthus_30060605_submit
         MobaLogicTimeline: {fileID: 4900000, guid: cc609f6e2f3b8ae4380ec5d81a255a48, type: 3}
+    - rid: 277262132933820416
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020101_release
+        TriggerIds: 9373a635
+        AbortOnFailure: 1
+        FailReason: skill_release_failed
+    - rid: 277262132933820417
+      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020101_commit
+        TriggerIds: 9473a6350512ca01
+        AbortOnFailure: 1
+        FailReason: skill_commit_failed
+    - rid: 277262132933820418
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: jinx_q_switch_presentation_window
+        Timeline:
+          DurationMs: 1000
+          RecoveryStartMs: -1
+          Events: []
+        MobaLogicTimeline: {fileID: 4900000, guid: b1191a2a347b1a9498f09767adf8d7e3, type: 3}
+    - rid: 277262132933820419
+      type: {class: BasicAttackFlowDTO, ns: AbilityKit.Demo.Moba.Share.Config, asm: AbilityKit.Demo.Moba.Share}
+      data:
+        RangeLevelSlot: 0
+        RangeBonusByLevel: []
+    - rid: 277262132933820420
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020002_attack
+        Timeline:
+          DurationMs: 1567
+          RecoveryStartMs: 100
+          Events:
+          - AtMs: 100
+            EffectId: 30020201
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: basic_attack_launch
+        MobaLogicTimeline: {fileID: 4900000, guid: 67a95f41fcbeae549a41ee82cd773792, type: 3}
+    - rid: 277262132933820421
+      type: {class: BasicAttackFlowDTO, ns: AbilityKit.Demo.Moba.Share.Config, asm: AbilityKit.Demo.Moba.Share}
+      data:
+        RangeLevelSlot: 1
+        RangeBonusByLevel:
+        - 0.8
+        - 1.1
+        - 1.4
+        - 1.7
+        - 2
+    - rid: 277262132933820422
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30020003_attack
+        Timeline:
+          DurationMs: 1567
+          RecoveryStartMs: 100
+          Events:
+          - AtMs: 100
+            EffectId: 30020202
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: basic_attack_launch
+        MobaLogicTimeline: {fileID: 4900000, guid: 87efe85c0e70d4c45ab306417f8cd019, type: 3}

@@ -144,6 +144,11 @@ namespace AbilityKit.Game.Flow
         private static readonly Color s_lockColor = new Color(0.95f, 0.45f, 0.55f, 0.32f);
         private static readonly Color s_fanColor = new Color(0.7f, 0.95f, 0.45f, 0.32f);
 
+        public BattleHudSkillPresentationSpec ResolveBasicAttack(SkillMO skill, float range) =>
+            new BattleHudSkillPresentationSpec(skill.Id, skill.Name, BattleHudSkillPreviewShape.SelfCircle,
+                SkillAimIndicatorShape.SelfCircle, range, 0f, range, s_selfColor, enableAim: false,
+                usePointMode: SkillUsePointMode.None, faceToAim: false, selfRadius: range, iconId: skill.IconId);
+
         public BattleHudSkillPresentationSpec Resolve(SkillMO skill, SkillButtonTemplateMO template)
         {
             if (skill == null)

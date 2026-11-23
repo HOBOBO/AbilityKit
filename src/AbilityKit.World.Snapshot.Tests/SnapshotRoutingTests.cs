@@ -89,6 +89,54 @@ public sealed class SnapshotRoutingTests
         Assert.Equal(new[] { 5 }, received);
     }
 
+    [Fact]
+    public void Dispatcher_disposes_the_exact_registration_when_a_handler_is_registered_twice()
+    {
+        using var dispatcher = new FrameSnapshotDispatcher();
+        dispatcher.Register<int>(7, DecodeByte);
+        var received = new List<int>();
+        Action<ISnapshotEnvelope, int> repeated = (_, value) => received.Add(value);
+        using var first = dispatcher.Subscribe(7, repeated);
+        using var middle = dispatcher.Subscribe<int>(7, (_, value) => received.Add(-value));
+        using var last = dispatcher.Subscribe(7, repeated);
+        var envelope = new TestEnvelope(new WorldStateSnapshot(7, new byte[] { 3 }));
+
+        last.Dispose();
+        last.Dispose();
+        dispatcher.Feed(envelope);
+        Assert.Equal(new[] { 3, -3 }, received);
+
+        received.Clear();
+        first.Dispose();
+        dispatcher.Feed(envelope);
+        Assert.Equal(new[] { -3 }, received);
+    }
+
+    [Fact]
+    public void Pipeline_disposes_the_exact_registration_within_the_same_stage_order()
+    {
+        using var dispatcher = new FrameSnapshotDispatcher();
+        using var pipeline = new SnapshotPipeline(new object(), dispatcher);
+        pipeline.Register<int>(9, DecodeByte);
+        var received = new List<int>();
+        Action<object, ISnapshotEnvelope, int> repeated = (_, _, value) => received.Add(value);
+        using var first = pipeline.AddStage(9, 0, repeated);
+        using var middle = pipeline.AddStage<int>(9, 0, (_, _, value) => received.Add(-value));
+        using var last = pipeline.AddStage(9, 0, repeated);
+        using var earlierStage = pipeline.AddStage<int>(9, -1, (_, _, _) => received.Add(0));
+        var envelope = new TestEnvelope(new WorldStateSnapshot(9, new byte[] { 5 }));
+
+        last.Dispose();
+        last.Dispose();
+        dispatcher.Feed(envelope);
+        Assert.Equal(new[] { 0, 5, -5 }, received);
+
+        received.Clear();
+        first.Dispose();
+        dispatcher.Feed(envelope);
+        Assert.Equal(new[] { 0, -5 }, received);
+    }
+
     private static bool DecodeByte(in WorldStateSnapshot snapshot, out int value)
     {
         value = snapshot.Payload[0];

@@ -134,7 +134,7 @@ EntitasContextsFactory is required. Set it via WorldCreateOptions.SetEntitasCont
 
 排查：
 - 检查 asmdef `references` 字段（asmdef 引用不传递，必须显式列出）
-- 详见 [upm_asmdef_notes.md](upm_asmdef_notes.md)
+- 详见 [upm_asmdef_notes.md](../common/upm_asmdef_notes.md)
 
 ### 3. 世界行为不一致（本地能跑，服务器不行 / 反之）
 

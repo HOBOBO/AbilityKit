@@ -13,14 +13,14 @@ namespace AbilityKit.Demo.Common.Rooms
 
     public static class DemoMultiplayerSyncTemplates
     {
-        public const string FrameSyncAuthority = "frame-sync-authority";
+        public const string MobaSettledFrameSync = "moba-settled-frame-sync-v2";
         public const string MobaStateSyncAuthority = "moba-state-sync-authority";
 
         public static string Normalize(string? syncTemplateId)
         {
             return string.Equals(syncTemplateId, MobaStateSyncAuthority, StringComparison.OrdinalIgnoreCase)
                 ? MobaStateSyncAuthority
-                : FrameSyncAuthority;
+                : MobaSettledFrameSync;
         }
     }
 

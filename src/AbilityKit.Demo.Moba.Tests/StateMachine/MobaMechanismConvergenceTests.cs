@@ -172,6 +172,7 @@ public sealed class MobaMechanismConvergenceTests
                     ActorId = 27, SkillId = 98123, SkillSlot = 2, SkillLevel = 1, Sequence = 1,
                     RuntimeId = 1, RuntimeGeneration = 1, RootContextId = 500, SourceContextId = 500,
                     Policy = SkillCastPolicy.Default, Context = state,
+                    DefinitionRevision = new string('A', 64),
                     Run = PipelineRollbackStateCodec.Serialize(new PipelineRunRollbackState())
                 }
             }

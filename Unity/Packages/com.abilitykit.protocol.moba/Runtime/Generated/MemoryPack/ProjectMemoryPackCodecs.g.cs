@@ -20,6 +20,11 @@ namespace AbilityKit.Protocol.Generated
         {
             if (registry == null) throw new ArgumentNullException(nameof(registry));
 
+            registry.TryRegister("abilitykit.moba.battle", "settled-frame-subscribe.request", Decode<AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeRequest>);
+            registry.TryRegister("abilitykit.moba.battle", "settled-frame-subscribe.response", Decode<AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeResponse>);
+            registry.TryRegister("abilitykit.moba.battle", "settled-frame-catch-up.request", Decode<AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpRequest>);
+            registry.TryRegister("abilitykit.moba.battle", "settled-frame-catch-up.response", Decode<AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpResponse>);
+            registry.TryRegister("abilitykit.moba.battle", "settled-frame.push", Decode<AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame>);
             registry.TryRegister("abilitykit.moba.battle", "move-input.event", Decode<AbilityKit.Protocol.Moba.StateSync.MobaMovePayload>);
             registry.TryRegister("abilitykit.moba.battle", "skill-input.event", Decode<AbilityKit.Protocol.Moba.SkillInputEvent>);
             registry.TryRegister("abilitykit.moba.battle", "debug-spawn-unit.event", Decode<AbilityKit.Protocol.Moba.StateSync.MobaDebugSpawnUnitPayload>);

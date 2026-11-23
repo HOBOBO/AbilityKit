@@ -19,6 +19,7 @@ namespace AbilityKit.Game.Flow
         public int SkillSubmitSuccessCount { get; private set; }
         public bool HasContext => _ctx != null;
         public bool CanSubmitGameplayInput => _ctx?.CanSubmitGameplayInput == true;
+        internal int InputTargetFrame { get; private set; }
 
         public BattleInputFeature()
         {
@@ -37,6 +38,7 @@ namespace AbilityKit.Game.Flow
             _moveInputState.Reset();
             _secondaryMoveInputState.Reset();
             _nextSkillInputSequence = 0L;
+            InputTargetFrame = 0;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
@@ -50,18 +52,20 @@ namespace AbilityKit.Game.Flow
             var identity = (IBattleInputSessionIdentityPort)_ctx;
             var playerId = BattleInputSessionIdentity.ResolvePlayerId(identity);
             var worldId = BattleInputSessionIdentity.ResolveWorldId(in plan);
-            var inputObservedFrame = _ctx.LastFrame;
+            var confirmedFrame = _ctx.LastFrame;
+            var predictedFrame = _ctx.LastFrame;
             var prediction = _ctx.PredictionStats;
             if (prediction != null &&
-                prediction.TryGetFrames(worldId, out var confirmedFrame, out var predictedFrame))
+                prediction.TryGetFrames(worldId, out var confirmed, out var predicted))
             {
-                inputObservedFrame = SessionSimRuntimeTuning.ResolveInputObservedFrame(
-                    inputObservedFrame,
-                    confirmedFrame.Value,
-                    predictedFrame.Value,
-                    in plan);
+                confirmedFrame = confirmed.Value;
+                predictedFrame = predicted.Value;
             }
+            var inputObservedFrame = SessionSimRuntimeTuning.ResolveInputObservedFrame(
+                _ctx.LastFrame, confirmedFrame, predictedFrame, in plan,
+                _ctx.SettledFrames?.Receiver?.MaxReceivedFrame ?? 0);
             var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(inputObservedFrame, in plan);
+            InputTargetFrame = nextFrame;
             var inputRuntime = _ctx.InputRuntime;
             var submitter = new BattleInputSubmitter(inputRuntime, playerId, worldId);
 

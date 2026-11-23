@@ -29,14 +29,12 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
     }
 
     /// <summary>
-    /// Action 执行器接口
-    /// 负责单次 Action 执行的策略：检查队列、合法性、同步等
+    /// 按执行器自身的策略尝试执行或取消单次 Action。
     /// </summary>
     public interface IActionExecutor
     {
         /// <summary>
-        /// 尝试执行 Action。
-        /// 返回 false 表示不能执行（队列满、同步阻塞、条件不满足等）。
+        /// 尝试执行 Action；返回 false 表示本次未成功执行，具体结果见 result。
         /// </summary>
         bool TryExecute(ActionExecutionContext ctx, out ExecutionResult result);
 
@@ -69,109 +67,6 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
         internal virtual void ResetForPool()
         {
-        }
-    }
-
-    /// <summary>
-    /// 队列执行器（支持优先级和队列）。
-    /// </summary>
-    public sealed class QueuedActionExecutor : ActionExecutorBase
-    {
-        private ActionExecutorBase _inner;
-        private int _queuePriority;
-        private bool _isQueued;
-
-        public QueuedActionExecutor()
-        {
-        }
-
-        public QueuedActionExecutor(ActionExecutorBase inner, int queuePriority = 0)
-        {
-            Initialize(inner, queuePriority);
-        }
-
-        internal void Initialize(ActionExecutorBase inner, int queuePriority = 0)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _queuePriority = queuePriority;
-            _isQueued = false;
-        }
-
-        internal ActionExecutorBase Inner => _inner;
-
-        protected override ExecutionResult ExecuteCore(ActionExecutionContext ctx)
-        {
-            if (_inner == null)
-            {
-                return ExecutionResult.Failed("Queued executor is not initialized.");
-            }
-
-            if (_isQueued)
-            {
-                return ExecutionResult.Skipped("Action is already queued");
-            }
-
-            _isQueued = true;
-            try
-            {
-                return _inner.TryExecute(ctx, out var result) ? result : ExecutionResult.Failed("Failed to execute from queue");
-            }
-            finally
-            {
-                _isQueued = false;
-            }
-        }
-
-        public override void Cancel(string reason)
-        {
-            _inner?.Cancel(reason);
-            _isQueued = false;
-        }
-
-        public int QueuePriority => _queuePriority;
-
-        public bool IsQueued => _isQueued;
-
-        internal override void ResetForPool()
-        {
-            _isQueued = false;
-            _queuePriority = 0;
-            _inner = null;
-        }
-    }
-
-    /// <summary>
-    /// 同步执行器（支持信号等待）。
-    /// </summary>
-    public sealed class SynchronizedActionExecutor : ActionExecutorBase
-    {
-        private readonly ActionExecutorBase _inner;
-        private readonly TriggerWaitHandle _waitHandle;
-
-        public SynchronizedActionExecutor(ActionExecutorBase inner, TriggerWaitHandle waitHandle)
-        {
-            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _waitHandle = waitHandle ?? throw new ArgumentNullException(nameof(waitHandle));
-        }
-
-        protected override ExecutionResult ExecuteCore(ActionExecutionContext ctx)
-        {
-            if (!_waitHandle.IsSignaled)
-            {
-                return ExecutionResult.Skipped("Wait handle not signaled");
-            }
-
-            return _inner.TryExecute(ctx, out var result) ? result : ExecutionResult.Failed("Inner executor failed");
-        }
-
-        public override void Cancel(string reason)
-        {
-            _inner.Cancel(reason);
-        }
-
-        public void Signal()
-        {
-            _waitHandle.Set();
         }
     }
 

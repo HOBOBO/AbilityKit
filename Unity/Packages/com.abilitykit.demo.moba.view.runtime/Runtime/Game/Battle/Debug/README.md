@@ -1,9 +1,5 @@
 # 战斗调试工具边界
 
-[`Debug`](Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Debug) 目录只承载开发期调试能力，例如 [`BattleDebugOnGUIFeature`](Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Debug/BattleDebugOnGUIFeature.cs)。
+[`BattleDebugOnGUIFeature`](BattleDebugOnGUIFeature.cs) 提供示例调试 UI，不是权威战斗入口。工厂映射见[客户端 UI Feature 注册](../../App/Flow/Composition/MobaUiFeatureRegistration.cs)；注册工厂不等于所有流程都启用该 Feature。
 
-约束：
-
-- Debug Feature 注册应通过 Editor/Development 条件控制。
-- 正式战斗 Runtime 不应依赖 Debug Tools 的具体实现。
-- 后续 asmdef 分层阶段可迁移到 DebugTools 程序集并通过 define constraints 控制编译。
+正式战斗 Runtime 不应依赖 Debug UI 实现。是否启用由实际 Feature 装配决定，不在本文宣称已有独立 DebugTools 编译门禁。

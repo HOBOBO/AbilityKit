@@ -1,7 +1,8 @@
 param(
     [string]$ConfigPath = 'tools\test-gates.json',
     [string]$WorkflowPath = '.github\workflows\abilitykit-test-gates.yml',
-    [string]$OutputPath = 'artifacts\test-gates\contract-validation\report.json'
+    [string]$OutputPath = 'artifacts\test-gates\contract-validation\report.json',
+    [switch]$ConfigOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -55,19 +56,40 @@ function Get-Gate {
     return @($Config.gates | Where-Object { [string]$_.name -eq $Name }) | Select-Object -First 1
 }
 
-$configFullPath = Resolve-RepoPath $ConfigPath
-$workflowFullPath = Resolve-RepoPath $WorkflowPath
-$outputFullPath = Resolve-RepoPath $OutputPath
-$null = New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outputFullPath)
+function Test-GateReferences {
+    param([object]$Config)
 
-try {
-    # Read as UTF-8 explicitly: test-gates.json has no BOM, and Windows PowerShell 5.1 on an
-    # ANSI-codepage machine (e.g. GBK) would otherwise decode it as the local codepage and
-    # corrupt non-ASCII descriptions into invalid JSON.
-    $config = [System.IO.File]::ReadAllText($configFullPath) | ConvertFrom-Json
-    Add-Check -Name 'Gate JSON parseability' -Passed $true -Detail $ConfigPath
+    $names = @{}
+    foreach ($gate in $Config.gates) {
+        $name = [string]$gate.name
+        if ([string]::IsNullOrWhiteSpace($name) -or $names.ContainsKey($name)) {
+            Add-Check -Name 'Unique gate names' -Passed $false -Detail "Empty or duplicate gate name '$name'."
+            continue
+        }
+        $names[$name] = $true
+    }
 
-    $workflowText = [System.IO.File]::ReadAllText($workflowFullPath)
+    $defaultGate = [string]$Config.defaultGate
+    Assert-Condition -Name 'Default gate reference' `
+        -Condition ($names.ContainsKey($defaultGate)) `
+        -SuccessDetail "Defined: $defaultGate." `
+        -FailureDetail "Default gate '$defaultGate' is missing."
+
+    foreach ($gate in $Config.gates) {
+        foreach ($step in @($gate.steps | Where-Object { $_.kind -eq 'gate' })) {
+            $target = [string]$step.gate
+            Assert-Condition -Name "Nested gate reference: $($gate.name) -> $target" `
+                -Condition ($names.ContainsKey($target)) `
+                -SuccessDetail 'Defined.' `
+                -FailureDetail "Step '$($step.name)' names an undefined gate."
+        }
+    }
+}
+
+function Test-WorkflowContract {
+    param([string]$FullPath)
+
+    $workflowText = [System.IO.File]::ReadAllText($FullPath)
 
     $pythonLauncher = Get-Command py -ErrorAction SilentlyContinue
     $python = Get-Command python -ErrorAction SilentlyContinue
@@ -80,10 +102,10 @@ try {
     if ($null -ne $pythonCommand) {
         $yamlProbe = 'import pathlib, sys, yaml; yaml.safe_load(pathlib.Path(sys.argv[1]).read_bytes())'
         if ($null -ne $pythonLauncher) {
-            & $pythonLauncher.Source '-3' '-c' $yamlProbe $workflowFullPath
+            & $pythonLauncher.Source '-3' '-c' $yamlProbe $FullPath
         }
         else {
-            & $python.Source '-c' $yamlProbe $workflowFullPath
+            & $python.Source '-c' $yamlProbe $FullPath
         }
 
         $yamlProbeExitCode = $LASTEXITCODE
@@ -92,6 +114,82 @@ try {
             -SuccessDetail $WorkflowPath `
             -FailureDetail "PyYAML could not parse the workflow (exit code $yamlProbeExitCode). Install PyYAML 6.x for the selected Python 3 interpreter."
     }
+
+    $requiredWorkflowFragments = [ordered]@{
+        'Pull request trigger' = 'pull_request:'
+        'Manual trigger' = 'workflow_dispatch:'
+        'Scheduled trigger' = 'schedule:'
+        'MOBA CodeGen job' = 'moba-codegen:'
+        'MOBA CodeGen gate command' = '-Gate moba-codegen'
+        'Core stability job' = 'core-stability:'
+        'Core stability gate command' = '-Gate core-stability'
+        'Fast job' = 'shooter-fast:'
+        'Integration job' = 'shooter-integration:'
+        'Unity PlayMode job' = 'shooter-unity-playmode:'
+        'Multiprocess job' = 'shooter-multiprocess:'
+        'Multiprocess compatibility job' = 'shooter-multiprocess-compatibility:'
+        'Multiprocess compatibility gate command' = '-Gate shooter-multiprocess-compatibility'
+        'Multiprocess soak job' = 'shooter-multiprocess-soak:'
+        'Multiprocess soak gate command' = '-Gate shooter-multiprocess-soak'
+        'Multiprocess soak schedule/manual policy' = "if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'"
+        'Multiprocess soak artifact path' = 'artifacts/test-gates/shooter-multiprocess-soak'
+        'Multiprocess ownership cleanup job' = 'shooter-multiprocess-ownership-cleanup:'
+        'Multiprocess ownership cleanup gate command' = '-Gate shooter-multiprocess-ownership-cleanup'
+        'Performance smoke job' = 'shooter-performance-smoke:'
+        'Performance full job' = 'shooter-performance-full:'
+        'Unity PlayMode gate command' = '-Gate shooter-unity-playmode'
+        'Performance smoke selection' = '-StepName "AOI LOD smoke"'
+        'Performance full selection' = '-StepName "AOI LOD full"'
+        'TEST-01B non-cancelling concurrency' = 'group: abilitykit-shooter-multiprocess-fault-run'
+    }
+    foreach ($entry in $requiredWorkflowFragments.GetEnumerator()) {
+        Assert-Condition -Name $entry.Key `
+            -Condition $workflowText.Contains([string]$entry.Value) `
+            -SuccessDetail ([string]$entry.Value) `
+            -FailureDetail "Workflow fragment missing: $($entry.Value)"
+    }
+
+    $jobNames = @(
+        'contract-validation',
+        'precheck',
+        'moba-codegen',
+        'core-stability',
+        'shooter-fast',
+        'shooter-integration',
+        'shooter-unity-playmode',
+        'shooter-performance-smoke',
+        'shooter-multiprocess',
+        'shooter-multiprocess-compatibility',
+        'shooter-multiprocess-soak',
+        'shooter-multiprocess-ownership-cleanup',
+        'shooter-performance-full',
+        'regression'
+    )
+    foreach ($jobName in $jobNames) {
+        $jobPattern = "(?ms)^  $([regex]::Escape($jobName)):\r?\n(?:(?!^  [a-zA-Z0-9_-]+:).)*?uses: actions/upload-artifact@v4"
+        $jobMatch = [regex]::Match($workflowText, $jobPattern)
+        $hasAlwaysUpload = $jobMatch.Success -and $jobMatch.Value -match '(?m)^\s+if: always\(\)\s*$'
+        Assert-Condition -Name "Always-upload artifacts: $jobName" `
+            -Condition $hasAlwaysUpload `
+            -SuccessDetail 'Artifact upload is guarded by always().' `
+            -FailureDetail 'Job is missing actions/upload-artifact@v4 with if: always().'
+    }
+}
+
+$configFullPath = Resolve-RepoPath $ConfigPath
+if ($ConfigOnly -and -not $PSBoundParameters.ContainsKey('OutputPath')) {
+    $OutputPath = 'local\Logs\test-gates\contract-validation\report.json'
+}
+$outputFullPath = Resolve-RepoPath $OutputPath
+$null = New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outputFullPath)
+
+try {
+    # Read as UTF-8 explicitly: test-gates.json has no BOM, and Windows PowerShell 5.1 on an
+    # ANSI-codepage machine (e.g. GBK) would otherwise decode it as the local codepage and
+    # corrupt non-ASCII descriptions into invalid JSON.
+    $config = [System.IO.File]::ReadAllText($configFullPath) | ConvertFrom-Json
+    Add-Check -Name 'Gate JSON parseability' -Passed $true -Detail $ConfigPath
+    Test-GateReferences -Config $config
 
     $requiredGates = @(
         'moba-codegen',
@@ -245,64 +343,15 @@ try {
         -SuccessDetail "Runner timeout $($ownershipCleanupStep.timeoutSeconds)s exceeds probe matrix and cleanup budget $($ownershipGlobalTimeout + 45)s." `
         -FailureDetail 'The TEST-01C outer timeout must leave at least 45 seconds after the explicit matrix timeout for cleanup and evidence collection.'
 
-    $requiredWorkflowFragments = [ordered]@{
-        'Pull request trigger' = 'pull_request:'
-        'Manual trigger' = 'workflow_dispatch:'
-        'Scheduled trigger' = 'schedule:'
-        'MOBA CodeGen job' = 'moba-codegen:'
-        'MOBA CodeGen gate command' = '-Gate moba-codegen'
-        'Core stability job' = 'core-stability:'
-        'Core stability gate command' = '-Gate core-stability'
-        'Fast job' = 'shooter-fast:'
-        'Integration job' = 'shooter-integration:'
-        'Unity PlayMode job' = 'shooter-unity-playmode:'
-        'Multiprocess job' = 'shooter-multiprocess:'
-        'Multiprocess compatibility job' = 'shooter-multiprocess-compatibility:'
-        'Multiprocess compatibility gate command' = '-Gate shooter-multiprocess-compatibility'
-        'Multiprocess soak job' = 'shooter-multiprocess-soak:'
-        'Multiprocess soak gate command' = '-Gate shooter-multiprocess-soak'
-        'Multiprocess soak schedule/manual policy' = "if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'"
-        'Multiprocess soak artifact path' = 'artifacts/test-gates/shooter-multiprocess-soak'
-        'Multiprocess ownership cleanup job' = 'shooter-multiprocess-ownership-cleanup:'
-        'Multiprocess ownership cleanup gate command' = '-Gate shooter-multiprocess-ownership-cleanup'
-        'Performance smoke job' = 'shooter-performance-smoke:'
-        'Performance full job' = 'shooter-performance-full:'
-        'Unity PlayMode gate command' = '-Gate shooter-unity-playmode'
-        'Performance smoke selection' = '-StepName "AOI LOD smoke"'
-        'Performance full selection' = '-StepName "AOI LOD full"'
-        'TEST-01B non-cancelling concurrency' = 'group: abilitykit-shooter-multiprocess-fault-run'
-    }
-    foreach ($entry in $requiredWorkflowFragments.GetEnumerator()) {
-        Assert-Condition -Name $entry.Key `
-            -Condition $workflowText.Contains([string]$entry.Value) `
-            -SuccessDetail ([string]$entry.Value) `
-            -FailureDetail "Workflow fragment missing: $($entry.Value)"
-    }
-
-    $jobNames = @(
-        'contract-validation',
-        'precheck',
-        'moba-codegen',
-        'core-stability',
-        'shooter-fast',
-        'shooter-integration',
-        'shooter-unity-playmode',
-        'shooter-performance-smoke',
-        'shooter-multiprocess',
-        'shooter-multiprocess-compatibility',
-        'shooter-multiprocess-soak',
-        'shooter-multiprocess-ownership-cleanup',
-        'shooter-performance-full',
-        'regression'
-    )
-    foreach ($jobName in $jobNames) {
-        $jobPattern = "(?ms)^  $([regex]::Escape($jobName)):\r?\n(?:(?!^  [a-zA-Z0-9_-]+:).)*?uses: actions/upload-artifact@v4"
-        $jobMatch = [regex]::Match($workflowText, $jobPattern)
-        $hasAlwaysUpload = $jobMatch.Success -and $jobMatch.Value -match '(?m)^\s+if: always\(\)\s*$'
-        Assert-Condition -Name "Always-upload artifacts: $jobName" `
-            -Condition $hasAlwaysUpload `
-            -SuccessDetail 'Artifact upload is guarded by always().' `
-            -FailureDetail 'Job is missing actions/upload-artifact@v4 with if: always().'
+    if (-not $ConfigOnly) {
+        $workflowFullPath = Resolve-RepoPath $WorkflowPath
+        if (Test-Path -LiteralPath $workflowFullPath -PathType Leaf) {
+            Test-WorkflowContract -FullPath $workflowFullPath
+        }
+        else {
+            Add-Check -Name 'Workflow file' -Passed $false `
+                -Detail "Missing workflow '$WorkflowPath'. Use -ConfigOnly for local configuration validation."
+        }
     }
 }
 catch {
@@ -312,13 +361,14 @@ finally {
     $failedChecks = @($checks | Where-Object { -not $_.passed })
     $report = [ordered]@{
         generatedAt = (Get-Date).ToString('o')
+        scope = if ($ConfigOnly) { 'ConfigOnly' } else { 'ConfigAndWorkflow' }
         status = if ($failedChecks.Count -eq 0) { 'Passed' } else { 'Failed' }
         total = $checks.Count
         failed = $failedChecks.Count
         checks = @($checks)
     }
     $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $outputFullPath -Encoding UTF8
-    Write-Host "Contract validation report: $outputFullPath" -ForegroundColor Cyan
+    Write-Host "Contract validation report ($($report.scope)): $outputFullPath" -ForegroundColor Cyan
 }
 
 if (@($checks | Where-Object { -not $_.passed }).Count -gt 0) {

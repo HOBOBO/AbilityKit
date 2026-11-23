@@ -29,7 +29,7 @@
 | `Runtime/Infrastructure/Config/Core/MobaConfigGroups.cs` | Legacy | `LegacyJson` 配置组 | 新配置进入明确的 config group |
 | `Runtime/Infrastructure/Config/Core/ConfigGroupNames.cs` | Legacy | `LegacyJson` 配置组名 | 逐步停止新增旧 JSON 聚合入口 |
 | `Runtime/Infrastructure/Config/Core/LegacyJsonConfigGroupDeserializer.cs` | Legacy | 旧 JSON 反序列化兼容 | 仅保留加载旧数据，新增 DTO 使用专属反序列化 |
-| `Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs` | Compatibility | 已移除执行期修复缺失 action；仅在初始化阶段注册 PlanActionModule | 继续让 `TriggerPlansStage` 与 `PlanActionModuleRegistry` 成为唯一注册入口 |
+| `Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs` | Compatibility | 已移除执行期修复缺失 action；仅在初始化阶段注册 PlanActionModule | 继续让 `TriggerPlansStage` 与 `PlanActionModuleRegistry` 成为唯一注册入口 |
 | `Runtime/Application/Services/Skill/Pipeline/DefaultMobaSkillPipelineLibrary.cs` | Fallback | 默认技能管线兜底 | 新技能使用 `TableDrivenMobaSkillPipelineLibrary` |
 | `Runtime/Application/Services/Skill/Handlers/BuiltInSkillHandlers.cs` | Legacy / TODO | 旧 Handler 流程痕迹与若干 TODO | 新效果走 SkillFlow + PlanAction |
 | `Runtime/Application/Services/Skill/DTO/SkillHandlerDTO.cs` | Legacy | 旧技能 Handler DTO | 新配置走 SkillFlow、TimelineEvent、PlanAction 参数 |
@@ -37,7 +37,7 @@
 | `Runtime/Application/Systems/Bootstrap/PlanActions/ConsumeResourcePlanActionModule.cs` | TODO Placeholder | 资源扣除尚未接入正式资源系统 | 接入资源/能量服务并补失败语义 |
 | `Runtime/Application/Services/Skill/Conditions/BuiltInSkillConditions.cs` | TODO Placeholder | 施法状态、沉默/禁用检查未完整实现 | 与 Buff/Tag/State 查询能力合流 |
 | `Runtime/Application/Services/Skill/Phases/SkillFlowChecksPhase.cs` | TODO Placeholder | required/blocking tag 检查未实现 | 与 TagQuery 或 Buff/State 查询合流 |
-| `Runtime/Application/Services/Skill/Pipeline/SkillPipelineContext.cs` | Compatibility | 填充兼容 shared data key | 保留读旧 key，新增代码优先使用强类型上下文 |
+| `Runtime/Application/Skills/Pipeline/SkillPipelineContext.cs` | Compatibility | 填充兼容 shared data key | 保留读旧 key，新增代码优先使用强类型上下文 |
 | `Runtime/Application/Services/Effect/EffectPipelineContext.cs` | Compatibility | `FillSkillCompatibleKeys` | 与 `SkillPipelineContext` 统一兼容策略 |
 | `Runtime/Application/Systems/Skill/PassiveSkillTriggerListenerManager.cs` | False Positive | `RemoveObsoleteListeners` 表示移除失效监听 | 不按 Legacy 处理，可保留当前命名 |
 
@@ -96,7 +96,7 @@
 
 涉及文件：
 
-- `Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs`
+- `Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs`
 
 现状：
 
@@ -240,7 +240,7 @@ SkillDTO
 
 涉及文件：
 
-- `Runtime/Application/Services/Skill/Pipeline/SkillPipelineContext.cs`
+- `Runtime/Application/Skills/Pipeline/SkillPipelineContext.cs`
 - `Runtime/Application/Services/Effect/EffectPipelineContext.cs`
 
 现状：

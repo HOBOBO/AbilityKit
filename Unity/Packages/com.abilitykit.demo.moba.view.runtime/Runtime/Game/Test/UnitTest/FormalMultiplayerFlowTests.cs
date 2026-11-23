@@ -471,7 +471,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.That(spec.MinPlayers, Is.EqualTo(2));
                 Assert.That(spec.GameplayId, Is.EqualTo(1));
                 Assert.That(spec.WorldType, Is.EqualTo("moba"));
-                Assert.That(spec.SyncTemplateId, Is.EqualTo("frame-sync-authority"));
+                Assert.That(spec.SyncTemplateId, Is.EqualTo("moba-settled-frame-sync-v2"));
                 Assert.That(spec.SyncModel, Is.EqualTo(1));
 
                 request = new DemoMultiplayerLaunchRequest(
@@ -668,15 +668,15 @@ namespace AbilityKit.Game.Test.UnitTest
         public void LaunchSpec_ProjectsFrameSyncTemplateAndModelToGateway()
         {
             var spec = CreateLaunchSpec();
-            spec.SyncTemplateId = "frame-sync-authority";
+            spec.SyncTemplateId = "moba-settled-frame-sync-v2";
             spec.SyncModel = 1;
 
             var projected = GatewayRoomProtocolMapper.ToLaunchSpec(spec);
 
-            Assert.That(projected.SyncTemplateId, Is.EqualTo("frame-sync-authority"));
+            Assert.That(projected.SyncTemplateId, Is.EqualTo("moba-settled-frame-sync-v2"));
             Assert.That(projected.SyncModel, Is.EqualTo(1));
             Assert.That(projected.Tags, Is.Not.Null);
-            Assert.That(projected.Tags!["syncTemplateId"], Is.EqualTo("frame-sync-authority"));
+            Assert.That(projected.Tags!["syncTemplateId"], Is.EqualTo("moba-settled-frame-sync-v2"));
             Assert.That(projected.Tags["syncModel"], Is.EqualTo("1"));
         }
 

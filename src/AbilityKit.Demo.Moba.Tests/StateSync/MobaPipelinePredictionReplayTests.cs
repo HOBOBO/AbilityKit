@@ -21,6 +21,58 @@ namespace AbilityKit.Demo.Moba.Tests.StateSync;
 
 public sealed partial class MobaSkillLifecycleRollbackPreparationTests
 {
+    [Theory]
+    [InlineData("different")]
+    [InlineData("missing")]
+    [InlineData("v4")]
+    public void Runner_revision_rejection_leaves_direct_and_joint_restore_untouched(string change)
+    {
+        var casts = Get<SkillCastCoordinator>();
+        var caster = Get<MobaActorRegistry>().Entries.First(p => p.Value.hasModelId && p.Value.modelId.Value == 1001).Key;
+        var cast = casts.TryCastSkill(caster, 10010301, 3);
+        Assert.True(cast.Success, cast.FailReason);
+        Assert.True(casts.TryGetRunningByInstanceId(caster, cast.RuntimeHandle.RootContextId, out var running));
+        var checkpoint = _preparation.Capture(_frame);
+        var envelope = Decode(checkpoint);
+        var section = Find(envelope, "pipelines");
+        var snapshot = SkillRunnerRollbackCodec.Deserialize(section.Payload);
+        var entry = Assert.Single(snapshot.Entries);
+        Assert.Equal(5, System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(section.Payload));
+        Assert.Equal(section.Payload, SkillRunnerRollbackCodec.Serialize(snapshot));
+        if (change == "v4")
+        {
+            Array.Resize(ref section.Payload, section.Payload.Length - 65);
+            System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(section.Payload, 4);
+        }
+        else if (change == "missing")
+        {
+            Array.Resize(ref section.Payload, section.Payload.Length - 65);
+        }
+        else
+        {
+            entry.DefinitionRevision = (entry.DefinitionRevision[0] == 'A' ? "B" : "A") + entry.DefinitionRevision[1..];
+            section.Payload = SkillRunnerRollbackCodec.Serialize(snapshot);
+        }
+
+        var committedStages = 0;
+        _preparation.RestoreStageCompleted = (_, _) => committedStages++;
+        var joint = MobaSkillLifecycleCheckpointCodec.Encode(envelope);
+        if (change == "different")
+        {
+            Assert.Contains("revision", Assert.Throws<InvalidOperationException>(() => casts.ImportRunnerRollbackState(section.Payload)).Message);
+            Assert.Contains("revision", Assert.Throws<InvalidOperationException>(() => _preparation.Commit(_preparation.Prepare(_frame, joint))).Message);
+        }
+        else
+        {
+            Assert.Throws<System.IO.InvalidDataException>(() => casts.ImportRunnerRollbackState(section.Payload));
+            Assert.Throws<System.IO.InvalidDataException>(() => _preparation.Commit(_preparation.Prepare(_frame, joint)));
+        }
+        Assert.Equal(0, committedStages);
+        Assert.True(casts.TryGetRunningByInstanceId(caster, cast.RuntimeHandle.RootContextId, out var retained));
+        Assert.Equal(running, retained);
+        Assert.Equal(checkpoint, _preparation.Capture(_frame));
+    }
+
     [Fact]
     public void In_flight_cast_replays_via_client_driver_and_formal_battle_registry()
     {

@@ -5,6 +5,7 @@ using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Battle.Vfx;
+using UnityEngine;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
@@ -19,13 +20,36 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly BattleProjectileVfxResolver _vfx;
         private readonly BattleProjectileSnapshotVfxResolver _snapshotVfx;
         private readonly BattleProjectileSnapshotDeduplicator _deduplicator;
+        private const int RecentImpactCapacity = 1024;
+        private readonly Dictionary<ImpactKey, ImpactSource> _recentImpacts = new();
+        private readonly Queue<ImpactKey> _impactOrder = new();
+
+        private enum ImpactSource { Projectile, Cue, Paired }
+
+        private readonly struct ImpactKey : System.IEquatable<ImpactKey>
+        {
+            private readonly long _id;
+            private readonly int _frame;
+            private readonly int _vfx;
+            private readonly Vector3 _position;
+
+            internal ImpactKey(long id, int frame, int vfx, Vector3 position)
+            {
+                _id = id;
+                _frame = frame;
+                _vfx = vfx;
+                _position = position;
+            }
+
+            public bool IsValid => _id > 0 && _frame > 0 && _vfx > 0;
+            public bool Equals(ImpactKey other) => _id == other._id && _frame == other._frame &&
+                _vfx == other._vfx && _position.Equals(other._position);
+            public override bool Equals(object obj) => obj is ImpactKey other && Equals(other);
+            public override int GetHashCode() => System.HashCode.Combine(_id, _frame, _vfx, _position);
+        }
         /// <summary>
-        /// Cross-source deduplication: tracks which projectile actor IDs have already
-        /// produced a hit VFX this session (regardless of whether the signal came
-        /// from Trigger or Snapshot). Cleared on world change to avoid stale entries
-        /// after reconnect or replay.
+        /// 记录阶段表现所属的实体代际，避免旧阶段或退出事件清除新实例。
         /// </summary>
-        private readonly HashSet<int> _seenHitProjectileIds = new HashSet<int>();
         private readonly Dictionary<int, int> _phaseActorVersions = new Dictionary<int, int>();
 
         public BattleProjectileViewEventHandler(
@@ -65,15 +89,20 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (!_vfxSpawner.CanSpawn) return;
             if (!_vfx.TryResolveTriggerHit(evt, out var vfxId, out var pos, out var projectileId)) return;
 
-            // Cross-source deduplication: if this projectile already produced a hit VFX
-            // (via Snapshot), skip the Trigger path.
-            if (projectileId > 0 && !_seenHitProjectileIds.Add(projectileId)) return;
+            var hitKey = BattleProjectileSnapshotKey.FromHit(projectileId, evt.TemplateId, evt.LauncherActorId,
+                evt.HitCollider.Value, evt.Frame, evt.Point.X, evt.Point.Y, evt.Point.Z);
+            if (_deduplicator.HasHitVisual(projectileId, in hitKey)) return;
 
             var spec = new BattleProjectileVfxSpawnSpec(vfxId, in pos, default);
-            _vfxSpawner.TrySpawn(in spec);
+            var impact = new ImpactKey(projectileId, evt.Frame, vfxId, pos);
+            if (TryPairImpact(impact, ImpactSource.Projectile) || _vfxSpawner.TrySpawn(in spec))
+            {
+                RecordImpact(impact, ImpactSource.Projectile);
+                _deduplicator.RecordHitVisual(projectileId, in hitKey);
+            }
         }
 
-        public void HandleSnapshot(ProjectileEventData[] entries)
+        public void HandleSnapshot(ProjectileEventData[] entries, int snapshotFrame = 0)
         {
             if (entries == null || entries.Length == 0) return;
             if (!_vfxSpawner.CanSpawn) return;
@@ -81,7 +110,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
             for (int i = 0; i < entries.Length; i++)
             {
-                HandleSnapshotEntry(entries[i]);
+                HandleSnapshotEntry(entries[i], snapshotFrame);
             }
         }
 
@@ -100,23 +129,61 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             _shellSpawner?.Clear();
             _deduplicator.Clear();
-            ResetCrossSourceDeduplication();
+            ClearRecentImpacts();
             _phaseActorVersions.Clear();
             _vfxSpawner.ClearPhaseHandles();
         }
 
         public void ClearPool() => _shellPool?.Clear();
 
-        /// <summary>
-        /// Clears cross-source deduplication state.
-        /// Call this when entering a new world or starting a replay.
-        /// </summary>
-        public void ResetCrossSourceDeduplication()
+        private void ClearRecentImpacts()
         {
-            _seenHitProjectileIds.Clear();
+            _recentImpacts.Clear();
+            _impactOrder.Clear();
         }
 
-        private void HandleSnapshotEntry(ProjectileEventData entry)
+        /// <summary>
+        /// 回滚只解除投射物终态屏蔽；已经播放的命中不可撤销，回执继续参与重演去重。
+        /// </summary>
+        internal void ResetCompletedProjectilesForReplay() => _deduplicator.ClearCompleted();
+
+        internal bool TryPairCueImpact(long projectileId, int frame, in BattlePresentationCueSpawnRequest request)
+        {
+            var key = ToCueImpactKey(projectileId, frame, in request);
+            if (!key.IsValid || !_recentImpacts.TryGetValue(key, out var prior)) return false;
+            if (prior == ImpactSource.Projectile) _recentImpacts[key] = ImpactSource.Paired;
+            return true;
+        }
+
+        internal void RecordCueImpact(long projectileId, int frame, in BattlePresentationCueSpawnRequest request)
+        {
+            RecordImpact(ToCueImpactKey(projectileId, frame, in request), ImpactSource.Cue);
+        }
+
+        private static ImpactKey ToCueImpactKey(long projectileId, int frame, in BattlePresentationCueSpawnRequest request)
+        {
+            if (!request.HasExplicitPosition) return default;
+            var point = request.ExplicitPosition;
+            return new ImpactKey(projectileId, frame, request.VfxId, new Vector3(point.X, point.Y, point.Z));
+        }
+
+        private bool TryPairImpact(ImpactKey key, ImpactSource source)
+        {
+            if (!key.IsValid || !_recentImpacts.TryGetValue(key, out var prior) ||
+                prior == source || prior == ImpactSource.Paired) return false;
+            _recentImpacts[key] = ImpactSource.Paired;
+            return true;
+        }
+
+        private void RecordImpact(ImpactKey key, ImpactSource source)
+        {
+            if (!key.IsValid || _recentImpacts.ContainsKey(key)) return;
+            if (_impactOrder.Count == RecentImpactCapacity) _recentImpacts.Remove(_impactOrder.Dequeue());
+            _recentImpacts.Add(key, source);
+            _impactOrder.Enqueue(key);
+        }
+
+        private void HandleSnapshotEntry(ProjectileEventData entry, int snapshotFrame)
         {
             if (entry.Kind == ProjectilePresentationEventKind.Phase)
             {
@@ -139,29 +206,29 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 if (entry.ActorVersion > 0 && _phaseActorVersions.TryGetValue(entry.ProjectileActorId, out var version) &&
                     version != entry.ActorVersion) return;
                 _phaseActorVersions.Remove(entry.ProjectileActorId);
-                // Exit cleanup is idempotent. Completed projectile identities must not remain
-                // in session-lifetime caches after a high-volume launch has finished.
-                _deduplicator.ForgetLifecycle(in entry);
-                var projectileIdentity = ResolveProjectileIdentity(in entry);
-                if (projectileIdentity > 0)
-                    _seenHitProjectileIds.Remove(projectileIdentity);
+                _deduplicator.CompleteLifecycle(in entry);
                 _vfxSpawner.StopFollowingActor(entry.ProjectileActorId);
                 _shellSpawner?.StopAndReturn(entry.TemplateId, entry.ProjectileActorId);
                 return;
             }
 
-            if (!_deduplicator.ShouldHandle(in entry)) return;
+            if (!_deduplicator.ShouldHandle(in entry, snapshotFrame)) return;
+            var isHit = entry.Kind == ProjectilePresentationEventKind.Hit;
+            var identity = BattleProjectileSnapshotDeduplicator.ResolveIdentity(in entry);
+            var hitKey = isHit ? BattleProjectileSnapshotKey.From(in entry, snapshotFrame) : default;
+            if (isHit && _deduplicator.HasHitVisual(identity, in hitKey)) return;
 
             if (!_snapshotVfx.TryResolve(in entry, out var spec)) return;
-            var spawnedConfiguredVfx = _vfxSpawner.TrySpawn(in spec);
-            var spawnedFallbackShell = false;
+            var impact = isHit ? new ImpactKey(entry.ProjectileId,
+                entry.SnapshotFrame > 0 ? entry.SnapshotFrame : snapshotFrame, spec.VfxId, spec.Position) : default;
+            var spawnedConfiguredVfx = TryPairImpact(impact, ImpactSource.Projectile) || _vfxSpawner.TrySpawn(in spec);
 
             // The shell is a fallback for missing/broken VFX, not a second visual for every projectile.
-            if (!spawnedConfiguredVfx && _shellSpawner != null)
+            if (!isHit && !spawnedConfiguredVfx && _shellSpawner != null)
             {
                 var position = spec.Position;
                 var forward = spec.Rotation * UnityEngine.Vector3.forward;
-                spawnedFallbackShell = _shellSpawner.TrySpawn(
+                _shellSpawner.TrySpawn(
                     entry.TemplateId,
                     entry.ProjectileActorId,
                     in position,
@@ -172,18 +239,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             // Register only after the snapshot produced a visible result. If its
             // configuration is unavailable, a later Trigger event may still provide
             // the presentation and must not be suppressed.
-            if (entry.Kind == ProjectilePresentationEventKind.Hit &&
-                (spawnedConfiguredVfx || spawnedFallbackShell))
+            if (isHit && spawnedConfiguredVfx)
             {
-                var projectileIdentity = ResolveProjectileIdentity(in entry);
-                if (projectileIdentity > 0)
-                    _seenHitProjectileIds.Add(projectileIdentity);
+                RecordImpact(impact, ImpactSource.Projectile);
+                _deduplicator.RecordHitVisual(identity, in hitKey);
             }
-        }
-
-        private static int ResolveProjectileIdentity(in ProjectileEventData entry)
-        {
-            return entry.ProjectileId > 0 ? entry.ProjectileId : entry.ProjectileActorId;
         }
     }
 

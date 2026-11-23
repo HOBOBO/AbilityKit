@@ -1,5 +1,7 @@
 # AbilityKit 框架设计文档
 
+工具、操作规范、教程或包内 API 的查找入口见[文档导航](../README.md)；本页只索引设计体系。
+
 > AbilityKit 是一个以“战斗能力表达”为中心的 Unity + .NET 框架。它不只提供技能系统，而是把逻辑世界、依赖注入、Host 运行时、ECS、触发器、战斗模块、网络同步、回放、表现层解耦和 Orleans 服务端串成一套可组合的能力体系。
 
 ---
@@ -269,7 +271,7 @@ flowchart TB
 | [03.18-MOBA 主动、被动、Buff、Projectile 与 AOE 触发效果设计](09-ImplementationExamples/MOBA/17-ActivePassiveBuffProjectileAoeTriggerEffects.md) | 触发效果链路 | direct/owner-bound、canonical provenance、领域 retain/事务、Damage 属性来源和 exactly-once 关闭 |
 | [03.19-MOBA 技能 Flow 与 Pipeline 配置设计](09-ImplementationExamples/MOBA/18-SkillFlowPipelineConfigDesign.md) | 技能 Flow 配置 | 26 个 Skill/Flow、Phase 使用矩阵、package 权威配置、Strict validation 和通用 Pipeline/MOBA schema 边界 |
 | [03.20-MOBA Runtime 战斗逻辑层深潜](09-ImplementationExamples/MOBA/19-MobaRuntimeLogicLayerDeepDive.md) | 战斗逻辑层设计 | 输入输出、System/Service、DI 生命周期、测试分层，以及 runtime 作为项目应用组合而非框架默认层 |
-| [03.21-MOBA Runtime 战斗逻辑层实战指南](../../local/Docs/AbilityKit战斗逻辑层设计草稿.md) | 实战指南（与 19 号互补） | 框架能力组合全景图、6 种扩展模式（0 代码到 50 行代码）、11 个实战反模式 + 修复路径、7 步上手流程 + 接入里程碑 |
+| `local/Docs/AbilityKit战斗逻辑层设计草稿.md` | 实战指南（与 19 号互补） | 框架能力组合全景图、6 种扩展模式（0 代码到 50 行代码）、11 个实战反模式 + 修复路径、7 步上手流程 + 接入里程碑 |
 | [03.22-Console Demo Bootstrap 与 FeatureHost 装配链路深潜](09-ImplementationExamples/MOBA/20-ConsoleDemoBootstrapAndFeatureDeepDive.md) | Console Demo 装配 | Bootstrap/FeatureHost、共享双连接 StateSync、真实墙钟网络 Tick、自动输入、两套 replay 与现存 attach/view/Hybrid 债务 |
 | [03.23-MOBA 技能能力缺口矩阵](09-ImplementationExamples/MOBA/21-SkillCapabilityGapMatrix.md) | 能力评估 | 六条机制轴 × 61 条技能形态的判定表；经三轮回源码重验：B 类 10 条是"能力+构建+编辑器+往返+单测全齐、仅生产内容为零"的流程问题，C 类初扫 8 条重验后真正保留 4 条——短板在契约层(回滚/重连)，不在机制层；含"召唤物不进快照"的裁定(销毁预测+重执行，前提是 ActorIdAllocator 需进回滚) |
 | [03.24-MOBA 英雄技能制作成熟度评估](09-ImplementationExamples/MOBA/23-MobaSkillAuthoringMaturityAssessment.md) | 流程成熟度与文档治理 | 截至 2026-10-30 的阶段性评估；区分机制存在、作者化发布、生产内容与英雄端到端证据，并给出按权威来源分层维护需求文档的规则 |
@@ -318,7 +320,7 @@ flowchart TB
 
 | 文档 | 定位 | 说明 |
 |------|------|------|
-| [01-正式测试流程、单元测试与冒烟测试](10-EngineeringQuality/01-TestingWorkflow.md) | 测试门禁 | 配置/runner/workflow 三层模型、28 项配置与 15 个实际 gate、MOBA 默认 FrameSync、普通/multiprocess workflow 接线差异、validator 边界及 E0-E5 |
+| [01-正式测试流程、单元测试与冒烟测试](10-EngineeringQuality/01-TestingWorkflow.md) | 测试设计 canonical | 测试分层、验收证据与配置/runner/编排三层；日常命令和接入见[测试门禁与批量回归规范](../AbilityKit测试门禁与批量回归规范.md) |
 | [02-AI 训练数据契约与 JSONL 校验](10-EngineeringQuality/02-AiTrainingDataContract.md) | AI 数据契约 | run/episode/step JSONL、Reader 的跨行/数组/有限值校验边界、Python dataset/BC/metadata 与局部 E3 |
 | [03-MOBA 与 Shooter 示例工业化流程](10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md) | 示例工业化 | 高接入度参考应用层、MOBA 默认 FrameSync/双连接/恢复/ACK、Shooter 默认 StateSync 与两人 Smoke 风险，以及 gate catalog/workflow 实际接线差异 |
 | [04-公司级采用与模块治理规范](10-EngineeringQuality/04-CompanyAdoptionAndModuleGovernance.md) | 采用治理 | 资产/成熟度/证据分层、实际命令与 artifact 准入记录、候选发布工具边界及应用编排不上移规则 |
@@ -330,7 +332,7 @@ flowchart TB
 | [Ability Explain 快速接入](../../Unity/Packages/com.abilitykit.ability.explain/README.md) | Editor 可解释化入口 | 最小接入、八类扩展、Forest/Diff/Relation/Details 和已知实现边界 |
 | [Ability Explain 设计](../../Unity/Packages/com.abilitykit.ability.explain/Document/AbilityExplainDesign.md) | 包内 canonical | Registry 仲裁、Presenter 生命周期、Discovery、Diff/Relation 真实语义、失败矩阵与 E0-E1 证据 |
 | [Ability Explain Mock Sample](../../Unity/Packages/com.abilitykit.ability.explain/Samples~/MockIntegration/MockIntegration.md) | Editor Sample | 六类主扩展、Timeline Details 演示、操作入口和非生产边界 |
-| [Ability TestKit 设计](../../Unity/Packages/com.abilitykit.ability.testkit/Document/AbilityTestKit能力测试工具模块开发设计文档.md) | 包内 canonical | Trigger World Harness 所有权、Tick/Dispose、测试动作、内存 Loader 与 Moba E3 局部测试 |
+| Ability TestKit（历史） | 已移除的包内设计 | 旧文档与工具已随包移除（`7bc752a23`），不再作为当前测试入口 |
 | [Analyzer 设计](../../Unity/Packages/com.abilitykit.analyzer/Document/Analyzer静态约束分析模块开发设计文档.md) | 包内 canonical | Runtime、Unity Build Checker、Roslyn 三运行面，配置 fail-open、构建阻断和 DLL 同步责任 |
 | [BaseEditor 设计](../../Unity/Packages/com.abilitykit.base.editor/Document/BaseEditor基础编辑器工具模块开发设计文档.md) | 包内 canonical | 可插拔窗口、Builder 断链、Pool Monitor、Action 预览和 legacy GameplayTag 所有权 |
 | [ActionEditorImpl 设计](../../Unity/Packages/com.abilitykit.actioneditor.impl/Document/ActionEditorImpl动作编辑器运行实现模块开发设计文档.md) | 包内 canonical | Authoring 类型、logic 导出、DTO、基础播放器与 MOBA 执行链分工 |
@@ -533,7 +535,20 @@ flowchart TB
 | 2026-09-11 | 3.05 | Unity 编译报出第五个错误，**这次是本次会话新写的 Editor 代码**：`SamplePackageResourceProvider.cs` 用了 `TextAsset` 却只 `using UnityEditor;`（`TextAsset` 属 `UnityEngine`）→ CS0246。**离线检查法抓不到这类错误**：不提供 Unity 程序集时所有 Unity 类型都报 CS0234/CS0246，分不清"整个 Unity 不可用"与"漏了一个 using"。为此新增 `tools/check_unity_usings.js`——按 Unity 类型名清单核对命名空间是否导入。**工具本身按"现有仓库能在 Unity 编译 → 正确的检查器必须对它报零"这条标准收敛**：初版扫 Runtime 得 498 处、扫 Editor 得 316 处，全是误报，逐一消除（收窄到 Editor 范围、剔除 `Editor`/`Time`/`Transform` 等与仓库自有类型/命名空间重名的通用词、剥离注释与字符串字面量、排除 `TriggerValueType.Vector3` 这类成员访问、跳过文件内声明的同名成员如 `public string Color;`）。终态：全仓 **581 个 Editor 文件报零**，且反向验证有效（故意移除 `using UnityEngine;` 立刻报出文件与类型）。已挂进 `CLAUDE.md` 作为动手前的自查入口 |
 | 2026-09-11 | 3.06 | **Unity 编译通过（用户实测确认）**——`Runtime` 186 文件 + `Editor` 5 文件全部编译通过，同时验证了此前无法离线校验的那一面（`EditorGUILayout`/`EditorStyles`/`GUI`/`AssetDatabase` 的成员名与重载）。`.meta` 已由 Unity 导入生成：192 个 `.cs.meta` + 52 个目录 meta + asmdef/manifest/README meta，**244 个 GUID 全部唯一**；`packages-lock.json` 已登记新包（这些文件尚未提交）。文档证据等级据此同步：编译 **E1（已实测）**，**运行时行为仍未验证**——编译通过 ≠ 打开窗口能列出 37 条示例并跑出正确输出，这是阶段 3.1 的验收缺口。另：Unity 工程已启用 **CoplayDev/unity-mcp**（`com.coplaydev.unity-mcp` 已在 manifest 与 PackageCache），但 **Claude Code 侧尚未注册服务器**（`claude mcp list` 为空），需在 Unity 的 MCP 窗口用 Auto-Setup 选择 Claude Code 完成注册，并重启会话使工具加载 |
 | 2026-09-11 | 3.07 | **阶段 3.2 完成：语义图 IMGUI 渲染**。新增 `Editor/SampleVisualRenderer.cs`（~330 行）。**按实测数据修正设计口径**：`visualFrames` 覆盖 37/37、`nodes/edges/metrics` 仅 15/37，故改为**帧序列为主线、节点图为增量**（设计文档 §3.2 原假定节点图是主目标）；另核实 `laneLabels`/`highlightMetric`/`outputHints` 三个键在 C# 类型里不存在（Web 宿主直读 JSON 才用到）。**刻意不用 `Handles`**：连线用正交折线（`EditorGUI.DrawRect`）、箭头用递减宽度矩形拼——少一个无法离线验证的 API 面。布局纯拓扑分层（最长路径），不按 `node.kind`（29 处为空）。**本轮真正重要的产出是补上一个会静默漏报的验证工具**：写渲染器时误用 `string[].Count`（数组无 `Count` → CS0019），而原有离线探针**没报**——根因是不提供 Unity 程序集时编译器放弃周围绑定，可解析类型上的缺陷被吞。新建 `tools/unity-host-probe/`（最小 Unity 类型桩让绑定走完），**反向验证通过**（塞回 bug 精确报出 3 处 CS0019）。边界：桩不校验 Unity API 形状，不完整时报响亮误报（本次补 4 处）。验证：两个离线检查器 clean、构建 0 错误、Protocol 171/171、基线不变、`audit-versions` clean、门禁 10 步全绿（66.4s）。**阶段 3.1/3.2 的运行时行为仍待 Unity 侧实测** |
+| 2026-11-21 | 3.08 | 对齐正式测试设计、门禁执行指南与工具入口；区分本地配置校验与 CI，标记已移除的 Ability TestKit 链接为历史 |
+| 2026-11-22 | 3.09 | 补文档分流入口、规范共享链接和本地证据路径，不改设计契约 |
+| 2026-11-22 | 3.10 | 规范随包使用说明与仓库设计分工，更新 Attributes / World DI 消费入口，保留旧文档路径；不改运行时契约 |
+| 2026-11-22 | 3.11 | 分流 World ECS、Record、Projectile 和 SkillLibrary 的[包内使用入口](../../Unity/Packages/README.md)与仓库设计；旧路径保留，不改架构契约或证据基线 |
+| 2026-11-22 | 3.12 | 分流 MOBA Runtime / View 包内指南与仓库设计；[上下文专题](09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md)归集跨包说明及测试入口，保留旧路径，不改机制 |
 
 ---
+
+## 框架包工程稳定化
+
+- [框架包工程规范](10-EngineeringQuality/10-FrameworkPackageEngineeringStandards.md)：统一中文多行注释、源码目录、公开契约、临时代码审查及发布准备要求。
+- [Core 包稳定化与发布推进记录](10-EngineeringQuality/11-CorePackageStabilization.md)：首个试点的事实清单、分阶段验收、已执行结果与剩余发布缺口。
+- [Core 职责归属与补强审计](10-EngineeringQuality/16-CoreResponsibilityAudit.md)：基于生产使用方区分稳定基础、兼容面与待评审能力，并列出发版前工单。
+- [Pipeline 职责与公开契约盘点](10-EngineeringQuality/17-PipelineContractAudit.md)：对照生产调用、运行契约与测试，拆分首批行为基线、源码规范化和候选验收。
+- [业务状态与执行职责规范](10-EngineeringQuality/12-BusinessStateAndExecutionBoundaries.md)：状态、推进、所有者及可选同步适配边界，完整状态与局部快照区分，Motion 实例核对及声明式检查分批路线。
 
 本文档作为设计文档索引维护，目录、源码入口和专题关系应随源码结构与能力边界同步演进。

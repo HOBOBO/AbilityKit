@@ -13,6 +13,39 @@ namespace AbilityKit.Demo.Moba.Tests.StateSync;
 public sealed class MobaProjectileLinkRollbackTests
 {
     [Fact]
+    public void Impact_kills_count_once_per_hit_and_restore_with_the_original_projectile()
+    {
+        var links = new MobaProjectileLinkService();
+        var provider = new MobaProjectileLinkRollbackProvider(links, new MobaSkillCastRuntimeService());
+        var source = new ProjectileSourceContext(11, 12, 301, 401, 402, 403, default, default);
+        var projectile = new ProjectileId(501);
+        links.Link(projectile, 601);
+        links.BindSource(projectile, in source);
+        links.RecordImpactKill(projectile, source.SourceContextId, 1);
+        links.RecordImpactKill(projectile, source.SourceContextId, 1);
+        Assert.True(links.TryReadPriorImpactKills(projectile, source.SourceContextId, 1, out var onKillingHit));
+        Assert.Equal(0, onKillingHit);
+
+        var frame = new FrameIndex(7);
+        var payload = provider.Export(frame);
+        links.RecordImpactKill(projectile, source.SourceContextId, 2);
+        Assert.True(links.TryReadPriorImpactKills(projectile, source.SourceContextId, 3, out var futureKills));
+        Assert.Equal(2, futureKills);
+        provider.ValidateImport(frame, payload);
+        provider.Import(frame, payload);
+        Assert.False(links.TryReadPriorImpactKills(projectile, 999, 3, out _));
+        Assert.True(links.TryReadPriorImpactKills(projectile, source.SourceContextId, 3, out var restoredKills));
+        Assert.Equal(1, restoredKills);
+        Assert.Equal(payload, provider.Export(frame));
+
+        links.UnlinkByProjectileId(projectile);
+        links.Link(projectile, 602);
+        links.BindSource(projectile, in source);
+        Assert.True(links.TryReadPriorImpactKills(projectile, source.SourceContextId, 1, out var respawnedKills));
+        Assert.Equal(0, respawnedKills);
+    }
+
+    [Fact]
     public void Link_is_idempotent_for_same_pair_and_rejects_conflicting_identity_without_mutation()
     {
         var links = new MobaProjectileLinkService();

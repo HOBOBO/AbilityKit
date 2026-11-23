@@ -87,7 +87,7 @@ flowchart TD
 
 | 能力域 | 代表 package | 典型源码入口 |
 |--------|--------------|--------------|
-| 基础设施 | `com.abilitykit.core`、`timer`、`threading`、`trace`、`diagnostics` | `Runtime/Event/EventDispatcher.cs`、`Runtime/Generic/StableStringIdRegistry.cs` |
+| 基础设施 | `com.abilitykit.core`、`timer`、`threading`、`trace`、`diagnostics` | `Runtime/Eventing/EventDispatcher.cs`、`Runtime/Identifiers/StableStringIdRegistry.cs` |
 | 世界与服务 | `com.abilitykit.world.di`、`world.ecs`、`world.entitas`、`world.svelto` | `WorldContainer.cs`、`WorldScope.cs`、`EntityWorld.cs` |
 | Host 与协议 | `com.abilitykit.host`、`host.extension`、`protocol.*` | `HostRuntime.cs`、`FramePacketNetAdapter.cs`、协议 DTO |
 | 同步与记录 | `world.framesync`、`world.networkfragments`、`world.snapshot`、`world.statesync`、`record` | `FramePacket.cs`、`RemoteFrameAggregator.cs`、`FrameSnapshotDispatcher.cs` |

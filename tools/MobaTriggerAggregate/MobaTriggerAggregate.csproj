@@ -6,6 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/AbilityKit.Triggering/AbilityKit.Triggering.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Triggering.Authoring/AbilityKit.Triggering.Authoring.csproj" />
   </ItemGroup>
 </Project>

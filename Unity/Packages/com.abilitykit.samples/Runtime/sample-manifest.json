@@ -6586,7 +6586,7 @@
           "outputHint": "StateDiff.Restored"
         },
         {
-          "sourceFile": "Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Core/StateManager.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Checkpoints/StateManager.cs",
           "title": "StateManager",
           "explanation": "说明 CaptureState 保存快照和实体回滚数据，TryRestore 根据帧恢复业务实体。",
           "startLine": 56,

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 
@@ -17,7 +18,8 @@ namespace AbilityKit.Game.Flow
             int skillId,
             out SkillMO skill,
             out SkillButtonTemplateMO template,
-            out BattleHudSkillPresentationSpec spec)
+            out BattleHudSkillPresentationSpec spec,
+            IReadOnlyDictionary<int, int> skillLevels = null)
         {
             skill = null;
             template = null;
@@ -31,7 +33,27 @@ namespace AbilityKit.Game.Flow
                 TryGetTemplate(configs, skill.SkillButtonTemplateId, out template);
             }
 
-            spec = _specs.Resolve(skill, template);
+            spec = TryResolveBasicAttackRange(configs, skill, skillLevels, out var range)
+                ? _specs.ResolveBasicAttack(skill, range)
+                : _specs.Resolve(skill, template);
+            return true;
+        }
+
+        public bool TryResolveBasicAttackRange(int skillId, IReadOnlyDictionary<int, int> skillLevels, out float range)
+        {
+            range = 0f;
+            return TryGetConfigs(out var configs) && TryGetSkill(configs, skillId, out var skill) &&
+                   TryResolveBasicAttackRange(configs, skill, skillLevels, out range);
+        }
+
+        private static bool TryResolveBasicAttackRange(MobaConfigDatabase configs, SkillMO skill,
+            IReadOnlyDictionary<int, int> skillLevels, out float range)
+        {
+            range = 0f;
+            if (!configs.TryGetSkillFlow(skill.CastFlowId, out var flow) || flow.BasicAttack == null) return false;
+            var level = 0;
+            skillLevels?.TryGetValue(flow.BasicAttack.RangeLevelSlot, out level);
+            range = flow.BasicAttack.ResolveRange(skill.Range, level);
             return true;
         }
 

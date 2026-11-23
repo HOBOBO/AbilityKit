@@ -4,7 +4,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Core.Recording.FrameRecord
+namespace AbilityKit.Record.FrameRecord
 {
     public enum CanonicalValueKind
     {

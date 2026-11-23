@@ -306,8 +306,8 @@ public sealed class MobaPathFollowingStateTests
         var mirror = binding.Data.Waypoints;
         var revision = binding.Revision;
         var order = f.Pipeline.CaptureSourceOrder();
-        Assert.True(Record.Exception(() => f.Runtime.ValidateState(capture)) is ArgumentException or InvalidOperationException);
-        Assert.True(Record.Exception(() => f.Runtime.RestoreState(capture)) is ArgumentException or InvalidOperationException);
+        Assert.True(Xunit.Record.Exception(() => f.Runtime.ValidateState(capture)) is ArgumentException or InvalidOperationException);
+        Assert.True(Xunit.Record.Exception(() => f.Runtime.RestoreState(capture)) is ArgumentException or InvalidOperationException);
         Equal(source, binding.Source.CaptureState());
         Assert.Equal(target, binding.Data.LastTarget);
         Assert.Equal(frames, binding.Data.FramesSinceRepath);

@@ -15,6 +15,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public bool ContinueThroughControl { get; }
         public bool PreserveCharacterCastContext { get; }
         public bool UseCommitCooldownFactor { get; }
+        public BasicAttackFlowDTO BasicAttack { get; }
+        public int BasicAttackWindupMs { get; }
 
         public int RequiredBuffQualificationId { get; }
         public IReadOnlyList<SkillPhaseDTO> Phases { get; }
@@ -24,6 +26,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             if (dto == null) throw new ArgumentNullException(nameof(dto));
             SkillRecoveryContract.Validate(dto);
             SkillCommitCooldownContract.Validate(dto);
+            BasicAttackWindupMs = BasicAttackFlowDTO.Validate(dto);
+            BasicAttack = dto.BasicAttack;
             Id = dto.Id;
             Name = dto.Name;
             PipelineContinuousTagTemplateId = dto.PipelineContinuousTagTemplateId;

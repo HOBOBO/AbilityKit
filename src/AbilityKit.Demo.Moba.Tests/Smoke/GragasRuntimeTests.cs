@@ -13,6 +13,13 @@ using AbilityKit.Deterministic;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.FrameSync.Rollback;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Demo.Moba.Rollback;
+using AbilityKit.Demo.Moba.Services.Behavior;
+using AbilityKit.Demo.Moba.Session;
+using AbilityKit.Protocol.Moba.StateSync;
+using System.Reflection;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -249,6 +256,11 @@ public sealed class GragasRuntimeTests
         b.Cast(1, new Vec3(100, 0, 106));
         b.Setup.TickMilliseconds(300);
         Assert.Equal(1, b.Param(4));
+        var gates = b.Services.Resolve<IMobaTagBehaviorGateQueryService>();
+        Assert.True(gates.TryIsBlocked(b.Caster, moba_luban.MobaTagBehaviorGate.Move, out var moveBlocked));
+        Assert.True(gates.TryIsBlocked(b.Caster, moba_luban.MobaTagBehaviorGate.Turn, out var turnBlocked));
+        Assert.False(moveBlocked);
+        Assert.False(turnBlocked);
         var mana = b.Setup.GetActorMana(b.Caster);
         Assert.False(b.TryCast(b.Caster, 1, new Vec3(100, 0, 108), 0).Success);
         Assert.Equal(mana, b.Setup.GetActorMana(b.Caster));
@@ -313,12 +325,73 @@ public sealed class GragasRuntimeTests
     }
 
     [Fact]
+    public void W_locks_motion_and_facing_until_empowerment_then_moves_during_tail()
+    {
+        using var battle = new Battle();
+        battle.Cast(2, Vec3.Zero);
+        battle.SetMove(1f, 0f);
+        var locked = battle.Transform;
+        Assert.True(battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Move));
+        Assert.True(battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Turn));
+        battle.Setup.TickMilliseconds(900);
+        Assert.Equal(locked.Position, battle.Transform.Position);
+        battle.Turn(new Vec3(1f, 0f, 0f));
+        Assert.Equal(locked.Rotation, battle.Transform.Rotation);
+        Assert.Equal(locked.Position.X, battle.ReadPublishedTransform().X);
+        Assert.Equal(locked.Forward.Z, battle.ReadPublishedTransform().ForwardZ);
+        Assert.Equal(0f, battle.Param(5));
+
+        battle.Until(() => battle.Param(5) == 1);
+        Assert.False(battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Move));
+        Assert.False(battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Turn));
+        battle.Setup.Tick(1);
+        Assert.True(battle.Services.Resolve<SkillCastCoordinator>().TryGetRunningBySlot(battle.Caster, 2, out _));
+        Assert.True(battle.Transform.Position.X > locked.Position.X);
+        battle.Turn(new Vec3(1f, 0f, 0f));
+        Assert.NotEqual(locked.Rotation, battle.Transform.Rotation);
+        var pose = battle.ReadPublishedTransform();
+        Assert.Equal(battle.Transform.Position.X, pose.X);
+        Assert.Equal(battle.Transform.Forward.X, pose.ForwardX);
+    }
+
+    [Fact]
+    public void W_frame_checkpoint_rebinds_in_flight_gate_and_replays_release()
+    {
+        using var battle = new Battle();
+        battle.Cast(2, Vec3.Zero);
+        battle.Setup.TickMilliseconds(900);
+        var coordinator = battle.CreateRollbackCoordinator();
+        var frame = battle.Frame;
+        Assert.True(coordinator.CaptureAndStore(frame));
+        var expected = new List<(bool Move, bool Turn, float Empowered)>();
+        for (var step = 0; step < 6; step++)
+        {
+            battle.Setup.Tick(1);
+            expected.Add((battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Move),
+                battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Turn), battle.Param(5)));
+        }
+        Assert.Contains((false, false, 1f), expected);
+        battle.Restore(coordinator, frame);
+        Assert.True(battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Move));
+        Assert.True(battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Turn));
+        Assert.Equal(0f, battle.Param(5));
+        foreach (var step in expected)
+        {
+            battle.Setup.Tick(1);
+            Assert.Equal(step, (battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Move),
+                battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Turn), battle.Param(5)));
+        }
+    }
+
+    [Fact]
     public void W_cancel_before_drink_completes_does_not_grant_empowerment()
     {
         using var b = new Battle();
         b.Cast(2, Vec3.Zero);
         b.Setup.TickMilliseconds(500);
         Assert.True(b.Services.Resolve<SkillCastCoordinator>().CancelBySlot(b.Caster, 2));
+        Assert.False(b.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Move));
+        Assert.False(b.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Turn));
         b.Setup.TickMilliseconds(1200);
         Assert.Equal(0, b.Param(5));
         Assert.Equal(0, b.Setup.CountActorBuffs(b.Caster, 30050391));
@@ -460,6 +533,29 @@ public sealed class GragasRuntimeTests
             return actor;
         }
         public float Param(int id) => Actor(Caster).characterHfsm.Runtime.ResolveParameter(id);
+        public Transform3 Transform => Actor(Caster).transform.Value;
+        public void SetMove(float dx, float dz) => Actor(Caster).ReplaceMoveInput(dx, dz);
+        public void Turn(Vec3 forward) => new MobaBrainEntityManager(Services.Resolve<MobaActorRegistry>(),
+            Services.Resolve<MobaCombatRulesService>().CanTurn).SetForward(Caster, forward);
+        public MobaActorTransformSnapshotEntry ReadPublishedTransform()
+        {
+            MobaActorTransformSnapshotEntry[]? entries = null;
+            new MobaTransformSnapshotDispatcher(World).TryDispatch(Frame, (_, transforms) => entries = transforms);
+            Assert.NotNull(entries);
+            return Assert.Single(entries, entry => entry.ActorId == Caster);
+        }
+        public bool IsGateBlocked(moba_luban.MobaTagBehaviorGate gate)
+        {
+            Assert.True(Services.Resolve<IMobaTagBehaviorGateQueryService>().TryIsBlocked(Caster, gate, out var blocked));
+            return blocked;
+        }
+        public FrameIndex Frame => new FrameIndex(bootstrap.Context.LastFrame);
+        private IWorld World => (IWorld)typeof(ConsoleBattleBootstrapper)
+            .GetField("_runtimeWorld", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(bootstrap)!;
+        public RollbackCoordinator CreateRollbackCoordinator() =>
+            new RollbackCoordinator(MobaRollbackRegistryBuilder.Create(World), new RollbackSnapshotRingBuffer(2));
+        public void Restore(RollbackCoordinator coordinator, FrameIndex frame) =>
+            Assert.True(bootstrap.TryRestoreSimulationFrame(coordinator, frame, out var result), result.ToString());
         public long CooldownEnd(int slot) => Actor(Caster).skillLoadout.ActiveSkills[slot - 1].CooldownEndTimeMs;
         public void Until(Func<bool> condition)
         {

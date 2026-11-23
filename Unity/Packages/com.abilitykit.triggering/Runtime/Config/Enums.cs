@@ -131,7 +131,10 @@ namespace AbilityKit.Triggering.Runtime.Config
     {
         /// <summary>立即执行（默认）</summary>
         Immediate = 0,
-        /// <summary>加入队列，按顺序执行</summary>
+        /// <summary>
+        /// 兼容保留的策略，不建议新计划使用。调度路径仅防止同一执行器实例同步重入；
+        /// 不提供跨动作队列、先进先出或优先级排序。立即动作不使用此包装器。
+        /// </summary>
         Queued = 1,
         /// <summary>并行执行（不等待队列）</summary>
         Parallel = 2,

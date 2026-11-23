@@ -329,7 +329,18 @@ namespace AbilityKit.Network.Battle.Config
             return this;
         }
 
-        /// <summary>Sets the reliable-event cursor callbacks (for reconnect resubscribe).</summary>
+        /// <summary>
+        /// 在房间已声明固定基线支持时切换订阅入口，仍使用原请求及可靠事件游标。
+        /// </summary>
+        public NetworkBattleConfig UseFixedBaselineStateSyncSubscription()
+        {
+            _o.OpPostAuthentication = RoomGatewayOpCodes.SubscribeFixedBaselineStateSync;
+            return this;
+        }
+
+        /// <summary>
+        /// 设置重连订阅时使用的可靠事件游标回调。
+        /// </summary>
         public NetworkBattleConfig WithReliableEventCursor(Func<string> getEpoch, Func<long> getLastAck)
         {
             _o.GetReliableEventEpoch = getEpoch;

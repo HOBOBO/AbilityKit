@@ -41,7 +41,7 @@ namespace AbilityKit.Game.Test.UnitTest
     /// plus a movement signal after both clients have entered the same battle.
     /// </summary>
     [InitializeOnLoad]
-    public static class MobaMultiplayerHeadlessClientCommand
+    public static partial class MobaMultiplayerHeadlessClientCommand
     {
         private const string StarterScenePath = "Assets/Scenes/" + DemoSceneRoutes.Starter + ".unity";
         private const string RunningKey = "AbilityKit.MobaMultiplayerHeadless.Running";
@@ -374,13 +374,29 @@ namespace AbilityKit.Game.Test.UnitTest
                             "restored battle world is observable; validating frame-0 lockstep catch-up");
                         return;
                     }
+                    if (context.SettledFrames is { } liveSettled)
+                    {
+                        if (liveSettled.Fault is { } liveSettledFault)
+                            throw new InvalidOperationException($"Settled frame stream failed: {liveSettledFault}");
+                        if (!liveSettled.CanSubmit || liveSettled.Receiver.LastConsumedFrame < liveSettled.Receiver.TargetFrame)
+                            return;
+                    }
                     ValidateComparisonViews(context);
-                    SetStage(ClientStage.BattleReady, "battle context and both runtime player actors are observable");
+                    SetStage(ClientStage.BattleReady, "battle context, both runtime player actors, and live input are ready");
                     return;
 
                 case ClientStage.BattleReady:
                     if (!File.Exists(_options!.MovementSignalPath)) return;
                     var movementContext = RequireBattleContext(entry);
+                    if (movementContext.SettledFrames?.Fault is { } settledFault)
+                        throw new InvalidOperationException($"Settled frame stream failed: {settledFault}");
+                    if (!movementContext.CanSubmitGameplayInput) return;
+                    if (_options.RunMode == ClientRunMode.SummonRejection)
+                    {
+                        _summonRejection = new SummonRejectionProbe(movementContext, _options);
+                        SetStage(ClientStage.ObservingSummonRejection, "observing keyed summon prediction and authority rejection");
+                        return;
+                    }
                     if (movementContext.Plan.Sync.SyncMode != BattleSyncMode.Lockstep)
                     {
                         throw new InvalidOperationException(
@@ -396,6 +412,11 @@ namespace AbilityKit.Game.Test.UnitTest
                         _options.Role == ClientRole.Owner
                             ? "moving owner toward the collision lane"
                             : "moving member toward the collision lane");
+                    return;
+
+                case ClientStage.ObservingSummonRejection:
+                    if (_summonRejection!.Tick())
+                        Finish(true, "Verified the settled summon rejection and recorded the entity roster at the rejected frame.");
                     return;
 
                 case ClientStage.MovingPlayers:
@@ -837,6 +858,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 _gatewayConfig.BuildSecondPlayerLoadout(),
                 _controller!.CurrentSnapshot,
                 _controller.LocalPlayerId);
+            if (_options!.RunMode == ClientRunMode.SummonRejection && _options.Role == ClientRole.Owner)
+                loadout = new MultiplayerLoadoutSpec(3003, loadout.TeamId, loadout.SpawnPointId, 6,
+                    3003, 30030101, new[] { 30030201, 30030301, 30030401, 30030501 });
             await _controller.PickHeroAsync(loadout, _lifetime!.Token);
             await _controller.SetReadyAsync(true, _lifetime.Token);
         }
@@ -1497,6 +1521,7 @@ namespace AbilityKit.Game.Test.UnitTest
             if (context != null)
             {
                 state.frame = context.LastFrame;
+                state.latestSettledFrame = context.SettledFrames?.Receiver?.MaxReceivedFrame ?? 0;
                 state.localActorId = context.LocalActorId;
                 state.localPlayerId = context.ResolveLocalControlPlayerId();
                 var prediction = context.PredictionStats;
@@ -1523,6 +1548,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 state.inputFeatureAttached = true;
                 state.inputFeatureHasContext = inputFeature.HasContext;
                 state.inputCanSubmit = inputFeature.CanSubmitGameplayInput;
+                state.inputTargetFrame = inputFeature.InputTargetFrame;
                 state.inputTickCount = inputFeature.TickCount;
                 state.moveReadCount = inputFeature.MoveReadCount;
                 state.moveSubmitAttemptCount = inputFeature.MoveSubmitAttemptCount;
@@ -1736,6 +1762,8 @@ namespace AbilityKit.Game.Test.UnitTest
             }
             finally
             {
+                _summonRejection?.Dispose();
+                _summonRejection = null;
                 _lifetime?.Cancel();
                 SessionState.EraseBool(RunningKey);
                 SessionState.EraseString(OptionsKey);
@@ -1859,14 +1887,16 @@ namespace AbilityKit.Game.Test.UnitTest
             WaitingForOwnerResume = 24,
             WaitingForProcessTermination = 25,
             WaitingForColdReconnect = 26,
-            WaitingForColdRecovery = 27
+            WaitingForColdRecovery = 27,
+            ObservingSummonRejection = 28
         }
 
         private enum ClientRunMode
         {
             HotResume,
             ColdRestartSource,
-            ColdReconnect
+            ColdReconnect,
+            SummonRejection
         }
 
         private enum ClientRole
@@ -1884,7 +1914,7 @@ namespace AbilityKit.Game.Test.UnitTest
             public int Port = 4000;
             public string Region = "dev";
             public string ServerId = "local";
-            public string SyncTemplateId = "frame-sync-authority";
+            public string SyncTemplateId = DemoMultiplayerSyncTemplates.MobaSettledFrameSync;
             public int SyncModel = 1;
             public bool EnableConfirmedAuthorityWorld;
             public string AccountId = string.Empty;
@@ -1913,7 +1943,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 if (!Enum.TryParse(runModeText, ignoreCase: true, out ClientRunMode runMode))
                 {
                     throw new ArgumentException(
-                        "-mobaHeadlessRunMode must be hotResume, coldRestartSource, or coldReconnect.");
+                        "-mobaHeadlessRunMode must be hotResume, coldRestartSource, coldReconnect, or summonRejection.");
                 }
 
                 var options = new ClientOptions
@@ -1924,7 +1954,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     Port = IntValue(args, "-gatewayPort", 4000),
                     Region = Value(args, "-gatewayRegion") ?? "dev",
                     ServerId = Value(args, "-gatewayServerId") ?? "local",
-                    SyncTemplateId = Value(args, "-mobaHeadlessSyncTemplate") ?? "frame-sync-authority",
+                    SyncTemplateId = Value(args, "-mobaHeadlessSyncTemplate") ?? DemoMultiplayerSyncTemplates.MobaSettledFrameSync,
                     SyncModel = IntValue(args, "-mobaHeadlessSyncModel", 1),
                     EnableConfirmedAuthorityWorld = IntValue(args, "-mobaHeadlessEnableConfirmedAuthorityWorld", 0) != 0,
                     AccountId = Required(args, "-mobaHeadlessAccount"),
@@ -2059,6 +2089,8 @@ namespace AbilityKit.Game.Test.UnitTest
             public bool inputFeatureAttached;
             public bool inputFeatureHasContext;
             public bool inputCanSubmit;
+            public int inputTargetFrame;
+            public int latestSettledFrame;
             public int inputTickCount;
             public int moveReadCount;
             public int moveSubmitAttemptCount;

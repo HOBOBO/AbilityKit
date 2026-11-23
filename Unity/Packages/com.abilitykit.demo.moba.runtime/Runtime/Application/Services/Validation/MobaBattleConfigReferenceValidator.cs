@@ -1084,6 +1084,10 @@ namespace AbilityKit.Demo.Moba.Services
                     report.Error(Source, path + ".type", "checks skill phase is deprecated; use RulePlan trigger conditions instead.", businessId.ToString());
                     break;
                 case SkillPhaseType.Timeline:
+                    if (phase.Timeline != null && phase.Timeline.CastGateTagTemplateId > 0 &&
+                        (!config.TryGetContinuousTagTemplate(phase.Timeline.CastGateTagTemplateId, out var castGate) ||
+                         castGate == null || !SkillTimelinePhase.IsCastGateTemplate(MobaContinuousTagTemplateRegistry.CreateRequirements(castGate))))
+                        report.Error(Source, path + ".timeline.castGateTagTemplateId", "Timeline cast gate requires a Move/Turn grant-only template.", businessId.ToString());
                     ValidateTimelinePhase(triggers, report, phase.Timeline, path + ".timeline", businessId);
                     break;
                 case SkillPhaseType.Handlers:

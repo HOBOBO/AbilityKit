@@ -112,7 +112,7 @@
 
 - [实体管理模块](../../com.abilitykit.combat.entitymanager/Document/) - 实体查询系统
 - [能力管线模块](../../com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md) - 技能执行
-- [触发器模块](../../com.abilitykit.triggering/Document/触发器模块开发设计文档.md) - 事件触发
+- [触发器模块](../../com.abilitykit.triggering/Documentation~/Overview.md) - 事件触发
 
 ---
 

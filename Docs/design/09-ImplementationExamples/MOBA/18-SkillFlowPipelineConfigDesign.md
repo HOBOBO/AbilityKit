@@ -7,6 +7,8 @@
 
 ## 1. 能力定位
 
+机制扩展的准入要求见 [`MobaMechanismGovernance.md`](../../../MobaMechanismGovernance.md)。本文说明技术落点，不授予机制扩展权限；新增/改变瞄准、槽位、计数、状态或生命周期语义时，先提交通用方案，等待用户确认。禁止在共享 Cast/Pipeline/Counter 等执行链中按英雄身份补特殊行为。
+
 MOBA 技能释放不是在代码里为每个英雄手写 Pipeline，而是由技能表指向技能 Flow 表：
 
 | 配置 | 关键字段 | 运行时含义 | 源码入口 |
@@ -249,13 +251,28 @@ sequenceDiagram
 2. `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_flows.json`：Flow phase 编排、Timeline、RulePlan、Sequence、WaitUntil 示例。
 3. `Unity/Packages/com.abilitykit.demo.moba.share/Runtime/Game/Config/Dto/SkillDtos.cs`：DTO 字段和 `SkillPhaseType` 数字映射。
 4. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/SkillFlowMO.cs`：DTO 到运行时 MO 的轻量封装。
-5. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/TableDrivenMobaSkillPipelineLibrary.cs`：表驱动 Pipeline 构建核心。
-6. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillTimelinePhase.cs`：Timeline event 如何按时间执行。
-7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillRulePlanPhase.cs`：RulePlan phase 如何执行和中断。
+5. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/TableDrivenMobaSkillPipelineLibrary.cs`：表驱动 Pipeline 构建核心。
+6. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/Phases/SkillTimelinePhase.cs`：Timeline event 如何按时间执行。
+7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/Phases/SkillRulePlanPhase.cs`：RulePlan phase 如何执行和中断。
 8. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs`：配置引用与废弃 phase 校验。
 9. `Unity/Packages/com.abilitykit.demo.moba.editor/Editor/BattleDebug/Configuration/BattleDebugConfigSourceIndex.cs`：运行时配置引用到权威 JSON 条目与行号的编辑器索引。
 
 ## 11. 应用层边界
+
+模型动作元数据与技能 Flow 时序各自维护。正式资源由动画同步工具独立导出到
+`Production/Datas/model-animations.xlsx`，状态表现 `play` 通过 `modelId + animationKey`
+引用 `moba/model_animations`，不要求先建立英雄 HFSM。loop 等播放策略仍属于状态动作；
+旧内联动作兼容保留。导出帧数不会自动改变 `Timeline.DurationMs`、施法锁定或 HFSM 退出条件，
+也不能用客户端动画完成回调驱动权威状态。来源、同步和迁移契约见
+[MOBA 状态机创作与发布](../../../MobaStateMachineAuthoring.md)与
+[模型动作目录解耦方案](../../../../plans/ModelAnimationCatalogDecoupling.md)。
+
+对于 ActionEditor 编排的 Timeline 阶段，时序依据是审阅后的完整导出 `length`，包括延迟起播、
+并行轨道的最晚结束和显式尾段；不是裸 Clip.length 或最后一个伤害事件。logic/presentation 分流保留相同总长。
+只有阶段的 `MobaLogicTimeline` 显式引用逻辑导出时，编译器才据此生成 `DurationMs`；
+字段为空仍使用手填 Timeline，同名文件不会自动接通。整次 Cast 仍由阶段树决定，独立弹体/区域寿命另算。
+提前退出应先核实源编排、片段结束边界、两个导出及引用/导入覆盖链，再讨论独立收尾机制。
+具体操作与跨英雄验收见 [ActionEditor 时长检查](../../../../.claude/skills/moba-skill-authoring/references/action-timeline-timing.md)。
 
 通用 Pipeline 包负责 run、phase、sequence/parallel/repeat/delay/wait-until 等执行原语；`TableDrivenMobaSkillPipelineLibrary`、`SkillFlowDTO/MO` 字段、Timeline effect 解释、RulePlan 失败策略、continuous tag template 和废弃 phase 迁移规则都属于 MOBA 项目应用层。别的游戏可以采用动画图、行为树、脚本字节码或服务器生成计划，框架不能把这份 SkillFlow schema 设为唯一开箱格式。
 

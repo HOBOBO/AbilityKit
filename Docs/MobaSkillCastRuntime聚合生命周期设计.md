@@ -13,7 +13,7 @@
 
 因此，这里需要的不是单纯的 trace 树，也不是一个只跟着管线走的临时上下文，而是一个可被子对象持有、可保活、可释放的“技能运行时聚合”。
 
-本次接入已经把 [`SkillPipelineRunner`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs:1) 和 Buff 生命周期接到了这个聚合上。
+本次接入已经把 [`SkillPipelineRunner`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineRunner.cs#L1) 和 Buff 生命周期接到了这个聚合上。
 
 ---
 
@@ -76,7 +76,7 @@ trace 不适合承担：
 
 ### 4.1 `MobaSkillCastRuntime`
 
-[`MobaSkillCastRuntime`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntime.cs:1) 是一次技能释放的聚合对象。
+[`MobaSkillCastRuntime`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntime.cs#L1) 是一次技能释放的聚合对象。
 
 它承载：
 
@@ -97,11 +97,11 @@ trace 不适合承担：
 
 关键点是 `Generation`，用于防止老引用误命中新一轮复用的 runtime id。
 
-相关结构在 [`MobaSkillCastRuntime.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntime.cs:1) 中定义。
+相关结构在 [`MobaSkillCastRuntime.cs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntime.cs#L1) 中定义。
 
 ### 4.3 子对象引用
 
-子对象通过 [`MobaSkillRuntimeChildRef`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntime.cs:1) 标识。
+子对象通过 [`MobaSkillRuntimeChildRef`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntime.cs#L1) 标识。
 
 当前 child 关注的是：
 
@@ -114,7 +114,7 @@ trace 不适合承担：
 
 ### 4.4 retain token
 
-当子对象成功 retain 运行时时，会拿到一个 [`MobaSkillRuntimeRetainHandle`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntime.cs:1)。
+当子对象成功 retain 运行时时，会拿到一个 [`MobaSkillRuntimeRetainHandle`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntime.cs#L1)。
 
 这个 token 的职责是：
 
@@ -137,7 +137,7 @@ trace 不适合承担：
 
 ### 5.2 结束规则
 
-在 [`MobaSkillCastRuntimeService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:26) 中：
+在 [`MobaSkillCastRuntimeService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs#L26) 中：
 
 - `MarkPipelineEnded(...)` 只标记管线结束
 - `Cancel(...)` 也只结束管线语义，不会强制立刻销毁整个聚合
@@ -165,13 +165,13 @@ trace 不适合承担：
 
 ### 6.1 Buff 上下文携带 runtime
 
-Buff 入口上下文 [`BuffOriginContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffRuntimeContexts.cs:1) 已加入 `MobaSkillCastRuntimeHandle`。
+Buff 入口上下文 [`BuffOriginContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Core/BuffRuntimeContexts.cs#L1) 已加入 `MobaSkillCastRuntimeHandle`。
 
 这意味着 Buff 不是只知道“谁施加的”，还知道“属于哪一次技能运行时”。
 
 ### 6.2 Buff runtime 持有 retain token
 
-[`BuffRuntime`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/BuffComponent.cs:1) 增加了：
+[`BuffRuntime`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/BuffComponent.cs#L1) 增加了：
 
 - `SkillRuntimeHandle`
 - `SkillRuntimeRetainHandle`
@@ -180,7 +180,7 @@ Buff 入口上下文 [`BuffOriginContext`](../Unity/Packages/com.abilitykit.demo
 
 ### 6.3 申请 retain 的时机
 
-在 [`BuffLifecycleExecutor`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffLifecycleExecutor.cs:60) 中：
+在 [`BuffLifecycleExecutor`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffLifecycleExecutor.cs#L60) 中：
 
 - Buff 新建时尝试 retain
 - Buff replace / remove / fail cleanup 时 release
@@ -206,9 +206,9 @@ Buff 结束时会：
 
 ### 7.1 投射物来源缓存
 
-投射物基础运动和碰撞逻辑属于通用 projectile 模块，MOBA 业务来源通过 [`ProjectileSourceContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs:1) 保存在 MOBA sidecar 中。
+投射物基础运动和碰撞逻辑属于通用 projectile 模块，MOBA 业务来源通过 [`ProjectileSourceContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileSourceContext.cs#L1) 保存在 MOBA sidecar 中。
 
-[`MobaProjectileLinkService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileLinkService.cs:1) 当前负责：
+[`MobaProjectileLinkService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileLinkService.cs#L1) 当前负责：
 
 - `ProjectileId -> ActorId` 映射
 - `ProjectileId -> ProjectileSourceContext` 来源缓存
@@ -217,11 +217,11 @@ Buff 结束时会：
 
 ### 7.2 retain / release 时机
 
-[`MobaProjectileService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs:41) 在立即发射或调度发射时创建投射物来源，并在实际 `ProjectileId` 可用后 retain 技能运行时。
+[`MobaProjectileService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs#L41) 在立即发射或调度发射时创建投射物来源，并在实际 `ProjectileId` 可用后 retain 技能运行时。
 
-[`MobaProjectileSpawnSyncHandler`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileSpawnSyncHandler.cs:209) 会把 launcher 缓存的来源绑定到实际 projectile，并对 runtime 申请 child retain。
+[`MobaProjectileSpawnSyncHandler`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileSpawnSyncHandler.cs#L209) 会把 launcher 缓存的来源绑定到实际 projectile，并对 runtime 申请 child retain。
 
-[`MobaProjectileExitSyncHandler`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileExitSyncHandler.cs:16) 在投射物退出时：
+[`MobaProjectileExitSyncHandler`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileExitSyncHandler.cs#L16) 在投射物退出时：
 
 1. 结束 `ProjectileLaunch` 正式 Execution Context。
 2. release skill runtime child retain。
@@ -229,7 +229,7 @@ Buff 结束时会：
 
 ### 7.3 命中后继续传递
 
-[`ProjectileHitArgs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileHitArgs.cs:7) 已实现 actor、origin、trace、skill runtime、data provider。命中触发后，后续 Trigger Plan 可以像处理 Buff tick 或 DamageResult 一样从 payload 中读取统一来源。
+[`ProjectileHitArgs`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/ProjectileHitArgs.cs#L7) 已实现 actor、origin、trace、skill runtime、data provider。命中触发后，后续 Trigger Plan 可以像处理 Buff tick 或 DamageResult 一样从 payload 中读取统一来源。
 
 ---
 
@@ -237,7 +237,7 @@ Buff 结束时会：
 
 ### 7.1 管线结束只结束管线
 
-[`SkillPipelineRunner`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs:1) 现在在结束技能流程时，会把 runtime 标记为 pipeline ended，而不是直接强杀。
+[`SkillPipelineRunner`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineRunner.cs#L1) 现在在结束技能流程时，会把 runtime 标记为 pipeline ended，而不是直接强杀。
 
 这保证了：
 
@@ -248,11 +248,11 @@ Buff 结束时会：
 
 效果执行链路里已经把 runtime handle 通过强类型上下文传递下去：
 
-- [`IMobaTriggerSkillRuntimeContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerContext.cs:1)
-- [`EffectContextWrapper`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/EffectContextWrapper.cs:1)
-- [`BuffTriggerContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffStageEffectExecutor.cs:1)
+- `IMobaTriggerSkillRuntimeContext`（历史源码，原路径已移除）
+- [`EffectContextWrapper`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/EffectContextWrapper.cs#L1)
+- [`BuffTriggerContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Triggering/BuffStageEffectExecutor.cs#L1)
 
-执行环境本身不再直接暴露为具体 `executeCtx` 对象，而是由 [`MobaTriggerExecutionSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshot.cs:1) 提供只读快照。它负责把 kind、source/target actor、source/root/owner context、triggerId、configId、frame 和 runtime handle 这些稳定执行事实交给条件层；stack、elapsed、remaining、duration 这类 buff/periodic/channel 阶段事实则通过 [`MobaTriggerStageSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerStageSnapshot.cs:1) 从 payload provider 单独解析。底层 `EffectExecutionContext` 或 Triggering `ExecCtx<TCtx>` 仍只留在具体执行器内部。
+执行环境本身不再直接暴露为具体 `executeCtx` 对象，而是由 [`MobaTriggerExecutionSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshot.cs#L1) 提供只读快照。它负责把 kind、source/target actor、source/root/owner context、triggerId、configId、frame 和 runtime handle 这些稳定执行事实交给条件层；stack、elapsed、remaining、duration 这类 buff/periodic/channel 阶段事实则通过 [`MobaTriggerStageSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerStageSnapshot.cs#L1) 从 payload provider 单独解析。底层 `EffectExecutionContext` 或 Triggering `ExecCtx<TCtx>` 仍只留在具体执行器内部。
 
 同时保留 dictionary fallback，用于兼容已有计划动作路径。
 
@@ -287,7 +287,7 @@ Buff 结束时会：
 
 ### 9.1 职责定位
 
-[`MobaSkillRuntimeBlackboard`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntime.cs:132) 是一次技能 cast 作用域内的动态状态容器。
+[`MobaSkillRuntimeBlackboard`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntime.cs#L132) 是一次技能 cast 作用域内的动态状态容器。
 
 它适合保存：
 
@@ -306,7 +306,7 @@ Buff 结束时会：
 
 ### 9.2 强类型 key
 
-黑板不推荐用裸字符串作为业务入口，而是通过 [`MobaSkillRuntimeBlackboardKey`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntime.cs:61) 描述字段。
+黑板不推荐用裸字符串作为业务入口，而是通过 [`MobaSkillRuntimeBlackboardKey`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntime.cs#L61) 描述字段。
 
 key 包含：
 
@@ -321,7 +321,7 @@ key 包含：
 
 ### 9.3 当前内置 key
 
-[`MobaSkillRuntimeBlackboardKeys`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntime.cs:132) 当前提供了几个基础 cast 级字段：
+[`MobaSkillRuntimeBlackboardKeys`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntime.cs#L132) 当前提供了几个基础 cast 级字段：
 
 - `DamagedTargets`：本次技能已伤害目标集合
 - `HitCount`：本次技能命中次数
@@ -341,7 +341,7 @@ key 包含：
 
 ### 9.5 访问入口
 
-运行时服务 [`MobaSkillCastRuntimeService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:11) 提供了按 handle 访问黑板的接口：
+运行时服务 [`MobaSkillCastRuntimeService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs#L11) 提供了按 handle 访问黑板的接口：
 
 - `TryGetBlackboard(...)`
 - `SetBlackboardValue(...)`
@@ -350,7 +350,7 @@ key 包含：
 - `AddBlackboardActorId(...)`
 - `AddBlackboardContextId(...)`
 
-触发上下文扩展 [`MobaTriggerContextDataExtensions`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerContext.cs:177) 提供了更贴近玩法语义的入口：
+触发上下文扩展 `MobaTriggerContextDataExtensions`（历史源码，原路径已移除） 提供了更贴近玩法语义的入口：
 
 - `TryMarkDamagedTarget(...)`
 - `HasDamagedTarget(...)`
@@ -378,14 +378,14 @@ key 包含：
 
 相关实现：
 
-- [`MobaTriggerExecutionSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshot.cs:1) 提供 MOBA 层执行环境快照，避免条件层依赖具体 execute context。
-- [`IMobaTriggerExecutionSnapshotProvider`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshot.cs:1) 让 payload 或 wrapper 暴露执行环境只读视图。
-- [`MobaTriggerStageSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerStageSnapshot.cs:1) 提供阶段/领域事实快照，避免 stack、elapsed、remaining、duration 污染基础执行快照。
-- [`MobaTriggerConditionContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerConditionContext.cs:1) 提供复杂条件只读查询视图，并统一查询 payload、origin、trace、execution snapshot、stage snapshot 和 skill runtime blackboard。
-- [`MobaTriggerPayloadResolverRegistry`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerPayloadResolverRegistry.cs:1) 提供 payload 到条件上下文的可插拔解析入口。
-- [`MobaTriggerConditionRegistry`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerConditionRegistry.cs:1) 提供 MOBA trigger condition 注册、triggerId 绑定和执行入口。
-- [`MobaTriggerExecutionBudget`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerExecutionBudget.cs:1) 提供深度、帧级、root 级执行预算。
-- [`MobaEffectExecutionService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs:22) 在创建 execution scope 前执行预算检查，并在执行 Trigger Plan 前执行 MOBA 业务条件。
+- [`MobaTriggerExecutionSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshot.cs#L1) 提供 MOBA 层执行环境快照，避免条件层依赖具体 execute context。
+- [`IMobaTriggerExecutionSnapshotProvider`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshot.cs#L1) 让 payload 或 wrapper 暴露执行环境只读视图。
+- [`MobaTriggerStageSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerStageSnapshot.cs#L1) 提供阶段/领域事实快照，避免 stack、elapsed、remaining、duration 污染基础执行快照。
+- [`MobaTriggerConditionContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerConditionContext.cs#L1) 提供复杂条件只读查询视图，并统一查询 payload、origin、trace、execution snapshot、stage snapshot 和 skill runtime blackboard。
+- [`MobaTriggerPayloadResolverRegistry`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerPayloadResolverRegistry.cs#L1) 提供 payload 到条件上下文的可插拔解析入口。
+- [`MobaTriggerConditionRegistry`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerConditionRegistry.cs#L1) 提供 MOBA trigger condition 注册、triggerId 绑定和执行入口。
+- [`MobaTriggerExecutionBudget`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaTriggerExecutionBudget.cs#L1) 提供深度、帧级、root 级执行预算。
+- [`MobaEffectExecutionService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs#L22) 在创建 execution scope 前执行预算检查，并在执行 Trigger Plan 前执行 MOBA 业务条件。
 
 ---
 

@@ -37,6 +37,32 @@ namespace AbilityKit.Game.Flow
 
     internal static class RemoteDrivenWorldTickDriver
     {
+        internal static int TickSettled(RemoteDrivenWorldTickOptions options, MobaSettledFrameSession settled)
+        {
+            settled?.Tick();
+            var handles = options.Handles;
+            if (settled?.CanAdvance != true || handles.Runtime == null || handles.World == null ||
+                !handles.Runtime.Features.TryGetFeature<IClientPredictionDriverStats>(out var stats))
+                return options.LastTickedFrame;
+
+            var worldId = handles.World.Id;
+            var lastFrame = options.LastTickedFrame;
+            for (var step = 0; step < options.StepsBudget; step++)
+            {
+                if (!stats.TryGetFrames(worldId, out var confirmed, out var predicted)) break;
+                lastFrame = predicted.Value;
+                var hasAuthority = confirmed.Value < settled.Receiver.TargetFrame;
+                if (!hasAuthority && (!settled.CanSubmit || !options.Plan.Authority.EnableClientPrediction)) break;
+                options.WorldCatchUp.CatchUpAndFeedSnapshots(handles.Runtime, handles.World,
+                    handles.Capabilities.SnapshotProvider, predicted.Value, predicted.Value + 1,
+                    options.FixedDeltaSeconds, 1, packet => options.Snapshots?.Feed(packet));
+                if (!stats.TryGetFrames(worldId, out var nextConfirmed, out var nextPredicted)) break;
+                lastFrame = nextPredicted.Value;
+                if (nextConfirmed.Value == confirmed.Value && nextPredicted.Value == predicted.Value) break;
+            }
+            return lastFrame;
+        }
+
         public static int Tick(RemoteDrivenWorldTickOptions options)
         {
             var handles = options.Handles;

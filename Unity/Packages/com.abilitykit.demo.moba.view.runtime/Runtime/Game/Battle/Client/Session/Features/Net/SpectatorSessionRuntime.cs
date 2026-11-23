@@ -2,14 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Host.Extensions.FrameSync.CatchUp;
 using AbilityKit.Ability.Host.Extensions.FrameSync.Spectator;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Battle;
-using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 
 namespace AbilityKit.Game.Flow
 {
@@ -21,9 +16,8 @@ namespace AbilityKit.Game.Flow
             internal INetworkClient Client;
             internal CancellationTokenSource Cancellation;
             internal CancellationToken CancellationToken;
-            internal Action<uint, byte[]> PushHandler;
             internal SpectatorWorldDriver Driver;
-            internal bool IsSubscribed;
+            internal MobaSettledFrameSession Settled;
             internal bool IsCancellationRequested;
             internal bool IsCancellationDisposed;
             internal Task StartTask;
@@ -46,21 +40,23 @@ namespace AbilityKit.Game.Flow
         internal IWorld World => _driver?.World;
         internal bool IsStarting => _operation != null && _driver == null;
         internal bool IsSpectating => _driver != null;
+        internal string Fault => _operation?.Settled?.Fault;
 
         internal Task StartAsync(
             INetworkClient client,
-            ulong roomId,
+            BattleStartPlan plan,
             Func<IWorld> worldFactory)
         {
             if (client == null) throw new ArgumentNullException(nameof(client));
             if (worldFactory == null) throw new ArgumentNullException(nameof(worldFactory));
 
-            return StartReplacingAsync(client, roomId, worldFactory);
+            if (!plan.UsesSettledFrames) throw new InvalidOperationException("Spectating requires the settled battle plan.");
+            return StartReplacingAsync(client, plan, worldFactory);
         }
 
         private async Task StartReplacingAsync(
             INetworkClient client,
-            ulong roomId,
+            BattleStartPlan plan,
             Func<IWorld> worldFactory)
         {
             Task startTask;
@@ -77,13 +73,8 @@ namespace AbilityKit.Game.Flow
                     Cancellation = cancellation,
                     CancellationToken = cancellation.Token,
                 };
-                operation.PushHandler = (opCode, payload) => HandlePush(operation, opCode, payload);
-
                 _operation = operation;
-                client.OnServerPush += operation.PushHandler;
-                operation.IsSubscribed = true;
-
-                operation.StartTask = StartCoreAsync(operation, roomId, worldFactory);
+                operation.StartTask = StartCoreAsync(operation, plan, worldFactory);
                 startTask = operation.StartTask;
             }
             finally
@@ -98,11 +89,20 @@ namespace AbilityKit.Game.Flow
         {
             if (stepsBudget <= 0 || _driver is not { IsReady: true }) return;
 
-            var stepped = 0;
-            while (stepped < stepsBudget && _driver.TryTick())
+            var settled = _operation?.Settled;
+            if (settled != null)
             {
-                stepped++;
+                settled.Tick();
+                if (!settled.CanAdvance) return;
             }
+
+            try
+            {
+                var stepped = 0;
+                while (stepped < stepsBudget && _driver.TryTick())
+                    stepped++;
+            }
+            catch (Exception exception) when (settled != null) { settled.ReportFault(exception); }
         }
 
         internal void Stop()
@@ -193,53 +193,22 @@ namespace AbilityKit.Game.Flow
 
         private async Task StartCoreAsync(
             StartOperation operation,
-            ulong roomId,
+            BattleStartPlan plan,
             Func<IWorld> worldFactory)
         {
             Exception failure = null;
             try
             {
-                var subscribePayload = BitConverter.GetBytes(roomId);
-                var response = await AwaitWithCancellationAsync(
-                        operation.Client.SendRequestAsync(
-                            OpCodes.SpectatorSubscribe,
-                            subscribePayload,
-                            operation.CancellationToken),
-                        operation.CancellationToken)
+                var settled = operation.Settled = new MobaSettledFrameSession(plan, spectator: true);
+                await AwaitWithCancellationAsync(BindSettledAsync(settled, operation), operation.CancellationToken)
                     .ConfigureAwait(false);
                 ThrowIfStale(operation);
 
-                if (response == null || response.Length == 0)
-                {
-                    throw new InvalidOperationException("SpectatorSubscribe returned an empty response.");
-                }
-
-                var subscription = MobaProtocolDecoderModule.DecodeSpectatorSubscribeResponse(response);
-                var driver = _driverFactory();
-                if (driver == null)
-                {
+                var settledDriver = operation.Driver = _driverFactory() ??
                     throw new InvalidOperationException("The spectator driver factory returned null.");
-                }
-
-                operation.Driver = driver;
-                driver.Initialize(subscription.WorldId, subscription.TickRate, worldFactory);
+                settledDriver.InitializeSettled(settled.WorldId, plan.World.TickRate, worldFactory, settled.Receiver);
                 ThrowIfStale(operation);
-
-                if (subscription.CurrentFrame > 0)
-                {
-                    var request = new WireCatchUpRequest(roomId, subscription.WorldId, -1, subscription.CurrentFrame);
-                    var payload = WireCustomBinary.Serialize(request);
-                    await AwaitWithCancellationAsync(
-                            operation.Client.SendRequestAsync(
-                                OpCodes.CatchUpRequest,
-                                payload.Array ?? Array.Empty<byte>(),
-                                operation.CancellationToken),
-                            operation.CancellationToken)
-                        .ConfigureAwait(false);
-                    ThrowIfStale(operation);
-                }
-
-                _driver = driver;
+                _driver = settledDriver;
             }
             catch (Exception ex)
             {
@@ -265,70 +234,6 @@ namespace AbilityKit.Game.Flow
                     }
                 }
             }
-        }
-
-        private void HandlePush(StartOperation operation, uint opCode, byte[] payload)
-        {
-            if (!IsCurrent(operation)) return;
-            var driver = operation.Driver;
-            if (driver is not { IsReady: true }) return;
-
-            switch (opCode)
-            {
-                case OpCodes.FramePushed:
-                    FeedFrame(driver, payload);
-                    break;
-                case OpCodes.CatchUpPayloadPush:
-                    FeedCatchUp(driver, payload);
-                    break;
-            }
-        }
-
-        private static void FeedFrame(SpectatorWorldDriver driver, byte[] payload)
-        {
-            var pushed = WireCustomBinary.DeserializeFramePushedPush(new ArraySegment<byte>(payload));
-            var inputs = pushed.Inputs;
-            var commands = new PlayerInputCommand[inputs?.Length ?? 0];
-            for (var i = 0; i < commands.Length; i++)
-            {
-                var input = inputs[i];
-                commands[i] = new PlayerInputCommand(
-                    new FrameIndex(pushed.Frame),
-                    new PlayerId(input.PlayerId.ToString()),
-                    input.OpCode,
-                    input.Payload ?? Array.Empty<byte>());
-            }
-
-            driver.FeedFrameInputs(pushed.Frame, commands);
-        }
-
-        private static void FeedCatchUp(SpectatorWorldDriver driver, byte[] payload)
-        {
-            var pushed = WireCustomBinary.DeserializeCatchUpPayloadPush(new ArraySegment<byte>(payload));
-            var frames = pushed.Frames;
-            var allInputs = new PlayerInputCommand[frames?.Length ?? 0][];
-            for (var i = 0; i < allInputs.Length; i++)
-            {
-                var frame = frames[i];
-                var inputs = frame.Inputs;
-                var commands = new PlayerInputCommand[inputs?.Length ?? 0];
-                for (var j = 0; j < commands.Length; j++)
-                {
-                    var input = inputs[j];
-                    commands[j] = new PlayerInputCommand(
-                        new FrameIndex(frame.Frame),
-                        new PlayerId(input.PlayerId.ToString()),
-                        input.OpCode,
-                        input.Payload ?? Array.Empty<byte>());
-                }
-
-                allInputs[i] = commands;
-            }
-
-            driver.FeedCatchUpPayload(new FrameSyncCatchUpPayload(
-                new WorldId(pushed.WorldId.ToString()),
-                new FrameIndex(pushed.StartFrame),
-                allInputs));
         }
 
         private void ThrowIfStale(StartOperation operation)
@@ -357,6 +262,12 @@ namespace AbilityKit.Game.Flow
             {
                 return ex;
             }
+        }
+
+        private static async Task<bool> BindSettledAsync(MobaSettledFrameSession settled, StartOperation operation)
+        {
+            await settled.BindSpectatorAsync(operation.Client, operation.CancellationToken).ConfigureAwait(false);
+            return true;
         }
 
         private static async Task<T> AwaitWithCancellationAsync<T>(
@@ -394,12 +305,12 @@ namespace AbilityKit.Game.Flow
         {
             List<Exception> failures = null;
 
-            if (operation.IsSubscribed)
+            if (operation.Settled != null)
             {
                 try
                 {
-                    operation.Client.OnServerPush -= operation.PushHandler;
-                    operation.IsSubscribed = false;
+                    operation.Settled.Dispose();
+                    operation.Settled = null;
                 }
                 catch (Exception ex)
                 {

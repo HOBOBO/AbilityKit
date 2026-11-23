@@ -59,17 +59,17 @@ AbilityKit 的技能系统不是单个包中的封闭系统，而是一个跨模
 | 能力 | 关键类型 | 源码 |
 |------|----------|------|
 | 输入协调 | `MobaInputCoordinator` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Input/MobaInputCoordinator.cs` |
-| 释放协调 | `SkillCastCoordinator` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs` |
-| 释放准备 | `SkillCastPreparationService` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastPreparationService.cs` |
-| 释放上下文 | `SkillCastContext` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastContext.cs` |
+| 释放协调 | `SkillCastCoordinator` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs` |
+| 释放准备 | `SkillCastPreparationService` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastPreparationService.cs` |
+| 释放上下文 | `SkillCastContext` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastContext.cs` |
 | 通用 Pipeline 运行态 | `AbilityPipeline<TCtx>` / `AbilityPipelinePhaseRuntime` | `Unity/Packages/com.abilitykit.pipeline/Runtime/Core/Pipeline/AbilityPipeline.cs` / `Unity/Packages/com.abilitykit.pipeline/Runtime/Core/Pipeline/AbilityPipelinePhaseRuntime.cs` |
-| Pipeline 库 | `IMobaSkillPipelineLibrary` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/IMobaSkillPipelineLibrary.cs` |
-| 配置驱动 Pipeline | `TableDrivenMobaSkillPipelineLibrary` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/TableDrivenMobaSkillPipelineLibrary.cs` |
-| Pipeline 运行器 | `SkillPipelineRunner` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs` |
-| MOBA 时间线阶段 | `SkillTimelinePhase` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillTimelinePhase.cs` |
-| MOBA 规则计划阶段 | `SkillRulePlanPhase` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillRulePlanPhase.cs` |
-| 运行器注册表 | `SkillRunnerRegistry` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillRunnerRegistry.cs` |
-| Pipeline 上下文 | `SkillPipelineContext` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineContext.cs` |
+| Pipeline 库 | `IMobaSkillPipelineLibrary` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/IMobaSkillPipelineLibrary.cs` |
+| 配置驱动 Pipeline | `TableDrivenMobaSkillPipelineLibrary` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/TableDrivenMobaSkillPipelineLibrary.cs` |
+| Pipeline 运行器 | `SkillPipelineRunner` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineRunner.cs` |
+| MOBA 时间线阶段 | `SkillTimelinePhase` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/Phases/SkillTimelinePhase.cs` |
+| MOBA 规则计划阶段 | `SkillRulePlanPhase` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/Phases/SkillRulePlanPhase.cs` |
+| 运行器注册表 | `SkillRunnerRegistry` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillRunnerRegistry.cs` |
+| Pipeline 上下文 | `SkillPipelineContext` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineContext.cs` |
 | 通用 Skill Pipeline Builder | `SkillPipelineBuilder` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Ability/Pipeline/Skill/SkillPipelineBuilder.cs` |
 | Effect 生命周期 | `EffectContainer` | `Unity/Packages/com.abilitykit.ability/Runtime/Ability/Effect/EffectContainer.cs` |
 | Trigger 主线 | `TriggerRunner<TCtx>` | `Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunner.cs` |
@@ -394,7 +394,7 @@ flowchart LR
 4. **运行时必须有正式身份**：正式技能释放应创建 `MobaExecutionContextRegistry` 根上下文和 `MobaSkillCastRuntimeService` runtime handle；Trace Adapter 可选投影该根。
 5. **清理必须集中处理**：阶段订阅、临时对象、持续效果绑定应注册到 `SkillPipelineContext` cleanup 中。
 6. **旧 Checks/Handlers 阶段不应继续扩散**：源码已明确要求迁移到 RulePlan 条件与动作。
-7. **不要把通用 `AbilityTimelinePhase.cs` 当成当前技能时间线实现**：该文件当前只是停用占位，MOBA 正在使用的是 `SkillTimelinePhase`。
+7. **技能时间线属于领域扩展**：通用 Pipeline 不提供时间线阶段，MOBA 表驱动技能使用 `SkillTimelinePhase`。
 8. **长生命周期阶段要确认运行实例隔离**：有状态阶段应实现 `IAbilityPipelinePhaseInstanceFactory<TCtx>`，或者像 MOBA 配置库一样每次从 PhaseDefinition 创建新阶段。
 9. **清理回调不是事务边界**：通用 `AbilityPipeline<TCtx>` 在完成、失败和中断时会调用 `ReleaseContext`，但当前实现会吞掉该回调异常，再注销 Registry 并归还阶段列表。宿主需要在自己的 cleanup 中记录失败并保证幂等，不能依靠异常向上传播判断资源是否释放完整。
 10. **Registry 只提供观察索引**：`PipelineRegistry` 未初始化时 `Register` 静默跳过，`Shutdown()` 只清空 owner 列表，不会中断仍在运行的 Pipeline。项目 runtime 的 ForceTerminate/Clear 责任不能转交给 Registry。

@@ -218,7 +218,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (plan == null) throw new ArgumentNullException(nameof(plan));
             var frame = new FrameIndex(plan.Frame);
             var bytes = plan.CopyCheckpoint();
-            Prepare(frame, bytes);
+            PrepareCore(frame, bytes, null, out var targetRunners);
             var checkpoint = MobaSkillLifecycleCheckpointCodec.Decode<MobaSkillLifecycleCheckpoint>(bytes);
             var sections = MobaSkillLifecycleCheckpointCodec.ReadSections(checkpoint);
             var execution = MobaSkillLifecycleCheckpointCodec.Decode<MobaExecutionRegistryCheckpoint>(sections["execution-contexts"]);
@@ -257,7 +257,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             var restoreContexts = _contexts.CaptureLocalLifecycleCompensation();
             var oldNodes = _skills.ExecutionContextRegistry.CaptureLifecycleSnapshot();
             var oldNextContextId = _skills.ExecutionContextRegistry.NextContextId;
-            var oldRunners = _pipelines.ExportRunnerRollbackState();
+            var oldRunners = _pipelines.PrepareRunnerRollbackState(_pipelines.ExportRunnerRollbackState());
             var oldBlackboards = _owners.Export(frame);
             var oldRepositories = CaptureRepositories();
             var oldAreas = _areas.CaptureLocalRollbackState();
@@ -281,7 +281,7 @@ namespace AbilityKit.Demo.Moba.Rollback
 
                 _continuous.RestoreLocalRegistration(target.Instances);
                 RestoreStageCompleted?.Invoke(MobaLifecycleRestoreStage.Registered, false);
-                _pipelines.ImportRunnerRollbackState(sections["pipelines"], localRollback: true);
+                _pipelines.ImportPreparedRunnerRollbackState(targetRunners, localRollback: true);
                 var ordered = RestoreOrder(target.Order, _continuous.GetAllContinuous(), target.MotionPipelines, false, out var tagPaused);
                 RestoreStageCompleted?.Invoke(MobaLifecycleRestoreStage.MotionOrdered, false);
                 _continuous.PrepareLocalSubscriptionRebind(ordered)();
@@ -311,7 +311,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     _continuous.RestoreLocalRegistration(baseInstances);
                     _intervals.RestoreLocalIndex(oldIntervals);
                     _triggerModifiers.RestoreLocalIndex(oldModifiers, oldProjectionId);
-                    _pipelines.ImportRunnerRollbackState(oldRunners, localRollback: true);
+                    _pipelines.ImportPreparedRunnerRollbackState(oldRunners, localRollback: true);
                     var ordered = RestoreOrder(oldOrder, _continuous.GetAllContinuous(), oldMotionPipelines, true, out var paused);
                     ReleaseDetachedPathSources(target.MotionPipelines, compensate: true);
                     restoreSubscriptions();

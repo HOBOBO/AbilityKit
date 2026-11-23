@@ -67,7 +67,7 @@ Room 侧把最终模板/Profile 的 `SyncCapabilities` 写入 commit、持久化
 
 | 玩法 | 服务端默认模板 | Runtime mode | 对外 Profile | 当前默认发送/人数策略 |
 |------|----------------|--------------|--------------|----------------------|
-| MOBA | 仅 `frame-sync-authority` | `BattleWorldWithFrameSync` | `Lockstep`，schema `0..1` | 同时启动 FrameSync route 与权威 Battle runtime；没有可选 StateSync 模板 |
+| MOBA | 默认 `frame-sync-authority`；另支持 `moba-state-sync-authority` | 按模板使用 `BattleWorldWithFrameSync` 或 `BattleWorld` | `Lockstep` 或 `Moba.AuthoritativeRemoteInterpolation`，schema `0..1` | 开战时为整场房间选择一个模板；帧同步启动 FrameSync route，状态同步使用 BattleLogicHost 定时 Tick；不支持成员级混用 |
 | Shooter | `state-sync-authority` | `BattleWorld` | `AuthoritativeInterpolation` | packed 每帧推送、每 30 帧 full；默认至少 2 名玩家且所有成员 ready |
 
 这里有四个必须分开的概念：
@@ -77,7 +77,7 @@ Room 侧把最终模板/Profile 的 `SyncCapabilities` 写入 commit、持久化
 3. `RoomNetworkSyncCapabilityResolver` 把最终模板映射为客户端可协商的 Profile；模板名和 Profile 名不要求相同。
 4. MOBA 的规范 RoomType 是 `battle`，`moba` 是兼容/展示身份；身份别名不能被解释成第二套 gameplay module 或第二种同步模式。
 
-因此，“Shooter 代码包含预测回滚控制器”不等于默认房间使用 PredictRollback；“MOBA 客户端还能消费恢复快照”也不等于服务端 catalog 提供 StateSync 模板。项目能力可以比默认路线更丰富，但开战时必须以服务端最终 commit 的模板和能力声明为准。
+因此，“Shooter 代码包含预测回滚控制器”不等于默认房间使用 PredictRollback；MOBA 虽已注册 StateSync 模板，也不等于每名成员可以独立选择同步模式。项目能力可以比默认路线更丰富，但开战时必须以服务端最终 commit 的模板和能力声明为准。
 
 ---
 

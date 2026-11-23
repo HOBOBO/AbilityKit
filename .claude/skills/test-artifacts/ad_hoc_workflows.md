@@ -1,70 +1,35 @@
 # 绕过 gate 体系的注意事项
 
-**首选：永远走 `run_test_gate.ps1`**。本页只覆盖必须绕过的情况。
+已有 gate 时首选 `run_test_gate.ps1`。本页覆盖直接运行测试、构建或 Unity 批处理的情况。
 
 ## 必须显式指定产物路径
 
 ### Unity batchmode 直接调
 
 ```powershell
-# ✗ 错（污染根目录，无 -logFile 则日志写 Unity/.. 即根目录）
-& $editor -batchmode -projectPath Unity -executeMethod MyMethod
-
-# ✓ 对（显式 -logFile）
-& $editor -batchmode -projectPath Unity `
-    -executeMethod MyMethod `
-    -logFile local/Logs/unity-manual/{yyyyMMdd-HHmmss}.log
+$unityRun = New-Item -ItemType Directory -Path "local/Logs/unity-manual/$(Get-Date -Format yyyyMMdd-HHmmssfff)"
+& $editor -batchmode -projectPath (Resolve-Path -LiteralPath Unity).Path `
+    -executeMethod MyMethod -logFile (Join-Path $unityRun.FullName 'editor.log')
 ```
+
+Unity Test Runner 同时传 `-testResults`，指向同一运行目录；直接调用 `-executeMethod` 时，按实际入口传它自己的结果参数。使用绝对输出路径，避免子进程工作目录改变落点。
 
 ### dotnet test 直接调
 
 ```powershell
-# ✗ 错（产物散落默认位置）
-dotnet test src/X.csproj
-
-# ✓ 对（显式 --results-directory）
+$dotnetRun = New-Item -ItemType Directory -Path "local/Logs/dotnet/$(Get-Date -Format yyyyMMdd-HHmmssfff)"
 dotnet test src/X.csproj `
     --logger "trx;LogFileName=result.trx" `
-    --results-directory local/Logs/dotnet/{yyyyMMdd-HHmmss}
+    --results-directory $dotnetRun.FullName
 ```
 
 ### Unity executeMethod 产物
 
-`MultiplayerHeadlessHeroReplacementCommand` 等 `-executeMethod` 类的产物路径由类内部决定（通常读 `-xxxResult` 命令行参数）。必须传参或确认类内有合理默认。
+`-executeMethod` 类可能另有 JSON、XML 或文本报告，按入口的实际结果参数处理；只传 `-logFile` 不会重定向这些报告。构建诊断、配置校验和发布验证的 stdout/stderr 同样写入 `local/Logs/` 下带时间戳的目录，不改变正式生成物路径。
 
 ## 清理策略
 
-### 一次性清理所有测试产物
-
-```powershell
-# 清理 local/Logs/ 下所有本地测试产物
-Remove-Item -Recurse -Force local/Logs/test-gates/*
-Remove-Item -Recurse -Force local/Logs/headless/*
-Remove-Item -Recurse -Force local/Logs/dotnet/*
-Remove-Item -Recurse -Force local/Logs/unity-manual/*
-Remove-Item -Recurse -Force local/Logs/shooter-manual/*
-
-# 清理所有 TestResults
-Get-ChildItem -Path . -Filter "TestResults" -Directory -Recurse |
-    Where-Object { $_.FullName -notmatch "\\(Library|\.kilo)\\" } |
-    Remove-Item -Recurse -Force
-```
-
-### 清理超过 7 天的产物
-
-```powershell
-Get-ChildItem -Path local/Logs/test-gates -Directory |
-    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } |
-    Remove-Item -Recurse -Force
-```
-
-### 清理 .trx 文件
-
-```powershell
-Get-ChildItem -Path . -Filter "*.trx" -Recurse |
-    Where-Object { $_.FullName -notmatch "\\(Library|\.kilo)\\" } |
-    Remove-Item -Force
-```
+只清理明确不再需要的本地运行目录；先核对解析后的路径、消费者与写入状态。不能按年龄、扩展名或目录名在全仓递归删除。散落报告按[仓库结构治理](../repo-structure-governance/SKILL.md)审核后归档；保留原路径、校验值和失败证据，不覆盖同名报告。
 
 ## 命名规范
 
@@ -120,4 +85,4 @@ resultPath = Path.GetFullPath("../MultiplayerHeadlessHeroReplacement.xml");
 2. 选择合适的 step kind（dotnet-test / unity-editmode-test / unity-execute-method / powershell-script）
 3. 决定 P0/P1/P2 级别与 ciPolicy（runOnPullRequest / runOnPush / runOnSchedule）
 4. 用 `./tools/run_test_gate.ps1 -Gate new-gate-name` 验证
-5. （可选）在 `.github/workflows/abilitykit-test-gates.yml` 加 job
+5. 如果另有明确的 CI 接入任务，按 [CI 接入约定](ci_integration.md) 配置并验收；不要仅由 `ciPolicy` 推断已接线。

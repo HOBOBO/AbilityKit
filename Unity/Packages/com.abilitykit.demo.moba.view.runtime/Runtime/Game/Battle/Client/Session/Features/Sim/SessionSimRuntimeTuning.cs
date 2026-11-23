@@ -30,7 +30,8 @@ namespace AbilityKit.Game.Flow
             int sessionFrame,
             int confirmedFrame,
             int predictedFrame,
-            in BattleStartPlan plan)
+            in BattleStartPlan plan,
+            int latestSettledFrame = 0)
         {
             if (plan.HostMode != BattleHostMode.GatewayRemote ||
                 !plan.Gateway.UseGatewayTransport)
@@ -38,7 +39,8 @@ namespace AbilityKit.Game.Flow
                 return sessionFrame;
             }
 
-            return ResolveInputObservedFrame(sessionFrame, confirmedFrame, predictedFrame);
+            return System.Math.Max(latestSettledFrame,
+                ResolveInputObservedFrame(sessionFrame, confirmedFrame, predictedFrame));
         }
 
         public static int ResolveInputSubmitFrame(int lastObservedFrame, in BattleStartPlan plan)

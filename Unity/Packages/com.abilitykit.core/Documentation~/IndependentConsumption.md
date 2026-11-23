@@ -30,18 +30,19 @@ python tools/validate_core_consumer.py
 
 ## 真实 Unity 本地 tarball 消费
 
-工具从两份输入生成标准 `package/` 根目录的 UPM tgz，包含真实源码、asmdef、文档与原有 .meta。独立 Unity 工程只显式安装 Core、Deterministic 两个本地 tarball，以及 Unity 内置的 unitywebrequest 模块，不安装 Demo、测试框架或其他 AbilityKit 包。
+工具从两份输入生成标准 `package/` 根目录的 UPM tgz，包含真实源码、asmdef、文档与原有 .meta。独立 Unity 工程只显式安装 Core、Deterministic 两个本地 tarball，不安装 Demo、测试框架或其他 AbilityKit 包。仍包含旧 `AbilityKit.Core.Unity` 的历史快照才额外安装 `com.unity.modules.unitywebrequest`；其余阶段校验包锁不含此模块。
 
-首次导入没有 Library，之后在同一工程依次替换候选与回退基线。每阶段都用真实 Editor 批处理编译并执行固定消费入口；须同时满足进程成功、生成本轮成功文件、PackageInfo 显示正确包名与版本、AbilityKit 闭包仅有两个包、包锁指向本阶段 tarball，以及以下四个程序集已生成：
+首次导入没有 Library，之后在同一工程依次替换候选与回退基线。每阶段都用真实 Editor 批处理编译并执行固定消费入口；须同时满足进程成功、生成本轮成功文件、PackageInfo 显示正确包名与版本、AbilityKit 闭包仅有两个包、包锁指向本阶段 tarball，以及以下程序集已生成：
 
 - AbilityKit.Deterministic
 - AbilityKit.Core
-- AbilityKit.Core.Unity
 - AbilityKit.Core.Editor
+
+`AbilityKit.Core.Unity` 仅在含旧适配的历史快照阶段生成。
 
 此外，工具逐文件比对 PackageInfo.resolvedPath 下的 C# 源码与相应输入快照的 SHA256，确保编译来源是安装的目标包。每阶段包含八项固定最小调用和三项包归属检查；最小调用覆盖稳定哈希、经过定点依赖的开方与向量长度、定点公开类型、有序集合及去重、单次释放，以及旧设置空实例兼容入口。该夹具不是新的生产使用方，不能拿它满足 Core 三消费者准入规则。
 
-本次 Unity 2022.3.62f1 三阶段真实导入与最小调用通过，四个程序集均生成。UPM 包版本保持 0.1.0，因此这里验证的是 HEAD 快照到工作区候选的**同版本制品替换与回退**，不冒充已发布历史版本到新版本的升级。两个本地 tarball 都显式声明在 manifest 中，不能由此推断注册表会自动安装传递依赖；包锁和 PackageInfo 的证据仅对应本次本地安装。
+既有 Unity 2022.3.62f1 的三阶段记录使用了退役前的包。UPM 包版本保持 0.1.0，因此这里验证的是**同版本制品替换与回退**，不冒充已发布历史版本到新版本的升级。两个本地 tarball 都显式声明在 manifest 中，不能由此推断注册表会自动安装传递依赖；包锁和 PackageInfo 的证据仅对应本次本地安装。
 
 本次未构建 Player，未验证 Mono/IL2CPP、运行时平台文件权限、请求中止与协程释放、SceneView 呈现或域重载生命周期。Editor 最小调用通过也不建立 .NET Int128 与 Unity decimal 算术路径的位一致性结论。
 

@@ -1,0 +1,282 @@
+using System;
+using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Game.Battle.Diagnostics.Capture;
+using AbilityKit.Game.Flow.Battle.Hud;
+using UnityEngine;
+
+namespace AbilityKit.Game.Flow
+{
+    internal sealed class BattleHudInputController : IDisposable
+    {
+        private readonly IBattleHudInputSink _hudInput;
+        private readonly RectTransform _root;
+        private readonly Canvas _canvas;
+        private readonly Transform _cameraTransform;
+        private readonly BattleHudInputEventBridge _inputEvents;
+        private readonly BattleHudSkillButtonTemplateBinder _templateBinder;
+        private readonly BattleHudInputUiFactory _uiFactory;
+
+        private readonly HashSet<int> _appliedSkillStateSlots = new HashSet<int>();
+        private readonly Dictionary<int, int> _skillLevels = new Dictionary<int, int>();
+        private readonly List<PresentationCueData> _pendingBuffCues = new List<PresentationCueData>();
+
+        private BattleHudInputUi _inputUi;
+        private BattleCaptureSession _capture;
+
+        public BattleHudInputController(
+            IBattleHudInputSink hudInput,
+            RectTransform root,
+            Canvas canvas,
+            Transform cameraTransform,
+            BattleViewResourceProvider resources = null,
+            BattleHudInputUiFactory uiFactory = null,
+            BattleHudInputControllerFactory controllers = null)
+        {
+            controllers ??= new BattleHudInputControllerFactory();
+
+            _hudInput = hudInput;
+            _root = root;
+            _canvas = canvas;
+            _cameraTransform = cameraTransform;
+            _inputEvents = controllers.CreateInputEvents(hudInput);
+            _templateBinder = controllers.CreateTemplateBinder(resources);
+            _uiFactory = uiFactory ?? new BattleHudInputUiFactory();
+        }
+
+        public void Ensure()
+        {
+            if (_root == null) return;
+            if (_hudInput == null) return;
+            if (_inputUi != null) return;
+
+            _inputUi = _uiFactory.Create(_root, _canvas, _cameraTransform, OnInfoClick);
+            _inputEvents.Bind(_inputUi);
+        }
+
+        public IReadOnlyDictionary<int, BattleHudSkillPresentationSpec> SkillSpecs => _templateBinder.SkillSpecs;
+        public event System.Action<int> SkillPreviewPressed
+        {
+            add => _inputEvents.SkillPreviewPressed += value;
+            remove => _inputEvents.SkillPreviewPressed -= value;
+        }
+        public event System.Action<int> SkillPreviewReleased
+        {
+            add => _inputEvents.SkillPreviewReleased += value;
+            remove => _inputEvents.SkillPreviewReleased -= value;
+        }
+        internal BattleHudInputUi InputUi => _inputUi;
+        internal bool IsCaptureActive => _capture?.IsEnabled == true;
+
+        /// <summary>
+        /// Starts the opt-in L1 input capture for the currently bound HUD. The
+        /// capture is a diagnostic side channel and never becomes a gameplay
+        /// dependency. A second start replaces the previous session safely.
+        /// </summary>
+        internal bool TryStartCapture(string rootDirectory, string caseId, string runId, out string error)
+        {
+            StopCapture();
+            if (!BattleCaptureSession.TryStart(rootDirectory, caseId, runId, out var session, out error))
+                return false;
+
+            _capture = session;
+            _inputEvents.SetCaptureSink(session);
+            return true;
+        }
+
+        internal void StopCapture()
+        {
+            _inputEvents.SetCaptureSink(null);
+            _capture?.Dispose();
+            _capture = null;
+        }
+
+        internal void MarkCapture(string label, int frame)
+        {
+            _capture?.Mark(label, frame);
+        }
+
+        public bool ApplySkillButtonTemplates(BattleEnterGameSnapshot res, string playerId)
+        {
+            if (!_templateBinder.TryResolveLoadout(res, playerId, out var loadout))
+            {
+                return false;
+            }
+
+            EnsureSkillButtonCount(_templateBinder.ResolveSkillButtonCount(loadout));
+            if (!_templateBinder.TryApply(loadout, _inputUi?.SkillViews))
+            {
+                return false;
+            }
+
+            _inputEvents.SetSkillSpecs(_templateBinder.SkillSpecs);
+            return true;
+        }
+
+        public bool ApplySkillStates(SkillStateData[] entries, int localActorId)
+        {
+            if (_inputUi == null) return false;
+
+            var templatesChanged = false;
+            _appliedSkillStateSlots.Clear();
+            if (entries != null)
+            {
+                _skillLevels.Clear();
+                foreach (var entry in entries)
+                    if (ShouldApplySkillState(entry, localActorId)) _skillLevels[entry.Slot] = entry.Level;
+
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    var entry = entries[i];
+                    if (!ShouldApplySkillState(entry, localActorId)) continue;
+                    templatesChanged |= _templateBinder.TryApplySlotSkill(
+                        entry.Slot, entry.SkillId, _inputUi.SkillViews, _skillLevels);
+                    if (!TryResolveSkillView(entry.Slot, entry.SkillId, out var view)) continue;
+
+                    view.ApplySkillState(entry);
+                    _appliedSkillStateSlots.Add(entry.Slot);
+                }
+            }
+
+            if (_appliedSkillStateSlots.Count > 0)
+            {
+                ClearMissingSkillStates(_appliedSkillStateSlots);
+            }
+            if (localActorId > 0 && _pendingBuffCues.Count > 0)
+            {
+                ApplyBuffCues(_pendingBuffCues.ToArray(), localActorId);
+                _pendingBuffCues.Clear();
+            }
+            if (templatesChanged) _inputEvents.SetSkillSpecs(_templateBinder.SkillSpecs);
+            return templatesChanged;
+        }
+
+        public void ApplyBuffCues(PresentationCueData[] entries, int localActorId)
+        {
+            if (entries == null || entries.Length == 0) return;
+            if (localActorId <= 0)
+            {
+                var hasBaseline = false;
+                for (var i = 0; i < entries.Length; i++)
+                {
+                    if (entries[i].SnapshotKind == PresentationCueSnapshotKind.ActiveBaseline)
+                    {
+                        hasBaseline = true;
+                        break;
+                    }
+                }
+                if (hasBaseline) _pendingBuffCues.Clear();
+                for (var i = 0; i < entries.Length; i++)
+                {
+                    var entry = entries[i];
+                    if (BattleHudStatusCueFilter.IsHudStatusCue(in entry) ||
+                        entry.SnapshotKind == PresentationCueSnapshotKind.ActiveBaselineEnd)
+                    {
+                        _pendingBuffCues.Add(entry);
+                    }
+                }
+                return;
+            }
+            if (_inputUi?.SkillBuffStatusBar == null) return;
+            _inputUi.SkillBuffStatusBar.SetActor(localActorId);
+            _inputUi.SkillBuffStatusBar.Apply(entries);
+        }
+
+        public void ClearPresentationCues()
+        {
+            _pendingBuffCues.Clear();
+            _inputUi?.SkillBuffStatusBar?.Clear();
+        }
+
+        public void Dispose()
+        {
+            StopCapture();
+            _inputEvents.ResetHudAim();
+            _pendingBuffCues.Clear();
+            DestroyInputUi();
+        }
+
+        private static bool ShouldApplySkillState(in SkillStateData entry, int localActorId)
+        {
+            if (entry.ActorId <= 0) return false;
+            return localActorId > 0 && entry.ActorId == localActorId;
+        }
+
+        internal bool SkillStateMatchesTemplate(SkillStateData entry)
+        {
+            if (entry.Slot <= 0) return false;
+            if (!_templateBinder.SkillSpecs.TryGetValue(entry.Slot, out var spec)) return false;
+            return spec.SkillId <= 0 || entry.SkillId <= 0 || spec.SkillId == entry.SkillId;
+        }
+
+        private bool TryResolveSkillView(int slot, int skillId, out AbilityKit.Game.Battle.View.Lib.Skill.SkillButtonView view)
+        {
+            view = null;
+            if (_inputUi?.SkillViews == null) return false;
+
+            var index = slot - 1;
+            if (index < 0 || index >= _inputUi.SkillViews.Count) return false;
+
+            if (_templateBinder.SkillSpecs.TryGetValue(slot, out var spec)
+                && skillId > 0
+                && spec.SkillId > 0
+                && spec.SkillId != skillId)
+            {
+                AbilityKit.Core.Logging.Log.Warning($"[BattleHudInputController] reject skill state with mismatched presentation. slot={slot}, snapshotSkillId={skillId}, templateSkillId={spec.SkillId}");
+                return false;
+            }
+
+            view = _inputUi.SkillViews[index];
+            return view != null;
+        }
+
+        private void ClearMissingSkillStates(HashSet<int> appliedSlots)
+        {
+            if (_inputUi?.SkillViews == null) return;
+
+            for (int i = 0; i < _inputUi.SkillViews.Count; i++)
+            {
+                var slot = i + 1;
+                if (appliedSlots != null && appliedSlots.Contains(slot)) continue;
+                _inputUi.SkillViews[i]?.ClearSkillState();
+            }
+        }
+
+        private void EnsureSkillButtonCount(int skillButtonCount)
+        {
+            if (skillButtonCount <= 0) return;
+            if (_inputUi != null && _inputUi.SkillButtonCount == skillButtonCount) return;
+            if (_root == null || _hudInput == null) return;
+
+            DestroyInputUi();
+            _inputUi = _uiFactory.Create(_root, _canvas, _cameraTransform, OnInfoClick, skillButtonCount);
+            _inputEvents.Bind(_inputUi);
+        }
+
+        private void DestroyInputUi()
+        {
+            if (_inputUi == null) return;
+
+            _inputEvents.Unbind();
+            _inputUi.Destroy();
+            _inputUi = null;
+        }
+
+        private static void OnInfoClick()
+        {
+        }
+    }
+
+    internal sealed class BattleHudInputControllerFactory
+    {
+        public BattleHudInputEventBridge CreateInputEvents(IBattleHudInputSink hudInput)
+        {
+            return new BattleHudInputEventBridge(hudInput);
+        }
+
+        public BattleHudSkillButtonTemplateBinder CreateTemplateBinder(BattleViewResourceProvider resources)
+        {
+            return new BattleHudSkillButtonTemplateBinder(resources);
+        }
+    }
+}

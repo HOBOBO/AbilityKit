@@ -352,9 +352,9 @@ flowchart TD
 | 看轻量 ECS | `src/AbilityKit.World.ECS/Impl/EntityWorld.cs` |
 | 看帧同步输入 | `Unity/Packages/com.abilitykit.world.framesync/Runtime/Host/PlayerInputCommand.cs` |
 | 看触发器执行 | `Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunner.cs` |
-| 看技能运行时 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs` |
+| 看技能运行时 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs` |
 | 看快照分发 | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/FrameSnapshotDispatcher.cs` |
-| 看预测回滚 | `Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Prediction/Core/PredictionCoordinator.cs` |
+| 看预测回滚 | `Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Prediction/Replay/PredictionCoordinator.cs` |
 | 看回放容器 | `Unity/Packages/com.abilitykit.record/Runtime/Record/Core/Container/RecordContainer.cs` |
 
 ---

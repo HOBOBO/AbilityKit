@@ -59,7 +59,6 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
         {
             if (resolver == null) throw new ArgumentNullException(nameof(resolver));
 
-            var db = new TriggerPlanJsonDatabase();
             IMobaPresentationCueResolver cueResolver = null;
             try
             {
@@ -70,79 +69,14 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 cueResolver = new MobaPresentationCueResolver();
             }
 
-            db.CueFactory = new MobaPresentationCueFactory(resolver.Resolve<MobaPresentationCueSnapshotService>(), cueResolver);
+            var cueFactory = new MobaPresentationCueFactory(resolver.Resolve<MobaPresentationCueSnapshotService>(), cueResolver);
             var textAssetLoader = resolver.Resolve<ITextAssetLoader>();
-            var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
-            var directoryLoader = new TriggerPlanDirectoryLoader(fsAdapter);
             var profile = resolver.Resolve<MobaTriggerPlanLoadProfile>() ?? MobaTriggerPlanLoadProfile.Default;
 
-            LoadEntries(db, fsAdapter, directoryLoader, profile.Entries, db.CueFactory, profile.FailFastOnDirectoryLoad);
+            var db = MobaTriggerPlanLoader.Load(new EtFileSystemAdapter(textAssetLoader), profile, cueFactory);
             db.InitializeBlackboards(resolver.Resolve<IBlackboardResolver>(), replaceExisting: true);
             db.ConfigureOwnerBlackboards(resolver.Resolve<IOwnerBlackboardStore>(), releaseExisting: true);
             return db;
-        }
-
-        private static void LoadEntries(TriggerPlanJsonDatabase db, EtFileSystemAdapter fsAdapter, TriggerPlanDirectoryLoader directoryLoader, TriggerPlanLoadEntry[] entries, TriggerPlanJsonDatabase.ICueFactory cueFactory, bool failFastOnDirectoryLoad)
-        {
-            if (entries == null) return;
-
-            for (int i = 0; i < entries.Length; i++)
-            {
-                var entry = entries[i];
-                if (string.IsNullOrEmpty(entry.Path)) continue;
-
-                if (entry.IsDirectory)
-                {
-                    LoadDirectory(db, directoryLoader, entry, cueFactory, failFastOnDirectoryLoad);
-                }
-                else
-                {
-                    LoadFile(db, fsAdapter, entry, cueFactory);
-                }
-            }
-        }
-
-        private static void LoadFile(TriggerPlanJsonDatabase db, EtFileSystemAdapter fsAdapter, TriggerPlanLoadEntry entry, TriggerPlanJsonDatabase.ICueFactory cueFactory)
-        {
-            MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"Loading {entry.Name} from {entry.Path}");
-            try
-            {
-                var loadedDb = new TriggerPlanJsonDatabase { CueFactory = cueFactory };
-                loadedDb.Load(fsAdapter, entry.Path);
-                db.MergeFrom(loadedDb, replaceExisting: true);
-                MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"{entry.Name} merged. total records={db.Records?.Count ?? 0}");
-            }
-            catch (Exception ex)
-            {
-                MobaRuntimeLog.Exception(ex, MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Exception, nameof(MobaTriggerPlanDatabaseFactory), $"Failed to load required trigger plan file. name={entry.Name}, path={entry.Path}");
-                throw;
-            }
-        }
-
-        private static void LoadDirectory(TriggerPlanJsonDatabase db, TriggerPlanDirectoryLoader directoryLoader, TriggerPlanLoadEntry entry, TriggerPlanJsonDatabase.ICueFactory cueFactory, bool failFastOnDirectoryLoad)
-        {
-            var pattern = string.IsNullOrEmpty(entry.Pattern) ? "**/*.json" : entry.Pattern;
-            MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"Loading {entry.Name} from {entry.Path} directory");
-            try
-            {
-                var options = new TriggerPlanDirectoryLoadOptions
-                {
-                    CueFactory = cueFactory,
-                    ThrowOnFileParseError = failFastOnDirectoryLoad
-                };
-                var loadedDb = directoryLoader.LoadDirectory(entry.Path, pattern, options);
-                if (loadedDb != null && loadedDb.Records != null)
-                {
-                    // 目录中的触发器文件是当前维护的事实来源，必须覆盖陈旧的编译记录。
-                    db.MergeFrom(loadedDb, replaceExisting: true);
-                    MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"{entry.Name} merged with override enabled. total records={db.Records?.Count ?? 0}");
-                }
-            }
-            catch (Exception ex)
-            {
-                MobaRuntimeLog.Exception(ex, MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Exception, nameof(MobaTriggerPlanDatabaseFactory), $"Failed to load required trigger plan directory. name={entry.Name}, path={entry.Path}, pattern={pattern}");
-                throw;
-            }
         }
 
         /// <summary>

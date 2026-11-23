@@ -113,7 +113,12 @@ public sealed class MobaBattleScenarioWorldRunner
             verdict = AcceptanceVerifier.VerifyWithObservations(expectation, records, observations);
             passed &= verdict.result.passed;
             if (!verdict.result.passed)
-                summary += $", missing={verdict.coverage.missingTraceNodes}";
+            {
+                if (!string.IsNullOrEmpty(verdict.coverage.missingTraceNodes))
+                    summary += $", missing={verdict.coverage.missingTraceNodes}";
+                if (!string.IsNullOrEmpty(verdict.coverage.missingStates))
+                    summary += $", missingStates={verdict.coverage.missingStates}";
+            }
         }
         if (predictionVerdict != null)
         {

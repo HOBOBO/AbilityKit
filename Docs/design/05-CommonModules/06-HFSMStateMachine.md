@@ -64,10 +64,10 @@ HFSM 的设计重点是“状态归属清晰、转移可解释、退出时间可
 | `State<TStateId,TEvent>` | [State.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/States/State.cs) | 普通状态实现，封装 enter/logic/exit/canExit/timer |
 | `Transition<TStateId>` | [Transition.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/Transitions/Transition.cs) | 条件转移，支持 before/after transition 回调 |
 | `TransitionBase<TStateId>` | [TransitionBase.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/Base/TransitionBase.cs) | 转移基类，保存 from/to/forceInstantly 等基础信息 |
-| `HfsmGraphAsset` | [HfsmGraphAsset.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Unity/Graph/HfsmGraphAsset.cs) | Unity ScriptableObject 图资产，保存节点、边、参数、编辑器数据 |
+| `GraphAsset` | [GraphAsset.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Unity/Graph/GraphAsset.cs) | Unity ScriptableObject 图资产，保存节点、边、参数、编辑器数据 |
 | `JsonGraphExporter` | [JsonGraphExporter.cs](../../../Unity/Packages/com.abilitykit.hfsm/Editor/Export/JsonGraphExporter.cs) | 将 graph descriptor 导出为 JSON，用于运行时加载和调试 |
-| `HfsmEditorWindow` | [HfsmEditorWindow.cs](../../../Unity/Packages/com.abilitykit.hfsm/Editor/HfsmEditorWindow.cs) | Unity 编辑器窗口入口 |
-| `HfsmRuntimeMonitorWindow` | [HfsmRuntimeMonitorWindow.cs](../../../Unity/Packages/com.abilitykit.hfsm/Editor/RuntimeMonitor/HfsmRuntimeMonitorWindow.cs) | 编辑器运行时监控入口 |
+| `StateMachineEditorWindow` | [StateMachineEditorWindow.cs](../../../Unity/Packages/com.abilitykit.hfsm/Editor/StateMachineEditorWindow.cs) | Unity 编辑器窗口入口 |
+| `RuntimeMonitorWindow` | [RuntimeMonitorWindow.cs](../../../Unity/Packages/com.abilitykit.hfsm/Editor/RuntimeMonitor/RuntimeMonitorWindow.cs) | 编辑器运行时监控入口 |
 
 ---
 

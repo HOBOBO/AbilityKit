@@ -441,10 +441,15 @@ function Invoke-TinyCrossProcessUnityWithRetry([string]$Mode) {
 }
 
 function Assert-TinyPackageDistribution([string]$Project) {
-    $unsafePackage = Join-Path $Project `
-        'Packages/com.abilitykit.thirdparty.unsafe/Runtime/System.Runtime.CompilerServices.Unsafe.dll'
-    if (-not (Test-Path -LiteralPath $unsafePackage)) {
-        throw "Tiny project is missing its packaged Unsafe dependency: $Project"
+    $unsafePackage = 'org.nuget.system.runtime.compilerservices.unsafe'
+    $manifest = Get-Content -LiteralPath (Join-Path $Project 'Packages/manifest.json') -Raw -Encoding UTF8 |
+        ConvertFrom-Json
+    if ($manifest.dependencies.$unsafePackage -ne '5.0.0' -or
+        -not @($manifest.scopedRegistries | Where-Object {
+            $_.url -eq 'https://package.openupm.com' -and $_.scopes -contains $unsafePackage
+        }).Count -or
+        (Test-Path -LiteralPath (Join-Path $Project 'Packages/com.abilitykit.thirdparty.unsafe'))) {
+        throw "Tiny project must resolve Unsafe 5.0.0 from OpenUPM, without the old embedded package: $Project"
     }
     $guide = Join-Path $Project `
         'Packages/com.abilitykit.demo.tiny/Documentation~/IntegrationGuide.md'

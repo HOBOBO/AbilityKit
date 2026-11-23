@@ -29,10 +29,10 @@
 
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Diagnostics/MobaBattleDiagnosticsService.cs:20`
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaWorldSystemExecution.cs:117`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaSkillPipelineStepSystem.cs:86`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/MobaSkillPipelineStepSystem.cs:86`
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Effects/MobaEffectsStepSystem.cs:96`
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/Damage/DamagePipelineService.cs:106`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs:217`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/MobaBuffService.cs:217`
 
 现状：
 
@@ -61,15 +61,15 @@
 
 相关位置：
 
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs:80`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs:88`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs:116`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs:135`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs:139`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs:154`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs:194`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs:201`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs:233`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs:80`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs:88`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs:116`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs:135`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs:139`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs:154`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs:194`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs:201`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs:233`
 
 现状：
 
@@ -163,13 +163,11 @@
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaActorTransformRollbackProvider.cs:24`
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaActorTransformRollbackProvider.cs:26`
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaActorTransformRollbackProvider.cs:37`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/PassiveSkillTriggerEventRollbackLog.cs:55`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/PassiveSkillTriggerEventRollbackLog.cs:62`
 
 现状：
 
 - Transform rollback 每次导出创建新 `List<Entry>`，再 `entries.ToArray()`。
-- Passive trigger rollback 每次导出 `fe.Events.ToArray()`。
+- 2026-11-17 已移除无业务生产/消费方的 Passive trigger 事件回滚日志，不再为历史事件导出数组；该项结束，不能作为优化事件快照分配的依据。
 - `BinaryObjectCodec.Encode` 接口以数组 payload 为核心，推动上游复制。
 
 风险：

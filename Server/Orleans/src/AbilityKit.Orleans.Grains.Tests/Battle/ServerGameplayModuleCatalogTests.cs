@@ -60,18 +60,19 @@ public sealed class ServerGameplayModuleCatalogTests
         var shooterProfile = moduleCatalog.ResolveSyncProfile(ShooterGameplay.RoomType);
 
         Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.DefaultMode);
-        Assert.Equal("frame-sync-authority", mobaProfile.DefaultTemplateId);
+        Assert.Equal("moba-settled-frame-sync-v2", mobaProfile.DefaultTemplateId);
         Assert.True(mobaProfile.SupportsFrameSync);
+        Assert.False(mobaProfile.TryResolveTemplate("frame-sync-authority", out _));
         Assert.True(mobaProfile.SupportsStateSyncPush);
         Assert.True(mobaProfile.SupportsTemplate("moba-state-sync-authority"));
         Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.ResolveTemplate(null).Mode);
         Assert.Equal(ServerBattleRuntimeMode.BattleWorldWithFrameSync, mobaProfile.ResolveTemplate(null).RuntimeMode);
         Assert.True(mobaProfile.ResolveTemplate(null).RequiresBattleRuntime);
-        Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.ResolveTemplate("frame-sync-authority").Mode);
-        Assert.Equal(ServerBattleRuntimeMode.BattleWorldWithFrameSync, mobaProfile.ResolveTemplate("frame-sync-authority").RuntimeMode);
+        Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.ResolveTemplate("moba-settled-frame-sync-v2").Mode);
+        Assert.Equal(ServerBattleRuntimeMode.BattleWorldWithFrameSync, mobaProfile.ResolveTemplate("moba-settled-frame-sync-v2").RuntimeMode);
         Assert.Equal(ServerBattleSyncMode.StateSync, mobaProfile.ResolveTemplate("moba-state-sync-authority").Mode);
         Assert.Equal(ServerBattleRuntimeMode.BattleWorld, mobaProfile.ResolveTemplate("moba-state-sync-authority").RuntimeMode);
-        Assert.Equal("frame-sync-authority", moduleCatalog.GameplayCatalog.Resolve(GameplayRoomTypes.Moba).DefaultSyncTemplateId);
+        Assert.Equal("moba-settled-frame-sync-v2", moduleCatalog.GameplayCatalog.Resolve(GameplayRoomTypes.Moba).DefaultSyncTemplateId);
         Assert.Equal(ServerBattleSyncMode.StateSync, shooterProfile.DefaultMode);
         Assert.Equal(ShooterServerProtocol.StateSyncAuthorityTemplate, shooterProfile.DefaultTemplateId);
         Assert.Equal(ShooterServerProtocol.StateSyncAuthorityTemplate, moduleCatalog.GameplayCatalog.Resolve(ShooterGameplay.RoomType).DefaultSyncTemplateId);
@@ -121,12 +122,13 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.NotNull(mobaFrameRoute);
         Assert.True(mobaFrameStartRoute.RequiresBattleRuntime);
         Assert.False(mobaFrameStartRoute.IsUnsupportedTemplate);
-        Assert.Equal("frame-sync-authority", mobaFrameStartRoute.SyncTemplateId);
+        Assert.True(mobaFrameStartRoute.FrameSyncOptions!.UseSettledFrames);
+        Assert.Equal("moba-settled-frame-sync-v2", mobaFrameStartRoute.SyncTemplateId);
         Assert.Equal(123UL, mobaFrameRoute!.RoomId);
         Assert.Equal(123UL, mobaFrameRoute.WorldId);
         Assert.Equal(30, mobaFrameRoute.TickRate);
         Assert.Equal("battle-1", mobaFrameRoute.BattleId);
-        Assert.Equal("frame-sync-authority", mobaFrameRoute.SyncTemplateId);
+        Assert.Equal("moba-settled-frame-sync-v2", mobaFrameRoute.SyncTemplateId);
         Assert.True(mobaFrameRoute.EnableRecording);
         Assert.Null(mobaStateRoute);
         Assert.True(mobaStateStartRoute.RequiresBattleRuntime);
@@ -149,7 +151,7 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.True(moba.RequiresPlayerLoadout);
         Assert.True(moba.SupportsFrameSync);
         Assert.True(moba.SupportsStateSyncPush);
-        Assert.Contains("frame-sync-authority", moba.SupportedSyncTemplateIds);
+        Assert.Contains("moba-settled-frame-sync-v2", moba.SupportedSyncTemplateIds);
         Assert.Contains("moba-state-sync-authority", moba.SupportedSyncTemplateIds);
         Assert.Equal(ShooterGameplay.RoomType, shooter.RoomType);
         Assert.False(shooter.RequiresPlayerLoadout);

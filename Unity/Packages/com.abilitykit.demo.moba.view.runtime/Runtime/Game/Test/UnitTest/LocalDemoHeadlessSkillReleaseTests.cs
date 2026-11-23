@@ -8,12 +8,14 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Presentation.Features.Loading;
+using AbilityKit.Game.Battle.View.Lib.Skill;
 using AbilityKit.Game.Flow;
 using NUnit.Framework;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using BattleEnterGameSnapshotMapper = AbilityKit.Demo.Moba.Share.BattleEnterGameSnapshotMapper;
 
 namespace AbilityKit.Game.Test.UnitTest
 {
@@ -31,6 +33,65 @@ namespace AbilityKit.Game.Test.UnitTest
 
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             DemoGameplayTestLauncher.Clear();
+        }
+
+        [UnityTest]
+        public IEnumerator UnifiedGameplayScene_LocalBattle_SwitchControlKeepsSkillHudOnSelectedPlayer()
+        {
+            DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            var entry = Object.FindObjectOfType<GameEntry>();
+            Assert.IsNotNull(entry);
+            InvokePrivate(entry, "Awake");
+            var flow = entry.Get<GameFlowDomain>();
+            flow.StartWithPersistentSettingsSync();
+
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 18000, "Battle flow did not reach InMatch.");
+            Assert.IsTrue(entry.TryGet(out BattleContext ctx));
+            yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
+
+            var hud = BattleFlowDebugProvider.CurrentHud;
+            Assert.IsNotNull(hud);
+            var debug = new BattleLocalDebugController(() => ctx, () => hud);
+            var loadouts = BattleEnterGameSnapshotMapper.MapLoadouts(ctx.BuildEffectivePlayerLoadouts());
+            Assert.That(loadouts, Has.Length.EqualTo(2));
+            var first = loadouts[0];
+            var second = loadouts[1];
+            Assert.AreEqual(first.PlayerId, ctx.ResolveLocalControlPlayerId());
+            Assert.AreNotEqual(first.HeroId, second.HeroId);
+            var templates = new BattleHudSkillButtonTemplateResolver();
+            Assert.IsTrue(templates.TryResolveSkill(first, 1, out _, out _, out var firstSkill));
+            Assert.IsTrue(templates.TryResolveSkill(second, 1, out _, out _, out var secondSkill));
+            Assert.AreNotEqual(firstSkill.Name, secondSkill.Name);
+
+            var firstActorId = ctx.LocalActorId;
+            var button = System.Array.Find(Object.FindObjectsOfType<SkillButtonView>(), view => view.name == "Skill1");
+            Assert.IsNotNull(button);
+            Assert.AreEqual(firstSkill.Name, button.PresentationName);
+            var cooldown = button.transform.Find("Skill1CooldownLayer/Skill1CooldownOverlay");
+            Assert.IsNotNull(cooldown);
+            Assert.IsFalse(cooldown.gameObject.activeSelf);
+
+            Assert.IsTrue(debug.TrySwitchControl(out var message), message);
+            Assert.AreEqual(second.PlayerId, ctx.ResolveLocalControlPlayerId());
+            var secondActorId = ctx.LocalActorId;
+            Assert.AreNotEqual(firstActorId, secondActorId);
+            Assert.IsTrue(TryGetActiveSkillRuntime(ctx, secondActorId, 1, secondSkill.SkillId, out var runtime));
+            runtime.CooldownDurationMs = 10000;
+            runtime.CooldownEndTimeMs = (long)(ctx.LogicTimeSeconds * 1000) + runtime.CooldownDurationMs;
+
+            FlowTick(flow, 10);
+            Assert.AreEqual(secondSkill.Name, button.PresentationName, "Live snapshots must keep the selected hero's skills.");
+            Assert.AreEqual(secondSkill.IconId, button.PresentationIconId);
+            Assert.IsTrue(cooldown.gameObject.activeSelf, "Cooldown must come from the selected actor.");
+            Assert.AreEqual(secondActorId, ctx.LocalActorId);
+
+            Assert.IsTrue(debug.TrySwitchControl(out message), message);
+            FlowTick(flow, 10);
+            Assert.AreEqual(first.PlayerId, ctx.ResolveLocalControlPlayerId());
+            Assert.AreEqual(firstActorId, ctx.LocalActorId);
+            Assert.AreEqual(firstSkill.Name, button.PresentationName);
+            Assert.AreEqual(firstSkill.IconId, button.PresentationIconId);
+            Assert.IsFalse(cooldown.gameObject.activeSelf);
         }
 
         [UnityTest]

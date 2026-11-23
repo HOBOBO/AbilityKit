@@ -27,7 +27,7 @@ namespace AbilityKit.Game.Flow
         }
 
         internal BattleLogicSession Start(BattleStartPlan plan, BattleLogicSessionOptions options,
-            IDispatcher callbackDispatcher, IDispatcher ioDispatcher)
+            IDispatcher callbackDispatcher, IDispatcher ioDispatcher, MobaSettledFrameSession settledFrames = null)
         {
             if (plan.HostMode != BattleHostMode.GatewayRemote || !plan.Gateway.UseGatewayTransport)
                 return _sessionRegistry.Start(options);
@@ -51,7 +51,7 @@ namespace AbilityKit.Game.Flow
             }
 
             var transport = _transportFactory.CreateGatewayRemoteTransport(
-                plan, playerId, roomId, callbackDispatcher, ioDispatcher);
+                plan, playerId, roomId, callbackDispatcher, ioDispatcher, settledFrames);
             try
             {
                 if (transport is NetworkTransport networkTransport)

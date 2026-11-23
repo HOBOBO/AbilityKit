@@ -1,28 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using AbilityKit.Core.Eventing;
-using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Blackboard;
-using AbilityKit.Triggering.Runtime;
-using AbilityKit.Triggering.Runtime.Config;
-using AbilityKit.Triggering.Runtime.Plan;
-using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Config.Plans;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace AbilityKit.Triggering.Runtime.Plan.Json
 {
     /// <summary>
-    /// 触发器计划数据库（从 JSON 加载 TriggerPlan）
-    /// 支持两种格式：
-    /// 1. 运行时格式（Triggers 数组 + Strings 字典）- 直接加载
-    /// 2. 源格式（triggers 数组 + actions/conditions 定义）- 自动转换后加载
+    /// 保留现有 JSON 加载入口，将解析转换和计划存储委托给独立组件。
     /// </summary>
-    public sealed class TriggerPlanJsonDatabase
+    public sealed partial class TriggerPlanJsonDatabase
     {
-        private static readonly TriggerPlanJsonParser _parser = new TriggerPlanJsonParser();
-        private static readonly TriggerPlanConverter _converter = new TriggerPlanConverter();
-
         /// <summary>
         /// Cue 工厂接口。
         /// 负责将 JSON 中的通用 Cue 描述解析为具体的 ITriggerCue 实例。
@@ -53,229 +46,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             bool TryLoad(string id, out string text);
         }
 
-#pragma warning disable 0649 // DTO fields are populated by JSON deserialization.
-        [Serializable]
-        internal sealed class TriggerPlanDatabaseDto
-        {
-            public int FormatVersion;
-
-            public List<TriggerPlanDto> Triggers;
-
-            public Dictionary<string, TriggerPlanModuleTemplateDto> Templates;
-
-            public Dictionary<string, TriggerPlanModuleTemplateDto> Modules;
-
-            public List<TriggerPlanModuleInstanceDto> ModuleInstances;
-
-            public List<TriggerPlanModuleInstanceDto> TemplateInstances;
-
-            public Dictionary<string, ExecutionNodeDto> Behaviors;
-
-            public Dictionary<string, ExecutionNodeDto> Nodes;
-
-            public Dictionary<int, string> Strings;
-
-            public List<BlackboardInitializationPlan> Blackboards;
-        }
-
-        [Serializable]
-        internal sealed class TriggerPlanDto
-        {
-            public int TriggerId;
-            public string EventName;
-            public int EventId;
-            public bool AllowExternal;
-            public int Phase;
-            public int Priority;
-            public TriggerPlanScope Scope;
-            public TriggerTemplateBindingDto Template;
-            public PredicatePlanDto Predicate;
-            public List<ActionCallPlanDto> Actions;
-            public ExecutionControlPlanDto ExecutionControl;
-            public ExecutionNodeDto ExecutionRoot;
- 
-            /// <summary>
-            /// Cue 模板、通道或资源键。
-            /// </summary>
-            public string CueId;
-
-            /// <summary>
-            /// 主资源标识。
-            /// </summary>
-            public string CuePrimaryAssetId;
-
-            /// <summary>
-            /// 次资源标识。
-            /// </summary>
-            public string CueSecondaryAssetId;
-
-            /// <summary>
-            /// 项目自定义扩展载荷。
-            /// </summary>
-            public string CuePayload;
-        }
-
-        [Serializable]
-        internal sealed class TriggerPlanModuleTemplateDto
-        {
-            public string Id;
-            public string TemplateId;
-            public string ModuleId;
-            public string DisplayName;
-            public string Description;
-            public List<TemplateParameterDto> Parameters;
-            public Dictionary<string, NumericValueRefDto> Defaults;
-            public List<TriggerPlanDto> Triggers;
-            public Dictionary<string, ExecutionNodeDto> Behaviors;
-            public Dictionary<string, ExecutionNodeDto> Nodes;
-        }
-
-        [Serializable]
-        internal sealed class TriggerPlanModuleInstanceDto
-        {
-            public string Id;
-            public string InstanceId;
-            public string TemplateId;
-            public string ModuleId;
-            public int TriggerIdOffset;
-            public int TriggerIdBase;
-            public string EventNamePrefix;
-            public string EventNameSuffix;
-            public Dictionary<string, NumericValueRefDto> Bindings;
-        }
-
-        [Serializable]
-        internal sealed class TemplateParameterDto
-        {
-            public string Name;
-            public string Kind;
-            public bool Required;
-            public string Description;
-            public NumericValueRefDto Default;
-        }
-
-        [Serializable]
-        internal sealed class TriggerTemplateBindingDto
-        {
-            public string TemplateId;
-            public Dictionary<string, NumericValueRefDto> Bindings;
-        }
-
-        [Serializable]
-        internal sealed class PredicatePlanDto
-        {
-            public string Kind;
-            public List<BoolExprNodeDto> Nodes;
-        }
-
-        [Serializable]
-        internal sealed class BoolExprNodeDto
-        {
-            public string Kind;
-            public bool ConstValue;
-            public string CompareOp;
-            public NumericValueRefDto Left;
-            public NumericValueRefDto Right;
-            public int FunctionId;
-            public int FunctionArity;
-        }
-
-        [Serializable]
-        internal sealed class ActionCallPlanDto
-        {
-            public int ActionId;
-            public int Arity;
-            public NumericValueRefDto Arg0;
-            public NumericValueRefDto Arg1;
-
-            /// <summary>
-            /// 具名参数字典（key=参数名）
-            /// 优先级高于 Arg0/Arg1
-            /// </summary>
-            public Dictionary<string, NumericValueRefDto> Args;
-
-            public string ScheduleMode;
-            public float ScheduleParam;
-            public int MaxExecutions = -1;
-            public bool CanBeInterrupted = true;
-
-            public string ExecutionPolicy;
-            public int RetryMaxRetries = 3;
-            public float RetryDelayMs;
-
-            public string CueId;
-            public string CuePrimaryAssetId;
-            public string CueSecondaryAssetId;
-            public string CuePayload;
-        }
-
-        [Serializable]
-        internal sealed class ExecutionControlPlanDto
-        {
-            public string Mode;
-            public int MaxExecutions;
-            public float CooldownMs;
-        }
-
-        [Serializable]
-        internal sealed class ExecutionNodeDto
-        {
-            public string Kind;
-            public string BehaviorRef;
-            public string BehaviorId;
-            public string NodeRef;
-            public string NodeId;
-            public string Ref;
-            public ActionCallPlanDto Action;
-            public PredicatePlanDto Condition;
-            public PredicatePlanDto UntilCondition;
-            public NumericValueRefDto Collection;
-            public NumericValueRefDto ItemTarget;
-            public List<ExecutionNodeDto> Children;
-            public List<ExecutionNodeDto> ElseChildren;
-            public int Count = 1;
-            public int MaxIterations = 1;
-            public float Weight = 1f;
-            public string Reason;
-            public string ScheduleMode;
-            public float IntervalMs;
-            public int MaxExecutions = -1;
-            public bool CanBeInterrupted = true;
-            public string MetadataKind;
-            public Dictionary<string, string> Values;
-            public string SourceKind;
-            public string SourceId;
-            public string SourcePath;
-        }
-
-        [Serializable]
-        internal sealed class NumericValueRefDto
-        {
-            public string Kind;
-            public double ConstValue;
-            public int BoardId;
-            public int KeyId;
-            public int FieldId;
-            public string DomainId;
-            public string Key;
-            public string ExprText;
-            public bool Required;
-            public bool HasFallback;
-            public double FallbackValue;
-            public bool HasMin;
-            public double MinValue;
-            public bool HasMax;
-            public double MaxValue;
-            public bool HasScale;
-            public double Scale = 1d;
-            public double Offset;
-            public string Label;
-            public string Scope;
-            public BlackboardKeyType KeyType;
-            public bool BoolValue;
-            public string StringValue;
-        }
-#pragma warning restore 0649
         public readonly struct Record
         {
             public readonly int TriggerId;
@@ -296,130 +66,110 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
         }
 
-        private List<Record> _records = new List<Record>();
-        private Dictionary<int, Record> _recordsByTriggerId = new Dictionary<int, Record>();
-        private Dictionary<int, TriggerPlan<object>> _byTriggerId = new Dictionary<int, TriggerPlan<object>>();
-        private Dictionary<int, ITriggerPlanExecutable> _executionRootsByTriggerId = new Dictionary<int, ITriggerPlanExecutable>();
-        private Dictionary<int, string> _strings = new Dictionary<int, string>();
-        private List<BlackboardInitializationPlan> _blackboards = new List<BlackboardInitializationPlan>();
+        private TriggerPlanRecordStore<Record> _store = new(record => (record.TriggerId, record.ExecutionRoot));
         private ICueFactory _cueFactory = DefaultCueFactory.Instance;
 
-        public IReadOnlyList<Record> Records => _records;
-        public IReadOnlyList<BlackboardInitializationPlan> Blackboards => _blackboards;
+        /// <summary>
+        /// 表示已加载的计划、字符串和黑板声明的内容修订；运行时注入的记录没有可验证的数据来源时为 null。
+        /// </summary>
+        public string ContentRevision { get; private set; } = "trigger-plan:empty:1";
 
+        /// <summary>
+        /// 表示当前数据库实例的修改代次，用于发现绑定以后发生的替换；不是内容标识。
+        /// </summary>
+        public long MutationVersion { get; private set; }
+
+        /// <summary>
+        /// 按加载或写入顺序返回记录；原始输入可能含重复 ID。
+        /// </summary>
+        public IReadOnlyList<Record> Records => _store.Records;
+
+        /// <summary>
+        /// 返回已加载但尚未由此入口应用到宿主的黑板初始化配置。
+        /// </summary>
+        public IReadOnlyList<BlackboardInitializationPlan> Blackboards => _store.Blackboards;
+
+        /// <summary>
+        /// 获取或设置加载时使用的 Cue 工厂；赋空值恢复默认工厂。
+        /// </summary>
         public ICueFactory CueFactory
         {
             get => _cueFactory ?? DefaultCueFactory.Instance;
             set => _cueFactory = value ?? DefaultCueFactory.Instance;
         }
 
-        public bool TryGetString(int id, out string value)
-        {
-            value = null;
-            if (id == 0) return false;
-            return _strings != null && _strings.TryGetValue(id, out value);
-        }
+        /// <summary>
+        /// 查询非零 ID 对应的字符串。
+        /// </summary>
+        public bool TryGetString(int id, out string value) => _store.TryGetString(id, out value!);
 
-        public bool TryGetRecordByTriggerId(int triggerId, out Record record)
-        {
-            record = default;
-            if (triggerId <= 0) return false;
-            return _recordsByTriggerId != null && _recordsByTriggerId.TryGetValue(triggerId, out record);
-        }
+        /// <summary>
+        /// 按 ID 查询索引记录；原始输入重复时返回最后加载的记录。
+        /// </summary>
+        public bool TryGetRecordByTriggerId(int triggerId, out Record record) => _store.TryGetRecord(triggerId, out record);
 
+        /// <summary>
+        /// 按 ID 查询索引记录对应的计划。
+        /// </summary>
         public bool TryGetPlanByTriggerId(int triggerId, out TriggerPlan<object> plan)
         {
+            if (_store.TryGetRecord(triggerId, out var record))
+            {
+                plan = record.Plan;
+                return true;
+            }
+
             plan = default;
-            if (triggerId <= 0) return false;
-            return _byTriggerId != null && _byTriggerId.TryGetValue(triggerId, out plan);
+            return false;
         }
 
-        public bool TryGetExecutionRootByTriggerId(int triggerId, out ITriggerPlanExecutable root)
-        {
-            root = null;
-            if (triggerId <= 0) return false;
-            return _executionRootsByTriggerId != null && _executionRootsByTriggerId.TryGetValue(triggerId, out root) && root != null;
-        }
+        /// <summary>
+        /// 查询执行根索引；原始输入重复时索引保留最后一个非空执行根。
+        /// 覆盖写入不使用此规则，新记录没有执行根时会清除已有索引。
+        /// </summary>
+        public bool TryGetExecutionRootByTriggerId(int triggerId, out ITriggerPlanExecutable root) =>
+            _store.TryGetRoot(triggerId, out root!);
 
+        /// <summary>
+        /// 写入非零 ID 的字符串，按参数决定是否覆盖已有值。
+        /// </summary>
         public void AddString(int id, string value, bool replaceExisting = true)
         {
-            if (id == 0) return;
-            if (_strings == null) _strings = new Dictionary<int, string>();
-            if (replaceExisting || !_strings.ContainsKey(id))
-            {
-                _strings[id] = value;
-            }
+            _store.AddString(id, value, replaceExisting);
+            ContentRevision = ContentRevision == null ? null : HashRevision(new JArray(ContentRevision, id, value, replaceExisting));
+            MutationVersion++;
         }
 
+        /// <summary>
+        /// 写入计划记录；覆盖时替换整条记录并同步更新执行根索引。
+        /// </summary>
         public void AddRecord(in Record record, bool replaceExisting = true)
         {
-            if (record.TriggerId <= 0) return;
-            if (_records == null) _records = new List<Record>();
-            if (_recordsByTriggerId == null) _recordsByTriggerId = new Dictionary<int, Record>();
-            if (_byTriggerId == null) _byTriggerId = new Dictionary<int, TriggerPlan<object>>();
-            if (_executionRootsByTriggerId == null) _executionRootsByTriggerId = new Dictionary<int, ITriggerPlanExecutable>();
-
-            var existingIndex = -1;
-            for (int i = 0; i < _records.Count; i++)
-            {
-                if (_records[i].TriggerId == record.TriggerId)
-                {
-                    existingIndex = i;
-                    break;
-                }
-            }
-
-            if (existingIndex >= 0)
-            {
-                if (!replaceExisting) return;
-                _records[existingIndex] = record;
-            }
-            else
-            {
-                _records.Add(record);
-            }
-
-            _recordsByTriggerId[record.TriggerId] = record;
-            _byTriggerId[record.TriggerId] = record.Plan;
-            if (record.ExecutionRoot != null)
-            {
-                _executionRootsByTriggerId[record.TriggerId] = record.ExecutionRoot;
-            }
-            else
-            {
-                _executionRootsByTriggerId.Remove(record.TriggerId);
-            }
+            _store.AddRecord(in record, replaceExisting);
+            ContentRevision = null;
+            MutationVersion++;
         }
 
+        /// <summary>
+        /// 按源库的记录顺序合并字符串、触发器计划和黑板初始化配置。
+        /// </summary>
+        /// <param name="source">待合并的源库；为空时不修改目标库。</param>
+        /// <param name="replaceExisting">为真时同 ID 的后续定义覆盖已有定义；否则保留最先加入的定义。</param>
+        /// <remarks>
+        /// 此操作不发现文件、不校验配置，也不初始化黑板；由宿主决定输入、合并顺序及校验时机。
+        /// </remarks>
         public void MergeFrom(TriggerPlanJsonDatabase source, bool replaceExisting = true)
         {
             if (source == null) return;
-
-            if (source._strings != null)
-            {
-                foreach (var kvp in source._strings)
-                {
-                    AddString(kvp.Key, kvp.Value, replaceExisting);
-                }
-            }
-
-            if (source._records != null)
-            {
-                for (int i = 0; i < source._records.Count; i++)
-                {
-                    AddRecord(source._records[i], replaceExisting);
-                }
-            }
-
-            if (source._blackboards != null)
-            {
-                for (int i = 0; i < source._blackboards.Count; i++)
-                {
-                    AddBlackboardInitialization(source._blackboards[i], replaceExisting);
-                }
-            }
+            _store.MergeFrom(source._store, replaceExisting);
+            ContentRevision = ContentRevision == null || source.ContentRevision == null ? null :
+                HashRevision(new JArray(ContentRevision, source.ContentRevision, replaceExisting));
+            MutationVersion++;
         }
 
+        /// <summary>
+        /// 将已加载的全局黑板初始化配置应用到可写解析器。
+        /// </summary>
         public void InitializeBlackboards(IBlackboardResolver resolver, bool replaceExisting = true)
         {
             if (resolver == null) throw new ArgumentNullException(nameof(resolver));
@@ -430,18 +180,24 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
 
             BlackboardInitialization.Apply(
-                _blackboards,
+                _store.Blackboards,
                 mutable,
                 BlackboardInitializationScopes.Global,
                 replaceExisting);
         }
 
+        /// <summary>
+        /// 将已加载的初始化配置交给宿主的所有者黑板存储。
+        /// </summary>
         public void ConfigureOwnerBlackboards(IOwnerBlackboardStore store, bool releaseExisting = true)
         {
             if (store == null) throw new ArgumentNullException(nameof(store));
-            store.Configure(_blackboards, releaseExisting);
+            store.Configure(_store.Blackboards, releaseExisting);
         }
 
+        /// <summary>
+        /// 从指定加载器读取必需的 JSON 文本，并替换当前计划数据。
+        /// </summary>
         public void Load(ITextLoader loader, string id)
         {
             if (loader == null) throw new ArgumentNullException(nameof(loader));
@@ -455,28 +211,33 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             LoadFromJson(json, id);
         }
 
+        /// <summary>
+        /// 读取 JSON 并替换记录与索引；解析或转换失败不替换已有存储。
+        /// </summary>
         public void LoadFromJson(string json, string sourceName = null)
         {
-            if (string.IsNullOrEmpty(json))
-            {
-                throw new InvalidOperationException($"Trigger plan json is empty: {sourceName ?? "<json>"}");
-            }
-
-            LoadFromDto(ParseRuntimeDto(json, sourceName));
+            var store = TriggerPlanJsonReader.Read(json, sourceName, CreateCue, out var dto);
+            Publish(store, dto);
         }
 
+        /// <summary>
+        /// 将全局作用域的已加载计划注册到指定运行器。
+        /// </summary>
         public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner)
         {
             RegisterAll(runner, TriggerPlanScope.Global);
         }
 
+        /// <summary>
+        /// 按记录顺序注册指定作用域的计划，跳过无事件 ID 的记录。
+        /// </summary>
         public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner, TriggerPlanScope scope)
         {
             if (runner == null) throw new ArgumentNullException(nameof(runner));
 
-            for (int i = 0; i < _records.Count; i++)
+            for (int i = 0; i < _store.Records.Count; i++)
             {
-                var r = _records[i];
+                var r = _store.Records[i];
                 if (r.EventId == 0) continue;
                 if (r.Scope != scope) continue;
                 var key = new EventKey<object>(r.EventId);
@@ -484,105 +245,33 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
         }
 
-        internal static TriggerPlanDatabaseDto ParseRuntimeDto(string json, string sourceName = null)
-        {
-            var result = _parser.Parse(json, sourceName);
-            if (result.Success && result.Dto != null)
-            {
-                return result.Dto;
-            }
+        internal void LoadFromDto(TriggerPlanDatabaseDto dto) => Publish(TriggerPlanJsonReader.Read(dto, CreateCue), dto);
 
-            var error = result.FirstError;
-            var message = string.IsNullOrEmpty(error.Message)
-                ? "Unknown trigger plan json parse error"
-                : error.Message;
-            throw new InvalidOperationException($"Failed to parse trigger plan json: {sourceName ?? "<json>"}. {message}", error.Exception);
+        private void Publish(TriggerPlanRecordStore<Record> store, TriggerPlanDatabaseDto dto)
+        {
+            var revision = HashRevision(dto == null ? JValue.CreateNull() :
+                JToken.FromObject(dto, new JsonSerializer()));
+            _store = store;
+            ContentRevision = revision;
+            MutationVersion++;
         }
 
-        internal static bool IsSourceFormatJson(string json)
+        private static string HashRevision(JToken value)
         {
-            return _parser.DetectFormat(json) == TriggerPlanJsonFormat.Source;
+            using var hash = SHA256.Create();
+            var bytes = Encoding.UTF8.GetBytes(Canonicalize(value).ToString(Formatting.None));
+            return BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", string.Empty);
         }
 
-        internal void LoadFromDto(TriggerPlanDatabaseDto dto)
+        private static JToken Canonicalize(JToken value)
         {
-            dto = TriggerPlanModuleExpander.Expand(dto);
-
-            var next = new List<Record>();
-            var recordsByTriggerId = new Dictionary<int, Record>();
-            var byTriggerId = new Dictionary<int, TriggerPlan<object>>();
-            var executionRootsByTriggerId = new Dictionary<int, ITriggerPlanExecutable>();
-            var strings = dto?.Strings != null ? new Dictionary<int, string>(dto.Strings) : new Dictionary<int, string>();
-            var blackboards = dto?.Blackboards != null
-                ? new List<BlackboardInitializationPlan>(dto.Blackboards)
-                : new List<BlackboardInitializationPlan>();
-            if (dto?.Triggers != null)
-            {
-                for (int i = 0; i < dto.Triggers.Count; i++)
-                {
-                    var t = dto.Triggers[i];
-                    if (t == null) continue;
-                    if (t.TriggerId <= 0) continue;
-
-                    var eid = t.EventId;
-                    if (eid == 0 && !string.IsNullOrEmpty(t.EventName))
-                    {
-                        eid = StableStringId.Get("event:" + t.EventName);
-                    }
-
-                    var cueDescriptor = BuildCueDescriptor(t);
-                    var cue = CueFactory.Create(in cueDescriptor) ?? NullTriggerCue.Instance;
-                    var plan = _converter.Convert(t, cue);
-                    var executionRoot = _converter.ConvertExecutionRoot(t, dto);
-                    var record = new Record(t.TriggerId, t.EventName, eid, NormalizeScope(t.Scope), in plan, executionRoot);
-                    next.Add(record);
-                    recordsByTriggerId[t.TriggerId] = record;
-                    byTriggerId[t.TriggerId] = plan;
-                    if (executionRoot != null)
-                    {
-                        executionRootsByTriggerId[t.TriggerId] = executionRoot;
-                    }
-                }
-            }
-
-            _records = next;
-            _recordsByTriggerId = recordsByTriggerId;
-            _byTriggerId = byTriggerId;
-            _executionRootsByTriggerId = executionRootsByTriggerId;
-            _strings = strings;
-            _blackboards = blackboards;
+            if (value is JObject obj)
+                return new JObject(obj.Properties().OrderBy(property => property.Name, StringComparer.Ordinal)
+                    .Select(property => new JProperty(property.Name, Canonicalize(property.Value))));
+            if (value is JArray array) return new JArray(array.Select(Canonicalize));
+            return value;
         }
 
-        private void AddBlackboardInitialization(BlackboardInitializationPlan plan, bool replaceExisting)
-        {
-            if (plan == null || plan.BoardId == 0) return;
-            if (_blackboards == null) _blackboards = new List<BlackboardInitializationPlan>();
-
-            for (var i = 0; i < _blackboards.Count; i++)
-            {
-                if (_blackboards[i] == null || _blackboards[i].BoardId != plan.BoardId) continue;
-                if (replaceExisting) _blackboards[i] = plan;
-                return;
-            }
-
-            _blackboards.Add(plan);
-        }
-
-        private static TriggerCueDescriptor BuildCueDescriptor(TriggerPlanDto dto)
-        {
-            if (dto == null) return TriggerCueDescriptor.Empty;
-
-            return new TriggerCueDescriptor(
-                kind: dto.CueId,
-                cueId: dto.CueId,
-                primaryAssetId: dto.CuePrimaryAssetId,
-                secondaryAssetId: dto.CueSecondaryAssetId,
-                payload: dto.CuePayload);
-        }
-
-        private static TriggerPlanScope NormalizeScope(TriggerPlanScope scope)
-        {
-            return Enum.IsDefined(typeof(TriggerPlanScope), scope) ? scope : TriggerPlanScope.Global;
-        }
+        private ITriggerCue CreateCue(TriggerCueDescriptor descriptor) => CueFactory.Create(in descriptor);
     }
 }

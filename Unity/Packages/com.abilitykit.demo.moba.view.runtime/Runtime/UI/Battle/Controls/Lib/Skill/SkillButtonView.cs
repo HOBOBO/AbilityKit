@@ -169,7 +169,8 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             if (!CanAcceptInput) return;
 
             _gesture.Begin(eventData.pointerId, eventData.position, Time.unscaledTime);
-            if (_config.PreviewVfxId > 0)
+            if (_config.PreviewVfxId > 0 || !_config.EnableAim &&
+                _config.IndicatorShape == SkillAimIndicatorShape.SelfCircle)
             {
                 _previewPressed = true;
                 OnPreviewPressed?.Invoke();

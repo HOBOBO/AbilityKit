@@ -431,6 +431,7 @@
         "core-boundary",
         "core-namespace-ownership",
         "deterministic-math",
+        "pipeline",
         "record",
         "state-sync",
         "frame-sync",
@@ -571,6 +572,11 @@
           "project": "src/AbilityKit.HotReload.Tests/AbilityKit.HotReload.Tests.csproj"
         },
         {
+          "name": "Pipeline runtime tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Pipeline.Tests/AbilityKit.Pipeline.Tests.csproj"
+        },
+        {
           "name": "Triggering tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Triggering.Tests/AbilityKit.Triggering.Tests.csproj"
@@ -612,9 +618,27 @@
           "script": "tools/audit_unity_package_dependencies.ps1",
           "arguments": [
             "-PackageNames",
-            "com.abilitykit.continuous,com.abilitykit.behavior,com.abilitykit.record,com.abilitykit.world.statesync,com.abilitykit.world.framesync,com.abilitykit.network.runtime,com.abilitykit.network.transport.websocket,com.abilitykit.host,com.abilitykit.triggering,com.abilitykit.context,com.abilitykit.attributes,com.abilitykit.modifiers,com.abilitykit.demo.moba.runtime,com.abilitykit.demo.moba.editor,com.abilitykit.demo.moba.view.runtime"
+            "com.abilitykit.continuous,com.abilitykit.behavior,com.abilitykit.record,com.abilitykit.world.statesync,com.abilitykit.world.framesync,com.abilitykit.network.runtime,com.abilitykit.network.transport.websocket,com.abilitykit.host,com.abilitykit.pipeline,com.abilitykit.triggering,com.abilitykit.context,com.abilitykit.attributes,com.abilitykit.modifiers,com.abilitykit.demo.moba.runtime,com.abilitykit.demo.moba.editor,com.abilitykit.demo.moba.view.runtime"
           ],
           "timeoutSeconds": 120
+        }
+      ]
+    },
+    {
+      "name": "triggering-release-consumer",
+      "level": "P2",
+      "owner": "Runtime Platform",
+      "description": "Fresh Unity project installs Triggering as its only root dependency and verifies the single Unsafe provider and runtime probes.",
+      "scope": ["triggering", "upm-consumer", "unsafe-provider"],
+      "requiredBefore": ["publish-triggering-release-candidate"],
+      "failurePolicy": "Block Triggering release candidate sign-off until clean install and runtime probes pass.",
+      "steps": [
+        {
+          "name": "Triggering clean Unity consumer",
+          "kind": "powershell-script",
+          "script": "tools/publish/verify-triggering-consumer.ps1",
+          "arguments": ["-EvidenceDirectory", "{GateOutputDirectory}/consumer-probe"],
+          "timeoutSeconds": 480
         }
       ]
     },

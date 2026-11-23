@@ -9,14 +9,22 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DefineConstants>$(DefineConstants);UNITY_EDITOR</DefineConstants>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <WarningsAsErrors>$(WarningsAsErrors);RS0016;RS0017</WarningsAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);RS0026</WarningsNotAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Core/AbilityKit.Core.csproj" />
   </ItemGroup>
 
-  <!-- 引用 Packages 目录下的源码（排除 Pipeline.cs，使用本地版本）。
-       注：Editor/Debug 是 Unity 编辑器调试器（并行会话在途开发），不进 .NET 镜像编译——否则其未完成文件会打断全仓 .NET 构建。 -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="3.3.4" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!--
+    复用 UPM 包的运行时源码。Pipeline.cs 包含 Unity 场景加载钩子，仅由 Unity 编译；
+    .NET 编译本工程的同名门面，保留显式 Initialize()，不带 Unity 场景加载钩子。
+  -->
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.pipeline/Runtime/**/*.cs" Exclude="../../Unity/Packages/com.abilitykit.pipeline/Runtime/Pipeline.cs" />
   </ItemGroup>

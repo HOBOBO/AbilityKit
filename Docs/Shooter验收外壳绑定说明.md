@@ -1,16 +1,16 @@
 # Shooter 验收外壳绑定说明（Unity 薄层）
 
-本说明描述 Unity 端如何作为「验收外壳」绑定到纯 C# 验收抽象 [`ShooterAcceptanceLab`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1)。核心同步逻辑与多模式/多网络环境的组合已由 xUnit 全量覆盖，Unity 端只负责「选择 + 驱动 + 可视化」，不持有任何同步规则。
+本说明描述 Unity 端如何作为「验收外壳」绑定到纯 C# 验收抽象 [`ShooterAcceptanceLab`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1)。核心同步逻辑与多模式/多网络环境的组合已由 xUnit 全量覆盖，Unity 端只负责「选择 + 驱动 + 可视化」，不持有任何同步规则。
 
 ## 1. 抽象边界
 
 纯 C# 层（`AbilityKit.Demo.Shooter.View` 命名空间，asmdef↔csproj 双投影）暴露以下入口：
 
-- [`ShooterAcceptanceCatalog`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1)：可选同步模式 `SyncModes`、正式模板 `SyncTemplates`、验收矩阵 `SyncModeMatrix` 与网络环境 `NetworkEnvironments`，UI 直接绑定。
-- [`ShooterAcceptanceCatalog.SyncModeMatrix`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1)：每个同步模板对应一个 `NetworkSyncProfile`、承载类型、收敛方式和验收准则，避免 Unity 面板把「帧同步」「纯状态同步」「混合同步」混成同一条临时路径。
-- [`ShooterAcceptanceLab.Create(...)`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1)：一键装配 runtime + presentation + controller + carrier 并已 `StartGame`，返回可运行的 `ShooterAcceptanceSession`。支持 `enableAuthoritativeWorld` 勾选对比模式。
-- [`ShooterAcceptanceSession`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1)：暴露 `Runtime`/`Presentation` 供渲染，`Run(...)` 走框架 `DemoHarnessRunner` 返回四态结果与指标；`ApplyNetwork(...)` 运行时改网络；`CompareWorlds()` 计算预测/权威差异。
-- [`ShooterSveltoGameplayBenchmarkProfiles`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/ShooterSveltoGameplayBenchmark.cs:1)：高实体批量 ECS/Svelto 基准入口，用于把 Shooter 作为性能范式样例，而不是只作为同步样例。
+- [`ShooterAcceptanceCatalog`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1)：可选同步模式 `SyncModes`、正式模板 `SyncTemplates`、验收矩阵 `SyncModeMatrix` 与网络环境 `NetworkEnvironments`，UI 直接绑定。
+- [`ShooterAcceptanceCatalog.SyncModeMatrix`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1)：每个同步模板对应一个 `NetworkSyncProfile`、承载类型、收敛方式和验收准则，避免 Unity 面板把「帧同步」「纯状态同步」「混合同步」混成同一条临时路径。
+- [`ShooterAcceptanceLab.Create(...)`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1)：一键装配 runtime + presentation + controller + carrier 并已 `StartGame`，返回可运行的 `ShooterAcceptanceSession`。支持 `enableAuthoritativeWorld` 勾选对比模式。
+- [`ShooterAcceptanceSession`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1)：暴露 `Runtime`/`Presentation` 供渲染，`Run(...)` 走框架 `DemoHarnessRunner` 返回四态结果与指标；`ApplyNetwork(...)` 运行时改网络；`CompareWorlds()` 计算预测/权威差异。
+- [`ShooterSveltoGameplayBenchmarkProfiles`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/Scenario/ShooterSveltoGameplayBenchmark.cs)：高实体批量 ECS/Svelto 基准入口，用于把 Shooter 作为性能范式样例，而不是只作为同步样例。
 
 Unity 端**只依赖以上三者**，不引用任何 `ShooterClient*SyncController` 具体类型。
 
@@ -72,8 +72,8 @@ var result = _session.Run();
 
 当 `enableAuthoritativeWorld: true` 时，会话额外持有：
 
-- [`Session.AuthoritativeWorld`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1)：一个独立 [`ShooterBattleRuntimePort`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Runtime/ShooterBattleRuntimePort.cs:12)，纯前向模拟、无预测/回滚，作为「地面真相」。
-- [`Session.AuthoritativePresentation`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1)：独立的 `ShooterPresentationFacade`，权威 World 的快照已投影进去，Unity 可用**同一套** `ShooterViewBinder` 渲染第二个视口。
+- [`Session.AuthoritativeWorld`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1)：一个独立 [`ShooterBattleRuntimePort`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Runtime/ShooterBattleRuntimePort.cs#L12)，纯前向模拟、无预测/回滚，作为「地面真相」。
+- [`Session.AuthoritativePresentation`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1)：独立的 `ShooterPresentationFacade`，权威 World 的快照已投影进去，Unity 可用**同一套** `ShooterViewBinder` 渲染第二个视口。
 
 Unity 渲染两个并排视口：
 
@@ -103,7 +103,7 @@ foreach (var d in comparison.Divergences)
 }
 ```
 
-`CompareWorlds()` 返回 [`ShooterWorldComparison`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1)，内含每实体 [`ShooterWorldDivergence`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1)。预测误差越大、偏差越明显，直观展示回滚/预测在网络劣化下的表现。
+`CompareWorlds()` 返回 [`ShooterWorldComparison`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1)，内含每实体 [`ShooterWorldDivergence`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1)。预测误差越大、偏差越明显，直观展示回滚/预测在网络劣化下的表现。
 
 > 对比模式默认关闭（`HasAuthoritativeWorld == false`），`CompareWorlds()` 返回空结果，不影响纯客户端演示。
 
@@ -116,7 +116,7 @@ var results = ShooterAcceptanceLab.RunCatalogMatrix();
 // results: 每个 (实现模式 × 网络环境) 一行四态结果，等价于手动点完整张验收矩阵。
 ```
 
-该方法与 [`ShooterAcceptanceLabTests`](../src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterAcceptanceLabTests.cs:1) 中 `RunCatalogMatrixCoversEveryImplementedModeAndNetwork` 用例同源，保证 Unity 看到的结论与 CI 一致。
+该方法与 [`ShooterAcceptanceLabTests`](../src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterAcceptanceLabTests.cs#L1) 中 `RunCatalogMatrixCoversEveryImplementedModeAndNetwork` 用例同源，保证 Unity 看到的结论与 CI 一致。
 
 正式矩阵入口用于 UI 展示每个模式的验收边界：
 
@@ -145,31 +145,31 @@ var result = ShooterSveltoGameplayBenchmark.Run(runner, in profile);
 // result.Deterministic / TotalInitialEntityFrames / LastResult.StateHash 可直接显示到诊断面板。
 ```
 
-该基准复用 [`ShooterSveltoGameplayScenarioRunner`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/ShooterSveltoGameplayScenarioRunner.cs:1) 的 `EntitiesDB.QueryEntities<...>()` 批量查询循环，目标是证明示例的 ECS/Svelto 范式入口已经独立于同步策略存在。
+该基准复用 [`ShooterSveltoGameplayScenarioRunner`](../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Gameplay/Scenario/ShooterSveltoGameplayScenarioRunner.cs) 的 `EntitiesDB.QueryEntities<...>()` 批量查询循环，目标是证明示例的 ECS/Svelto 范式入口已经独立于同步策略存在。
 
 ## 8. 诊断与一键脚本
 
-- Unity 诊断面板优先绑定 [`ShooterHostDiagnosticsSnapshot`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Hosting/ShooterHostDiagnostics.cs:16)，它已经汇总帧号、实体数量、最近事件、预测/权威偏差、载体网络统计、快照应用结果、时间锚和 lag compensation telemetry。
-- 本地状态同步服务器重启入口：[`restart_shooter_state_sync.ps1`](../Server/Orleans/tools/restart_shooter_state_sync.ps1:1) 或 [`restart_shooter_state_sync.bat`](../Server/Orleans/tools/restart_shooter_state_sync.bat:1)，默认监听 `127.0.0.1:41001`。
-- TCP Gateway 冒烟入口：[`run_shooter_smoke.ps1`](../Server/Orleans/tools/run_shooter_smoke.ps1:1)，用于验证 Orleans ShooterSmoke 项目构建、启动、建房、开始、输入、快照订阅与退出闭环。
-- 服务端 World 生命周期现在由 [`ServerBattleWorldManager`](../Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/ServerBattleWorldManager.cs:1) 管理，MOBA 与 Shooter 都只是注册到同一个中立 battle world manager 中。
+- Unity 诊断面板优先绑定 [`ShooterHostDiagnosticsSnapshot`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Hosting/ShooterHostDiagnostics.cs#L16)，它已经汇总帧号、实体数量、最近事件、预测/权威偏差、载体网络统计、快照应用结果、时间锚和 lag compensation telemetry。
+- 本地状态同步服务器重启入口：[`restart_shooter_state_sync.ps1`](../Server/Orleans/tools/restart_shooter_state_sync.ps1#L1) 或 [`restart_shooter_state_sync.bat`](../Server/Orleans/tools/restart_shooter_state_sync.bat#L1)，默认监听 `127.0.0.1:41001`。
+- TCP Gateway 冒烟入口：[`run_shooter_smoke.ps1`](../Server/Orleans/tools/run_shooter_smoke.ps1#L1)，用于验证 Orleans ShooterSmoke 项目构建、启动、建房、开始、输入、快照订阅与退出闭环。
+- 服务端 World 生命周期现在由 [`ServerBattleWorldManager`](../Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/ServerBattleWorldManager.cs#L1) 管理，MOBA 与 Shooter 都只是注册到同一个中立 battle world manager 中。
 
 ### Unity 自动化验收
 
-Unity 侧批处理或 CI 直接调用 [`ShooterAcceptanceAutomation.RunCatalogMatrixOrThrow()`](../Unity/Packages/com.abilitykit.demo.shooter.editor/Editor/Windows/ShooterAcceptanceAutomation.cs:1) 即可执行完整验收矩阵。典型命令如下：
+Unity 侧批处理或 CI 直接调用 [`ShooterAcceptanceAutomation.RunCatalogMatrixOrThrow()`](../Unity/Packages/com.abilitykit.demo.shooter.editor/Editor/Windows/ShooterAcceptanceAutomation.cs#L1) 即可执行完整验收矩阵。典型命令如下：
 
 ```bash
 Unity.exe -batchmode -quit -projectPath . -executeMethod AbilityKit.Demo.Shooter.Editor.Windows.ShooterAcceptanceAutomation.RunCatalogMatrixOrThrow
 ```
 
-该入口复用 [`ShooterAcceptanceLab.RunCatalogMatrix()`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:791)，因此 CI 与 Unity 菜单的判定完全一致；只要矩阵里出现 `Failed` / `Unsupported` / `Degraded`，方法就会抛异常并让批处理返回非零退出状态。
+该入口复用 [`ShooterAcceptanceLab.RunCatalogMatrix()`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L791)，因此 CI 与 Unity 菜单的判定完全一致；只要矩阵里出现 `Failed` / `Unsupported` / `Degraded`，方法就会抛异常并让批处理返回非零退出状态。
 
 ## 9. 扩展新同步模式的接入点
 
 新增模式时，纯 C# 层改三处即可，Unity 端零改动：
 
-1. 在 [`ShooterClientSyncControllerFactory.Create`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSyncControllerFactory.cs:37) 增加对应 `case`。
-2. 在 [`ShooterAcceptanceCatalog.SyncModes`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1) 增加一项并置 `implemented: true`。
-3. 在 [`ShooterAcceptanceCatalog.SyncTemplates`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs:1) 增加模板，并让 `SyncModeMatrix` 产出对应验收准则。
+1. 在 [`ShooterClientSyncControllerFactory.Create`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSyncControllerFactory.cs#L37) 增加对应 `case`。
+2. 在 [`ShooterAcceptanceCatalog.SyncModes`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1) 增加一项并置 `implemented: true`。
+3. 在 [`ShooterAcceptanceCatalog.SyncTemplates`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L1) 增加模板，并让 `SyncModeMatrix` 产出对应验收准则。
 
 下拉菜单、Session 装配、矩阵冒烟、对比模式、验收准则说明会自动纳入该模式。

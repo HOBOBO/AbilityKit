@@ -122,11 +122,15 @@ public interface ISkillCastService : IService
 /// </summary>
 public sealed class SkillCastService : ISkillCastService, IFoundationTickLoop, IWorldInitializable, IWorldDeinitializable
 {
+    private const string CombatDomain = "combat";
+    private static readonly int CombatBoardId = StableStringId.Get($"bb:{CombatDomain}");
+
+    private readonly struct DamageRuleContext { }
+
     private readonly EventBus _bus;
     private readonly List<IAbilityPipelineRun<SkillContext>> _runs = new(8);
     private readonly ModifierCalculator _calculator = new();
-    private TriggerRunner<TriggerContext>? _runner;
-    private RpnNumericExprRuntime? _thresholdExpr;
+    private TriggerRunner<DamageRuleContext>? _runner;
 
     public CombatTarget Target { get; } = new("Goblin", baseMoveSpeed: 100f, baseAttackPower: 10f);
 
@@ -139,12 +143,10 @@ public sealed class SkillCastService : ISkillCastService, IFoundationTickLoop, I
 
     public void OnInit(IWorldResolver services)
     {
-        _runner = new TriggerRunner<TriggerContext>(
+        _runner = new TriggerRunner<DamageRuleContext>(
             _bus,
             new FunctionRegistry(),
             new ActionRegistry(),
-            contextSource: null,
-            observer: null,
             blackboards: CreateBlackboards(),
             payloads: CreatePayloads());
         Log.Info($"[SkillCast] OnInit —— 目标 {Target.Name}（基础移速 {Target.BaseMoveSpeed:0}，基础攻击 {Target.BaseAttackPower:0}）");
@@ -153,12 +155,13 @@ public sealed class SkillCastService : ISkillCastService, IFoundationTickLoop, I
     /// <summary>装配触发规则：RPN 表达式 (payload:amount + bb:combat:atk) ≥ threshold 时触发。</summary>
     public void SetupTriggerRule(float threshold)
     {
-        var expr = new RpnNumericExprRuntime(
-            new RpnNumericExprPlan(RpnNumericExprParser.LangRpnV1, "payload:amount bb:combat:atk +"));
-        _thresholdExpr = expr;
+        var nodes = RpnNumericExprParser.Parse(
+            $"payload:amount bb:{CombatDomain}:atk +",
+            blackboardDomainIdResolver: ResolveCombatDomain);
+        var expr = new RpnNumericExprRuntime(new RpnNumericExprPlan(RpnNumericExprParser.LangRpnV1, nodes));
 
         var key = new EventKey<DamageEvent>(StableStringId.Get("event:damage"));
-        var trigger = new DelegateTrigger<DamageEvent, TriggerContext>(
+        var trigger = new DelegateTrigger<DamageEvent, DamageRuleContext>(
             predicate: (evt, ctx) => expr.Eval(in evt, in ctx) >= threshold,
             actions: (evt, ctx) =>
             {
@@ -268,11 +271,15 @@ public sealed class SkillCastService : ISkillCastService, IFoundationTickLoop, I
     {
         var resolver = new DictionaryBlackboardResolver();
         var board = new DictionaryBlackboard();
-        var boardId = StableStringId.Get("bb:combat");
-        resolver.Register(boardId, board);
-        board.SetDouble(StableStringId.Get("bb:combat:atk"), 7d);
+        resolver.Register(CombatBoardId, board);
+        board.SetDouble(StableStringId.Get($"bb:{CombatDomain}:atk"), 7d);
         return resolver;
     }
+
+    private static int ResolveCombatDomain(string domain)
+        => string.Equals(domain, CombatDomain, StringComparison.Ordinal)
+            ? CombatBoardId
+            : throw new InvalidOperationException($"SkillCore 未注册黑板域 '{domain}'。");
 
     private static PayloadAccessorRegistry CreatePayloads()
     {

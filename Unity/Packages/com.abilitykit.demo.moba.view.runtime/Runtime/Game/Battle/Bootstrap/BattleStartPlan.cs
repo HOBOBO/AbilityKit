@@ -20,6 +20,12 @@ namespace AbilityKit.Game.Flow
         /// <summary>Gateway 为当前战斗代际声明的远端同步能力。</summary>
         public readonly RoomGatewayNetworkSyncCapabilities RemoteSyncCapabilities;
 
+        /// <summary>
+        /// 仅由房间权威同步能力声明选择结算帧协议，不使用本地启动意图推断。
+        /// </summary>
+        internal bool UsesSettledFrames => RemoteSyncCapabilities?.ProfileName ==
+            AbilityKit.Protocol.Moba.SettledFrames.SettledFrameProtocol.CapabilityProfile;
+
         public readonly BattleHostMode HostMode;
         public readonly MobaBattleLaunchSpec LaunchSpec;
 

@@ -11,6 +11,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public int Frame { get; set; }
         public object Raw { get; set; }
         public ProjectileSourceContext SourceContext { get; set; }
+        internal long LaunchSourceContextId { get; set; }
 
         public int CasterActorId;
         public int ProjectileTemplateId;

@@ -5,10 +5,12 @@ using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
+using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Game.Test.UnitTest;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.World.Abstractions;
@@ -36,6 +38,8 @@ public sealed class LuxRuntimeTests
         Assert.True(b.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(b.Caster,4,
             new Vec3(100+dx*20,0,100+dz*20),direction,0).Success);
         b.Setup.Tick(2);
+        Assert.True(b.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Move));
+        Assert.True(b.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Turn));
         var action=b.Actor(b.Caster).characterHfsm.Runtime.Action;
         var casts=b.Services.Resolve<MobaSkillCastRuntimeService>();
         Assert.True(casts.TryGetPresentationFrame(action.CastInstanceId,b.Caster,out var original));
@@ -51,6 +55,8 @@ public sealed class LuxRuntimeTests
         b.Set(b.Caster,"hp",0);b.Setup.Tick(2);
         Assert.False(casts.TryGetPresentationFrame(action.CastInstanceId,b.Caster,out _));
         rollback.Restore(checkpoint);
+        Assert.True(b.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Move));
+        Assert.True(b.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Turn));
         Assert.True(casts.TryGetPresentationFrame(action.CastInstanceId,b.Caster,out var restored));Assert.Equal(original,restored);
         b.Setup.Tick(2);
         Assert.True(b.Services.Resolve<MobaCharacterActionSnapshotService>().TryGetSnapshot(
@@ -216,6 +222,43 @@ public sealed class LuxRuntimeTests
     }
 
     [Fact]
+    public void R_locks_move_and_turn_until_beam_then_releases_during_tail()
+    {
+        using var battle = new Battle();
+        var target = battle.Spawn("target", 1001, 2, 100, 110);
+        var health = battle.Setup.GetActorHp(target);
+        battle.Cast(4, new Vec3(100, 0, 130));
+        var actor = battle.Actor(battle.Caster);
+        actor.ReplaceMoveInput(1f, 0f);
+        var locked = actor.transform.Value;
+        var facing = new MobaBrainEntityManager(battle.Services.Resolve<MobaActorRegistry>(),
+            battle.Services.Resolve<MobaCombatRulesService>().CanTurn);
+        battle.Setup.TickMilliseconds(900);
+        facing.SetForward(battle.Caster, Vec3.Right);
+        Assert.True(battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Move));
+        Assert.True(battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Turn));
+        Assert.Equal(locked.Position, actor.transform.Value.Position);
+        Assert.Equal(locked.Rotation, actor.transform.Value.Rotation);
+        Assert.Equal(health, battle.Setup.GetActorHp(target));
+        var windupPose = battle.ReadPublishedTransform();
+        Assert.Equal(locked.Position.X, windupPose.X);
+        Assert.Equal(locked.Forward.Z, windupPose.ForwardZ);
+
+        battle.Until(() => battle.Count(MobaExecutionKind.DamageApply, 30070501) == 1);
+        Assert.True(battle.Setup.GetActorHp(target) < health);
+        Assert.False(battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Move));
+        Assert.False(battle.IsGateBlocked(moba_luban.MobaTagBehaviorGate.Turn));
+        battle.Setup.Tick(1);
+        Assert.True(battle.Services.Resolve<SkillCastCoordinator>().TryGetRunningBySlot(battle.Caster, 4, out _));
+        Assert.True(actor.transform.Value.Position.X > locked.Position.X);
+        facing.SetForward(battle.Caster, Vec3.Right);
+        Assert.NotEqual(locked.Rotation, actor.transform.Value.Rotation);
+        var tailPose = battle.ReadPublishedTransform();
+        Assert.Equal(actor.transform.Value.Position.X, tailPose.X);
+        Assert.Equal(actor.transform.Value.Forward.X, tailPose.ForwardX);
+    }
+
+    [Fact]
     public void Death_cleans_deployed_orb_without_explosion()
     {
         using var b=new Battle();b.Spawn("a",1001,2,100,110);
@@ -255,6 +298,9 @@ public sealed class LuxRuntimeTests
         b.Cast(4,new Vec3(100,0,130));b.Setup.TickMilliseconds(500);
         b.Set(b.Caster,"hp",0);b.Setup.TickMilliseconds(3000);
         Assert.Empty(b.Areas(42070501));Assert.Equal(0,b.Count(MobaExecutionKind.DamageApply,30070501));
+        var tags = b.Services.Resolve<IMobaEffectiveTagQueryService>();
+        Assert.False(tags.HasTag(b.Caster, MobaGameplayTagCatalog.ToContainer(new[] { "State.Casting.CannotMove" }).First(), true));
+        Assert.False(tags.HasTag(b.Caster, MobaGameplayTagCatalog.ToContainer(new[] { "State.Casting.CannotTurn" }).First(), true));
     }
 
     [Fact]
@@ -343,6 +389,18 @@ public sealed class LuxRuntimeTests
             var list=new List<MobaAreaRuntimeInfo>();Services.Resolve<MobaAreaRuntimeService>().TryGetAreas(list,Caster,template);return list;
         }
         public ActorEntity Actor(int id) {Assert.True(Services.Resolve<MobaActorLookupService>().TryGetActorEntity(id,out var a));return a;}
+        public bool IsGateBlocked(moba_luban.MobaTagBehaviorGate gate)
+        {
+            Assert.True(Services.Resolve<IMobaTagBehaviorGateQueryService>().TryIsBlocked(Caster, gate, out var blocked));
+            return blocked;
+        }
+        public MobaActorTransformSnapshotEntry ReadPublishedTransform()
+        {
+            var snapshots = Services.Resolve<MobaActorTransformSnapshotService>();
+            var frame = Services.Resolve<IFrameTime>().Frame;
+            Assert.True(snapshots.TryGetSnapshot(new FrameIndex(frame.Value + 1), out var snapshot));
+            return Assert.Single(MobaActorTransformSnapshotCodec.Deserialize(snapshot.Payload), entry => entry.ActorId == Caster);
+        }
         public float Param(int id)=>Actor(Caster).characterHfsm.Runtime.ResolveParameter(id);
         public long CooldownEnd(int slot)=>Actor(Caster).skillLoadout.ActiveSkills[slot-1].CooldownEndTimeMs;
         public float Shield(int actor)=>Services.Resolve<MobaShieldService>().GetTotalRemaining(actor);

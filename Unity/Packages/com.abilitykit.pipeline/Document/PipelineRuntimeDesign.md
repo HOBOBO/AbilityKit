@@ -18,15 +18,28 @@
 - **可调试性**：Runtime 只暴露纯 C# 诊断协议和安全 Hook；Editor 负责实时注册、历史、图形化与离线快照。
 
 
+## Unity 与 .NET 的公开入口
+
+| 范围 | 入口与约束 |
+| --- | --- |
+| 两端 Runtime 共用 | `AbilityPipeline<TCtx>`、Run、Context/Phase 契约、`PipelineGraph`、实例 `PipelineRuntime`、注册表和诊断接口；静态门面的 `DefaultRuntime`、`Shutdown()` 等兼容入口也在两端提供。跨平台宿主优先显式装配 `PipelineRuntime`；需要独立注册表时显式传入注册表实例。 |
+| 仅 .NET Runtime 公开 | 静态 `Pipeline.Initialize()`。两端都可以通过 `Pipeline.DefaultRuntime` 惰性初始化；跨平台代码不要调用这个仅 .NET 公开的静态方法。实例 `PipelineRuntime.Initialize()` 则两端都有。 |
+| Unity 引导与 Editor | Unity 静态门面的 `Initialize()` 是私有的场景加载前钩子，不属于公开 API。`AbilityKit.Pipeline.Editor` 为独立程序集，不纳入 .NET Runtime 签名基线。 |
+
+仓库通过 `src/AbilityKit.Pipeline/PublicAPI.Shipped.txt` 和 `src/AbilityKit.Pipeline/PublicAPI.Unshipped.txt` 检查 .NET 编译产物对应的源代码签名，纳入对包外派生类可见的受保护成员。增删或变更前先评审调用方、继承者与两平台影响；获准变更后同步更新候选清单和契约文档。`Shipped` 只记录已正式发布的签名；登记在 `Unshipped` 不代表其已成为首发推荐入口。此门禁不在 Unity 构建中运行，也不验证行为、初始化时序或 Player 兼容性。
+
 ## Runtime 目录结构索引（去哪找什么）
 
 > 目的：让第一次接手的人能快速定位关键文件。
 
 - `Runtime/Core/Pipeline`
-  - 核心 pipeline 抽象与默认实现（`AbilityPipeline<TCtx>`）
-  - 接口：`Interface/`（`IAbilityPipeline<TCtx>`、`IAbilityPipelineRun<TCtx>`、`IAbilityPipelinePhase<TCtx>`、`IAbilityPipelineContext` 等）
-  - 阶段：`Phase/`（基类、复合阶段、并行/条件/序列等实现）
-  - Debug：`Debug/`（安全观测钩子、运行诊断数据、Trace）
+  - `AbilityPipeline.cs`：定义、阶段管理、`Start` / `AttachRun` 与宿主的 Context 释放契约。
+  - `AbilityPipeline.Run.cs`：私有 `Run` 的推进、阶段转换、终态通知与清理。
+  - `AbilityPipeline.Debug.cs` / `AbilityPipeline.Run.Debug.cs`：分别投影定义图与运行诊断状态，不另起执行路径。
+
+- `Runtime/Interface`：管线、Run、阶段与 Context 等公开接口。
+- `Runtime/Phase`：阶段基类、复合阶段和并行、条件、序列等实现。
+- `Runtime/Debug`：观测钩子、诊断数据和 Trace。
 
 - `Runtime/Graph`
   - `PipelineGraph`：Sequence/Parallel/Conditional 等阶段组合 DSL
@@ -107,6 +120,21 @@
    - 在同一个 tick 内尽可能执行“瞬时阶段”（`ExecutePipeline()` 循环）
    - 所有阶段完成后触发 `Complete()`
 
+
+## 执行进度与回滚边界
+
+Pipeline 支持保存**执行中的 Run 的进度**，不是完整的技能、世界快照或长期存档。接入回滚时，由宿主在模拟帧的结算边界取样，使用同一有效定义恢复；不能在任意阶段回调中取样并假定其余状态也已结算。普通不启用回滚的调用方仍可使用原有 API。
+
+| 状态归属 | 保存或重建方式 |
+| --- | --- |
+| Pipeline Run | `PipelineRunProgress` 持有顶层游标、游标处是否存在当前执行阶段、暂停/待结算取消标志和阶段树。节点记录完成位、持续阶段已用时间，以及 Sequence 的子游标、Conditional 的选择和条件结果、Parallel/Race 的有序活动索引、Repeat 的迭代及间隔等待进度。 |
+| 定义与执行依赖 | 宿主提供同一语义的配置、拓扑和参数，重建条件、动作、服务与订阅，不从快照还原委托或闭包。`Validate` 对照配置 ID/名称、阶段 ID/CLR 类型、子节点次序与进度形状，不比较 Delay 时长、Repeat 配置或闭包行为。通过预检不等于同定义；变更行为参数后不得仅凭结构相同续跑。 |
+| 领域与世界状态 | 宿主保存影响未来结果的 Context 值、运行身份、目标句柄、资格及未发生的待办；已提交效果由所属领域的快照或结构恢复负责。帧历史、逻辑时间、稳定顺序和输入重放不由 Pipeline 保存。 |
+| 诊断状态 | 图 `StructureId`、进程内 Run ID、Trace 和 Editor 会话快照仅用于观察，不作为配置修订、领域身份或回滚输入。 |
+
+**可恢复子集。** 内置阶段只保存上述进度和基类字段；Action、WaitUntil、Repeat 或条件委托里的外部状态不在此范围。自定义有状态阶段需要宿主验证其完整值状态及恢复回调；能继承阶段基类并成功调用 `Capture` 不是能力认证。需要同定义下独立运行或新旧 Run 并存时，应验证阶段工厂及其子树、闭包不存在可变共享；旧的无工厂入口会复用原阶段并 `Reset()`，不具备这种隔离。捕获后的数组及节点由宿主持有，在预检与写回过程中不得修改或与活状态共享。
+
+**恢复与失败。** `Restore` 先验证全树，再执行可选 `prepare`、写回阶段树，最后设置 Run 游标与标志；写回不执行正常阶段生命周期。`AttachRun` 跳过普通启动回调，但仍注册 Run、发送诊断启动通知。宿主可在进度恢复后静默重绑订阅或依赖，不补发历史业务事件。预检拒绝不会进入正常写回；`prepare`、自定义写回或外部重绑一旦开始，Pipeline 不保证自动撤回，不能把异常后的活 Run 当成原状态继续 Tick。MOBA 新挂接路径会在重绑失败时尝试解绑并释放新 Run；这不是原位恢复或世界级事务保证，失败处理仍由各宿主的恢复协调器负责。
 
 ## 最小使用示例（伪代码）
 

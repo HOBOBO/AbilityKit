@@ -3,12 +3,14 @@
     "Id": 30020002,
     "Name": "Jinx - Pow-Pow Basic Attack",
     "PipelineContinuousTagTemplateId": 0,
+    "BasicAttack": {},
     "Phases": [
       {
         "Type": 2,
         "PhaseId": "skill_30020002_attack",
         "Timeline": {
           "DurationMs": 1567,
+          "RecoveryStartMs": 100,
           "Events": [
             {
               "AtMs": 100,

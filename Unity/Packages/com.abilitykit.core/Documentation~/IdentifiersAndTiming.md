@@ -4,8 +4,8 @@
 
 | 能力 | 公开命名空间 | 源码 |
 |---|---|---|
-| 版本化稳定哈希 | AbilityKit.Core.Identifiers | Runtime/Generic/StableHashV1.cs |
-| 名称与标识注册表 | AbilityKit.Core.Identifiers | Runtime/Generic/StableStringIdRegistry.cs |
+| 版本化稳定哈希 | AbilityKit.Core.Identifiers | Runtime/Identifiers/StableHashV1.cs |
+| 名称与标识注册表 | AbilityKit.Core.Identifiers | Runtime/Identifiers/StableStringIdRegistry.cs |
 | 单调时钟接口、Stopwatch 实现和换算 | AbilityKit.Core.Timing | Runtime/Timing/MonotonicTime.cs |
 
 这些原语不依赖玩法、调度器或 Unity 引擎。标识的领域归属、跨系统名称空间、持久化冲突策略和模拟时间推进由使用方负责。物理目录 Generic 是已有路径，本批不迁移源码或元数据；未来统一为能力目录时，应单独核对源码引用、工具链及 Unity GUID。

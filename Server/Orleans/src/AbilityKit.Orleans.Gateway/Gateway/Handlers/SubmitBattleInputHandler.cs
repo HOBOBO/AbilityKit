@@ -73,6 +73,11 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
                 return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
             }
 
+            if (RoomFrameSyncAuthorization.SupportsFrameSync(snapshot) &&
+                await _clusterClient.GetGrain<AbilityKit.Orleans.Contracts.FrameSync.IBattleFrameSyncGrain>(snapshot.WorldId.ToString())
+                    .GetSettledBindingAsync() != null)
+                return GatewayResponse.Error(request.Seq, GatewayStatusCode.SettledFrameVersionMismatch);
+
             var guard = _inputGuard.Check(req.SessionToken, req.BattleId, req.PlayerId, req.CommandSequence, DateTime.UtcNow.Ticks);
             if (guard == GatewayBattleInputGuardResult.Duplicate)
             {

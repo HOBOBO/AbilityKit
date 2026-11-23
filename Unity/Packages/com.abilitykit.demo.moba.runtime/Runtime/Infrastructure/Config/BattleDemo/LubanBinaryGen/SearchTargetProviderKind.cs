@@ -21,6 +21,7 @@ namespace moba_luban
         EnemyTeam = 6,
         MainType = 7,
         UnitSubType = 8,
+        OwnedLivingSummons = 9,
     }
 
 } 

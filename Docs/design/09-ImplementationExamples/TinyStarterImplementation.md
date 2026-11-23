@@ -43,7 +43,7 @@ Tiny 是新玩法接入 AbilityKit 的可运行参考项目：两名玩家、整
 
 ## 后续交付顺序
 
-1. 已提供可移动的 Unity 工程模板：Starter 模式和不含 Starter 的 Tiny 消费模式均嵌入本地包闭包，manifest 不含本仓库绝对路径。MemoryPack 需要的 Unsafe 程序集由 `com.abilitykit.thirdparty.unsafe` 包提供，不再从源码工程 `Assets/Plugins` 补拷。消费工程用自有大厅及 `TinyProjectLaunch.Open` 验证进场；首次打开仍依赖公共 UPM 包解析。
+1. 已提供可移动的 Unity 工程模板：Starter 模式和不含 Starter 的 Tiny 消费模式均嵌入本地包闭包，manifest 不含本仓库绝对路径。MemoryPack 需要的 Unsafe 由 OpenUPM 的 `org.nuget.system.runtime.compilerservices.unsafe@5.0.0` 提供，不从源码工程 `Assets/Plugins` 补拷。消费工程用自有大厅及 `TinyProjectLaunch.Open` 验证进场；首次打开仍依赖公共 UPM 包解析。
 2. 已增加两个独立 .NET 进程的三模式无头联机和重连证据。两个独立 Unity 可视客户端的登录、创建/加入、准备、开战、画面和交互仍需单独验收。
 3. 收敛项目装配边界：项目侧可注册服务端玩法模块，客户端入口无需修改公共 Starter 的 Tiny 分支；保持规则和表现为项目所有。
 4. `Docs/tutorials/tiny` 已按 State 主线、Frame/Hybrid 分支和恢复横切能力组织；Logic 包已独立。02–05 各有独立可运行的双客户端 .NET 工程，06 有独立恢复故障工程及三模式综合联机验收。08 提供跨层规则变更练习；09 从离线 Record 延伸到真实 Gateway 录制与 Room schema 协商；10 从本地节奏对比延伸到第二回合制服务端玩法及双进程验收。原 Tiny `Runtime` 的实时规则实现只保留一份。

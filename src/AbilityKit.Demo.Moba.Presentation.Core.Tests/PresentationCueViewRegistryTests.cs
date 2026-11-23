@@ -107,6 +107,43 @@ public sealed class PresentationCueViewRegistryTests
     }
 
     [Fact]
+    public void TransientPlaysUntilBackendExpiryAndIsNotPartOfTheActiveBaseline()
+    {
+        var port = new FakePort();
+        var registry = new PresentationCueViewRegistry<string, int, int>(port);
+        var decision = Decision(true, PresentationCueCommandKind.EmitTransient, "impact");
+
+        Assert.True(registry.Apply(in decision));
+        var handle = Assert.Single(port.Alive);
+        Assert.Equal(0, registry.ActiveCount);
+        Assert.False(registry.TryGetHandle("impact", out _));
+        registry.ReconcileActiveSet(Array.Empty<string>());
+        Assert.Contains(handle, port.Alive);
+        Assert.Equal(0, port.DestroyCalls);
+
+        port.Alive.Remove(handle);
+        registry.Clear();
+        Assert.Equal(0, port.DestroyCalls);
+    }
+
+    [Fact]
+    public void ClearRetriesAFailedTransientTeardown()
+    {
+        var port = new FakePort();
+        var registry = new PresentationCueViewRegistry<string, int, int>(port);
+        Assert.True(registry.EmitTransient("impact", 1));
+        var handle = Assert.Single(port.Alive);
+        port.DestroyFailures.Add(handle);
+
+        Assert.Throws<AggregateException>(() => registry.Clear());
+        Assert.Contains(handle, port.Alive);
+        port.DestroyFailures.Clear();
+        registry.Clear();
+        Assert.Empty(port.Alive);
+        Assert.Equal(1, registry.DestroyedCount);
+    }
+
+    [Fact]
     public void Clear_forces_active_instances_and_already_unregistered_drain_tails()
     {
         var port = new DrainingPort();

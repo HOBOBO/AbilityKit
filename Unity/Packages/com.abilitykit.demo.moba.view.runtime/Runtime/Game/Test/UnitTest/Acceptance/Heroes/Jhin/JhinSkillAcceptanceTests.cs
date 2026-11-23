@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.Triggering.Cue;
@@ -12,6 +13,7 @@ using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Services.Area;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Protocol.Moba;
@@ -71,6 +73,9 @@ namespace AbilityKit.Game.Test.UnitTest
         private const int ELauncherId = 33010301;
         private const int EEnterTriggerId = 30010311;
         private const int EAreaId = 42010301;
+        private const int EFuseAreaId = 42010302;
+        private const int EBlastVisualAreaId = 42010303;
+        private const int EDetonateTriggerId = 30010313;
         private const int ESlowBuffId = 32010301;
         private const int EHitPresentationTemplateId = 90013018;
         private const int RSkillId = 30010401;
@@ -1525,7 +1530,7 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
-        public void E_ArmsAfterDelayHitsOneEnemyAppliesDamageAndSlowThenRemovesArea()
+        public void E_FirstEnterStartsFuse_ThenDetonationQueriesAtLandingPoint()
         {
             var hero = new HeroSkillContract("Jhin", HeroId, HeroId, new[] { ESkillId });
             var skill = new HeroSkillSlotContract(3, ESkillId, ESkillId, ESkillId);
@@ -1557,15 +1562,21 @@ namespace AbilityKit.Game.Test.UnitTest
                 HeroSkillHeadlessContract.AssertTriggerActions(
                     harness,
                     EEnterTriggerId,
+                    (int)TriggeringConstants.SpawnAreaId.Value);
+                HeroSkillHeadlessContract.AssertTriggerActions(
+                    harness,
+                    EDetonateTriggerId,
                     (int)TriggeringConstants.GiveDamageId.Value,
                     (int)TriggeringConstants.AddBuffId.Value,
-                    (int)TriggeringConstants.RemoveAreaId.Value);
+                    (int)TriggeringConstants.SpawnAreaId.Value);
 
                 harness.EnterGameAndWarmup(reason: "jhin e delayed area runtime contract");
                 var casterActorId = harness.AssertPlayerActorBound();
                 var enemy = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "enemy", 9301, x: 0f, z: 2f);
+                var lateEnemy = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "late_enemy", 9302, x: -6f, z: 2f);
                 harness.Tick(1);
                 var enemyHp = harness.GetActorHp(enemy);
+                var lateEnemyHp = harness.GetActorHp(lateEnemy);
 
                 using var hud = JhinHudAimFixture.Create(
                     null,
@@ -1645,50 +1656,148 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.Tick(5);
                 Assert.AreEqual(enemyHp, harness.GetActorHp(enemy), 0.001f, "The trap must not damage targets before the 500 ms arming delay.");
 
-                for (var i = 0; i < 60 && areas.ActiveCount > 0; i++) harness.Tick(1);
+                var entrant = harness.AssertActorEntity(enemy);
+                var entrantTransform = entrant.transform.Value;
+                entrant.ReplaceTransform(new Transform3(new Vec3(2f, entrantTransform.Position.Y, 2f),
+                    entrantTransform.Rotation, entrantTransform.Scale));
+                harness.TickUntilTraceNodeInRoot(effectTrace.RootId, MobaExecutionKind.AreaSpawn, EFuseAreaId,
+                    maxTicks: 60, message: "The first armed enter should spawn a fuse, not apply damage.");
+                Assert.AreEqual(enemyHp, harness.GetActorHp(enemy), 0.001f);
+                Assert.IsFalse(harness.HasActorBuff(enemy, ESlowBuffId));
 
-                var diagnostics = MobaAcceptanceTraceExporter.CaptureTraceRecords(harness, "jhin_e_area_runtime_contract_world");
-                var areaEntersBeforeDamage = 0;
-                for (var i = 0; i < diagnostics.Length; i++)
-                {
-                    if (diagnostics[i].kind == "AreaEnter" && diagnostics[i].configId == EAreaId)
-                        areaEntersBeforeDamage++;
-                }
-                Assert.Less(harness.GetActorHp(enemy), enemyHp,
-                    $"The armed trap should damage an enemy already inside its area. activeAreas={areas.ActiveCount} areaEnters={areaEntersBeforeDamage}");
-                var eTraceSummary = string.Empty;
-                for (var i = 0; i < diagnostics.Length; i++)
-                {
-                    if (i > 0) eTraceSummary += "; ";
-                    eTraceSummary += diagnostics[i].kind + ":" + diagnostics[i].configId + ":target=" + diagnostics[i].targetActorId;
-                }
-                Assert.IsTrue(harness.HasActorBuff(enemy, ESlowBuffId), "The first accepted enemy enter should apply Jhin E slow. trace=" + eTraceSummary);
-                Assert.AreEqual(0, areas.ActiveCount, "The first accepted enemy enter should remove the actual runtime area.");
+                var lateActor = harness.AssertActorEntity(lateEnemy);
+                var lateTransform = lateActor.transform.Value;
+                lateActor.ReplaceTransform(new Transform3(new Vec3(-2f, lateTransform.Position.Y, 2f),
+                    lateTransform.Rotation, lateTransform.Scale));
+                entrant.ReplaceTransform(new Transform3(new Vec3(6f, entrantTransform.Position.Y, 2f),
+                    entrantTransform.Rotation, entrantTransform.Scale));
+                harness.Tick(15);
+                Assert.AreEqual(enemyHp, harness.GetActorHp(enemy), 0.001f);
+                Assert.AreEqual(lateEnemyHp, harness.GetActorHp(lateEnemy), 0.001f, "Late entry cannot bypass the fuse.");
 
-                var eHitCue = CapturePresentationCue(harness, EHitPresentationTemplateId);
-                Assert.AreEqual((int)MobaPresentationCueStage.Executed, eHitCue.Stage,
-                    "The armed E enter must publish its hit presentation at logical execution time.");
-                Assert.AreEqual(EHitPresentationTemplateId, eHitCue.TemplateId,
-                    "E hit presentation must resolve through the configured presentation template.");
+                harness.TickUntilTraceNodeInRoot(effectTrace.RootId, MobaExecutionKind.AreaSpawn, EBlastVisualAreaId,
+                    maxTicks: 120, message: "The fuse should detonate once at the original landing point.");
+                Assert.AreEqual(enemyHp, harness.GetActorHp(enemy), 0.001f, "An enemy that left the blast must not take damage.");
+                Assert.Less(harness.GetActorHp(lateEnemy), lateEnemyHp, "An enemy in range at detonation must take damage.");
+                Assert.IsTrue(harness.HasActorBuff(lateEnemy, ESlowBuffId));
+
+                var eHitCue = CapturePresentationCue(harness, EBlastVisualAreaId);
+                Assert.AreEqual((int)MobaPresentationCueStage.Started, eHitCue.Stage);
                 Assert.AreEqual(EHitPresentationTemplateId, eHitCue.VfxId,
                     "E hit presentation must carry the configured VFX template into the cue snapshot.");
                 Assert.AreEqual(casterActorId, eHitCue.SourceActorId);
-                Assert.AreEqual(enemy, eHitCue.TargetActorId);
-                CollectionAssert.Contains(eHitCue.Targets, enemy,
-                    "E hit presentation must be targeted at the enemy that entered the armed trap.");
+                Assert.AreEqual(3, eHitCue.Positions.Length);
+                Assert.AreEqual(eExit.X, eHitCue.Positions[0], 0.15f);
+                Assert.AreEqual(eExit.Z, eHitCue.Positions[2], 0.15f);
 
-                var records = diagnostics;
-                var damages = 0;
-                var areaEnters = 0;
-                for (var i = 0; i < records.Length; i++)
+                harness.Tick(120);
+                Assert.AreEqual(0, areas.ActiveCount, "The trap, fuse, and blast visual must all expire.");
+                var records = MobaAcceptanceTraceExporter.CaptureTraceRecords(harness, "jhin_e_area_runtime_contract_world");
+                Assert.AreEqual(1, records.Count(record => record.kind == "DamageApply" && record.configId == ESkillId));
+                Assert.AreEqual(1, records.Count(record => record.kind == "AreaEnter" && record.configId == EAreaId));
+                Assert.AreEqual(1, records.Count(record => record.kind == "AreaSpawn" && record.configId == EFuseAreaId));
+                Assert.AreEqual(1, records.Count(record => record.kind == "AreaSpawn" && record.configId == EBlastVisualAreaId));
+            }
+        }
+
+        [Test]
+        public void E_TwoTrapsRetireOnlyTheEnteredInstanceAndExplodeIndependently()
+        {
+            var hero = new HeroSkillContract("Jhin", HeroId, HeroId, new[] { ESkillId });
+            using var harness = HeroSkillHeadlessContract.CreateHarness(hero, "jhin_e_two_traps");
+            harness.EnterGameAndWarmup(reason: "two traps from the same caster");
+            var caster = harness.AssertPlayerActorBound();
+            var enemyA = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "trap_a", 9311, x: 12f, z: 2f);
+            var enemyB = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "trap_b", 9312, x: 12f, z: 11f);
+            harness.Tick(1);
+            var areas = harness.World.Services.Resolve<MobaAreaRuntimeService>();
+            var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+            var snapshots = harness.World.Services.Resolve<IWorldStateSnapshotBatchProvider>();
+            var pending = new List<WorldStateSnapshot>();
+            var cues = new List<MobaPresentationCueSnapshotEntry>();
+
+            void TickUntil(Func<bool> condition, string message)
+            {
+                for (var tick = 0; tick < 150 && !condition(); tick++)
                 {
-                    if (records[i].kind == "DamageApply" && records[i].configId == ESkillId && records[i].targetActorId == enemy)
-                        damages++;
-                    if (records[i].kind == "AreaEnter" && records[i].configId == EAreaId)
-                        areaEnters++;
+                    harness.Tick(1);
+                    pending.Clear();
+                    snapshots.CollectSnapshots(harness.FrameTime.Frame, pending, 32);
+                    foreach (var snapshot in pending)
+                        if (snapshot.OpCode == MobaOpCodes.Snapshot.PresentationCue)
+                            cues.AddRange(MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload));
                 }
-                Assert.AreEqual(1, damages, "The one-shot trap should apply exactly one E damage event.");
-                Assert.AreEqual(1, areaEnters, "The one-shot trap should dispatch exactly one accepted AreaEnter.");
+                Assert.IsTrue(condition(), message);
+            }
+
+            List<MobaAreaRuntimeInfo> FindAreas(int templateId)
+            {
+                var result = new List<MobaAreaRuntimeInfo>();
+                areas.TryGetAreas(result, caster, templateId);
+                return result;
+            }
+
+            void MoveOnto(int actorId, in MobaAreaRuntimeInfo trap)
+            {
+                var actor = harness.AssertActorEntity(actorId);
+                var transform = actor.transform.Value;
+                actor.ReplaceTransform(new Transform3(new Vec3(trap.Center.X, transform.Position.Y, trap.Center.Z),
+                    transform.Rotation, transform.Scale));
+            }
+
+            Assert.IsTrue(skills.TryCastBySlot(caster, 3, new Vec3(0f, 0f, 2f), Vec3.Forward, 0).Success);
+            TickUntil(() => FindAreas(EAreaId).Count == 1, "First trap did not land.");
+            var trapA = FindAreas(EAreaId).Single();
+            var secondLanding = new ProjectileEventArgs
+            {
+                EventId = "projectile.exit",
+                Frame = harness.FrameTime.Frame.Value,
+                SourceActorId = caster,
+                ProjectileTemplateId = EProjectileId,
+                Position = new Vec3(0f, trapA.Center.Y, 11f),
+                Direction = Vec3.Forward,
+                ExitReason = ProjectileExitReason.MaxDistance,
+                SourceContext = new ProjectileSourceContext(caster, 0, EProjectileId,
+                    trapA.SourceContextId, trapA.RootContextId, trapA.OwnerContextId, trapA.SkillRuntimeHandle, default)
+            };
+            var request = MobaTriggerExecutionRequest<ProjectileEventArgs>.Create(ELandingTriggerId, secondLanding, secondLanding.EventId);
+            harness.World.Services.Resolve<MobaTriggerExecutionGateway>().ExecuteDirectTrigger(in request);
+            TickUntil(() => FindAreas(EAreaId).Count == 2, "Second trap did not land before the first expired.");
+            var trapB = FindAreas(EAreaId).Single(trap => trap.AreaId != trapA.AreaId);
+            var armedAt = harness.FrameTime.Frame.Value + 20;
+            TickUntil(() => harness.FrameTime.Frame.Value >= armedAt, "Both traps should be armed before entry.");
+            var hpA = harness.GetActorHp(enemyA);
+            var hpB = harness.GetActorHp(enemyB);
+
+            MoveOnto(enemyA, in trapA);
+            TickUntil(() => FindAreas(EFuseAreaId).Count == 1 && !areas.TryGetArea(trapA.AreaId, out _),
+                "A should retire when its fuse starts.");
+            Assert.AreEqual(trapB.AreaId, FindAreas(EAreaId).Single().AreaId);
+            Assert.AreEqual(hpA, harness.GetActorHp(enemyA));
+            Assert.That(cues.Count(cue => cue.TemplateId == EAreaId &&
+                cue.Stage == (int)MobaPresentationCueStage.Completed), Is.EqualTo(1));
+            var fuseA = FindAreas(EFuseAreaId).Single();
+            Assert.AreEqual(trapA.Center.Z, fuseA.Center.Z, 0.01f);
+
+            var staggeredAt = harness.FrameTime.Frame.Value + 5;
+            TickUntil(() => harness.FrameTime.Frame.Value >= staggeredAt, "Stagger the fuse timers.");
+            MoveOnto(enemyB, in trapB);
+            TickUntil(() => FindAreas(EFuseAreaId).Count == 2 && FindAreas(EAreaId).Count == 0,
+                "B should still trigger independently.");
+            var fuseB = FindAreas(EFuseAreaId).Single(fuse => fuse.AreaId != fuseA.AreaId);
+            Assert.AreEqual(trapB.Center.Z, fuseB.Center.Z, 0.01f);
+            TickUntil(() => harness.GetActorHp(enemyA) < hpA, "Trap A never damaged its occupant.");
+            Assert.AreEqual(hpB, harness.GetActorHp(enemyB), 0.001f, "Trap A must not damage the occupant of B.");
+            var hpAfterA = harness.GetActorHp(enemyA);
+            TickUntil(() => harness.GetActorHp(enemyB) < hpB, "Trap B never damaged its occupant.");
+            Assert.AreEqual(hpAfterA, harness.GetActorHp(enemyA), 0.001f, "Trap B must not damage the occupant of A.");
+            TickUntil(() => areas.ActiveCount == 0, "All temporary areas should retire.");
+            foreach (var template in new[] { EAreaId, EFuseAreaId, EBlastVisualAreaId })
+            {
+                Assert.That(cues.Count(cue => cue.TemplateId == template &&
+                    cue.Stage == (int)MobaPresentationCueStage.Started), Is.EqualTo(2), $"Started {template}");
+                Assert.That(cues.Count(cue => cue.TemplateId == template &&
+                    cue.Stage == (int)MobaPresentationCueStage.Completed), Is.EqualTo(2), $"Completed {template}");
             }
         }
 

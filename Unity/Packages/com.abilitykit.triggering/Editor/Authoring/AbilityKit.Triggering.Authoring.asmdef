@@ -1,0 +1,10 @@
+{
+  "name": "AbilityKit.Triggering.Authoring",
+  "rootNamespace": "AbilityKit.Triggering",
+  "references": ["AbilityKit.Triggering"],
+  "includePlatforms": ["Editor"],
+  "overrideReferences": true,
+  "precompiledReferences": ["Newtonsoft.Json.dll"],
+  "autoReferenced": false,
+  "noEngineReferences": true
+}

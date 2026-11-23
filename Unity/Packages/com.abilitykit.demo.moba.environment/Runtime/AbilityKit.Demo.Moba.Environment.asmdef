@@ -3,7 +3,8 @@
   "rootNamespace": "AbilityKit.Demo.Moba.EnvironmentModel",
   "references": [
     "AbilityKit.Environment",
-    "AbilityKit.BattleScenario"
+    "AbilityKit.BattleScenario",
+    "AbilityKit.Scenario"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

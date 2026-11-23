@@ -47,8 +47,9 @@ public sealed partial class RoomSubscribeFrameSyncHandler : GatewayRequestHandle
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.Forbidden);
 
         var numericRoomId = await mapping.GetOrCreateNumericIdAsync(wire.RoomId);
-        await _subscriptions.EnsureSubscribedAsync(context.ConnectionId, numericRoomId,
-            GatewayFrameSyncSubscriptionManager.PushFormat.Room);
+        if (await _clusterClient.GetGrain<IBattleFrameSyncGrain>(numericRoomId.ToString()).GetSettledBindingAsync() != null)
+            return GatewayResponse.Error(request.Seq, GatewayStatusCode.SettledFrameVersionMismatch);
+        await _subscriptions.EnsureSubscribedAsync(context.ConnectionId, numericRoomId);
         var result = new WireRoomSubscribeFrameSyncRes { Success = true, Message = string.Empty };
         return GatewayResponse.Ok(request.Seq, WireRoomGatewayBinary.Serialize(in result).ToArray());
     }
@@ -91,6 +92,11 @@ public sealed partial class RoomSubmitFrameInputHandler : GatewayRequestHandlerB
             !RoomFrameSyncAuthorization.SupportsFrameSync(snapshot))
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.Forbidden);
 
+        var numericRoomId = await mapping.GetOrCreateNumericIdAsync(wire.RoomId);
+        var grain = _clusterClient.GetGrain<IBattleFrameSyncGrain>(numericRoomId.ToString());
+        if (await grain.GetSettledBindingAsync() != null)
+            return GatewayResponse.Error(request.Seq, GatewayStatusCode.SettledFrameVersionMismatch);
+
         var guard = _inputGuard.Check(wire.SessionToken, wire.BattleId, wire.PlayerId,
             sequence: 0, nowTicks: DateTime.UtcNow.Ticks, lane: GatewayBattleInputLane.FrameInput);
         if (guard == GatewayBattleInputGuardResult.RateLimited)
@@ -104,8 +110,6 @@ public sealed partial class RoomSubmitFrameInputHandler : GatewayRequestHandlerB
             return GatewayResponse.Ok(request.Seq, WireRoomGatewayBinary.Serialize(in limited).ToArray());
         }
 
-        var numericRoomId = await mapping.GetOrCreateNumericIdAsync(wire.RoomId);
-        var grain = _clusterClient.GetGrain<IBattleFrameSyncGrain>(numericRoomId.ToString());
         var submitted = await grain.SubmitInputWithResultAsync(wire.WorldId, wire.Frame,
             new FrameInputItem(wire.PlayerId, wire.InputOpCode, wire.Payload ?? Array.Empty<byte>()));
         var result = new WireRoomSubmitFrameInputRes

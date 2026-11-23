@@ -44,6 +44,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         private void ResetReconcileInternal(WorldContext ctx)
         {
+            if (ctx.SettledTimeline != null) return;
             EndInputReplay(ctx);
             ctx.PredictedHashes?.Clear();
             ctx.AuthoritativeHashes?.Clear();
@@ -71,6 +72,13 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             public IWorld World;
             public IWorldInputSink InputSink;
+            public IWorldSettledInputSink SettledInputSink;
+            public IConsumableRemoteFrameSource<PlayerInputCommand[]> PendingSettlement;
+            public IWorldSettledTimelineSink SettledTimeline;
+            public InputHistoryRingBuffer RawPredictionInputs;
+            public WorldSettledInputFrame PendingSettledFrame;
+            public IWorldSettledFrameUpdate PendingSettledUpdate;
+            public IConsumableRemoteFrameSource<WorldSettledInputFrame> PendingSettledSource;
             public FrameTime FrameTime;
 
             public FrameIndex ConfirmedFrame;
@@ -125,6 +133,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         private readonly Dictionary<WorldId, WorldContext> _contexts = new Dictionary<WorldId, WorldContext>();
 
         private readonly Func<WorldId, IConsumableRemoteFrameSource<PlayerInputCommand[]>> _resolveRemoteInputs;
+        private readonly bool _useSettledExecutionInputs;
+        private readonly Func<WorldId, IConsumableRemoteFrameSource<WorldSettledInputFrame>> _resolveSettledFrames;
         private readonly Func<WorldId, ILocalInputSource<LocalPlayerInputEvent[]>> _resolveLocalInputs;
         private readonly Func<WorldId, int> _resolveIdealFrameLimit;
         private readonly int _inputDelayFrames;
@@ -214,8 +224,16 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             int rollbackCaptureEveryNFrames = 1,
             Func<IWorld, RollbackRegistry> buildRollbackRegistry = null,
             Func<IWorld, Func<FrameIndex, WorldStateHash>> buildComputeHash = null,
-            ClientPredictionDriverBufferOptions bufferOptions = null)
+            ClientPredictionDriverBufferOptions bufferOptions = null,
+            bool useSettledExecutionInputs = false,
+            Func<WorldId, IConsumableRemoteFrameSource<WorldSettledInputFrame>> resolveSettledFrames = null)
         {
+            if (resolveSettledFrames != null && resolveRemoteInputs != null)
+                throw new ArgumentException("A settled timeline cannot consume legacy remote input.", nameof(resolveRemoteInputs));
+            _useSettledExecutionInputs = useSettledExecutionInputs || resolveSettledFrames != null;
+            if (_useSettledExecutionInputs && buildComputeHash != null)
+                throw new ArgumentException("Legacy hash reconciliation is not a settled execution proof.", nameof(buildComputeHash));
+            _resolveSettledFrames = resolveSettledFrames;
             _resolveRemoteInputs = resolveRemoteInputs;
             _resolveLocalInputs = resolveLocalInputs;
             _resolveIdealFrameLimit = resolveIdealFrameLimit;
@@ -481,7 +499,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             if (baselineFrame.Value < 0 ||
                 !_contexts.TryGetValue(worldId, out var ctx) ||
-                ctx == null)
+                ctx == null || ctx.SettledTimeline != null)
             {
                 return false;
             }
@@ -653,10 +671,23 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 }
             }
 
+            if (_useSettledExecutionInputs && (sink is not IWorldSettledInputSink || rollback == null ||
+                !_bufferOptions.Has(ClientPredictionDriverBufferFeatures.AppliedInputHistory) ||
+                _rollbackCaptureEveryNFrames != 1))
+                throw new InvalidOperationException("Settled execution requires a settled input sink, per-frame rollback capture, and applied input history.");
+
+            (sink as IWorldClientInputSink)?.BindClientInput();
+            var timeline = _resolveSettledFrames != null
+                ? sink as IWorldSettledTimelineSink ?? throw new InvalidOperationException("Missing settled timeline sink.")
+                : null;
+            timeline?.BindSettledTimeline();
             _contexts[world.Id] = new WorldContext
             {
                 World = world,
                 InputSink = sink,
+                SettledInputSink = _useSettledExecutionInputs ? sink as IWorldSettledInputSink : null,
+                SettledTimeline = timeline,
+                RawPredictionInputs = timeline != null ? new InputHistoryRingBuffer(_bufferOptions.InputHistoryCapacity) : null,
                 FrameTime = frameTime,
                 ConfirmedFrame = new FrameIndex(0),
                 PredictedFrame = new FrameIndex(0),
@@ -811,7 +842,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             FrameIndex restoredFrame,
             FrameIndex replayToFrame)
         {
-            if (ctx == null || ctx.InputReplayActive) return;
+            if (ctx == null || ctx.InputReplayActive || ctx.SettledInputSink != null) return;
             if (!(ctx.InputSink is IWorldInputReplaySink replaySink)) return;
 
             replaySink.BeginReplay(restoredFrame, replayToFrame);
@@ -829,7 +860,34 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 return;
             }
 
-            ctx.InputSink?.Submit(frame, inputs);
+            SubmitReceivedInput(ctx, frame, inputs);
+        }
+
+        private static void SubmitReceivedInput(WorldContext ctx, FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
+        {
+            if (ctx.InputSink is IWorldClientInputSink clientInput) clientInput.SubmitReceived(frame, inputs);
+            else ctx.InputSink?.Submit(frame, inputs);
+        }
+
+        private void ScheduleSettledInput(WorldContext ctx, FrameIndex frame, PlayerInputCommand[] inputs,
+            IConsumableRemoteFrameSource<PlayerInputCommand[]> source, float deltaTime)
+        {
+            AlignFrameTime(ctx.FrameTime, frame, deltaTime);
+            try
+            {
+                ctx.SettledInputSink.ExecuteSettledInputs(frame, inputs);
+            }
+            catch (Exception exception)
+            {
+                ctx.RollbackFaulted = true;
+                Log.Warning($"[ClientPredictionDriverModule] Settled input dispatch failed at {frame.Value}: {exception}");
+                return;
+            }
+
+            ctx.AppliedInputs.Store(frame, inputs);
+            ctx.PredictedFrame = frame;
+            ctx.PendingSettlement = source;
+            _shouldRunWorldTick = true;
         }
 
         private static void EndInputReplay(WorldContext ctx)
@@ -843,6 +901,117 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             {
                 ctx.InputReplayActive = false;
             }
+        }
+
+        private bool AdvanceSettledTimeline(WorldContext ctx,
+            IConsumableRemoteFrameSource<WorldSettledInputFrame> source, float deltaTime)
+        {
+            try
+            {
+                if (ctx.Mode == ReplayMode.Replaying && ctx.PredictedFrame.Value >= ctx.ReplayTo.Value)
+                    ctx.Mode = ReplayMode.Normal;
+                var nextConfirmed = new FrameIndex(ctx.ConfirmedFrame.Value + 1);
+                if (source != null && nextConfirmed.Value <= source.TargetFrame)
+                {
+                    if (!source.TryGet(nextConfirmed.Value, out var record) || record == null) return true;
+                    if (record.Frame.Value != nextConfirmed.Value)
+                        throw new InvalidOperationException("Unexpected settled frame identity.");
+
+                    var update = ctx.SettledTimeline.PrepareSettledFrame(record);
+                    var matches = false;
+                    if (ctx.PredictedFrame.Value >= nextConfirmed.Value)
+                    {
+                        if (!ctx.AppliedInputs.TryGet(nextConfirmed, out var applied))
+                            throw new InvalidOperationException("Settled frame is outside applied-input history.");
+                        matches = InputsEqual(applied, record.ExecutedInputs);
+                        if (!matches || update.InvalidatesPrediction && ctx.PredictedFrame.Value > nextConfirmed.Value)
+                            RestoreSettledSuffix(ctx, nextConfirmed, matches);
+                    }
+
+                    if (matches)
+                    {
+                        CommitTimelineFrame(ctx, source, record, update);
+                    }
+                    else
+                    {
+                        AlignFrameTime(ctx.FrameTime, nextConfirmed, deltaTime);
+                        ctx.SettledInputSink.ExecuteSettledInputs(nextConfirmed, record.ExecutedInputs);
+                        ctx.PendingSettledFrame = record;
+                        ctx.PendingSettledUpdate = update;
+                        ctx.PendingSettledSource = source;
+                        _shouldRunWorldTick = true;
+                    }
+                }
+                else if (ctx.Mode == ReplayMode.Replaying && ctx.PredictedFrame.Value < ctx.ReplayTo.Value)
+                {
+                    var next = new FrameIndex(ctx.PredictedFrame.Value + 1);
+                    if (!ctx.RawPredictionInputs.TryGet(next, out var inputs))
+                        throw new InvalidOperationException("Missing original predicted input for suffix replay.");
+                    SchedulePrediction(ctx, next, inputs, deltaTime);
+                }
+                else
+                {
+                    ctx.Mode = ReplayMode.Normal;
+                    return false;
+                }
+
+                _isReplaying = ctx.Mode == ReplayMode.Replaying;
+                _replayToFrame = ctx.ReplayTo;
+                _lastRollbackFrame = ctx.LastRollbackFrame;
+            }
+            catch (Exception exception)
+            {
+                ctx.RollbackFaulted = true;
+                Log.Warning($"[ClientPredictionDriverModule] Settled timeline paused: {exception}");
+            }
+            return true;
+        }
+
+        private void RestoreSettledSuffix(WorldContext ctx, FrameIndex nextConfirmed, bool matches)
+        {
+            var boundary = matches ? nextConfirmed : ctx.ConfirmedFrame;
+            var replayTo = Math.Max(ctx.PredictedFrame.Value, ctx.Mode == ReplayMode.Replaying ? ctx.ReplayTo.Value : 0);
+            for (var frame = nextConfirmed.Value + 1; frame <= replayTo; frame++)
+            {
+                if (!ctx.RawPredictionInputs.TryGet(new FrameIndex(frame), out _))
+                    throw new InvalidOperationException("Unconfirmed suffix is outside raw prediction history.");
+            }
+            if (!TryRestoreState(ctx, boundary))
+            {
+                _totalRollbackRestoreFailed++;
+                throw new InvalidOperationException($"Cannot restore settled correction boundary {boundary.Value}.");
+            }
+
+            _totalRollbackCount++;
+            ctx.Mode = ReplayMode.Replaying;
+            ctx.ReplayTo = new FrameIndex(replayTo);
+            ctx.PredictedFrame = boundary;
+            ctx.PredictedBeforeTick = boundary;
+            ctx.LastRollbackFrame = boundary;
+            ctx.LastProcessedRollbackFrame = boundary;
+        }
+
+        private void CommitTimelineFrame(WorldContext ctx, IConsumableRemoteFrameSource<WorldSettledInputFrame> source,
+            WorldSettledInputFrame record, IWorldSettledFrameUpdate update)
+        {
+            if (ctx.World.Services?.TryResolve<IWorldFrameGuard>(out var guard) == true && !guard.CanCommit)
+                throw new InvalidOperationException("World frame cannot commit the settled record.");
+            if (!source.TryGet(record.Frame.Value, out var available) || !ReferenceEquals(available, record) ||
+                !source.TryConsume(record.Frame.Value, out var consumed) || !ReferenceEquals(consumed, record))
+                throw new InvalidOperationException("Settled record changed before commit.");
+
+            update.Commit();
+            ctx.ConfirmedFrame = record.Frame;
+            if (ctx.PredictedFrame.Value < record.Frame.Value) ctx.PredictedFrame = record.Frame;
+            _lastConsumedConfirmedFrames = 1;
+            _totalConsumedConfirmedFrames++;
+        }
+
+        private static void ClearPendingTimelineFrame(WorldContext ctx)
+        {
+            ctx.PendingSettledFrame = null;
+            ctx.PendingSettledUpdate = null;
+            ctx.PendingSettledSource = null;
         }
 
         private void OnWorldDestroyed(WorldId worldId)
@@ -876,6 +1045,13 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 if (ctx == null) continue;
                 if (ctx.World == null || ctx.InputSink == null) continue;
                 if (ctx.RollbackFaulted) continue;
+                if (ctx.PendingSettledFrame != null)
+                {
+                    ClearPendingTimelineFrame(ctx);
+                    ctx.RollbackFaulted = true;
+                    Log.Warning("[ClientPredictionDriverModule] World tick did not complete the pending settled frame.");
+                    continue;
+                }
                 if (ctx.World.Services?.TryResolve<IWorldFrameGuard>(out var preGuard) == true && !preGuard.CanAdvance) continue;
                 ctx.PredictedBeforeTick = ctx.PredictedFrame;
                 ctx.ConfirmedBeforeTick = ctx.ConfirmedFrame;
@@ -884,6 +1060,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 _lastConsumedPredictedFrames = 0;
 
                 var remote = _resolveRemoteInputs != null ? _resolveRemoteInputs(worldId) : null;
+                var timelineSource = _resolveSettledFrames?.Invoke(worldId);
                 var local = _resolveLocalInputs != null ? _resolveLocalInputs(worldId) : null;
 
                 // 每次 HostRuntime.Tick 只提交一次。
@@ -899,7 +1076,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 // - 硬上限：_maxPredictionAheadFrames
                 // - 动态窗口：基于权威积压帧数（TargetFrame - ConfirmedFrame）
                 // - 通过 EWMA 平滑积压帧数，避免窗口抖动。
-                var rawBacklog = remote != null ? (remote.TargetFrame - ctx.ConfirmedFrame.Value) : 0;
+                var rawBacklog = (timelineSource?.TargetFrame ?? remote?.TargetFrame ?? ctx.ConfirmedFrame.Value) - ctx.ConfirmedFrame.Value;
                 if (rawBacklog < 0) rawBacklog = 0;
 
                 ctx.BacklogRaw = rawBacklog;
@@ -962,6 +1139,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     ScheduleLocalInputs(ctx, evts);
                 }
 
+                if (ctx.SettledTimeline != null && AdvanceSettledTimeline(ctx, timelineSource, deltaTime)) continue;
+
                 // 步骤 1（优先）：如果下一确认帧有权威输入，则应用它。
                 if (remote != null && ctx.Mode == ReplayMode.Normal)
                 {
@@ -974,6 +1153,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         PlayerInputCommand[] authInputs;
                         if (!remote.TryGet(nextConfirmed, out authInputs) || authInputs == null)
                         {
+                            if (ctx.SettledInputSink != null) continue;
                             authInputs = Array.Empty<PlayerInputCommand>();
                         }
 
@@ -999,6 +1179,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                                         $"predicted={ctx.PredictedFrame.Value}, historyCapacity={ctx.AppliedInputs.Capacity}");
                                 }
 
+                                if (ctx.SettledInputSink != null) ctx.RollbackFaulted = true;
                                 continue;
                             }
 
@@ -1025,6 +1206,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                                 else
                                 {
                                     _totalRollbackRestoreFailed++;
+                                    if (ctx.SettledInputSink != null) ctx.RollbackFaulted = true;
+                                    continue;
                                 }
                             }
                             else
@@ -1040,8 +1223,15 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         else
                         {
                             // 消费并应用权威输入。
+                            if (ctx.SettledInputSink != null && !confirmsAlreadyPredictedFrame)
+                            {
+                                ScheduleSettledInput(ctx, frame, authInputs, remote, deltaTime);
+                                continue;
+                            }
+
                             if (!remote.TryConsume(nextConfirmed, out var consumed) || consumed == null)
                             {
+                                if (ctx.SettledInputSink != null) continue;
                                 consumed = Array.Empty<PlayerInputCommand>();
                             }
                             if (consumed.Length > 0)
@@ -1057,13 +1247,14 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                             if (confirmsAlreadyPredictedFrame)
                             {
+                                if (ctx.SettledInputSink != null) continue;
                                 // The world has already simulated this exact input. Use this host tick
                                 // to prepare the next predicted frame instead of executing it twice.
                             }
                             else
                             {
                                 AlignFrameTime(ctx.FrameTime, frame, deltaTime);
-                                ctx.InputSink.Submit(frame, consumed);
+                                SubmitReceivedInput(ctx, frame, consumed);
                                 _shouldRunWorldTick = true;
                                 ctx.AppliedInputs?.Store(frame, consumed);
 
@@ -1094,6 +1285,13 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         ctx.ReplayWaitTicks = 0;
                         ctx.LastReplayWaitTargetFrame = -1;
                         _isReplaying = false;
+                        continue;
+                    }
+
+                    if (ctx.SettledInputSink != null)
+                    {
+                        if (remote != null && remote.TryGet(next.Value, out var available) && available != null)
+                            ScheduleSettledInput(ctx, next, available, remote, deltaTime);
                         continue;
                     }
 
@@ -1212,15 +1410,43 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         }
                     }
 
-                    AlignFrameTime(ctx.FrameTime, next, deltaTime);
-                    ctx.InputSink.Submit(next, predictedInputs);
-                    _shouldRunWorldTick = true;
-                    ctx.PredictedFrame = next;
-                    ctx.AppliedInputs?.Store(next, predictedInputs);
-                    _lastConsumedPredictedFrames = 1;
-                    _totalPredictedFrames++;
+                    if (ctx.RawPredictionInputs != null)
+                    {
+                        for (var index = 0; index < predictedInputs.Length; index++)
+                        {
+                            var input = predictedInputs[index];
+                            predictedInputs[index] = new PlayerInputCommand(next, input.Player, input.OpCode, (byte[])input.Payload.Clone());
+                        }
+                        ctx.RawPredictionInputs.Store(next, predictedInputs);
+                    }
+                    SchedulePrediction(ctx, next, predictedInputs, deltaTime);
                 }
             }
+        }
+
+        private void SchedulePrediction(WorldContext ctx, FrameIndex next, PlayerInputCommand[] predictedInputs, float deltaTime)
+        {
+            AlignFrameTime(ctx.FrameTime, next, deltaTime);
+            if (ctx.SettledInputSink != null)
+            {
+                try
+                {
+                    predictedInputs = ctx.SettledInputSink.ExecutePredictedInputs(next, predictedInputs);
+                }
+                catch (Exception exception)
+                {
+                    ctx.RollbackFaulted = true;
+                    Log.Warning($"[ClientPredictionDriverModule] Prediction input dispatch failed at {next.Value}: {exception}");
+                    return;
+                }
+            }
+            else if (ctx.InputSink is IWorldClientInputSink clientInput) clientInput.SubmitPredicted(next, predictedInputs);
+            else ctx.InputSink.Submit(next, predictedInputs);
+            _shouldRunWorldTick = true;
+            ctx.PredictedFrame = next;
+            ctx.AppliedInputs?.Store(next, predictedInputs);
+            _lastConsumedPredictedFrames = 1;
+            _totalPredictedFrames++;
         }
 
         private void ScheduleLocalInputs(WorldContext ctx, LocalPlayerInputEvent[] events)
@@ -1330,12 +1556,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             frameTime.AlignTo(baselineFrame, 0f);
         }
 
-        private static bool InputsEqual(PlayerInputCommand[] a, PlayerInputCommand[] b)
+        private static bool InputsEqual(PlayerInputCommand[] a, IReadOnlyList<PlayerInputCommand> b)
         {
             if (ReferenceEquals(a, b)) return true;
             if (a == null) a = Array.Empty<PlayerInputCommand>();
             if (b == null) b = Array.Empty<PlayerInputCommand>();
-            if (a.Length != b.Length) return false;
+            if (a.Length != b.Count) return false;
 
             for (int i = 0; i < a.Length; i++)
             {
@@ -1366,25 +1592,58 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 if (ctx == null) continue;
                 if (ctx.World?.Services?.TryResolve<IWorldFrameGuard>(out var postGuard) == true && !postGuard.CanCommit)
                 {
+                    ctx.PendingSettlement = null;
+                    ClearPendingTimelineFrame(ctx);
                     ctx.PredictedFrame = ctx.PredictedBeforeTick;
                     ctx.ConfirmedFrame = ctx.ConfirmedBeforeTick;
                     ctx.RollbackFaulted = true;
                     continue;
                 }
                 if (!_enableRollback || ctx.Rollback == null) continue;
-                if (!ShouldProcessRollbackFrame(ctx.PredictedFrame, ctx.LastProcessedRollbackFrame)) continue;
+                var captureFrame = ctx.PendingSettledFrame?.Frame ?? ctx.PredictedFrame;
+                if (!ShouldProcessRollbackFrame(captureFrame, ctx.LastProcessedRollbackFrame)) continue;
 
-                ctx.LastProcessedRollbackFrame = ctx.PredictedFrame;
+                ctx.LastProcessedRollbackFrame = captureFrame;
                 ctx.CaptureCounter++;
                 if (ctx.CaptureCounter % _rollbackCaptureEveryNFrames != 0) continue;
 
                 try
                 {
-                    if (!ctx.Rollback.TryCaptureAndStore(ctx.PredictedFrame, out var captureResult))
+                    if (!ctx.Rollback.TryCaptureAndStore(captureFrame, out var captureResult))
                     {
+                        ctx.PendingSettlement = null;
+                        ClearPendingTimelineFrame(ctx);
+                        if (ctx.SettledInputSink != null) ctx.PredictedFrame = ctx.PredictedBeforeTick;
                         ctx.RollbackFaulted = true;
                         Log.Warning($"[ClientPredictionDriverModule] Rollback capture failed; world tick paused. result={captureResult}");
                         continue;
+                    }
+
+                    if (ctx.PendingSettlement != null)
+                    {
+                        var source = ctx.PendingSettlement;
+                        ctx.PendingSettlement = null;
+                        var frame = ctx.PredictedFrame;
+                        if (!ctx.AppliedInputs.TryGet(frame, out var simulated) ||
+                            !source.TryGet(frame.Value, out var available) || available == null ||
+                            !InputsEqual(simulated, available) ||
+                            !source.TryConsume(frame.Value, out var committed) || committed == null ||
+                            !InputsEqual(simulated, committed))
+                        {
+                            ctx.RollbackFaulted = true;
+                            ctx.PredictedFrame = ctx.PredictedBeforeTick;
+                            continue;
+                        }
+                        ctx.AuthoritativeInputs?.Store(frame, committed);
+                        ctx.ConfirmedFrame = frame;
+                        _lastConsumedConfirmedFrames = 1;
+                        _totalConsumedConfirmedFrames++;
+                    }
+
+                    if (ctx.PendingSettledFrame != null)
+                    {
+                        CommitTimelineFrame(ctx, ctx.PendingSettledSource, ctx.PendingSettledFrame, ctx.PendingSettledUpdate);
+                        ClearPendingTimelineFrame(ctx);
                     }
 
                     if (ctx.ComputeHash != null && ctx.Reconciler != null)
@@ -1414,6 +1673,11 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 }
                 catch (Exception ex)
                 {
+                    if (ctx.PendingSettledFrame != null)
+                    {
+                        ctx.PredictedFrame = ctx.PredictedBeforeTick;
+                        ClearPendingTimelineFrame(ctx);
+                    }
                     ctx.RollbackFaulted = true;
                     Log.Exception(ex);
                 }

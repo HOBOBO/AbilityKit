@@ -127,6 +127,13 @@ public sealed class MobaBattleFlowProfileTests
         profiles["moba.quiet"].ValidateHostMode("Local");
         Assert.Throws<InvalidOperationException>(() =>
             profiles["moba.quiet"].ValidateHostMode("GatewayRemote"));
+
+        var preview = profiles["moba.skill_preview"];
+        Assert.Equal(new[] { "sync", "view" }, preview.GetFeatures("Battle.InMatch"));
+        Assert.Contains("session", preview.GetFeatures("Battle.Prepare"));
+        Assert.Equal(profiles["moba.standard"].SessionModuleIds, preview.SessionModuleIds);
+        preview.ValidateHostMode("Local");
+        Assert.Throws<InvalidOperationException>(() => preview.ValidateHostMode("GatewayRemote"));
     }
 
     [Fact]

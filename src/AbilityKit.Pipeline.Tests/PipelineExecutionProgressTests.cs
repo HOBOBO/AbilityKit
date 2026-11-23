@@ -106,6 +106,104 @@ public sealed class PipelineExecutionProgressTests
         run.Release();
     }
 
+    [Fact]
+    public void Structural_validation_allows_changed_delay_but_resumption_differs()
+    {
+        var config = new TestConfig();
+        var phaseId = new AbilityPipelinePhaseId("delay");
+        var original = new TestPipeline();
+        original.AddPhase(new AbilityDelayPhase<TestContext>(phaseId, 0.5f));
+        var revised = new TestPipeline();
+        revised.AddPhase(new AbilityDelayPhase<TestContext>(phaseId, 1f));
+        var run = original.Start(config, new TestContext());
+        IAbilityPipelineRun<TestContext>? resumed = null;
+
+        try
+        {
+            run.Tick(0f);
+            run.Tick(0.25f);
+            var saved = Progress.Capture(run, config);
+            resumed = revised.AttachRun(config, new TestContext(), attached => Progress.Restore(attached, config, saved));
+            AssertRun(saved, Progress.Capture(resumed, config));
+
+            run.Tick(0.25f);
+            resumed.Tick(0.25f);
+
+            Assert.Equal(EAbilityPipelineState.Completed, run.State);
+            Assert.Equal(EAbilityPipelineState.Executing, resumed.State);
+            Assert.Equal(0.5, Assert.Single(Assert.Single(Progress.Capture(resumed, config).Phases).Numbers));
+        }
+        finally
+        {
+            resumed?.Release();
+            run.Release();
+        }
+    }
+
+    [Fact]
+    public void Legacy_phase_without_factory_shares_live_state_but_not_captured_values()
+    {
+        var pipeline = new TestPipeline();
+        pipeline.AddPhase(new LegacyDelay());
+        var config = new TestConfig();
+        var first = pipeline.Start(config, new TestContext());
+        IAbilityPipelineRun<TestContext>? second = null;
+
+        try
+        {
+            first.Tick(0f);
+            first.Tick(0.25f);
+            var saved = Progress.Capture(first, config);
+            Assert.Equal(0.25, Assert.Single(Assert.Single(saved.Phases).Numbers));
+
+            second = pipeline.Start(config, new TestContext());
+            Assert.NotSame(first.Context, second.Context);
+            Assert.Same(Assert.Single(first.Phases), Assert.Single(second.Phases));
+            Assert.Equal(0, Assert.Single(Assert.Single(Progress.Capture(first, config).Phases).Numbers));
+            Assert.Equal(0.25, Assert.Single(Assert.Single(saved.Phases).Numbers));
+        }
+        finally
+        {
+            second?.Release();
+            first.Release();
+        }
+    }
+
+    [Fact]
+    public void Restore_write_failure_leaves_earlier_phase_changed_without_setting_run_position()
+    {
+        var pipeline = new TestPipeline();
+        pipeline.AddPhase(new AbilityDelayPhase<TestContext>(1f));
+        pipeline.AddPhase(new AbilityDelayPhase<TestContext>(2f));
+        var config = new TestConfig();
+        var run = pipeline.Start(config, new TestContext());
+
+        try
+        {
+            run.Tick(0f);
+            run.Tick(0.25f);
+            var saved = Progress.Capture(run, config);
+            run.Tick(0.25f);
+            run.Pause();
+            Assert.Equal(0.5, Assert.Single(Progress.Capture(run, config).Phases[0].Numbers));
+
+            var injected = new InvalidOperationException("phase write failed");
+            var preparations = 0;
+            var failure = Assert.Throws<InvalidOperationException>(() => Progress.Restore(run, config, saved,
+                restoreCustom: (phase, _) => ReferenceEquals(phase, run.Phases[1]) ? throw injected : false,
+                prepare: _ => preparations++));
+
+            Assert.Same(injected, failure);
+            Assert.Equal(1, preparations);
+            Assert.True(run.IsPaused);
+            Assert.Equal(0.25, Assert.Single(Progress.Capture(run, config).Phases[0].Numbers));
+        }
+        finally
+        {
+            run.Release();
+        }
+    }
+
     private static void AssertRun(PipelineRunProgress<PipelinePhaseProgress> expected,
         PipelineRunProgress<PipelinePhaseProgress> actual)
     {
@@ -136,6 +234,12 @@ public sealed class PipelineExecutionProgressTests
     private sealed class TestPipeline : AbilityPipeline<TestContext>
     {
         protected override void ReleaseContext(TestContext context) { }
+    }
+
+    private sealed class LegacyDelay : AbilityDurationalPhaseBase<TestContext>
+    {
+        public LegacyDelay() : base("legacy-delay") => Duration = 1f;
+        protected override void OnExecute(TestContext context) { }
     }
 
     private sealed class CountingCondition : IAbilityConditionNode

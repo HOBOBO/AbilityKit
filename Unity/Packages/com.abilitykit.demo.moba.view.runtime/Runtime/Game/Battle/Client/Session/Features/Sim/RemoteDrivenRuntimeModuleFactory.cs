@@ -22,6 +22,20 @@ namespace AbilityKit.Game.Flow
 
         private static ClientPredictionDriverModule CreatePredictionModule(RemoteDrivenWorldRuntimeFactoryOptions options)
         {
+            if (options.ResolveSettledFrames != null)
+                return new ClientPredictionDriverModule(
+                    resolveRemoteInputs: null,
+                    resolveLocalInputs: options.EnableClientPrediction ? options.ResolveLocalInputs : _ => null,
+                    resolveIdealFrameLimit: options.ResolveIdealFrameLimit,
+                    inputDelayFrames: options.InputDelayFrames,
+                    maxPredictionAheadFrames: options.EnableClientPrediction ? 30 : 0,
+                    minPredictionWindow: options.EnableClientPrediction ? 1 : 0,
+                    enableRollback: true,
+                    rollbackHistoryFrames: PredictionRollbackHistoryFrames,
+                    rollbackCaptureEveryNFrames: 1,
+                    buildRollbackRegistry: options.BuildRollbackRegistry,
+                    resolveSettledFrames: options.ResolveSettledFrames);
+
             return options.EnableClientPrediction
                 ? CreateClientPredictionModule(options)
                 : CreateRemoteOnlyModule(options);

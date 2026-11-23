@@ -1,6 +1,8 @@
 #nullable enable
 
 using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Demo.Moba.Rollback;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Battle.Agent
 {
@@ -54,6 +56,8 @@ namespace AbilityKit.Game.Battle.Agent
         public bool HasBaseline => _admission.HasBaseline;
         public int LastAcceptedFrame => _admission.LastAcceptedFrame;
 
+        internal bool IsExpectedWorld(ulong worldId) => _admission.IsExpectedWorld(worldId);
+
         public void Reset(ulong activeWorldId)
         {
             _admission.Reset(activeWorldId);
@@ -64,13 +68,39 @@ namespace AbilityKit.Game.Battle.Agent
             _admission.RequireFullBaseline();
         }
 
+        /// <summary>
+        /// 固定基线已在重建层验证；世界应用前只判定准入，不移动游标。
+        /// </summary>
+        internal MobaSnapshotAdmissionResult CheckFixed(in GatewayStateSyncSnapshot snapshot) => Map(
+            _admission.Check(snapshot.WorldId, snapshot.Frame, snapshot.IsFullSnapshot, ResolveAdmissionSchema(in snapshot),
+                explicitBaselineAndOrderValidated: true));
+
+        /// <summary>
+        /// 在世界应用成功后，提交通过检查的固定基线快照。
+        /// </summary>
+        internal MobaSnapshotAdmissionResult CommitFixed(in GatewayStateSyncSnapshot snapshot) => Admit(
+            snapshot.WorldId, snapshot.Frame, snapshot.IsFullSnapshot, ResolveAdmissionSchema(in snapshot),
+            explicitBaselineAndOrderValidated: true);
+
+        internal static int ResolveAdmissionSchema(in GatewayStateSyncSnapshot snapshot) =>
+            snapshot.PresentationCueBaseline is { Length: > 0 } &&
+            snapshot.PayloadOpCode == MobaCharacterHfsmWireCodec.CompressedOpCode &&
+            snapshot.SchemaVersion == MobaCharacterHfsmWireCodec.CompressedSchemaVersion
+                ? MobaStateSyncCuePayloadCodec.CarrierSchemaVersion
+                : snapshot.SchemaVersion;
+
         public MobaSnapshotAdmissionResult Admit(
             ulong worldId,
             int frame,
             bool isFullSnapshot,
-            int schemaVersion = 0)
+            int schemaVersion = 0,
+            bool explicitBaselineAndOrderValidated = false)
         {
-            var result = _admission.Admit(worldId, frame, isFullSnapshot, schemaVersion);
+            return Map(_admission.Admit(worldId, frame, isFullSnapshot, schemaVersion, explicitBaselineAndOrderValidated));
+        }
+
+        private static MobaSnapshotAdmissionResult Map(AuthoritativeSnapshotAdmissionResult result)
+        {
             return new MobaSnapshotAdmissionResult(
                 MapStatus(result.Status),
                 result.LastAcceptedFrame,

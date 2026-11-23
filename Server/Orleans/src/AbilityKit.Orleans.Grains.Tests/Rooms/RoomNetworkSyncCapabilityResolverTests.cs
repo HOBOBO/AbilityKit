@@ -52,7 +52,7 @@ public sealed class RoomNetworkSyncCapabilityResolverTests
     {
         var metadata = Resolve(GameplayRoomTypes.Moba);
 
-        Assert.Equal(nameof(NetworkSyncModel.Lockstep), metadata.ProfileName);
+        Assert.Equal("Moba.SettledFrameSyncV2", metadata.ProfileName);
         Assert.Equal((int)ClientPlaybackPolicy.None, metadata.ClientPlayback);
         Assert.Equal((int)InputPolicy.DeterministicBroadcast, metadata.Input);
         Assert.Equal((int)SnapshotPolicy.None, metadata.Snapshot);
@@ -63,7 +63,7 @@ public sealed class RoomNetworkSyncCapabilityResolverTests
     {
         var metadata = Resolve(GameplayRoomTypes.LegacyMoba);
 
-        Assert.Equal(nameof(NetworkSyncModel.Lockstep), metadata.ProfileName);
+        Assert.Equal("Moba.SettledFrameSyncV2", metadata.ProfileName);
         Assert.Equal((int)ClientPlaybackPolicy.None, metadata.ClientPlayback);
         Assert.Equal((int)InputPolicy.DeterministicBroadcast, metadata.Input);
         Assert.Equal((int)SnapshotPolicy.None, metadata.Snapshot);
@@ -87,7 +87,7 @@ public sealed class RoomNetworkSyncCapabilityResolverTests
         {
             RoomType = roomType,
             SyncOptions = new BattleSyncStartOptions(
-                "frame-sync-authority",
+                "moba-settled-frame-sync-v2",
                 (int)NetworkSyncModel.Lockstep,
                 null,
                 null,
@@ -99,6 +99,6 @@ public sealed class RoomNetworkSyncCapabilityResolverTests
         return RoomNetworkSyncCapabilityResolver.Resolve(
             summary,
             initParams,
-            "frame-sync-authority");
+            "moba-settled-frame-sync-v2");
     }
 }

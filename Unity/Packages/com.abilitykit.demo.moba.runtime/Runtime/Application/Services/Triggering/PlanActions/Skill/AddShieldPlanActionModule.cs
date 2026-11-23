@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Triggering.Registry;
@@ -40,6 +41,29 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var effectInput = new MobaEffectActionInput(in coreInput);
             var sourceActorId = effectInput.CasterActorId;
+            var retaliationDamage = 0f;
+            var sourceVersion = 0;
+            if (!string.IsNullOrEmpty(args.RetaliationLevelParameter))
+            {
+                var handle = effectInput.ExecutionContext.SkillRuntimeHandle;
+                if (args.SharePolicy != ShieldSharePolicy.None || args.TransferPolicy != ShieldTransferPolicy.None ||
+                    args.StackingPolicy != ShieldStackingPolicy.Independent || !handle.IsValid ||
+                    !ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var runtimes) || runtimes == null ||
+                    !runtimes.TryGetLevelParameter(in handle, args.RetaliationLevelParameter, out var baseDamage) ||
+                    !ctx.Context.TryResolve<MobaActorRegistry>(out var registry) || registry == null ||
+                    !registry.TryGet(sourceActorId, out var source) || !source.hasAttributeGroup ||
+                    (sourceVersion = registry.GetEntityVersion(sourceActorId)) <= 0)
+                {
+                    LogRejected(ctx, "retaliation requires an independent non-transferable shield and a valid skill source");
+                    return;
+                }
+                retaliationDamage = baseDamage + source.GetMobaAttrs().MagicAttack * args.RetaliationMagicRatio;
+                if (!(retaliationDamage > 0f) || float.IsInfinity(retaliationDamage))
+                {
+                    LogRejected(ctx, "retaliation damage must be finite and positive");
+                    return;
+                }
+            }
             var targets = PooledMobaPlanActionLists.GetIntList();
             try
             {
@@ -59,7 +83,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 {
                     for (var i = 0; i < targets.Count; i++)
                     {
-                        var instanceId = AddShield(shields, args, effectInput, ctx, sourceActorId, targets[i], LogApplied);
+                        var instanceId = AddShield(shields, args, effectInput, ctx, sourceActorId, targets[i], LogApplied,
+                            retaliationDamage, sourceVersion);
                         if (instanceId <= 0) continue;
                         if (firstInstanceId == 0) firstInstanceId = instanceId;
                         addedCount++;
@@ -78,7 +103,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
         }
 
-        private static int AddShield(MobaShieldService shields, AddShieldArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, int sourceActorId, int targetActorId, Action<string> logApplied)
+        private static int AddShield(MobaShieldService shields, AddShieldArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, int sourceActorId, int targetActorId, Action<string> logApplied,
+            float retaliationDamage, int retaliationSourceVersion)
         {
             if (targetActorId <= 0) return 0;
 
@@ -102,6 +128,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var layer = new ShieldLayer
             {
                 ShieldId = args.ShieldId,
+                RetaliationDamage = MobaResourceFixedConvert.ToFixed(retaliationDamage),
+                RetaliationSourceVersion = retaliationSourceVersion,
                 SourceActorId = sourceActorId,
                 OwnerActorId = sourceActorId,
                 TargetActorId = targetActorId,

@@ -76,7 +76,9 @@ class Rule:
                 for field in ("OpenTriggerIds", "TickTriggerIds", "CloseTriggerIds"):
                     graph.check_value(owner + "/Window", phase["Window"], field, "triggers")
             if phase.get("Timeline") is not None:
-                for index, event in enumerate(phase["Timeline"].get("Events") or []):
+                timeline = phase["Timeline"]
+                graph.check_value(owner + "/Timeline", timeline, "CastGateTagTemplateId", "continuous_tag_templates")
+                for index, event in enumerate(timeline.get("Events") or []):
                     graph.check_value(f"{owner}/Timeline/Events/{index}", event, "EffectId", "triggers", True)
             for index, child in enumerate(phase.get("Children") or []):
                 check_phase(child, f"{owner}/Children/{index}")

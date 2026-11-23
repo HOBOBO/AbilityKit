@@ -180,6 +180,18 @@ messages:
     payloadType: AbilityKit.Protocol.Room.WireRequestFullStateSyncReq
     response: request-full-state-sync.response
     sensitiveFields: [sessionToken]
+  - id: subscribe-fixed-baseline-state-sync.request
+    opCode: 123
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireSubscribeStateSyncReq
+    response: subscribe-fixed-baseline-state-sync.response
+    sensitiveFields: [sessionToken]
+  - id: subscribe-fixed-baseline-state-sync.response
+    opCode: 123
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireSubscribeStateSyncRes
   - id: request-full-state-sync.response
     opCode: 108
     direction: s2c

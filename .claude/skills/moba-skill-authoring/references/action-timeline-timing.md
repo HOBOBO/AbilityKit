@@ -43,7 +43,7 @@ blend 通常在片段占用内，不能无依据再加一遍。持续循环/架�
 | 导出 | `com.abilitykit.thirdparty.actioneditor/ActionEditor/Editor/LogicJsonExporter.cs`：取 asset.Length，逐片段导出 StartTime 与 Length |
 | 分流 | `com.abilitykit.actionschema/Runtime/Ability/Share/ActionSchema/ActionTimelineRuntime.cs`：logic/presentation 分流都保留源总长及片段原始 start/length，不按各自轨道重新裁剪总长 |
 | Flow 引用 | `com.abilitykit.demo.moba.editor/Editor/Moba/SkillFlowDefs.cs`：SkillTimelinePhaseDef.MobaLogicTimeline 非空才调用编译器；为空仍使用手填 Timeline |
-| 编译 | `com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/MobaActionTimelineCompiler.cs`：DurationMs 来自 asset.length，事件 AtMs 来自 clip.start；毫秒按 AwayFromZero 四舍五入，不是 ceil |
+| 编译 | `com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/MobaActionTimelineCompiler.cs`：DurationMs 来自 asset.length，事件 AtMs 来自 clip.start；毫秒按 AwayFromZero 四舍五入，不是 ceil |
 | 发布 | `com.abilitykit.demo.moba.editor/Editor/Moba/MobaSkillPipelineExporter.cs`：由 SkillFlowCO 编译并发布 Unity/Console，不根据同名文件自动建立引用 |
 
 现有 ActionTimelinePartition 校验会检查片段开始时间不超过总长，但**不会完整拦截 start + length 越过总长**。

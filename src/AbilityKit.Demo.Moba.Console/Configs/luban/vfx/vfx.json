@@ -713,5 +713,10 @@
     "Id": 90013021,
     "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Ground",
     "DurationMs": 0
+  },
+  {
+    "Id": 90031011,
+    "Resource": "MobaVfx/Jhin/E_Charge",
+    "DurationMs": 2000
   }
 ]

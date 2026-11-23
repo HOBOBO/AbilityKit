@@ -151,7 +151,7 @@ com.abilitykit.demo.shooter.editor/
 
 ### 5.1 ShooterDemoWindow — 主窗口
 
-参考 [`EditorGameFlowPumpWindow`](Unity/Packages/com.abilitykit.demo.moba.editor/Editor/Preview/EditorGameFlowPumpWindow.cs) 的 Editor 驱动模式和 [`FrameSyncTestWindow`](Unity/Packages/com.abilitykit.demo.moba.editor/Editor/FrameSync/FrameSyncTestWindow.cs) 的分面板布局。
+参考 [`EditorGameFlowPumpWindow`](../Unity/Packages/com.abilitykit.demo.moba.editor/Editor/Preview/EditorGameFlowPumpWindow.cs) 的 Editor 驱动模式和 [`FrameSyncTestWindow`](../Unity/Packages/com.abilitykit.demo.moba.editor/Editor/FrameSync/FrameSyncTestWindow.cs) 的分面板布局。
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -200,7 +200,7 @@ com.abilitykit.demo.shooter.editor/
 
 ### 5.3 Editor 驱动模式
 
-参考 [`EditorGameFlowPumpWindow`](Unity/Packages/com.abilitykit.demo.moba.editor/Editor/Preview/EditorGameFlowPumpWindow.cs:136) 的模式：
+参考 [`EditorGameFlowPumpWindow`](../Unity/Packages/com.abilitykit.demo.moba.editor/Editor/Preview/EditorGameFlowPumpWindow.cs#L136) 的模式：
 
 ```csharp
 // 核心驱动循环
@@ -246,7 +246,7 @@ private void OnEditorUpdate()
 
 ### 6.1 ShooterEditorSceneViewSink
 
-实现 [`IShooterSnapshotViewSink`](Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/View/IShooterSnapshotViewSink.cs) 接口，将 `ShooterSnapshotViewBatch` 转化为 SceneView Gizmo 绘制数据：
+实现 [`IShooterSnapshotViewSink`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/View/IShooterSnapshotViewSink.cs) 接口，将 `ShooterSnapshotViewBatch` 转化为 SceneView Gizmo 绘制数据：
 
 ```csharp
 public sealed class ShooterEditorSceneViewSink : IShooterSnapshotViewSink
@@ -351,7 +351,7 @@ public sealed class ShooterEditorInputProvider
 
 ### 8.1 Editor 窗口中的网络参数
 
-网络环境参数通过 Editor 窗口的滑条实时修改，调用 [`ShooterAcceptanceSession.ApplyNetwork()`](Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs) 方法：
+网络环境参数通过 Editor 窗口的滑条实时修改，调用 [`ShooterAcceptanceSession.ApplyNetwork()`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs) 方法：
 
 ```
 ┌─ 网络环境 ─────────────────────────────────┐
@@ -426,7 +426,7 @@ private void ApplyNetworkParameters()
 
 ### 9.3 漂移数据来源
 
-使用 [`ShooterAcceptanceSession.CompareWorlds()`](Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs) 获取 `ShooterWorldComparison`：
+使用 [`ShooterAcceptanceSession.CompareWorlds()`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs) 获取 `ShooterWorldComparison`：
 
 ```csharp
 if (_session.HasAuthoritativeWorld)
@@ -458,7 +458,7 @@ if (_session.HasAuthoritativeWorld)
 
 ### 10.2 事件日志
 
-`ShooterSnapshotViewBatch.Events` 包含 [`ShooterEventSnapshot`](Unity/Packages/com.abilitykit.protocol.shooter/Runtime/StateSync/ShooterStateSnapshotCodec.cs:56)：
+`ShooterSnapshotViewBatch.Events` 包含 [`ShooterEventSnapshot`](../Unity/Packages/com.abilitykit.protocol.shooter/Runtime/StateSync/ShooterStateSnapshotCodec.cs#L56)：
 
 | EventType | 含义 | 显示 |
 |-----------|------|------|

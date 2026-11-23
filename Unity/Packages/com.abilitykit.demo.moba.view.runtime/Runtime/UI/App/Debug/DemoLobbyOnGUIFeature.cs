@@ -210,6 +210,7 @@ namespace AbilityKit.Game.Flow
             {
                 _config = LoadFirstAsset<BattleStartConfig>();
             }
+            _config = AbilityKit.Game.Battle.Testing.MobaBattleScenarioPlayback.ResolveLocalStartConfig(_config);
 #endif
         }
 

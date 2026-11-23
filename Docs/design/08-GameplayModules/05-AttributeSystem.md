@@ -2,9 +2,10 @@
 
 > 文档类型：Canonical 设计（Attributes/Modifiers 跨模块边界）
 > 事实基线：2026-08-16
-> 文档版本：v3.0
+> 文档版本：v3.1
 >
 > 基于 `AbilityKit.Attributes` + `AbilityKit.Modifiers` 的真实实现，说明属性、修改器、公式、约束与 MOBA 集成方式。
+> 独立安装、API 用法与静默求值契约见 [Attributes 包入口](../../../Unity/Packages/com.abilitykit.attributes/README.md)及[使用说明](../../../Unity/Packages/com.abilitykit.attributes/Documentation~/Usage.md)。
 
 ---
 
@@ -104,17 +105,17 @@ flowchart LR
 
 | 角色 | 类型 | 源码 |
 | --- | --- | --- |
-| 注册表 | `AttributeRegistry` | [`AttributeRegistry.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeRegistry.cs:17) |
-| 定义 | `AttributeDef` | [`AttributeDef.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeDef.cs:16) |
-| 上下文 | `AttributeContext` | [`AttributeContext.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeContext.cs:16) |
-| 分组 | `AttributeGroup` | [`AttributeGroup.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeGroup.cs:15) |
-| 单属性实例 | `AttributeInstance` | [`AttributeInstance.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeInstance.cs:16) |
-| 默认公式 | `DefaultAttributeFormula` | [`DefaultAttributeFormula.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Formula/DefaultAttributeFormula.cs:14) |
-| 表达式公式 | `AttributeExpressionFormula` | [`AttributeExpressionFormula.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Formula/AttributeExpressionFormula.cs:30) |
-| 区间约束 | `RangeAttributeConstraint` | [`RangeAttributeConstraint.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Constraint/RangeAttributeConstraint.cs:7) |
-| 修改器数据 | `ModifierData` | [`ModifierData.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Data/ModifierData.cs:32) |
-| 修改器计算器 | `ModifierCalculator` | [`ModifierCalculator.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Engine/ModifierCalculator.cs:25) |
-| 数值来源 | `MagnitudeSource` | [`MagnitudeSource.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Source/MagnitudeSource.cs:486) |
+| 注册表 | `AttributeRegistry` | [`AttributeRegistry.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeRegistry.cs#L17) |
+| 定义 | `AttributeDef` | [`AttributeDef.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeDef.cs#L16) |
+| 上下文 | `AttributeContext` | [`AttributeContext.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeContext.cs#L16) |
+| 分组 | `AttributeGroup` | [`AttributeGroup.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeGroup.cs#L15) |
+| 单属性实例 | `AttributeInstance` | [`AttributeInstance.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeInstance.cs#L16) |
+| 默认公式 | `DefaultAttributeFormula` | [`DefaultAttributeFormula.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Formula/DefaultAttributeFormula.cs#L14) |
+| 表达式公式 | `AttributeExpressionFormula` | [`AttributeExpressionFormula.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Formula/AttributeExpressionFormula.cs#L30) |
+| 区间约束 | `RangeAttributeConstraint` | [`RangeAttributeConstraint.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Constraint/RangeAttributeConstraint.cs#L7) |
+| 修改器数据 | `ModifierData` | [`ModifierData.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Data/ModifierData.cs#L32) |
+| 修改器计算器 | `ModifierCalculator` | [`ModifierCalculator.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Engine/ModifierCalculator.cs#L25) |
+| 数值来源 | `MagnitudeSource` | [`MagnitudeSource.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Source/MagnitudeSource.cs#L486) |
 | MOBA 属性映射 | `MobaAttributeIds` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttributeIds.cs` |
 | MOBA 属性便捷访问 | `MobaAttrs` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Attributes/MobaAttrs.cs` |
 | 运行时组件 | `AttributeGroupComponent` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/AttributeSystemComponents.cs` |
@@ -131,20 +132,20 @@ flowchart LR
 2. 保存 `AttributeDef`，提供公式、约束、默认值、分组信息。
 3. 构建依赖图，在依赖属性变化时标记下游属性失效。
 
-关键行为见 [`AttributeRegistry.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeRegistry.cs:17)：
+关键行为见 [`AttributeRegistry.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeRegistry.cs#L17)：
 
 - `Register(AttributeDef def)`：注册定义。
 - `Request(string name)`：按名称获取或创建属性。
 - `Freeze()`：冻结注册表并构建依赖图。
 - `GetDependents(AttributeId id)`：查询哪些属性依赖当前属性。
-- `GetFormula(AttributeId id)`：获取属性公式，默认回退到 [`DefaultAttributeFormula`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Formula/DefaultAttributeFormula.cs:14)。
+- `GetFormula(AttributeId id)`：获取属性公式，默认回退到 [`DefaultAttributeFormula`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Formula/DefaultAttributeFormula.cs#L14)。
 - `GetConstraint(AttributeId id)`：获取约束。
 - `GetDefaultBaseValue(AttributeId id)`：获取默认基础值。
 - `GetGroup(AttributeId id)`：获取属性组。
 
 ### 3.2 `AttributeDef`：属性元信息
 
-`AttributeDef` 负责描述单个属性的元数据，见 [`AttributeDef.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeDef.cs:16)：
+`AttributeDef` 负责描述单个属性的元数据，见 [`AttributeDef.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeDef.cs#L16)：
 
 - `Name`：属性名称。
 - `Group`：所属组。
@@ -162,7 +163,7 @@ flowchart LR
 
 ### 3.3 冻结与循环依赖检测
 
-`Freeze()` 会调用 [`AttributeRegistry.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeRegistry.cs:77) 中的依赖图构建逻辑：
+`Freeze()` 会调用 [`AttributeRegistry.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeRegistry.cs#L77) 中的依赖图构建逻辑：
 
 - 清空旧的 dependents 表。
 - 收集每个属性的依赖。
@@ -180,7 +181,7 @@ flowchart LR
 
 ### 4.1 `AttributeContext`：世界级运行上下文
 
-`AttributeContext` 是把属性、时间、外部数据和修改器上下文统一起来的运行时对象，见 [`AttributeContext.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeContext.cs:16)：
+`AttributeContext` 是把属性、时间、外部数据和修改器上下文统一起来的运行时对象，见 [`AttributeContext.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeContext.cs#L16)：
 
 - 实现了 `IModifierContext`，可直接喂给 `Modifiers` 引擎。
 - 内部维护多个 `AttributeGroup`。
@@ -200,7 +201,7 @@ flowchart LR
 
 ### 4.2 `AttributeGroup`：按组组织属性实例
 
-`AttributeGroup` 是属性实例的分组容器，见 [`AttributeGroup.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeGroup.cs:15)：
+`AttributeGroup` 是属性实例的分组容器，见 [`AttributeGroup.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeGroup.cs#L15)：
 
 - `_attrs`：按 `AttributeId` 索引的字典。
 - `_byId`：数组缓存，加速按整数 ID 访问。
@@ -216,7 +217,7 @@ flowchart LR
 
 ### 4.3 `AttributeInstance`：单属性的最终计算单元
 
-`AttributeInstance` 负责一个属性的完整生命周期，见 [`AttributeInstance.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeInstance.cs:16)：
+`AttributeInstance` 负责一个属性的完整生命周期，见 [`AttributeInstance.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Core/AttributeInstance.cs#L16)：
 
 - 保存基础值和缓存值的槽位引用。
 - 保存修改器槽位。
@@ -238,7 +239,7 @@ flowchart LR
 
 ### 5.1 `ModifierData`：一个可生效的修改器实例
 
-`ModifierData` 是修改器系统的核心数据结构，见 [`ModifierData.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Data/ModifierData.cs:32)：
+`ModifierData` 是修改器系统的核心数据结构，见 [`ModifierData.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Data/ModifierData.cs#L32)：
 
 - `Key`：目标键。
 - `Op`：操作类型。
@@ -263,7 +264,7 @@ flowchart LR
 
 ### 5.2 `MagnitudeSource`：统一数值来源
 
-`MagnitudeSource` 定义了修改器数值如何被计算，见 [`MagnitudeSource.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Source/MagnitudeSource.cs:486)：
+`MagnitudeSource` 定义了修改器数值如何被计算，见 [`MagnitudeSource.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Source/MagnitudeSource.cs#L486)：
 
 支持类型：
 
@@ -285,7 +286,7 @@ flowchart LR
 
 ### 5.3 `ModifierCalculator`：缓存 + 计算核心
 
-`ModifierCalculator` 是高层入口，见 [`ModifierCalculator.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Engine/ModifierCalculator.cs:25)：
+`ModifierCalculator` 是高层入口，见 [`ModifierCalculator.cs`](../../../Unity/Packages/com.abilitykit.modifiers/Runtime/Core/Engine/ModifierCalculator.cs#L25)：
 
 - 提供多种 `Calculate(...)` 重载。
 - 支持可选缓存。
@@ -316,7 +317,7 @@ flowchart LR
 
 ### 6.1 默认公式
 
-`DefaultAttributeFormula` 见 [`DefaultAttributeFormula.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Formula/DefaultAttributeFormula.cs:14)：
+`DefaultAttributeFormula` 见 [`DefaultAttributeFormula.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Formula/DefaultAttributeFormula.cs#L14)：
 
 - 直接返回 `modifierResult.FinalValue`。
 - 如果结果为 `NaN` 或 `Infinity`，回退到 `0`。
@@ -325,7 +326,7 @@ flowchart LR
 
 ### 6.2 表达式公式
 
-`AttributeExpressionFormula` 见 [`AttributeExpressionFormula.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Formula/AttributeExpressionFormula.cs:30)：
+`AttributeExpressionFormula` 见 [`AttributeExpressionFormula.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Formula/AttributeExpressionFormula.cs#L30)：
 
 支持：
 
@@ -348,7 +349,7 @@ flowchart LR
 
 ### 6.3 约束
 
-`RangeAttributeConstraint` 见 [`RangeAttributeConstraint.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Constraint/RangeAttributeConstraint.cs:7)：
+`RangeAttributeConstraint` 见 [`RangeAttributeConstraint.cs`](../../../Unity/Packages/com.abilitykit.attributes/Runtime/Attributes/Constraint/RangeAttributeConstraint.cs#L7)：
 
 - 非法值直接回退为 `0`。
 - 否则按 `[min, max]` 裁剪。
@@ -500,4 +501,6 @@ sequenceDiagram
 
 ---
 
-*文档类型：Canonical 设计（Attributes/Modifiers 跨模块边界） | 事实基线：2026-08-16 | 证据等级：公共包局部 E3 | 文档版本：v3.0*
+*文档类型：Canonical 设计（Attributes/Modifiers 跨模块边界） | 事实基线：2026-08-16 | 证据等级：公共包局部 E3*
+
+*文档版本：v3.1 | 最后更新：2026-11-22（补包内导航）*

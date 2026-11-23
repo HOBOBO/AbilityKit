@@ -5,6 +5,7 @@ using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Area;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
@@ -61,6 +62,27 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 LogRejected(ctx, dependencyFailure);
                 return;
+            }
+
+            var eventArea = default(AreaId);
+            var rollbackAreas = projectiles as IAreaRollbackService;
+            if (args.ReplaceEventArea)
+            {
+                if (args.HasTargetRequest || !(triggerArgs is AreaEventArgs areaEvent) ||
+                    (areaEvent.EventId != "area.enter" && areaEvent.EventId != "area.cross"))
+                {
+                    LogRejected(ctx, "replace_event_area requires a single area spawned from area.enter or area.cross.");
+                    return;
+                }
+
+                eventArea = new AreaId(areaEvent.AreaId);
+                if (rollbackAreas == null || !areaRuntime.TryGetArea(eventArea.Value, out var previous) ||
+                    previous.OwnerActorId != input.CasterActorId || areaEvent.OwnerActorId != input.CasterActorId ||
+                    !rollbackAreas.IsAreaActive(eventArea))
+                {
+                    LogRejected(ctx, $"replace_event_area requires a live event area owned by the caster. eventAreaId={eventArea.Value} caster={input.CasterActorId}");
+                    return;
+                }
             }
 
             var radius = args.RadiusOverride > 0f ? args.RadiusOverride : aoe.Radius;
@@ -129,9 +151,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 center = center + offset;
                 LogInvestigation(ctx,
                     $"resolved area params center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
-                if (SpawnOneArea(this, projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, in areaForward, input.TargetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId) &&
-                    (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, runtimeAreaId, out var outputError) ||
-                     !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, 1, out outputError)))
+                if (!SpawnOneArea(this, projectiles, areaRuntime, executionContexts, args, aoe, input, ctx, in center, in areaForward, input.TargetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId))
+                    return;
+
+                if (args.ReplaceEventArea && !projectiles.DespawnArea(eventArea, frame))
+                {
+                    var replacement = new AreaId(runtimeAreaId);
+                    var compensated = rollbackAreas.CancelArea(replacement) && areaRuntime.RollbackSpawn(replacement, 0L);
+                    LogRejected(ctx, $"replace_event_area could not retire event area. eventAreaId={eventArea.Value} replacementAreaId={runtimeAreaId} compensated={compensated}");
+                    return;
+                }
+
+                if (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, runtimeAreaId, out var outputError) ||
+                    !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, 1, out outputError))
                 {
                     LogRejected(ctx, outputError);
                 }

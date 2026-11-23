@@ -51,7 +51,7 @@ Pipeline 适合表达：
 
 | 类型 | 路径 | 作用 |
 |------|------|------|
-| 通用管线 | `Unity/Packages/com.abilitykit.pipeline/Runtime/Core/Pipeline/AbilityPipeline.cs` | 创建运行句柄并推进阶段、终态和清理 |
+| 通用管线 | `Unity/Packages/com.abilitykit.pipeline/Runtime/Core/Pipeline/AbilityPipeline.cs`、`Unity/Packages/com.abilitykit.pipeline/Runtime/Core/Pipeline/AbilityPipeline.Run.cs` | 定义并创建运行句柄；Run 负责阶段推进、终态与清理 |
 | 运行阶段创建 | `Unity/Packages/com.abilitykit.pipeline/Runtime/Core/Pipeline/AbilityPipelinePhaseRuntime.cs` | 为每次运行创建或兼容复用阶段 |
 | 即时管线 | `Unity/Packages/com.abilitykit.pipeline/Runtime/Core/Pipeline/InstantAbilityPipeline.cs` | 同步执行仅即时阶段的管线 |
 | 上下文协议 | `Unity/Packages/com.abilitykit.pipeline/Runtime/Interface/IAbilityPipelineContext.cs` | 共享数据、阶段 ID、状态和中断字段 |
@@ -63,7 +63,7 @@ Pipeline 适合表达：
 | 生命周期注册表 | `Unity/Packages/com.abilitykit.pipeline/Runtime/Lifecycle/PipelineRegistry.cs` | 活跃运行注册、查询和全局中断 |
 | 池化 | `Unity/Packages/com.abilitykit.pipeline/Runtime/Pooling/PipelinePools.cs` | 运行阶段列表和查询列表复用 |
 | Ability 能力面 | `Unity/Packages/com.abilitykit.ability/Runtime/Ability` | Trigger、Effect、Config、Tag 和 World Service |
-| MOBA runner | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs` | MOBA PreCast/Cast 运行和领域清理 |
+| MOBA runner | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineRunner.cs` | MOBA PreCast/Cast 运行和领域清理 |
 | MOBA 配置 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline` | Timeline、RulePlan、Sequence、WaitUntil 的配置映射 |
 | 纯 C# 示例 | `Unity/Packages/com.abilitykit.samples/Runtime/Samples/Pipeline/PipelineBasics.cs` | 即时和跨帧管线最小用法 |
 
@@ -144,6 +144,17 @@ sequenceDiagram
 - “一个定义可安全启动任意多个并发运行”不是无条件成立的能力声明。
 
 阶段列表本身按运行隔离并池化；列表隔离不能弥补列表元素仍被复用的问题。
+
+### 4.2 Context 的数据与备份边界
+
+`IAbilityPipelineContext` 是一次运行的访问面。需要备份或回滚的项目应另有一份能独立捕获的上下文状态，按[业务状态与执行职责规范](../10-EngineeringQuality/12-BusinessStateAndExecutionBoundaries.md)实现捕获、只读校验、替换与重绑。Context 的实时对象、调试视图和上下文状态是不同的产物。
+
+- **跨阶段和跨帧数据**优先用领域的类型化字段表达，包括输入结果、逻辑计时和提交标记。阶段游标等若由 Run 持有，Context 的镜像从 Run 恢复；其他业务所有者的值通过稳定 ID/handle 关联。完整运行恢复仍需 Run、阶段和相关领域状态。
+- **共享字典是兼容入口。** 新增可恢复数据优先用显式状态字段；仍需互操作的键，应声明键名、类型、是否必填、所有者及快照支持。`GetData<T>` 的默认值不会区分类型错误和缺失，不能用作必填数据的校验。`SetData<T>` 和直接访问 `SharedData` 当前都能存任意对象；这不是回滚支持声明。
+- **不要把行为装进 Context 数据。** `Action`、`Func`、事件订阅、运行时服务、实体或引擎对象不得作为共享数据、可恢复字段或容器的嵌套值。保存“做什么”的规则 ID、参数和进度，再由阶段或宿主装配行为。现有 Action/WaitUntil/Repeat 委托入口仍可用于普通流程；接入回滚时，行为必须能从确定的定义/装配重绑，不能靠闭包保存计数、时间、随机状态或待执行任务。静态委托同样需要核对是否读取未声明的状态。
+- **恢复不再执行原来的玩法。** 可变容器在捕获和替换时不得共享存储；校验键、类型、版本与绑定身份后才写入。恢复后只重建关系，从下一帧用相同输入正常推进；不回调历史动作、不重新采样。共享字典遗留内容存在不支持的值时，启用回滚的入口应明确指出 Context 和键/字段，拒绝该次捕获或恢复，不能跳过后继续。
+
+Runtime 未强制上述写入限制。现有用法与首个收敛候选见[Context 专项复核](../10-EngineeringQuality/13-PipelineContinuousStateReview.md#7-context-专项复核2026-11-19)。
 
 ---
 
@@ -380,7 +391,7 @@ MOBA 的 `SkillPipelineRunner` 是通用 Pipeline 的参考接入，不是公共
 ## 15. 源码阅读路径
 
 1. 阅读 `IAbilityPipelineContext.cs`、`IAbilityPipelinePhase.cs` 和 `IAbilityPipelineRun.cs`。
-2. 阅读 `AbilityPipeline.cs`，跟踪 Start、Tick、终态和 Cleanup。
+2. 阅读 `AbilityPipeline.cs` 的 `Start`，再到 `AbilityPipeline.Run.cs` 跟踪 `Tick`、终态和 `Cleanup`。
 3. 阅读 `AbilityPipelinePhaseRuntime.cs`，理解实例工厂与兼容复用边界。
 4. 阅读 Sequence、Parallel、Conditional、Repeat 和 WaitUntil 阶段。
 5. 阅读 `InstantAbilityPipeline.cs`，对比同步执行语义。
@@ -399,6 +410,7 @@ MOBA 的 `SkillPipelineRunner` 是通用 Pipeline 的参考接入，不是公共
 - [MOBA 技能执行深潜](../09-ImplementationExamples/MOBA/05-SkillExecutionDeepDive.md)
 - [MOBA 技能 Flow 与 Pipeline 配置设计](../09-ImplementationExamples/MOBA/18-SkillFlowPipelineConfigDesign.md)
 - [跨模块性能与热路径治理](../10-EngineeringQuality/05-CrossModulePerformanceAndHotPathGovernance.md)
+- [Pipeline 与 Continuous 状态边界审查](../10-EngineeringQuality/13-PipelineContinuousStateReview.md)
 
 ---
 

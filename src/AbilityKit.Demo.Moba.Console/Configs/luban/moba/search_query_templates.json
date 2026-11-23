@@ -996,5 +996,83 @@
     "Selector": {
       "Kind": 4097
     }
+  },
+  {
+    "Id": 52020102,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 2147483647,
+    "Name": "Fishbones impact enemy units excluding primary",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 3,
+        "Radius": 2.5
+      },
+      {
+        "Kind": 770
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8193
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52030401,
+    "ExplicitTargetPolicy": 0,
+    "MaxCount": 1,
+    "Name": "Molten Shield self or explicit allied hero",
+    "Provider": {
+      "Kind": 4
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 0,
+        "Radius": 8
+      },
+      {
+        "Kind": 519
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8193
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
+  },
+  {
+    "Id": 52010301,
+    "ExplicitTargetPolicy": 2,
+    "MaxCount": 2147483647,
+    "Name": "Jhin - Captive Audience blast targets",
+    "Provider": {
+      "Kind": 6
+    },
+    "Rules": [
+      {
+        "Kind": 257,
+        "Center": 1,
+        "Radius": 3
+      }
+    ],
+    "Scorers": [
+      {
+        "Kind": 8193
+      }
+    ],
+    "Selector": {
+      "Kind": 4097
+    }
   }
 ]

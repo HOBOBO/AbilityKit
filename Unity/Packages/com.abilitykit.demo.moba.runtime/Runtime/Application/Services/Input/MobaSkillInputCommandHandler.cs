@@ -66,6 +66,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaActionAckSnapshotService actionAcks = null;
             MobaActorRegistry actors = null;
             var replayAcceptedDecision = false;
+            var receivedAcceptedDecision = false;
+            var clientLiveInput = !context.IsAuthority && !context.IsReplay && !context.IsSettled;
             context.Services?.TryResolve(out actionAcks);
             context.Services?.TryResolve(out actors);
 
@@ -122,17 +124,17 @@ namespace AbilityKit.Demo.Moba.Services
 
                     replayAcceptedDecision = true;
                 }
-                else if (actionAcks.TryGetDecision(actorId, evt.EntityVersion, evt.PredictionKey, out var prior))
+                else if (!context.IsSettled && actionAcks.TryGetDecision(actorId, evt.EntityVersion, evt.PredictionKey, out var prior))
                 {
-                    actionAcks.Repeat(in prior);
-                    result = prior.Accepted
-                        ? MobaInputCommandResult.Accepted(command, "Duplicate prediction key already accepted.", actorId)
-                        : MobaInputCommandResult.Rejected(
-                            command,
-                            MobaInputCommandFailureCode.SkillRejected,
-                            "Duplicate prediction key already rejected.",
-                            actorId);
-                    return prior.Accepted;
+                    if (context.IsAuthority)
+                    {
+                        actionAcks.Repeat(in prior);
+                        return ResolveDuplicate(command, actorId, prior.Accepted, out result);
+                    }
+
+                    if (!prior.Accepted || prior.AuthoritativeFrame != frame.Value)
+                        return ResolveDuplicate(command, actorId, prior.Accepted, out result);
+                    receivedAcceptedDecision = context.ExecutionKind == MobaInputExecutionKind.Received;
                 }
 
                 var currentEntityVersion = actors.GetEntityVersion(actorId);
@@ -143,7 +145,7 @@ namespace AbilityKit.Demo.Moba.Services
                         actorId,
                         evt,
                         $"entity version mismatch. expected={currentEntityVersion}, actual={evt.EntityVersion}");
-                    if (!context.IsReplay) actionAcks.Report(
+                    if (context.IsAuthority) actionAcks.Report(
                         actorId,
                         currentEntityVersion,
                         evt.PredictionKey,
@@ -166,7 +168,7 @@ namespace AbilityKit.Demo.Moba.Services
                         actorId,
                         evt,
                         $"target frame mismatch. expected={frame.Value}, actual={evt.TargetFrame}");
-                    if (!context.IsReplay) actionAcks.Report(
+                    if (context.IsAuthority) actionAcks.Report(
                         actorId,
                         currentEntityVersion,
                         evt.PredictionKey,
@@ -182,10 +184,13 @@ namespace AbilityKit.Demo.Moba.Services
                     return false;
                 }
 
+                if (clientLiveInput && context.TryGetClientBatchDecision(actorId, currentEntityVersion, evt.PredictionKey, out var priorInBatch))
+                    return ResolveDuplicate(command, actorId, priorInBatch, out result);
+
                 var currentInterruptEpoch = actionAcks.GetInterruptEpoch(actorId, currentEntityVersion);
-                if (!context.IsReplay && evt.InterruptEpoch != currentInterruptEpoch)
+                if (!context.IsReplay && !context.IsSettled && !receivedAcceptedDecision && evt.InterruptEpoch != currentInterruptEpoch)
                 {
-                    actionAcks.Report(
+                    if (context.IsAuthority) actionAcks.Report(
                         actorId,
                         currentEntityVersion,
                         evt.PredictionKey,
@@ -201,9 +206,10 @@ namespace AbilityKit.Demo.Moba.Services
                     return false;
                 }
 
-                if (!context.IsReplay && !actionAcks.TryAcceptInputSequence(actorId, currentEntityVersion, evt.InputSequence))
+                if (!context.IsReplay && !context.IsSettled && (evt.InputSequence <= 0 || context.IsAuthority &&
+                        !actionAcks.TryAcceptInputSequence(actorId, currentEntityVersion, evt.InputSequence)))
                 {
-                    actionAcks.Report(
+                    if (context.IsAuthority) actionAcks.Report(
                         actorId,
                         currentEntityVersion,
                         evt.PredictionKey,
@@ -237,6 +243,8 @@ namespace AbilityKit.Demo.Moba.Services
                 : default;
             var skillResult = context.Skills.TryHandleInputResult(actorId, in evt,
                 context.DiagnosticCommandId, in summonInputIdentity);
+            if (clientLiveInput && evt.PredictionKey > 0)
+                context.RecordClientBatchDecision(actorId, evt.EntityVersion, evt.PredictionKey, skillResult.Success);
             if (!skillResult.Success)
             {
                 ThrowIfAcceptedReplayFailed(
@@ -244,7 +252,7 @@ namespace AbilityKit.Demo.Moba.Services
                     actorId,
                     evt,
                     "skill execution was rejected: " + (skillResult.Code ?? "unknown"));
-                if (!context.IsReplay) actionAcks?.Report(
+                if (context.IsAuthority) actionAcks?.Report(
                     actorId,
                     evt.EntityVersion,
                     evt.PredictionKey,
@@ -267,7 +275,7 @@ namespace AbilityKit.Demo.Moba.Services
                 actionAcks.CompleteReplay(actorId, evt.EntityVersion, evt.PredictionKey);
 
             var runtimeHandle = skillResult.RuntimeHandle;
-            if (!context.IsReplay) actionAcks?.Report(
+            if (context.IsAuthority) actionAcks?.Report(
                 actorId,
                 evt.EntityVersion,
                 evt.PredictionKey,
@@ -279,6 +287,15 @@ namespace AbilityKit.Demo.Moba.Services
                 .WithSkillDiagnostic(evt.Slot, (int)evt.Phase, evt.TargetActorId,
                     in runtimeHandle);
             return true;
+        }
+
+        private static bool ResolveDuplicate(PlayerInputCommand command, int actorId, bool accepted, out MobaInputCommandResult result)
+        {
+            result = (accepted
+                ? MobaInputCommandResult.Accepted(command, "Duplicate prediction key already accepted.", actorId)
+                : MobaInputCommandResult.Rejected(command, MobaInputCommandFailureCode.SkillRejected,
+                    "Duplicate prediction key already rejected.", actorId)).AsDuplicate();
+            return accepted;
         }
 
         private static void ThrowIfAcceptedReplayFailed(

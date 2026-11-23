@@ -69,8 +69,11 @@ namespace AbilityKit.Game.Flow
                 var configured = new ConfiguredBattleBootstrapper(
                     selection.Config,
                     selection.Preset);
+                var flowProfileId = configured.FlowProfileId;
+                var sourcePlan = configured.Build();
                 enter(new ExistingGatewayRoomBattleBootstrapper(
-                    configured,
+                    in sourcePlan,
+                    flowProfileId,
                     session.SessionToken,
                     snapshot.RoomId,
                     snapshot.BattleId,

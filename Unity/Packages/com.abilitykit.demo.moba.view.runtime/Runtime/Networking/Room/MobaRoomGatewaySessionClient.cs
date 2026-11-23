@@ -291,6 +291,7 @@ namespace AbilityKit.Game.Flow
             return new RoomGatewaySnapshot
             {
                 RoomId = snapshot.RoomId,
+                GameplayId = snapshot.GameplayId,
                 OwnerAccountId = snapshot.OwnerAccountId,
                 Phase = (RoomGatewaySessionPhase)snapshot.Phase,
                 PhaseReason = snapshot.PhaseReason,

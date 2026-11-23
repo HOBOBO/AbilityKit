@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.World.FrameSync\AbilityKit.World.FrameSync.csproj" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.world.framesync/Samples~/LocalFrameCommands/LocalFrameCommandExample.cs"
+             Link="Samples/LocalFrameCommandExample.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -128,6 +128,32 @@ PowerShell 入口保存 TAP 与验证输入哈希；单步骤通过不代表整�
 输入哈希在运行前后核对，测试期间验证器变化则拒收该次证据；TAP 中的
 `fixture-input-evidence` 仅为隔离成功样例，不是真实工作仓库的发布证明。
 
+## Triggering 干净消费门禁
+
+Triggering 发布候选验收时，从对应源码检出执行：
+
+```powershell
+& tools/run_test_gate.ps1 -Gate triggering-release-consumer
+& tools/publish/verify-triggering-consumer.ps1 -PlayerBackend Mono
+& tools/publish/verify-triggering-consumer.ps1 -PlayerBackend IL2CPP
+```
+
+门禁需要 Windows、Python 3.12+、仓库指定版本的 Unity Editor，以及访问 OpenUPM 和 Unity 公共注册表的网络。直接执行脚本时可用 `-UnityPath` 指定 Editor。Player 探针另需对应的 Windows x64 构建后端与工具链；不传 `-PlayerBackend` 只验收 Editor。
+
+脚本使用全新的工程目录及 UPM 缓存，只直接声明 Triggering。仓库内依赖从候选源码打包，由仅监听 localhost 的临时注册表提供；公开依赖从清单指定的公共注册表解析。门禁验证解析版本及来源、禁止 Analyzer 和旧 Unsafe 包、校验唯一 Unsafe DLL 的 SHA-256、比对安装后的 Triggering 运行时源码，并执行主线样例、`Timed` 到期单次执行及 `WorldId` 序列化往返。手动请求 Player 时，这三个运行探针也在构建后的独立进程中执行。
+
+工程与 UPM 缓存保存在 `local/Logs/tc-*` 的短路径工作区（实际路径见 `inputs.json`）；门禁输出目录保留日志、候选 tarball 摘要和 `consumer-report.json`。`editor-report.json` 只表示 Editor 阶段通过；如请求了 Player，只有所有阶段通过才生成最终报告。此门禁独立于打标签工具和常规回归，不证明远端收录、发布制品一致性或旧版升级/回退。
+
+### 仅准备本地候选
+
+Triggering 首次稳定发布没有需要兼容的在用版本，不要求旧版升级/回退，也不因开发快照使用了相同版本号而阻断。需要避免接触已发布文件时，使用同一入口的离线准备模式：
+
+```powershell
+& tools/publish/verify-triggering-consumer.ps1 -PrepareCandidate
+```
+
+该模式只把仓库源码按当前 `package.json` 原版本打成新的本地归档，并记录 SHA-256；不需要旧基线，不启动 Unity、注册表或发布工具，不下载或解析已发布文件。输出目录必须尚不存在；清单 `candidate-inputs.json` 中的公共依赖仅为声明，未取得制品。`prepared-only` 只表示候选已准备，不替代干净安装、正式 API 和当前消费方回归、Player 或正式发布签核。上面的干净安装门禁会解析公共依赖，不能用于要求完全不接触已发布文件的验证。
+
 ## 注册表与消费者
 
 正式发布仍需操作者单独完成：将公共 GitHub 仓库/包提交到 OpenUPM，按每包的

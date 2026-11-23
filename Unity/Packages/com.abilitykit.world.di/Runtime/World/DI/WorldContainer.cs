@@ -5,18 +5,25 @@ using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Ability.World.DI
 {
+    /// <summary>
+    /// 保存世界服务注册并拥有根容器的单例，不接管调用方创建的作用域或瞬时实例。
+    /// </summary>
     public sealed class WorldContainer : IWorldResolver, IWorldServiceContainer, IDisposable
     {
         private readonly Dictionary<Type, WorldServiceDescriptor> _map;
         private readonly Dictionary<Type, object> _singletons = new Dictionary<Type, object>();
-        private readonly HashSet<object> _initialized = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        private readonly InitializationTracker _initialization = new InitializationTracker();
         private readonly List<object> _singletonDisposeOrder = new List<object>(32);
         private readonly HashSet<object> _singletonDisposeSet = new HashSet<object>(ReferenceEqualityComparer.Instance);
         [ThreadStatic] private static Stack<Type> _singletonCreationStack;
         [ThreadStatic] private static Stack<RootCreation> _rootCreationStack;
-        [ThreadStatic] private static Stack<Type> _resolveStack;
+        [ThreadStatic] private static Stack<ResolutionFrame> _resolveStack;
+        private bool _disposing;
         private bool _disposed;
 
+        /// <summary>
+        /// 复制服务注册；同一契约出现多次时以最后一条为准，不在构造时创建实例。
+        /// </summary>
         public WorldContainer(IEnumerable<WorldServiceDescriptor> descriptors)
         {
             _map = new Dictionary<Type, WorldServiceDescriptor>();
@@ -26,8 +33,14 @@ namespace AbilityKit.Ability.World.DI
             }
         }
 
+        /// <summary>
+        /// 返回显式注册契约的只读视图，不加入容器自身的内建解析入口。
+        /// </summary>
         public IReadOnlyCollection<Type> RegisteredServiceTypes => _map.Keys;
 
+        /// <summary>
+        /// 检查显式注册或容器自身的内建入口；返回真不表示可从当前生命周期解析。
+        /// </summary>
         public bool IsRegistered(Type serviceType)
         {
             if (serviceType == null) return false;
@@ -36,6 +49,9 @@ namespace AbilityKit.Ability.World.DI
             return _map.ContainsKey(serviceType);
         }
 
+        /// <summary>
+        /// 返回显式注册的描述符；未注册或请求内建容器入口时返回默认值。
+        /// </summary>
         public WorldServiceDescriptor GetDescriptor(Type serviceType)
         {
             if (serviceType == typeof(IWorldServiceContainer) || serviceType == typeof(WorldContainer))
@@ -49,6 +65,9 @@ namespace AbilityKit.Ability.World.DI
             return default;
         }
 
+        /// <summary>
+        /// 创建未播种的作用域；调用方须在根容器之前释放它。
+        /// </summary>
         public WorldScope CreateScope()
         {
             ThrowIfDisposed();
@@ -56,12 +75,7 @@ namespace AbilityKit.Ability.World.DI
         }
 
         /// <summary>
-        /// 创建一个 scope 并在返回前把跨阶段输入「播种」进去。
-        ///
-        /// 用于解决「容器构造期一次建好、但 per-scope 数据此时尚不存在」的矛盾：
-        /// <paramref name="configure"/> 在 scope 创建后、首次解析前执行，可通过
-        /// <see cref="IWorldScopeSeeder"/> 注入实例。播种实例的生命周期归调用方，
-        /// <c>scope.Dispose()</c> 不接管其释放。
+        /// 创建作用域并同步配置外部播种实例；作用域和播种实例均由调用方负责释放。
         /// </summary>
         public WorldScope CreateScope(Action<IWorldScopeSeeder> configure)
         {
@@ -96,13 +110,16 @@ namespace AbilityKit.Ability.World.DI
             }
         }
 
+        /// <summary>
+        /// 解析根容器中的服务；拒绝作用域服务，创建失败时传播异常。
+        /// </summary>
         public object Resolve(Type serviceType)
         {
             ThrowIfDisposed();
             if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
 
-            _resolveStack ??= new Stack<Type>(8);
-            _resolveStack.Push(serviceType);
+            _resolveStack ??= new Stack<ResolutionFrame>(8);
+            _resolveStack.Push(new ResolutionFrame(this, serviceType));
             try
             {
                 if (serviceType == typeof(IWorldServiceContainer)) return this;
@@ -125,7 +142,7 @@ namespace AbilityKit.Ability.World.DI
                         var created = descriptor.Factory(this);
                         if (descriptor.Ownership == WorldServiceOwnership.Container)
                         {
-                            TryInit(created, this);
+                            _initialization.EnsureInitialized(created, this);
                         }
                         _singletons[serviceType] = created;
 
@@ -175,11 +192,17 @@ namespace AbilityKit.Ability.World.DI
             }
         }
 
+        /// <summary>
+        /// 按泛型契约从根容器解析服务，沿用非泛型入口的生命周期与异常规则。
+        /// </summary>
         public T Resolve<T>()
         {
             return (T)Resolve(typeof(T));
         }
 
+        /// <summary>
+        /// 尝试从根容器解析；循环依赖异常仍会传播，其他失败可能表现为返回假。
+        /// </summary>
         public bool TryResolve(Type serviceType, out object instance)
         {
             try
@@ -198,6 +221,9 @@ namespace AbilityKit.Ability.World.DI
             }
         }
 
+        /// <summary>
+        /// 尝试解析可赋值给泛型契约的实例，沿用非泛型入口的异常规则。
+        /// </summary>
         public bool TryResolve<T>(out T instance)
         {
             if (TryResolve(typeof(T), out var obj) && obj is T t)
@@ -214,23 +240,23 @@ namespace AbilityKit.Ability.World.DI
         {
             ThrowIfDisposed();
 
-            _resolveStack ??= new Stack<Type>(8);
+            _resolveStack ??= new Stack<ResolutionFrame>(8);
 
             if (!_map.TryGetValue(serviceType, out var descriptor))
             {
                 throw new InvalidOperationException($"Service not registered: {serviceType.FullName}. Resolve chain: {FormatResolveChain()}");
             }
 
-            // Attribute registration exposes contracts as aliases whose factories resolve the
-            // shared implementation type. Tracking that implementation here would make every
-            // alias resolve look like a self-cycle before its factory can create the instance.
-            // Service contracts are sufficient to identify real dependency cycles.
-            if (_resolveStack.Contains(serviceType))
+            /*
+             * 用实际解析器和服务契约识别循环：不同作用域可创建同一契约，别名也可解析其实现类型。
+             */
+            foreach (var frame in _resolveStack)
             {
-                throw new InvalidOperationException($"Circular dependency detected. Resolve chain: {FormatResolveChain()} -> {serviceType.FullName}");
+                if (ReferenceEquals(frame.Resolver, scope) && frame.ServiceType == serviceType)
+                    throw new InvalidOperationException($"Circular dependency detected. Resolve chain: {FormatResolveChain()} -> {serviceType.FullName}");
             }
 
-            _resolveStack.Push(serviceType);
+            _resolveStack.Push(new ResolutionFrame(scope, serviceType));
             try
             {
                 switch (descriptor.Lifetime)
@@ -242,7 +268,7 @@ namespace AbilityKit.Ability.World.DI
                         {
                             var created = descriptor.Factory(scope);
                             if (descriptor.Ownership == WorldServiceOwnership.Container)
-                                scope.TryInit(created);
+                                scope.EnsureInitialized(created);
                             return created;
                         }, descriptor.Ownership == WorldServiceOwnership.Container);
                     case WorldLifetime.Transient:
@@ -264,19 +290,30 @@ namespace AbilityKit.Ability.World.DI
         {
             if (_resolveStack == null || _resolveStack.Count == 0) return "<empty>";
 
-            // Stack 默认从栈顶到栈底枚举；反转后按 root -> leaf 展示。
-            var arr = _resolveStack.ToArray();
-            if (arr == null || arr.Length == 0) return "<empty>";
-
-            var sb = new System.Text.StringBuilder(128);
-            for (int i = arr.Length - 1; i >= 0; i--)
+            var frames = _resolveStack.ToArray();
+            var chain = new System.Text.StringBuilder(128);
+            for (int index = frames.Length - 1; index >= 0; index--)
             {
-                var t = arr[i];
-                if (t == null) continue;
-                if (sb.Length > 0) sb.Append(" -> ");
-                sb.Append(t.FullName ?? t.Name);
+                var serviceType = frames[index].ServiceType;
+                if (chain.Length > 0) chain.Append(" -> ");
+                chain.Append(serviceType.FullName ?? serviceType.Name);
             }
-            return sb.ToString();
+            return chain.ToString();
+        }
+
+        /// <summary>
+        /// 记录参与一次解析的容器或作用域，以及被请求的服务契约。
+        /// </summary>
+        private readonly struct ResolutionFrame
+        {
+            public readonly IWorldResolver Resolver;
+            public readonly Type ServiceType;
+
+            public ResolutionFrame(IWorldResolver resolver, Type serviceType)
+            {
+                Resolver = resolver;
+                ServiceType = serviceType;
+            }
         }
 
         private readonly struct RootCreation
@@ -307,15 +344,44 @@ namespace AbilityKit.Ability.World.DI
             if (instance is IWorldInitializable init) init.OnInit(services);
         }
 
-        private void TryInit(object instance, IWorldResolver services)
+        /// <summary>
+        /// 按实例身份跟踪受管服务初始化，只有回调成功后才保留完成状态。
+        /// </summary>
+        internal sealed class InitializationTracker
         {
-            if (instance == null) return;
-            if (!_initialized.Add(instance)) return;
-
-            if (instance is IWorldInitializable init)
+            private enum State
             {
-                init.OnInit(services);
+                InProgress,
+                Completed
             }
+
+            private readonly Dictionary<object, State> _states =
+                new Dictionary<object, State>(ReferenceEqualityComparer.Instance);
+
+            internal void EnsureInitialized(object instance, IWorldResolver services)
+            {
+                if (!(instance is IWorldInitializable initializable)) return;
+                if (_states.TryGetValue(instance, out var state))
+                {
+                    if (state == State.Completed) return;
+                    throw new InvalidOperationException(
+                        $"Circular dependency detected. Service instance '{instance.GetType().FullName}' is being initialized. Resolve chain: {FormatResolveChain()}");
+                }
+
+                _states.Add(instance, State.InProgress);
+                try
+                {
+                    initializable.OnInit(services);
+                    _states[instance] = State.Completed;
+                }
+                catch
+                {
+                    _states.Remove(instance);
+                    throw;
+                }
+            }
+
+            internal void Clear() => _states.Clear();
         }
 
         private void TryDeinit(object instance, IWorldResolver services)
@@ -341,38 +407,49 @@ namespace AbilityKit.Ability.World.DI
             if (_disposed) throw new ObjectDisposedException(nameof(WorldContainer));
         }
 
+        /// <summary>
+        /// 逆登记顺序释放受管单例；释放回调再次调用本方法时直接返回。
+        /// </summary>
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed || _disposing) return;
+            _disposing = true;
 
-            for (int i = _singletonDisposeOrder.Count - 1; i >= 0; i--)
+            try
             {
-                var instance = _singletonDisposeOrder[i];
-                try
+                for (int index = _singletonDisposeOrder.Count - 1; index >= 0; index--)
                 {
-                    TryDeinit(instance, this);
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, "[WorldContainer] singleton deinit failed");
+                    var instance = _singletonDisposeOrder[index];
+                    try
+                    {
+                        TryDeinit(instance, this);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, "[WorldContainer] singleton deinit failed");
+                    }
+
+                    try
+                    {
+                        if (instance is IDisposable disposable) disposable.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, "[WorldContainer] singleton dispose failed");
+                    }
                 }
 
-                try
-                {
-                    if (instance is IDisposable d) d.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, "[WorldContainer] singleton dispose failed");
-                }
+                _disposed = true;
+                _singletonDisposeOrder.Clear();
+                _singletonDisposeSet.Clear();
+                _initialization.Clear();
+                _singletons.Clear();
+                _map.Clear();
             }
-
-            _disposed = true;
-            _singletonDisposeOrder.Clear();
-            _singletonDisposeSet.Clear();
-            _initialized.Clear();
-            _singletons.Clear();
-            _map.Clear();
+            finally
+            {
+                _disposing = false;
+            }
         }
     }
 }

@@ -280,6 +280,13 @@ namespace AbilityKit.Combat.Projectile
             public override int GetHashCode() => unchecked((_rootContextId.GetHashCode() * 397) ^ _groupKey);
         }
 
+        internal bool IsActive(AreaId id)
+        {
+            for (var index = 0; index < _active.Count; index++)
+                if (_active[index].Id.Value == id.Value) return true;
+            return false;
+        }
+
         /// <summary>
         /// Removes an area without producing an expire event. This is reserved for
         /// failed spawn compensation; gameplay removal must use <see cref="Despawn"/>.

@@ -2,9 +2,11 @@
 
 > 文档类型：MOBA 项目应用组合深潜
 > 事实基线：2026-09-22
-> 文档版本：v4.0
+> 文档版本：v4.1
 >
 > 本文补充 MOBA 示例中 Context 主链路、Effect 执行和可选 Trace 投影的设计。它们解决的不是单个技能如何执行，而是“效果为什么被执行、由谁触发、挂在哪个父节点下、验收时如何证明动作确实发生”。
+
+专题补充：[战斗上下文整体设计](MobaCombatContextDesignGuide.md)记录各身份及跨域协作，[Runtime Context 值与快照](MobaRuntimeContextSnapshotDesign.md)记录实时/冻结值、观察快照及测试入口。只需接入示例时，从 [MOBA Runtime 包内指南](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Documentation~/Usage.md)开始。
 
 ## 1. 设计目标
 
@@ -343,7 +345,7 @@ Effect scope 复用当前 Action 字段，不为每次 Action 创建额外 instr
 | context source view | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs` |
 | combat execution context | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs` |
 | effect invoker | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaEffectInvokerService.cs` |
-| Effect/Action lifecycle | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs` |
+| Effect/Action lifecycle | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaEffectExecutionService.cs` |
 | Action observer contract | `Unity/Packages/com.abilitykit.triggering/Runtime/Context/IServiceProvider.cs` |
 | Action observer invocation | `Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Execution/PlannedTriggerActionExecutor.cs` |
 | runtime retention | `Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceRetention.cs` |
@@ -370,4 +372,4 @@ Effect scope 复用当前 Action 字段，不为每次 Action 创建额外 instr
 
 ---
 
-*文档版本：v4.0 | 最后更新：2026-09-22 | 正式边界：Context 主导业务生命周期与 rollback，Trace Adapter 提供可选投影*
+*文档版本：v4.1 | 最后更新：2026-11-22（补专题导航） | 正式边界：Context 主导业务生命周期与 rollback，Trace Adapter 提供可选投影*

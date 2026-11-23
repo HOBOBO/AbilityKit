@@ -25,14 +25,14 @@ SkillCastCoordinator.TryCastSkill / CastSkill
 
 ## 关键文件（技能）
 
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs` — 施放入口
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillRunnerRegistry.cs` — 按 actorId 持有 `SkillPipelineRunner`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs` — `Start / Step / CancelAll / CancelBySlot / CancelBySkillId`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineContext.cs` — **内嵌 `SkillCastRequest` readonly struct**（line 354）
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillRulePlanPhase.cs` — 调 `MobaTriggerPlanExecutor.ExecuteRulePlan`
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerPlanExecutor.cs` — Plan 桥（`TriggerPlanJsonDatabase` + 第二套 IEventBus）
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Events/MobaSkillTriggering.cs` — 事件名常量
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Events/MobaSkillTriggerArgs.cs` — arg 键常量（"skill.id" / "caster.actorId" / "target.actorId"）
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillCastCoordinator.cs` — 施放入口
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/SkillRunnerRegistry.cs` — 按 actorId 持有 `SkillPipelineRunner`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineRunner.cs` — `Start / Step / CancelAll / CancelBySlot / CancelBySkillId`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineContext.cs` — **内嵌 `SkillCastRequest` readonly struct**（line 354）
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/Phases/SkillRulePlanPhase.cs` — 调 `MobaTriggerPlanExecutor.ExecuteRulePlan`
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Execution/MobaTriggerPlanExecutor.cs` — Plan 桥（`TriggerPlanJsonDatabase` + 第二套 IEventBus）
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Triggering/Events/MobaSkillTriggering.cs` — 事件名常量
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Triggering/Events/MobaSkillTriggerArgs.cs` — arg 键常量（"skill.id" / "caster.actorId" / "target.actorId"）
 
 ## Plan 动词清单（moba demo）
 
@@ -95,8 +95,8 @@ SkillCastCoordinator.TryCastSkill / CastSkill
 
 ## 被动技能
 
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaPassiveSkillTriggerRegisterSystem.cs` — Entitas ReactiveSystem（`OnEntityChanged → SyncActorPassives`）
-- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Passive/MobaPassiveSkillLifecycleService.cs` — 实际生命周期（Subscribe/Unsubscribe）
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/Systems/MobaPassiveSkillTriggerRegisterSystem.cs` — Entitas ReactiveSystem（`OnEntityChanged → SyncActorPassives`）
+- `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Passive/MobaPassiveSkillLifecycleService.cs` — 实际生命周期（Subscribe/Unsubscribe）
 - `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/` — `SkillLoadoutComponent` / `PassiveSkillTriggerListenersComponent`
 
 ### 被动调用链

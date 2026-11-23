@@ -35,7 +35,7 @@ Material:
     m_Floats:
     - _Cutoff: 0.5
     - _Depth: 0.2
-    - _EmissiveIntensity: 1
+    - _EmissiveIntensity: 2
     - _FinalEmissive: 1
     - _FinalMix: 1
     - _FinalOpacity: 1
@@ -48,5 +48,5 @@ Material:
     - _U_Speed: 0
     - _V_Speed: -0.35
     m_Colors:
-    - _Color: {r: 0.1, g: 0.65, b: 1, a: 1}
+    - _Color: {r: 0.4, g: 0.85, b: 1, a: 1}
   m_BuildTextureStacks: []

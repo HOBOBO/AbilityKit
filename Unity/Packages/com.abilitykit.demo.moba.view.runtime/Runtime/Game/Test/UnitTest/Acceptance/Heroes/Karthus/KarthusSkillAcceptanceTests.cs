@@ -184,6 +184,34 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        [TestCase(1, false)]
+        [TestCase(5, true)]
+        public void Wall_rank_changes_the_authoritative_edge(int rank, bool hitsOuterTarget)
+        {
+            using var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(
+                new[] { 30060201, 30060301, 30060401, 30060501 },
+                worldId: "karthus_wall_rank_" + rank, heroId: 3006, attributeTemplateId: 3006);
+            harness.EnterGameAndWarmup();
+            var actorId = harness.AssertPlayerActorBound();
+            var wall = harness.AssertActorEntity(actorId).skillLoadout.ActiveSkills[1];
+            Assert.AreEqual(30060301, wall.SkillId);
+            wall.Level = rank;
+            var inside = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "inside", 9811, x: 3f, z: 5f);
+            var edge = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "edge", 9812, x: 5f, z: 5f);
+            var outside = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "outside", 9813, x: 7f, z: 5f);
+            harness.Tick(1);
+
+            var cast = harness.World.Services.Resolve<SkillCastCoordinator>()
+                .TryCastBySlot(actorId, 2, new Vec3(0f, 0f, 5f), Vec3.Forward, 0);
+            Assert.IsTrue(cast.Success, cast.FailReason);
+            harness.Tick(30);
+
+            var debuffId = 30060390 + rank;
+            Assert.IsTrue(harness.HasActorBuff(inside, debuffId));
+            Assert.AreEqual(hitsOuterTarget, harness.HasActorBuff(edge, debuffId));
+            Assert.IsFalse(harness.HasActorBuff(outside, debuffId));
+        }
+
         [TestCase(1,30060201,42060201,90036006)]
         [TestCase(1,30060201,42060202,90036008)]
         [TestCase(2,30060301,42060301,90036015)]

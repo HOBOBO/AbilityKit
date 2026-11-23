@@ -4,6 +4,8 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.Triggering",
+    "AbilityKit.Triggering.Authoring",
+    "AbilityKit.Triggering.TestSupport",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],

@@ -320,8 +320,8 @@ MOBA 的 continuous runtime 与 context 设计很强调边界来源：
 | Continuous 视图定义 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Runtime/Views/MobaContinuousRuntimeViews.cs` |
 | Trigger interval continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Triggering/MobaTriggerIntervalContinuousRuntime.cs` |
 | Pipeline-backed continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Runtime/MobaPipelineContinuousRuntime.cs` |
-| Buff continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` |
-| Skill pipeline continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineContinuousRuntime.cs` |
+| Buff continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Runtime/BuffContinuousRuntime.cs` |
+| Skill pipeline continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/SkillPipelineContinuousRuntime.cs` |
 | Projectile continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaProjectileLaunchContinuous.cs` |
 | Context source 视图 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs` |
 | Context integrity validator | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaContextIntegrityRuntimeValidator.cs` |

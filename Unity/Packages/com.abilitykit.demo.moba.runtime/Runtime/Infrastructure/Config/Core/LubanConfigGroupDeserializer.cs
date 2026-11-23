@@ -622,6 +622,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
                 RequiredBuffQualificationId = obj["RequiredBuffQualificationId"]?.Value<int>() ?? 0,
                 UseCommitCooldownFactor = obj["UseCommitCooldownFactor"]?.Value<bool>() ?? false,
+                BasicAttack = obj["BasicAttack"]?.ToObject<BasicAttackFlowDTO>(),
                 Phases = DeserializeSkillPhases(obj["Phases"])
             };
             return dto;
@@ -1064,6 +1065,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
             {
                 DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
                 RecoveryStartMs = obj["RecoveryStartMs"]?.Value<int>() ?? -1,
+                CastGateTagTemplateId = obj["CastGateTagTemplateId"]?.Value<int>() ?? 0,
+                CastGateEndMs = obj["CastGateEndMs"]?.Value<int>() ?? 0,
                 Events = DeserializeSkillTimelineEvents(obj["Events"])
             };
         }

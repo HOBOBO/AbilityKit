@@ -13,6 +13,8 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly Dictionary<int, global::ActorEntity> _byId = new Dictionary<int, global::ActorEntity>();
         private readonly Dictionary<int, int> _entityVersions = new Dictionary<int, int>();
         private readonly Dictionary<int, global::ActorEntity> _lastEntityById = new Dictionary<int, global::ActorEntity>();
+        private readonly Dictionary<int, (int Epoch, long Order, int Version, int CreationIndex)> _summonBirths =
+            new Dictionary<int, (int, long, int, int)>();
         private readonly Dictionary<int, RetainedActor> _retained = new Dictionary<int, RetainedActor>();
         private readonly HashSet<global::ActorEntity> _retainedShells = new HashSet<global::ActorEntity>();
         private readonly List<int> _reclaim = new List<int>();
@@ -48,6 +50,7 @@ namespace AbilityKit.Demo.Moba.Services
                 _entityVersions.TryGetValue(actorId, out var version);
                 _entityVersions[actorId] = version == int.MaxValue ? 1 : version + 1;
                 _lastEntityById[actorId] = entity;
+                _summonBirths.Remove(actorId);
             }
             _byId[actorId] = entity;
         }
@@ -64,12 +67,23 @@ namespace AbilityKit.Demo.Moba.Services
             return entityVersion > 0 && GetEntityVersion(actorId) == entityVersion;
         }
 
+        internal void RecordSummonBirth(int actorId, global::ActorEntity entity, int epoch, long order) =>
+            _summonBirths[actorId] = (epoch, order, GetEntityVersion(actorId), entity.creationIndex);
+
+        internal bool MatchesSummonBirth(int actorId, global::ActorEntity entity, int epoch, long order) =>
+            _summonBirths.TryGetValue(actorId, out var birth) && birth.Epoch == epoch && birth.Order == order &&
+            birth.CreationIndex == entity.creationIndex && MatchesEntityVersion(actorId, birth.Version) &&
+            _lastEntityById.TryGetValue(actorId, out var last) && ReferenceEquals(last, entity);
+
         internal void RegisterRestored(int actorId, global::ActorEntity entity, int entityVersion)
         {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
             if (entity == null) throw new ArgumentNullException(nameof(entity));
             if (entityVersion <= 0) throw new ArgumentOutOfRangeException(nameof(entityVersion));
 
+            if (!MatchesEntityVersion(actorId, entityVersion) ||
+                !_lastEntityById.TryGetValue(actorId, out var last) || !ReferenceEquals(last, entity))
+                _summonBirths.Remove(actorId);
             _entityVersions[actorId] = entityVersion;
             _lastEntityById[actorId] = entity;
             _byId[actorId] = entity;
@@ -80,6 +94,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (actorId <= 0) return;
             _entityVersions.Remove(actorId);
             _lastEntityById.Remove(actorId);
+            _summonBirths.Remove(actorId);
         }
 
         public bool Contains(int actorId)
@@ -174,6 +189,7 @@ namespace AbilityKit.Demo.Moba.Services
                 _retained.Remove(actorId);
                 _retainedShells.Remove(retained.Entity);
                 _lastEntityById.Remove(actorId);
+                _summonBirths.Remove(actorId);
                 locomotion?.ForgetPipelineForRollback(retained.Entity);
                 brains.ReleaseExpiredBrain(retained.Components);
                 ReleaseComponents(retained.Components);
@@ -238,6 +254,7 @@ namespace AbilityKit.Demo.Moba.Services
             _byId.Clear();
             _entityVersions.Clear();
             _lastEntityById.Clear();
+            _summonBirths.Clear();
         }
 
         public void Dispose()

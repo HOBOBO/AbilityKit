@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AbilityKit.Core.Recording.FrameRecord;
+using AbilityKit.Record.FrameRecord;
 
 namespace AbilityKit.Record.Tools;
 

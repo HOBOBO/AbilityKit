@@ -34,6 +34,10 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
         GatewayRequest request,
         GatewaySessionContext context,
         CancellationToken cancellationToken)
+        => await SubscribeAsync(request, context, fixedBaseline: false);
+
+    internal async ValueTask<GatewayResponse> SubscribeAsync(
+        GatewayRequest request, GatewaySessionContext context, bool fixedBaseline)
     {
         if (request.Payload == null || request.Payload.Length == 0)
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
@@ -66,11 +70,15 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
             var observerGrain = _clusterClient.GetGrain<IStateSyncObserverGrain>(observerKey);
 
             await _pushSubscriptions.EnsureBoundAsync(context.ConnectionId, observerKey);
-            await observerGrain.SubscribeAsync(req.BattleId, new ReliableBattleEventSubscribeCursor
+            var cursor = new ReliableBattleEventSubscribeCursor
             {
                 Epoch = req.EventEpoch ?? string.Empty,
                 LastAcknowledgedSequence = Math.Max(0, req.LastEventAck)
-            });
+            };
+            if (fixedBaseline)
+                await observerGrain.SubscribeFixedBaselineAsync(req.BattleId, cursor);
+            else
+                await observerGrain.SubscribeAsync(req.BattleId, cursor);
 
             var wire = new WireSubscribeStateSyncRes
             {

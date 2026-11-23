@@ -7,6 +7,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {
     public sealed class ContinuousTagTemplateMO
     {
+        internal string DefinitionRevision { get; }
         public int Id { get; }
         public string Name { get; }
         public GameplayTagContainer ActivationRequiredTags { get; }
@@ -24,6 +25,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public ContinuousTagTemplateMO(ContinuousTagTemplateDTO dto)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
+
+            DefinitionRevision = AbilityKit.Demo.Moba.Services.MobaSkillPipelineRevision.Digest(
+                AbilityKit.Demo.Moba.Services.MobaSkillPipelineRevision.Describe(dto));
 
             Id = dto.Id;
             Name = dto.Name;

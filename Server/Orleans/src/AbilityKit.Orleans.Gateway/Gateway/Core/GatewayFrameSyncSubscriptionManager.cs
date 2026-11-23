@@ -2,16 +2,14 @@ using System.Collections.Concurrent;
 using System.Threading.Channels;
 using AbilityKit.Orleans.Contracts.FrameSync;
 using AbilityKit.Orleans.Gateway.Abstractions;
-using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using AbilityKit.Protocol.Room;
 using Microsoft.Extensions.Logging;
 using Orleans;
 
 namespace AbilityKit.Orleans.Gateway.Core;
 
-public sealed class GatewayFrameSyncSubscriptionManager
+public sealed partial class GatewayFrameSyncSubscriptionManager
 {
-    public enum PushFormat { Moba, Room }
     private readonly IClusterClient _clusterClient;
     private readonly IGatewaySessionRegistry _sessionRegistry;
     private readonly GatewayBackgroundTaskQueue _backgroundTasks;
@@ -31,8 +29,7 @@ public sealed class GatewayFrameSyncSubscriptionManager
         _logger = logger;
     }
 
-    public async Task EnsureSubscribedAsync(long connectionId, ulong roomId,
-        PushFormat format = PushFormat.Moba)
+    public async Task EnsureSubscribedAsync(long connectionId, ulong roomId)
     {
         if (connectionId <= 0) throw new ArgumentOutOfRangeException(nameof(connectionId));
         if (roomId == 0) throw new ArgumentOutOfRangeException(nameof(roomId));
@@ -40,9 +37,16 @@ public sealed class GatewayFrameSyncSubscriptionManager
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (_settledSubscriptions.TryGetValue(connectionId, out var settled))
+            {
+                if (settled.Binding.RoomId == roomId)
+                    throw new InvalidOperationException("A settled connection cannot change to the legacy subscription of the same battle.");
+                if (_settledSubscriptions.TryRemove(connectionId, out settled))
+                    await RemoveSettledSubscriptionAsync(settled).ConfigureAwait(false);
+            }
             if (_subscriptions.TryGetValue(connectionId, out var current))
             {
-                if (current.RoomId == roomId && current.Format == format)
+                if (current.RoomId == roomId)
                 {
                     return;
                 }
@@ -53,8 +57,7 @@ public sealed class GatewayFrameSyncSubscriptionManager
             var pushPump = new ConnectionFramePushPump(
                 connectionId,
                 _sessionRegistry,
-                _logger,
-                format);
+                _logger);
             var observer = new ConnectionFrameSyncObserver(pushPump);
             var observerReference = _clusterClient.CreateObjectReference<IFrameSyncObserver>(observer);
             var grain = _clusterClient.GetGrain<IBattleFrameSyncGrain>(roomId.ToString());
@@ -63,7 +66,6 @@ public sealed class GatewayFrameSyncSubscriptionManager
                 await grain.SubscribeAsync(observerReference).ConfigureAwait(false);
                 _subscriptions[connectionId] = new Subscription(
                     roomId,
-                    format,
                     grain,
                     observer,
                     observerReference,
@@ -89,6 +91,8 @@ public sealed class GatewayFrameSyncSubscriptionManager
             await _gate.WaitAsync().ConfigureAwait(false);
             try
             {
+                if (_settledSubscriptions.TryRemove(connectionId, out var settled))
+                    await RemoveSettledSubscriptionAsync(settled).ConfigureAwait(false);
                 if (_subscriptions.TryGetValue(connectionId, out var subscription))
                 {
                     await RemoveSubscriptionAsync(connectionId, subscription).ConfigureAwait(false);
@@ -123,20 +127,6 @@ public sealed class GatewayFrameSyncSubscriptionManager
         }
     }
 
-    internal static byte[] SerializeFrame(FramePushedEvent evt)
-    {
-        var source = evt.Inputs;
-        var inputs = new WireInputItem[source?.Count ?? 0];
-        for (var index = 0; index < inputs.Length; index++)
-        {
-            var input = source![index];
-            inputs[index] = new WireInputItem(input.PlayerId, input.OpCode, input.Payload ?? Array.Empty<byte>());
-        }
-
-        var push = new WireFramePushedPush(evt.RoomId, evt.WorldId, evt.Frame, inputs);
-        return WireCustomBinary.Serialize(in push).ToArray();
-    }
-
     internal static byte[] SerializeRoomFrame(FramePushedEvent evt)
     {
         var inputs = new WireRoomFrameInput[evt.Inputs?.Count ?? 0];
@@ -163,7 +153,6 @@ public sealed class GatewayFrameSyncSubscriptionManager
 
     private sealed record Subscription(
         ulong RoomId,
-        PushFormat Format,
         IBattleFrameSyncGrain Grain,
         ConnectionFrameSyncObserver Observer,
         IFrameSyncObserver ObserverReference,
@@ -191,7 +180,6 @@ public sealed class GatewayFrameSyncSubscriptionManager
         private readonly long _connectionId;
         private readonly IGatewaySessionRegistry _sessionRegistry;
         private readonly ILogger _logger;
-        private readonly PushFormat _format;
         private readonly Channel<FramePushedEvent> _queue;
         private readonly CancellationTokenSource _lifetime = new();
         private readonly Task _worker;
@@ -199,13 +187,11 @@ public sealed class GatewayFrameSyncSubscriptionManager
         public ConnectionFramePushPump(
             long connectionId,
             IGatewaySessionRegistry sessionRegistry,
-            ILogger logger,
-            PushFormat format)
+            ILogger logger)
         {
             _connectionId = connectionId;
             _sessionRegistry = sessionRegistry;
             _logger = logger;
-            _format = format;
             _queue = Channel.CreateUnbounded<FramePushedEvent>(new UnboundedChannelOptions
             {
                 SingleReader = true,
@@ -271,9 +257,7 @@ public sealed class GatewayFrameSyncSubscriptionManager
                 return;
             }
 
-            var payload = _format == PushFormat.Room
-                ? SerializeRoomFrame(evt)
-                : SerializeFrame(evt);
+            var payload = SerializeRoomFrame(evt);
             if (evt.Inputs is { Count: > 0 })
             {
                 _logger.LogInformation(
@@ -289,7 +273,7 @@ public sealed class GatewayFrameSyncSubscriptionManager
             try
             {
                 await session.SendServerPushAsync(
-                    _format == PushFormat.Room ? RoomGatewayOpCodes.FrameSyncFramePushed : OpCodes.FramePushed,
+                    RoomGatewayOpCodes.FrameSyncFramePushed,
                     payload, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)

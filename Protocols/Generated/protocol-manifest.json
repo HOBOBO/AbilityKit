@@ -12,7 +12,7 @@
       "catalogId": "abilitykit.moba.battle",
       "projectId": "abilitykit.moba",
       "domain": "battle",
-      "revision": 5,
+      "revision": 6,
       "defaultCodec": "memorypack",
       "messages": [
         {
@@ -43,19 +43,6 @@
           "captureSampleRate": 0.1
         },
         {
-          "id": "frame-sync-catch-up.request",
-          "opCode": 2002,
-          "direction": "c2s",
-          "kind": "request",
-          "payloadType": "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireCatchUpRequest",
-          "codec": "custom-binary",
-          "reliability": "reliable",
-          "minimumSchemaVersion": 1,
-          "maximumSchemaVersion": 1,
-          "maximumPayloadBytes": 4096,
-          "captureSampleRate": 1
-        },
-        {
           "id": "frame-sync-metrics.request",
           "opCode": 2003,
           "direction": "c2s",
@@ -83,57 +70,71 @@
           "captureSampleRate": 1
         },
         {
-          "id": "frame-sync-spectator-subscribe.request",
-          "opCode": 2004,
+          "id": "settled-frame-subscribe.request",
+          "opCode": 2005,
           "direction": "c2s",
           "kind": "request",
-          "payloadType": "System.UInt64",
-          "codec": "custom-binary",
+          "payloadType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeRequest",
+          "codec": "memorypack",
           "reliability": "reliable",
-          "response": "frame-sync-spectator-subscribe.response",
+          "response": "settled-frame-subscribe.response",
           "minimumSchemaVersion": 1,
           "maximumSchemaVersion": 1,
           "maximumPayloadBytes": 4096,
           "captureSampleRate": 1
         },
         {
-          "id": "frame-sync-spectator-subscribe.response",
-          "opCode": 2004,
+          "id": "settled-frame-subscribe.response",
+          "opCode": 2005,
           "direction": "s2c",
           "kind": "response",
-          "payloadType": "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireSpectatorSubscribeRes",
-          "codec": "custom-binary",
+          "payloadType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeResponse",
+          "codec": "memorypack",
           "reliability": "reliable",
           "minimumSchemaVersion": 1,
           "maximumSchemaVersion": 1,
-          "maximumPayloadBytes": 16384,
+          "maximumPayloadBytes": 4096,
           "captureSampleRate": 1
         },
         {
-          "id": "frame-sync-frame.push",
-          "opCode": 9001,
-          "direction": "s2c",
-          "kind": "push",
-          "payloadType": "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireFramePushedPush",
-          "codec": "custom-binary",
-          "reliability": "realtime",
+          "id": "settled-frame-catch-up.request",
+          "opCode": 2006,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpRequest",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "response": "settled-frame-catch-up.response",
           "minimumSchemaVersion": 1,
           "maximumSchemaVersion": 1,
-          "maximumPayloadBytes": 4194304,
-          "captureSampleRate": 0.05
+          "maximumPayloadBytes": 4096,
+          "captureSampleRate": 1
         },
         {
-          "id": "frame-sync-catch-up.push",
-          "opCode": 9010,
+          "id": "settled-frame-catch-up.response",
+          "opCode": 2006,
           "direction": "s2c",
-          "kind": "push",
-          "payloadType": "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireCatchUpPayloadPush",
-          "codec": "custom-binary",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpResponse",
+          "codec": "memorypack",
           "reliability": "reliable",
           "minimumSchemaVersion": 1,
           "maximumSchemaVersion": 1,
           "maximumPayloadBytes": 4194304,
-          "captureSampleRate": 0.25
+          "captureSampleRate": 1
+        },
+        {
+          "id": "settled-frame.push",
+          "opCode": 9020,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4194304,
+          "captureSampleRate": 1
         },
         {
           "id": "move-input.event",
@@ -761,6 +762,36 @@
           "sensitiveFields": [
             "sessionToken"
           ]
+        },
+        {
+          "id": "subscribe-fixed-baseline-state-sync.request",
+          "opCode": 123,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Room.WireSubscribeStateSyncReq",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "response": "subscribe-fixed-baseline-state-sync.response",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 1,
+          "sensitiveFields": [
+            "sessionToken"
+          ]
+        },
+        {
+          "id": "subscribe-fixed-baseline-state-sync.response",
+          "opCode": 123,
+          "direction": "s2c",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Room.WireSubscribeStateSyncRes",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 1
         },
         {
           "id": "request-full-state-sync.response",

@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Management;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Battle.Testing;
@@ -92,6 +95,42 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(streams.DisposeCount, Is.EqualTo(1));
             Assert.That(transport.DisposeCount, Is.EqualTo(1));
             Assert.That(transport.SubscriberCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void LocalStartupFailure_PreservesOriginalExceptionAndClosesAllWorlds()
+        {
+            var startupFailure = new InvalidOperationException("world services setup failed");
+            var releaseFailure = new InvalidOperationException("world release failed");
+            var streams = new RecordingRemoteFrameStreams();
+            var manager = new WorldManager(new LifecycleTestWorldFactory());
+            var failedId = new WorldId("failing-release");
+            var failing = (LifecycleTestWorld)manager.Create(new WorldCreateOptions(failedId, "test"));
+            var other = (LifecycleTestWorld)manager.Create(new WorldCreateOptions(new WorldId("other"), "test"));
+            failing.ReleaseFailure = releaseFailure;
+
+            var combined = Assert.Throws<AggregateException>(() => new BattleLogicSession(
+                new BattleLogicSessionOptions
+                {
+                    Mode = BattleLogicMode.Local,
+                    AutoConnect = false,
+                    AutoCreateWorld = true,
+                    AutoJoin = false,
+                },
+                null,
+                new MobaRollbackRegistryFactory(),
+                new FailingRuntimeFactory(manager, startupFailure),
+                streams));
+
+            Assert.That(combined.InnerExceptions[0], Is.SameAs(startupFailure));
+            var cleanup = (AggregateException)combined.InnerExceptions[1];
+            var failure = cleanup.Flatten().InnerExceptions.Single();
+            Assert.That(failure.Message, Does.Contain($"worldId={failedId}"));
+            Assert.That(failure.InnerException, Is.SameAs(releaseFailure));
+            Assert.That(manager.Worlds, Is.Empty);
+            Assert.That(failing.DisposeCount, Is.EqualTo(1));
+            Assert.That(other.DisposeCount, Is.EqualTo(1));
+            Assert.That(streams.DisposeCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -206,6 +245,48 @@ namespace AbilityKit.Game.Test.UnitTest
                         BitConverter.GetBytes(frame)),
                 },
                 new WorldStateSnapshot(7101, BitConverter.GetBytes(frame * 31)));
+        }
+
+        private sealed class FailingRuntimeFactory : IBattleLogicRuntimeFactory
+        {
+            private readonly WorldManager _manager;
+            private readonly Exception _startupFailure;
+
+            public FailingRuntimeFactory(WorldManager manager, Exception startupFailure)
+            {
+                _manager = manager;
+                _startupFailure = startupFailure;
+            }
+
+            public BattleLogicSessionRuntime CreateRuntime(BattleLogicSessionOptions options, IBattleRollbackRegistryFactory rollbackRegistryFactory) =>
+                new BattleLogicSessionRuntime(_manager, new HostRuntime(_manager), null);
+
+            public WorldContainerBuilder CreateWorldServices(BattleLogicSessionOptions options) => throw _startupFailure;
+        }
+
+        private sealed class LifecycleTestWorldFactory : IWorldFactory
+        {
+            public IWorld Create(WorldCreateOptions options) => new LifecycleTestWorld(options.Id);
+        }
+
+        private sealed class LifecycleTestWorld : IWorld
+        {
+            public LifecycleTestWorld(WorldId id) => Id = id;
+
+            public WorldId Id { get; }
+            public string WorldType => "test";
+            public IWorldResolver Services => throw new NotSupportedException();
+            public Exception ReleaseFailure { get; set; }
+            public int DisposeCount { get; private set; }
+
+            public void Initialize() { }
+            public void Tick(float deltaTime) { }
+
+            public void Dispose()
+            {
+                DisposeCount++;
+                if (ReleaseFailure != null) throw ReleaseFailure;
+            }
         }
 
         private sealed class RecordingRemoteFrameStreams : IRemoteFrameStreams

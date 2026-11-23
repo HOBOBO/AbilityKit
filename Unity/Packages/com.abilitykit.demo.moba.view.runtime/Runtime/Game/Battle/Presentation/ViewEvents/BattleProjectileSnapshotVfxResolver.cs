@@ -33,8 +33,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (vfxId <= 0) return false;
 
             var position = _positions.Resolve(in entry);
-            var followId = _followTargets != null
-                ? _followTargets.Resolve(entry.ProjectileActorId)
+            var followActorId = entry.Kind == ProjectilePresentationEventKind.Hit ? 0 : entry.ProjectileActorId;
+            var followId = followActorId > 0 && _followTargets != null
+                ? _followTargets.Resolve(followActorId)
                 : default;
             var rotation = ResolveRotation(entry.ForwardX, entry.ForwardY, entry.ForwardZ);
 
@@ -42,7 +43,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 vfxId,
                 in position,
                 followId,
-                entry.ProjectileActorId,
+                followActorId,
                 in rotation,
                 entry.Kind == ProjectilePresentationEventKind.Spawn);
             return true;

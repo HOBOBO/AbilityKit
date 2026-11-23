@@ -3,10 +3,26 @@
     "references": [
         "AbilityKit.Demo.Moba.Editor",
         "AbilityKit.Demo.Moba.Environment",
+        "AbilityKit.Core",
+        "AbilityKit.Demo.Moba.Presentation.Contracts",
+        "AbilityKit.Demo.Moba.Presentation.Core",
+        "AbilityKit.Demo.Moba.Runtime",
+        "AbilityKit.Demo.Moba.Trace.Adapter",
+        "AbilityKit.Demo.Moba.View.Runtime",
+        "AbilityKit.Protocol.Moba",
+        "AbilityKit.Trace",
+        "AbilityKit.Triggering",
+        "AbilityKit.World.DI",
+        "AbilityKit.World.FrameSync",
+        "AbilityKit.World.NetworkFragments",
+        "AbilityKit.World.Snapshot",
         "AbilityKit.BattleScenario",
+        "AbilityKit.BattleScenario.Editor",
         "AbilityKit.Scenario"
     ],
     "includePlatforms": ["Editor"],
+    "overrideReferences": true,
+    "precompiledReferences": ["Entitas.dll"],
     "optionalUnityReferences": ["TestAssemblies"],
     "autoReferenced": false
 }

@@ -1,5 +1,6 @@
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Protocol.Room;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Share
 {
@@ -40,19 +41,53 @@ namespace AbilityKit.Demo.Moba.Share
                 removedActorIds[i] = removedSource[i];
             }
 
+            var fixedBaseline = push.SchemaVersion == FixedBaselineStateSyncProtocol.SchemaVersion;
+            var schemaVersion = push.SchemaVersion;
+            var generation = System.Guid.Empty;
+            long snapshotId = 0;
+            long baseSnapshotId = 0;
+            byte[] payload;
+            if (fixedBaseline)
+            {
+                if (!FixedBaselineStateSyncProtocol.TryDecode(push.Payload, out generation, out snapshotId,
+                        out baseSnapshotId, out schemaVersion, out payload))
+                    generation = System.Guid.Empty;
+            }
+            else
+            {
+                payload = push.Payload == null ? null : (byte[])push.Payload.Clone();
+            }
+
+            var payloadOpCode = push.PayloadOpCode;
+            byte[] cueBaseline = null;
+            if (payloadOpCode == MobaStateSyncCuePayloadCodec.OpCode &&
+                MobaStateSyncCuePayloadCodec.TryDecode(payload, out var projectionOpCode, out var projectionSchemaVersion,
+                    out var projection, out var cues))
+            {
+                payloadOpCode = projectionOpCode;
+                schemaVersion = projectionSchemaVersion;
+                payload = projection;
+                cueBaseline = cues;
+            }
+
             return new GatewayStateSyncSnapshot(
                 push.WorldId,
                 push.Frame,
                 push.Timestamp,
                 push.IsFullSnapshot,
                 actors,
-                push.SchemaVersion,
+                schemaVersion,
                 removedActorIds,
                 push.EventWatermark,
                 push.EventEpoch,
-                push.PayloadOpCode,
-                push.Payload == null ? null : (byte[])push.Payload.Clone(),
-                push.ServerTicks);
+                payloadOpCode,
+                payload,
+                push.ServerTicks,
+                fixedBaseline,
+                generation,
+                snapshotId,
+                baseSnapshotId,
+                cueBaseline);
         }
     }
 }

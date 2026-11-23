@@ -6,12 +6,9 @@ using AbilityKit.Ability.Host.Extensions.Moba.Snapshot;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Core.Logging;
-using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
-using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Map;
-using AbilityKit.Demo.Moba.Util.Converter;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -191,8 +188,7 @@ namespace AbilityKit.Demo.Moba.Services
                     $"TryStartGame begin. players={(effectiveReq.Players != null ? effectiveReq.Players.Length : 0)}, playerId={effectiveReq.PlayerId.Value}");
             }
 
-            var spawnEntries = new List<MobaActorSpawnSnapshotEntry>(effectiveReq.Players != null ? effectiveReq.Players.Length : 4);
-            var buildResult = BuildEnterGameActors(in effectiveReq, spawnEntries, out var built);
+            var buildResult = BuildEnterGameActors(in effectiveReq, out var built, out var spawnEntries);
             if (!buildResult.Succeeded)
             {
                 return buildResult;
@@ -343,84 +339,24 @@ namespace AbilityKit.Demo.Moba.Services
 
         private MobaGameStartResult BuildEnterGameActors(
             in EnterMobaGameReq effectiveReq,
-            List<MobaActorSpawnSnapshotEntry> spawnEntries,
-            out BuildActorsResult built)
+            out BuildActorsResult built,
+            out IReadOnlyList<MobaActorSpawnSnapshotEntry> spawnEntries)
         {
             built = default;
+            spawnEntries = null;
 
             MobaActorSpawnResult[] spawnResults = null;
             try
             {
-                var loadouts = effectiveReq.Players;
-                var requests = new MobaActorSpawnRequest[loadouts.Length];
-                for (var i = 0; i < loadouts.Length; i++)
-                {
-                    var loadout = loadouts[i];
-                    var spec = MobaConverter.ToActorBuildSpec(_actorIds.Next(), in loadout);
-                    var request = MobaActorSpawnRequest.FromSpec(in spec);
-                    request.Initializer = (entity, _) =>
-                    {
-                        if (!_generator.TryInitializeFromLoadout(entity, in loadout, out var error))
-                        {
-                            throw new InvalidOperationException(
-                                error ?? $"actor loadout initialization failed. playerId={loadout.PlayerId.Value} heroId={loadout.HeroId}");
-                        }
-                    };
-                    requests[i] = request;
-                }
-
+                var requests = MobaEnterGameActorBatchBuilder.CreateRequests(effectiveReq.Players, _actorIds, _generator);
                 if (!_actorSpawns.TryPrepareBatch(requests, out var batch) || !batch.Success)
                 {
                     throw new InvalidOperationException(batch.Error ?? "actor spawn batch failed");
                 }
 
                 spawnResults = batch.Actors;
-                var players = new MobaPlayerEntry[loadouts.Length];
-                var playerActors = new MobaPlayerActorEntry[loadouts.Length];
-                var localActorId = 0;
-                var localTransform = Transform3.Identity;
-                for (var i = 0; i < loadouts.Length; i++)
-                {
-                    var loadout = loadouts[i];
-                    var actor = spawnResults[i];
-                    var actorId = actor.ActorId;
-                    if (actorId <= 0)
-                    {
-                        throw new InvalidOperationException($"actor id is invalid after build. playerId={loadout.PlayerId.Value}, heroId={loadout.HeroId}");
-                    }
-
-                    players[i] = new MobaPlayerEntry(loadout.PlayerId, loadout.TeamId, loadout.HeroId, loadout.SpawnIndex);
-                    playerActors[i] = new MobaPlayerActorEntry(loadout.PlayerId, actorId);
-                    spawnEntries.Add(new MobaActorSpawnSnapshotEntry
-                    {
-                        NetId = actorId,
-                        Kind = (int)SpawnEntityKind.Character,
-                        Code = loadout.HeroId,
-                        OwnerNetId = 0,
-                        X = loadout.SpawnX,
-                        Y = loadout.SpawnY,
-                        Z = loadout.SpawnZ,
-                        EntityVersion = ResolveEntityVersion(actorId)
-                    });
-
-                    if (localActorId == 0 && loadout.PlayerId.Equals(effectiveReq.PlayerId))
-                    {
-                        localActorId = actorId;
-                        localTransform = actor.Spec.Info.Transform;
-                    }
-                }
-
-                if (localActorId <= 0)
-                {
-                    throw new InvalidOperationException($"localPlayerId not found in loadouts. playerId={effectiveReq.PlayerId.Value}");
-                }
-
-                built = new BuildActorsResult(
-                    localActorId,
-                    players,
-                    playerActors,
-                    in localTransform,
-                    spawnResults);
+                built = MobaEnterGameActorBatchBuilder.ProjectPreparedBatch(
+                    effectiveReq.Players, effectiveReq.PlayerId, spawnResults, _services, out spawnEntries);
             }
             catch (Exception ex)
             {
@@ -727,15 +663,6 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Dispose()
         {
-        }
-
-        private int ResolveEntityVersion(int actorId)
-        {
-            return _services != null &&
-                   _services.TryResolve<MobaActorRegistry>(out var actors) &&
-                   actors != null
-                ? actors.GetEntityVersion(actorId)
-                : 1;
         }
     }
 }

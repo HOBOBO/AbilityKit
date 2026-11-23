@@ -64,22 +64,22 @@ Buff 在不同游戏中的共同点主要是代码形状，而非完整语义。
 
 | 能力 | 关键类型 | 源码 |
 |------|----------|------|
-| 对外入口服务 | `MobaBuffService` | [`MobaBuffService.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs:27) |
-| Buff 配置模型 | `BuffMO`, `ContinuousModifierMO` | [`BuffMO.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/BuffMO.cs:69) |
-| Actor 运行时组件 | `BuffsComponent`, `BuffRuntime` | [`BuffComponent.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/BuffComponent.cs:10) |
-| 生命周期编排 | `BuffLifecycleExecutor` | [`BuffLifecycleExecutor.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffLifecycleExecutor.cs:57) |
-| Apply 流程 | `BuffApplyFlow` | [`BuffApplyFlow.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffApplyFlow.cs:16) |
-| End 流程 | `BuffEndFlow` | [`BuffEndFlow.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffEndFlow.cs:16) |
-| 叠层策略 | `BuffStackingPolicyApplier` | [`BuffStackingPolicyApplier.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffStackingPolicyApplier.cs:42) |
-| 持续行为绑定 | `BuffContinuousBindingService` | [`BuffContinuousBindingService.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousBindingService.cs:16) |
-| 持续运行时 | `BuffContinuousRuntime` | [`BuffContinuousRuntime.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs:17) |
-| 阶段 Trigger 执行 | `BuffStageEffectExecutor`, `BuffTriggerContext` | [`BuffStageEffectExecutor.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffStageEffectExecutor.cs:16) |
-| 生命周期通知 | `BuffLifecycleNotifier` | [`BuffLifecycleNotifier.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffLifecycleNotifier.cs:12) |
-| Buff 事件发布 | `BuffEventPublisher` | [`BuffEventPublisher.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffEventPublisher.cs:20) |
-| OwnerBound Trigger 绑定 | `MobaContinuousOwnerBoundTriggerLifecycleBinder` | [`MobaContinuousOwnerBoundTriggerLifecycleBinder.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Triggering/MobaContinuousOwnerBoundTriggerLifecycleBinder.cs:15) |
-| 命令队列系统 | `MobaBuffCommandDrainSystem` | [`MobaBuffCommandDrainSystem.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs:9) |
-| 生命周期调和系统 | `MobaBuffLifecycleReconcileSystem` | [`MobaBuffLifecycleReconcileSystem.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffLifecycleReconcileSystem.cs:10) |
-| 系统顺序约束 | `MobaSystemOrder` | [`MobaSystemOrder.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs:62) |
+| 对外入口服务 | `MobaBuffService` | [`MobaBuffService.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/MobaBuffService.cs#L27) |
+| Buff 配置模型 | `BuffMO`, `ContinuousModifierMO` | [`BuffMO.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/BuffMO.cs#L69) |
+| Actor 运行时组件 | `BuffsComponent`, `BuffRuntime` | [`BuffComponent.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/BuffComponent.cs#L10) |
+| 生命周期编排 | `BuffLifecycleExecutor` | [`BuffLifecycleExecutor.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffLifecycleExecutor.cs#L57) |
+| Apply 流程 | `BuffApplyFlow` | [`BuffApplyFlow.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffApplyFlow.cs#L16) |
+| End 流程 | `BuffEndFlow` | [`BuffEndFlow.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffEndFlow.cs#L16) |
+| 叠层策略 | `BuffStackingPolicyApplier` | [`BuffStackingPolicyApplier.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Core/BuffStackingPolicyApplier.cs#L42) |
+| 持续行为绑定 | `BuffContinuousBindingService` | [`BuffContinuousBindingService.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Runtime/BuffContinuousBindingService.cs#L16) |
+| 持续运行时 | `BuffContinuousRuntime` | [`BuffContinuousRuntime.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Runtime/BuffContinuousRuntime.cs#L17) |
+| 阶段 Trigger 执行 | `BuffStageEffectExecutor`, `BuffTriggerContext` | [`BuffStageEffectExecutor.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Triggering/BuffStageEffectExecutor.cs#L16) |
+| 生命周期通知 | `BuffLifecycleNotifier` | [`BuffLifecycleNotifier.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffLifecycleNotifier.cs#L12) |
+| Buff 事件发布 | `BuffEventPublisher` | [`BuffEventPublisher.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Triggering/BuffEventPublisher.cs#L20) |
+| OwnerBound Trigger 绑定 | `MobaContinuousOwnerBoundTriggerLifecycleBinder` | [`MobaContinuousOwnerBoundTriggerLifecycleBinder.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Triggering/MobaContinuousOwnerBoundTriggerLifecycleBinder.cs#L15) |
+| 命令队列系统 | `MobaBuffCommandDrainSystem` | [`MobaBuffCommandDrainSystem.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Systems/MobaBuffCommandDrainSystem.cs#L9) |
+| 生命周期调和系统 | `MobaBuffLifecycleReconcileSystem` | [`MobaBuffLifecycleReconcileSystem.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Systems/MobaBuffLifecycleReconcileSystem.cs#L10) |
+| 系统顺序约束 | `MobaSystemOrder` | [`MobaSystemOrder.cs`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs#L62) |
 
 ---
 
@@ -134,7 +134,7 @@ flowchart TD
 
 ### 4.1 `BuffMO`
 
-[`BuffMO`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/BuffMO.cs:69) 是运行时配置模型，来自配置 DTO 转换，关键字段包括：
+[`BuffMO`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/BuffMO.cs#L69) 是运行时配置模型，来自配置 DTO 转换，关键字段包括：
 
 - `Id` / `Name`：配置标识。
 - `DurationMs`：基础持续时间。
@@ -151,11 +151,11 @@ flowchart TD
 - `Tags`：Buff 相关标签。
 - `Modifiers`：连续修饰列表。
 
-[`ContinuousModifierMO`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/BuffMO.cs:10) 将配置转换成 `IMobaContinuousModifierSpec`，支持固定值、等级曲线、属性引用、时间衰减等 Magnitude 来源。
+[`ContinuousModifierMO`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MO/BuffMO.cs#L10) 将配置转换成 `IMobaContinuousModifierSpec`，支持固定值、等级曲线、属性引用、时间衰减等 Magnitude 来源。
 
 ### 4.2 `BuffRuntime`
 
-[`BuffRuntime`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/BuffComponent.cs:16) 是 Actor 上的 Buff 实例，存放在 [`BuffsComponent`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/BuffComponent.cs:10) 的 `Active` 列表中。
+[`BuffRuntime`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/BuffComponent.cs#L16) 是 Actor 上的 Buff 实例，存放在 [`BuffsComponent`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Components/BuffComponent.cs#L10) 的 `Active` 列表中。
 
 核心字段包括：
 
@@ -173,7 +173,7 @@ flowchart TD
 
 ### 4.3 来源上下文
 
-[`BuffOriginContext`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffRuntimeContexts.cs:15) 用于把来源技能、触发器、投射物或效果的上下文带入 Buff。它保存：
+[`BuffOriginContext`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Core/BuffRuntimeContexts.cs#L15) 用于把来源技能、触发器、投射物或效果的上下文带入 Buff。它保存：
 
 - 父级/源级 ContextId。
 - 来源 Actor 与目标 Actor。
@@ -187,7 +187,7 @@ flowchart TD
 
 ## 5. 应用与移除入口
 
-[`MobaBuffService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs:27) 是对外入口。它提供两类接口：
+[`MobaBuffService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/MobaBuffService.cs#L27) 是对外入口。它提供两类接口：
 
 - `ApplyBuffImmediate` / `ApplyBuffInstanceImmediate`：添加 Buff。
 - `RemoveBuffImmediate` / `RemoveBuffInstanceImmediate` / `RemoveBuffsImmediate`：移除 Buff。
@@ -214,13 +214,13 @@ flowchart TD
     I --> K[BuffLifecycleExecutor.Remove]
 ```
 
-[`MobaBuffCommandDrainSystem`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs:9) 每帧调用 `DrainPending(maxCommands: 256)`，保证非 immediate 或重入推迟的命令也会被推进。
+[`MobaBuffCommandDrainSystem`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Systems/MobaBuffCommandDrainSystem.cs#L9) 每帧调用 `DrainPending(maxCommands: 256)`，保证非 immediate 或重入推迟的命令也会被推进。
 
 ---
 
 ## 6. Apply 生命周期主线
 
-[`BuffApplyFlow`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffApplyFlow.cs:16) 负责应用阶段的核心逻辑：配置校验、目标解析、标签门禁、查找已有运行时、执行叠层策略、创建上下文、绑定 continuous 和发送通知。持续 TriggerPlan 不由 Apply 流程直接注册，而是在 Continuous 激活后由通用生命周期 Binder 接管。
+[`BuffApplyFlow`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffApplyFlow.cs#L16) 负责应用阶段的核心逻辑：配置校验、目标解析、标签门禁、查找已有运行时、执行叠层策略、创建上下文、绑定 continuous 和发送通知。持续 TriggerPlan 不由 Apply 流程直接注册，而是在 Continuous 激活后由通用生命周期 Binder 接管。
 
 ```mermaid
 flowchart TD
@@ -255,7 +255,7 @@ flowchart TD
 
 ## 7. 叠层与刷新策略
 
-[`BuffStackingPolicyApplier`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffStackingPolicyApplier.cs:42) 只负责修改已有运行时的叠层、剩余时间和来源，不处理事件、上下文、持续行为和表现。
+[`BuffStackingPolicyApplier`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Core/BuffStackingPolicyApplier.cs#L42) 只负责修改已有运行时的叠层、剩余时间和来源，不处理事件、上下文、持续行为和表现。
 
 源码内置策略包括：
 
@@ -290,9 +290,9 @@ flowchart LR
 
 ## 8. 持续行为、标签与属性/技能参数修饰
 
-Buff 的持续时间和持续修饰由 [`BuffContinuousRuntime`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs:17) 接入 Continuous 框架。
+Buff 的持续时间和持续修饰由 [`BuffContinuousRuntime`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Runtime/BuffContinuousRuntime.cs#L17) 接入 Continuous 框架。
 
-[`BuffContinuousBindingService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousBindingService.cs:16) 的职责是：
+[`BuffContinuousBindingService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Runtime/BuffContinuousBindingService.cs#L16) 的职责是：
 
 - 如果 Buff 没有 active continuous，则创建 `BuffContinuousRuntime`。
 - 将 `BuffRuntime` 和 `BuffContinuousRuntime` 互相绑定。
@@ -302,7 +302,7 @@ Buff 的持续时间和持续修饰由 [`BuffContinuousRuntime`](../../../Unity/
 - 已激活时通过 `MobaContinuousManager.Reproject` 重新投影。
 - 结束时调用 `TryEnd` 并清除双向引用。
 
-[`BuffContinuousRuntime`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs:17) 提供：
+[`BuffContinuousRuntime`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Runtime/BuffContinuousRuntime.cs#L17) 提供：
 
 - `TickManaged`：推进 elapsed，持续时间到期后 `End(Completed)`。
 - `SyncManagedState`：把剩余时间和 interval 回写到 `BuffRuntime`。
@@ -310,7 +310,7 @@ Buff 的持续时间和持续修饰由 [`BuffContinuousRuntime`](../../../Unity/
 - `TryGetContextSource`：优先使用 BuffRuntime 的来源快照，缺失时降级构造来源。
 - 内部 `BuffContinuousConfig`：提供 `IntervalSeconds`、`IntervalEffectIds`、Modifier specs、OwnerId 和 ModifierSourceId。
 
-标签生命周期由 [`BuffTagLifecycle`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Tagging/BuffTagLifecycle.cs:10) 处理：
+标签生命周期由 [`BuffTagLifecycle`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Tagging/BuffTagLifecycle.cs#L10) 处理：
 
 - Apply 前解析 `ContinuousTagTemplateId` 并执行 `CanActivate`。
 - Reconcile 时执行 `ShouldEnd`，如果标签条件要求移除，则将 Buff 标记为结束。
@@ -342,15 +342,15 @@ Buff 与 Triggering 的协作有两条路径：
 1. **生命周期阶段效果**：OnAdd / OnRemove / OnInterval 被转换成直接触发请求。
 2. **持续触发计划**：`TriggerIds` 被绑定到 Actor 的 `OngoingTriggerPlansComponent`，由 Triggering 调和系统订阅或取消。
 
-[`BuffLifecycleNotifier`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffLifecycleNotifier.cs:12) 统一维护通知顺序：
+[`BuffLifecycleNotifier`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffLifecycleNotifier.cs#L12) 统一维护通知顺序：
 
 - 新 Buff：发布 apply/refresh 事件，发送 started 表现 Cue，执行 add effects。
 - 已有 Buff：发布 apply/refresh 事件，根据层数变化发送 stack/refreshed 表现 Cue，必要时执行 add effects。
 - 移除 Buff：发布 remove 事件，发送 ended 表现 Cue，执行 remove effects。
 
-[`BuffStageEffectExecutor`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffStageEffectExecutor.cs:16) 会把每个 triggerId 转换成 `MobaTriggerExecutionRequest<BuffTriggerContext>`，然后交给 `MobaTriggerExecutionGateway`。执行前会捕获 `MobaPersistentContextSourceSnapshot`，这是为了保证 remove 阶段 runtime 即将被清理时，触发器仍能拿到稳定来源。
+[`BuffStageEffectExecutor`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Triggering/BuffStageEffectExecutor.cs#L16) 会把每个 triggerId 转换成 `MobaTriggerExecutionRequest<BuffTriggerContext>`，然后交给 `MobaTriggerExecutionGateway`。执行前会捕获 `MobaPersistentContextSourceSnapshot`，这是为了保证 remove 阶段 runtime 即将被清理时，触发器仍能拿到稳定来源。
 
-[`BuffEventPublisher`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffEventPublisher.cs:20) 会发布强类型 `EventKey<BuffEventArgs>`，并在存在订阅时兼容发布 `EventKey<object>`。
+[`BuffEventPublisher`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Triggering/BuffEventPublisher.cs#L20) 会发布强类型 `EventKey<BuffEventArgs>`，并在存在订阅时兼容发布 `EventKey<object>`。
 
 ```mermaid
 sequenceDiagram
@@ -372,18 +372,18 @@ sequenceDiagram
     Gateway->>Trigger: Execute trigger plan
 ```
 
-Buff 没有专属的 TriggerPlan 协调器。`BuffContinuousRuntime.RuntimeModel` 暴露 `BuffMO.TriggerIds`，通用的 [`MobaContinuousOwnerBoundTriggerLifecycleBinder`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Triggering/MobaContinuousOwnerBoundTriggerLifecycleBinder.cs:15) 监听 Continuous 生命周期，并以 continuous runtime 的 owner key 管理 OwnerBound Trigger：
+Buff 没有专属的 TriggerPlan 协调器。`BuffContinuousRuntime.RuntimeModel` 暴露 `BuffMO.TriggerIds`，通用的 [`MobaContinuousOwnerBoundTriggerLifecycleBinder`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/Triggering/MobaContinuousOwnerBoundTriggerLifecycleBinder.cs#L15) 监听 Continuous 生命周期，并以 continuous runtime 的 owner key 管理 OwnerBound Trigger：
 
 - Continuous 激活时，Binder 复制 TriggerId 列表并通过 `MobaOwnerBoundTriggerExecutionGateway.ApplyOwnerBoundTriggers` 建立订阅。
 - Continuous 结束或解绑时，Binder 通过同一 Gateway 停止 owner key 对应的订阅并清理来源快照。
-- [`MobaTriggerPlanSubscriptionService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs:18) 负责 TriggerId 到强类型事件订阅的转换、重复注册抑制和过期注册移除。
+- [`MobaTriggerPlanSubscriptionService`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerPlanSubscriptionService.cs#L18) 负责 TriggerId 到强类型事件订阅的转换、重复注册抑制和过期注册移除。
 - `BuffEndFlow.CleanupOwnerBindings` 当前只移除目标实体上属于该 `SourceContextId` 的 effect listener；TriggerPlan 订阅由 Continuous 生命周期收口，不由 Buff 结束流程重复维护。
 
 ---
 
 ## 10. 结束与清理顺序
 
-[`BuffEndFlow`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffEndFlow.cs:16) 集中处理结束顺序。源码注释明确要求：先停持续行为、清 owner binding、发布事件，再从列表移除并回收到对象池。
+[`BuffEndFlow`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffEndFlow.cs#L16) 集中处理结束顺序。源码注释明确要求：先停持续行为、清 owner binding、发布事件，再从列表移除并回收到对象池。
 
 ```mermaid
 flowchart TD
@@ -411,7 +411,7 @@ flowchart TD
 
 ## 11. 系统顺序与一致性约束
 
-Buff 系统依赖 [`MobaSystemOrder`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs:62) 的顺序约束：
+Buff 系统依赖 [`MobaSystemOrder`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs#L62) 的顺序约束：
 
 ```mermaid
 flowchart LR
@@ -431,7 +431,7 @@ flowchart LR
 - `BuffLifecycleReconcile < OngoingTriggerPlansReconcile`：Buff 清理或 upsert 的持续触发计划先落到组件，再由 Triggering 调和。
 - `OngoingTriggerPlansReconcile < GameplayTick`：玩法规则 Tick 前持续触发计划订阅状态应已稳定。
 
-[`MobaBuffLifecycleReconcileSystem`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffLifecycleReconcileSystem.cs:10) 会遍历带 `ActorId` 和 `Buffs` 的 Actor，调用 `ReconcileActorBuffLifecycles`：
+[`MobaBuffLifecycleReconcileSystem`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Systems/MobaBuffLifecycleReconcileSystem.cs#L10) 会遍历带 `ActorId` 和 `Buffs` 的 Actor，调用 `ReconcileActorBuffLifecycles`：
 
 1. 清理空 runtime。
 2. 检查标签是否要求结束。

@@ -778,6 +778,7 @@ namespace AbilityKit.Game.Flow
         private readonly Dictionary<TKey, THandle> _active;
         private readonly List<TKey> _clearBuffer = new List<TKey>();
         private readonly HashSet<THandle> _stopping = new HashSet<THandle>();
+        private readonly HashSet<THandle> _transient = new HashSet<THandle>();
 
         public PresentationInstanceRegistry(
             IPresentationCueViewPort<TKey, TPayload, THandle> port,
@@ -843,7 +844,7 @@ namespace AbilityKit.Game.Flow
 
         public bool EmitTransient(TKey key, in TPayload payload)
         {
-            PruneStopped();
+            PruneTransient();
             if (_comparer.Equals(key, default(TKey))) return false;
             if (!_port.TryCreate(key, in payload, out var handle))
             {
@@ -852,11 +853,7 @@ namespace AbilityKit.Game.Flow
             }
 
             CreatedCount++;
-            if (_port.IsAlive(handle))
-            {
-                Destroy(handle, force: false);
-                DestroyedCount++;
-            }
+            if (_port.IsAlive(handle)) _transient.Add(handle);
             return true;
         }
 
@@ -886,12 +883,14 @@ namespace AbilityKit.Game.Flow
             }
             _clearBuffer.Clear();
             ClearStopped(ref failures);
+            ClearTransient(ref failures);
             if (failures != null)
                 throw new AggregateException("One or more presentation instances failed to stop.", failures);
         }
 
         public void ReconcileActiveSet(IReadOnlyCollection<TKey> desiredKeys)
         {
+            PruneTransient();
             var desired = new HashSet<TKey>(_comparer);
             if (desiredKeys != null)
             {
@@ -930,6 +929,27 @@ namespace AbilityKit.Game.Flow
         }
 
         private void PruneStopped() => _stopping.RemoveWhere(handle => !_port.IsAlive(handle));
+
+        private void PruneTransient() => _transient.RemoveWhere(handle => !_port.IsAlive(handle));
+
+        private void ClearTransient(ref List<Exception> failures)
+        {
+            PruneTransient();
+            foreach (var handle in new List<THandle>(_transient))
+            {
+                try
+                {
+                    Destroy(handle, force: true);
+                    DestroyedCount++;
+                    _transient.Remove(handle);
+                }
+                catch (Exception exception)
+                {
+                    failures ??= new List<Exception>();
+                    failures.Add(exception);
+                }
+            }
+        }
 
         private void ClearStopped(ref List<Exception> failures)
         {

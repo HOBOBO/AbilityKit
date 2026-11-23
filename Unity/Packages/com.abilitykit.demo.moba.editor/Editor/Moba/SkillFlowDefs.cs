@@ -26,6 +26,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         public bool ContinueThroughControl;
         public bool PreserveCharacterCastContext;
         public bool UseCommitCooldownFactor;
+        [SerializeReference] public BasicAttackFlowDTO BasicAttack;
 
         [MinValue(0)] public int RequiredBuffQualificationId;
 
@@ -56,6 +57,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 ContinueThroughControl = ContinueThroughControl,
                 PreserveCharacterCastContext = PreserveCharacterCastContext,
                 UseCommitCooldownFactor = UseCommitCooldownFactor,
+                BasicAttack = BasicAttack,
 
                 RequiredBuffQualificationId = RequiredBuffQualificationId,
                 Phases = ConvertPhases(Phases),
@@ -82,6 +84,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 ContinueThroughControl = dto.ContinueThroughControl,
                 PreserveCharacterCastContext = dto.PreserveCharacterCastContext,
                 UseCommitCooldownFactor = dto.UseCommitCooldownFactor,
+                BasicAttack = dto.BasicAttack,
 
                 RequiredBuffQualificationId = dto.RequiredBuffQualificationId,
                 Phases = SkillPhaseDef.ConvertPhasesFromDto(dto.Phases),
@@ -364,7 +367,11 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 ? MobaActionTimelineCompiler.CompileLogicPhase(MobaLogicTimeline.text)
                 : Timeline;
             if (MobaLogicTimeline != null)
+            {
                 dto.Timeline.RecoveryStartMs = Timeline?.RecoveryStartMs ?? -1;
+                dto.Timeline.CastGateTagTemplateId = Timeline?.CastGateTagTemplateId ?? 0;
+                dto.Timeline.CastGateEndMs = Timeline?.CastGateEndMs ?? 0;
+            }
             return dto;
         }
     }

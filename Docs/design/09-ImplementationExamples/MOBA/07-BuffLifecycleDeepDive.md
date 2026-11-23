@@ -25,17 +25,17 @@ Buff 可以承载属性修改、周期效果、标签门禁、表现 Cue 和触�
 
 | 入口 | 源码 | 阅读重点 |
 |------|------|----------|
-| 对外入口 | [`MobaBuffService.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs:27) | 即时 API、命令队列、调和与诊断 |
-| 生命周期编排 | [`BuffLifecycleExecutor.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffLifecycleExecutor.cs:57) | apply/remove 分流、拒绝结果、结束顺序 |
-| 请求模型 | [`BuffRuntimeContexts.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffRuntimeContexts.cs) | `BuffApplyRequest`、`BuffRemoveRequest` |
-| 应用流程 | [`BuffApplyFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffApplyFlow.cs:17) | 配置门禁、叠层、新实例创建 |
-| 结束流程 | [`BuffEndFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffEndFlow.cs:16) | 解绑、通知、移除和回收 |
-| 命令消费系统 | [`MobaBuffCommandDrainSystem.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs:9) | 每帧 256 条命令预算 |
-| 生命周期调和系统 | [`MobaBuffLifecycleReconcileSystem.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffLifecycleReconcileSystem.cs:10) | 遍历 Actor 并执行运行时对账 |
-| Continuous Tick 系统 | [`MobaContinuousTickSystem.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Continuous/MobaContinuousTickSystem.cs:9) | 读取 World Clock，推进 MOBA Continuous Manager |
-| 状态恢复 | [`MobaBuffStateRecoveryProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffStateRecoveryProvider.cs:18) | 版本与依赖预校验、事务导入、失败回滚及行为关系重建 |
-| 运行时仓储 | [`BuffRepository.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffRepository.cs:26) | 列表级首项索引、脏标记、对象池释放 |
-| 计时回滚 | [`MobaBuffTimerRollbackProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaBuffTimerRollbackProvider.cs:26) | 只更新已有 Buff 的计时、周期剩余和层数 |
+| 对外入口 | [`MobaBuffService.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/MobaBuffService.cs#L27) | 即时 API、命令队列、调和与诊断 |
+| 生命周期编排 | [`BuffLifecycleExecutor.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffLifecycleExecutor.cs#L57) | apply/remove 分流、拒绝结果、结束顺序 |
+| 请求模型 | [`BuffRuntimeContexts.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Core/BuffRuntimeContexts.cs) | `BuffApplyRequest`、`BuffRemoveRequest` |
+| 应用流程 | [`BuffApplyFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffApplyFlow.cs#L17) | 配置门禁、叠层、新实例创建 |
+| 结束流程 | [`BuffEndFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffEndFlow.cs#L16) | 解绑、通知、移除和回收 |
+| 命令消费系统 | [`MobaBuffCommandDrainSystem.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Systems/MobaBuffCommandDrainSystem.cs#L9) | 每帧 256 条命令预算 |
+| 生命周期调和系统 | [`MobaBuffLifecycleReconcileSystem.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Systems/MobaBuffLifecycleReconcileSystem.cs#L10) | 遍历 Actor 并执行运行时对账 |
+| Continuous Tick 系统 | [`MobaContinuousTickSystem.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Continuous/MobaContinuousTickSystem.cs#L9) | 读取 World Clock，推进 MOBA Continuous Manager |
+| 状态恢复 | [`MobaBuffStateRecoveryProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Recovery/MobaBuffStateRecoveryProvider.cs#L18) | 版本与依赖预校验、事务导入、失败回滚及行为关系重建 |
+| 运行时仓储 | [`BuffRepository.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Core/BuffRepository.cs#L26) | 列表级首项索引、脏标记、对象池释放 |
+| 计时回滚 | [`MobaBuffTimerRollbackProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaBuffTimerRollbackProvider.cs#L26) | 只更新已有 Buff 的计时、周期剩余和层数 |
 
 `MobaBuffService` 是 World Service。`OnInit` 通过当前 World 的 `IWorldResolver` 构建生命周期执行器，确保配置、Actor 查询、事件总线、Trace、持续行为和表现快照都来自同一战斗作用域；`Dispose` 只清空尚未消费的命令，不负责重建或清理 Actor 上已有的 Buff 运行时。
 
@@ -192,7 +192,7 @@ EffectsStep -> BuffCommandsDrain -> ContinuousTick -> BuffLifecycleReconcile
                  -> OngoingTriggerPlansReconcile -> GameplayTick
 ```
 
-这个顺序由 [`MobaSystemOrder.ValidateKeyDependencies()`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs:102) 做静态关系检查；具体系统分别以 [`MobaBuffCommandDrainSystem`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs:8)、[`MobaContinuousTickSystem`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Continuous/MobaContinuousTickSystem.cs:9) 和 [`MobaBuffLifecycleReconcileSystem`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffLifecycleReconcileSystem.cs:9) 声明顺序。它保证本轮已排队命令先于 Continuous 推进，Continuous 状态再被 Buff 调和读取；这仍是执行顺序契约，不等于完整的回放或跨 World 确定性证明。
+这个顺序由 [`MobaSystemOrder.ValidateKeyDependencies()`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs#L102) 做静态关系检查；具体系统分别以 [`MobaBuffCommandDrainSystem`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Systems/MobaBuffCommandDrainSystem.cs#L8)、[`MobaContinuousTickSystem`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Continuous/MobaContinuousTickSystem.cs#L9) 和 [`MobaBuffLifecycleReconcileSystem`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Systems/MobaBuffLifecycleReconcileSystem.cs#L9) 声明顺序。它保证本轮已排队命令先于 Continuous 推进，Continuous 状态再被 Buff 调和读取；这仍是执行顺序契约，不等于完整的回放或跨 World 确定性证明。
 
 ### 9.2 运行时确定性与诊断
 
@@ -216,13 +216,13 @@ EffectsStep -> BuffCommandsDrain -> ContinuousTick -> BuffLifecycleReconcile
 
 | 证据层 | 入口 | 能证明什么 | 不能证明什么 |
 |----------|------|------------|--------------|
-| 源码契约 | [`MobaBuffService.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs:75)、[`BuffApplyFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffApplyFlow.cs:56)、[`BuffEndFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Lifecycle/BuffEndFlow.cs:35) | Immediate 执行回执、队列预算、驱散门禁、新实例提交时机和结束补偿顺序 | 所有玩法配置组合和跨 World 回放均已覆盖 |
-| 源码契约 | [`MobaBuffStateRecoveryProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffStateRecoveryProvider.cs:69)、[`MobaBuffTimerRollbackProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaBuffTimerRollbackProvider.cs:47) | 全量恢复的预校验/回滚/重装配边界，以及 timer rollback v3 的完整实例身份与零写入边界 | 外部订阅者的任意自定义副作用都可自动恢复 |
-| Unity 生命周期 fixture | [`MobaBuffLifecycleTransactionTests.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.editor/Tests/MobaBuffLifecycleTransactionTests.cs:21) | Repository 首项索引和列表级失效、Drain 预算/重入/异常隔离、Immediate 回执、EndFlow 补偿、驱散及 fail-closed 诊断 | 生产配置全集和网络重放的组合覆盖 |
+| 源码契约 | [`MobaBuffService.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/MobaBuffService.cs#L75)、[`BuffApplyFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffApplyFlow.cs#L56)、[`BuffEndFlow.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Lifecycle/BuffEndFlow.cs#L35) | Immediate 执行回执、队列预算、驱散门禁、新实例提交时机和结束补偿顺序 | 所有玩法配置组合和跨 World 回放均已覆盖 |
+| 源码契约 | [`MobaBuffStateRecoveryProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Buffs/Recovery/MobaBuffStateRecoveryProvider.cs#L69)、[`MobaBuffTimerRollbackProvider.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaBuffTimerRollbackProvider.cs#L47) | 全量恢复的预校验/回滚/重装配边界，以及 timer rollback v3 的完整实例身份与零写入边界 | 外部订阅者的任意自定义副作用都可自动恢复 |
+| Unity 生命周期 fixture | [`MobaBuffLifecycleTransactionTests.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.editor/Tests/MobaBuffLifecycleTransactionTests.cs#L21) | Repository 首项索引和列表级失效、Drain 预算/重入/异常隔离、Immediate 回执、EndFlow 补偿、驱散及 fail-closed 诊断 | 生产配置全集和网络重放的组合覆盖 |
 | Unity 配置 fixture | [`MobaProductionConfigReferenceValidationTests.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/MobaProductionConfigReferenceValidationTests.cs) | 驱散非法枚举、负类别和冗余配置使用稳定 code 验收 | 自定义运行时注入的配置绕过校验后仍然安全 |
 | 直接单元测试 | `BuffStackingPolicyApplierTests`、`MobaContinuousLifecycleTests` | 叠层策略及通用 Continuous runtime 的激活、拒绝、暂停、结束与注销 | Buff 在全部技能组合中的业务正确性 |
 | 间接诊断测试 | `MobaBuffDiagnosticProducerTests`、Actor Buff diagnostic store tests | Buff 诊断 draft、collector、snapshot 字段和实例键投影 | 真实 Apply/Remove/End 生命周期已经成功执行 |
-| 顺序源码/检查 | [`MobaSystemOrder.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs:102) | `EffectsStep < BuffCommandsDrain < ContinuousTick < BuffLifecycleReconcile < OngoingTriggerPlansReconcile < GameplayTick` 的关系检查 | 每个系统组合和多 World 调度都已运行时验证 |
+| 顺序源码/检查 | [`MobaSystemOrder.cs`](../../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs#L102) | `EffectsStep < BuffCommandsDrain < ContinuousTick < BuffLifecycleReconcile < OngoingTriggerPlansReconcile < GameplayTick` 的关系检查 | 每个系统组合和多 World 调度都已运行时验证 |
 
 2026-08-17 的聚焦证据为：Unity 生命周期 fixture 18/18，通过 Repository、Drain、Immediate、EndFlow、恢复和驱散专项；Unity 配置验收 fixture 5/5，通过驱散配置稳定 code；Runtime、Diagnostics Core Tests 和 Game UnitTests 三个 .NET 构建均为 0 error。构建仍分别保留 111、148、162 条既有 warning，本轮没有把 warning 基线误报成零。
 

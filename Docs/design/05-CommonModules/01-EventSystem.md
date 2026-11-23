@@ -2,6 +2,8 @@
 
 > 本文从源码解释 AbilityKit Core 事件系统。它不是一个全局消息总线的概念草图，而是由 `EventDispatcher`、`EventKey`、`Channel<TArgs>`、`IEventSubscription` 和 `StableStringIdRegistry` 组成的轻量运行时通信机制。
 
+随包交付的行为契约见 [同步事件契约](../../../Unity/Packages/com.abilitykit.core/Documentation~/Eventing.md)。本轮已统一源码目录，并修复多监听器快照下的一次性订阅重入问题；以下说明以当前实现为准。
+
 ---
 
 ## 1. 能力定位
@@ -36,11 +38,11 @@
 
 | 源码 | 作用 |
 |------|------|
-| `Unity/Packages/com.abilitykit.core/Runtime/Event/EventDispatcher.cs` | 事件订阅、派发、监听者管理和事件参数自动释放 |
-| `Unity/Packages/com.abilitykit.core/Runtime/Event/GlobalEventDispatcher.cs` | 持有单一静态 `EventDispatcher` 实例并代理 string/int 订阅与发布 |
-| `Unity/Packages/com.abilitykit.core/Runtime/Event/EventKey.cs` | 用 `eventId + argsType` 组成事件通道键 |
-| `Unity/Packages/com.abilitykit.core/Runtime/Event/IEventSubscription.cs` | 订阅句柄；当前接口只提供 `Unsubscribe()` |
-| `Unity/Packages/com.abilitykit.core/Runtime/Generic/StableStringIdRegistry.cs` | 将字符串事件名稳定映射为 int ID，并检测哈希冲突 |
+| `Unity/Packages/com.abilitykit.core/Runtime/Eventing/EventDispatcher.cs` | 事件订阅、派发、监听者管理和事件参数自动释放 |
+| `Unity/Packages/com.abilitykit.core/Runtime/Eventing/GlobalEventDispatcher.cs` | 持有单一静态 `EventDispatcher` 实例并代理 string/int 订阅与发布 |
+| `Unity/Packages/com.abilitykit.core/Runtime/Eventing/EventKey.cs` | 用 `eventId + argsType` 组成事件通道键 |
+| `Unity/Packages/com.abilitykit.core/Runtime/Eventing/IEventSubscription.cs` | 订阅句柄；当前接口只提供 `Unsubscribe()` |
+| `Unity/Packages/com.abilitykit.core/Runtime/Identifiers/StableStringIdRegistry.cs` | 将字符串事件名稳定映射为 int ID，并检测哈希冲突 |
 | `Unity/Packages/com.abilitykit.core/Runtime/Pooling/Core/Pools.cs` | 事件参数自动释放和派发快照列表池化依赖 |
 
 ---
@@ -90,7 +92,7 @@ var subscription = dispatcher.Subscribe<DamageEvent>(
 `StableStringIdRegistry` 的实现很小，但它是事件名稳定性的关键边界：
 
 - `_nameToId` 使用 `StringComparer.Ordinal`，避免不同区域性导致字符串比较结果漂移。
-- `StableHash32` 使用固定 offset 和 prime 的 32 位滚动哈希，不依赖 .NET 运行时的随机化字符串哈希。
+- `StableHashV1.Fnv1a32Utf16` 使用固定 offset 和 prime 混合 UTF-16 代码单元，不依赖 .NET 运行时的随机化字符串哈希。
 - `_idToName` 会反查生成后的整数 ID。如果两个不同字符串得到同一个 ID，会立即抛出 hash collision 异常，而不是静默把两个事件合并到同一通道。
 - `TryGetId` 只查询已注册名称，不会隐式创建；`GetOrRegister` 才会建立双向映射。
 
@@ -107,7 +109,7 @@ sequenceDiagram
     alt 已注册
         Registry-->>Dispatcher: 返回现有 stable int eventId
     else 未注册
-        Registry->>Registry: StableHash32 + collision check
+        Registry->>Registry: StableHashV1.Fnv1a32Utf16 + collision check
         Registry-->>Dispatcher: 记录 name/id 双向映射
     end
     Dispatcher->>Dispatcher: new EventKey(eventId, typeof(TArgs))
@@ -185,23 +187,23 @@ Ability Triggering 的 `CommonEventDispatcherBus` 因为在外层拥有 `Trigger
 flowchart TB
     Start["Channel.Publish"] --> Count{listener 数量}
     Count -->|0| End["返回"]
-    Count -->|1| Single["直接调用唯一 listener"]
+    Count -->|1| Single["取得唯一 listener"]
     Count -->|多于 1| Rent["从 ObjectPool 取 snapshot List"]
-    Single --> Once1{listener.once?}
-    Once1 -->|是| Remove1["从 _listeners 移除"]
-    Once1 -->|否| End
-    Remove1 --> End
-
     Rent --> Copy["复制 _listeners 到 snapshot"]
-    Copy --> Loop["遍历 snapshot"]
-    Loop --> Invoke["Invoke handler"]
-    Invoke --> Once2{once?}
-    Once2 -->|是| Remove2["Remove listener"]
-    Once2 -->|否| Next
-    Remove2 --> Next
-    Next --> More{还有 listener?}
+    Copy --> Loop["取得下一个 snapshot listener"]
+    Single --> Once{listener.once?}
+    Loop --> Once
+    Once -->|是| Remove["调用前从实时列表移除"]
+    Once -->|否| Invoke["调用回调并隔离异常"]
+    Remove --> Consumed{是否已经执行?}
+    Consumed -->|是| Advance{是否为 snapshot 路径?}
+    Consumed -->|否| Mark["在回调前标记已执行"]
+    Mark --> Invoke
+    Invoke --> Advance
+    Advance -->|否| End
+    Advance -->|是| More{还有 listener?}
     More -->|是| Loop
-    More -->|否| Release["归还 snapshot List"]
+    More -->|否| Release["finally 归还 snapshot List"]
     Release --> End
 ```
 
@@ -212,7 +214,7 @@ flowchart TB
 | 监听者在回调中退订自己 | 多监听者路径遍历的是 snapshot，不会破坏正在遍历的列表；退订影响后续发布 |
 | 监听者在回调中退订别人 | 本次派发已经复制到 snapshot 的监听者仍可能继续执行，退订主要影响后续发布 |
 | 监听者在回调中新增订阅 | 新监听者不在已经生成的 snapshot 中，从下一次发布开始生效 |
-| `once = true` | 处理器返回或抛异常后才移除；处理器中的同步递归发布可能在移除前再次调用同一 once listener |
+| `once = true` | 回调前移除并记录单次执行状态；内层发布已经消费的监听项不会被外层旧快照再次执行，异常后也不重试 |
 | 监听者抛异常 | 异常被吞掉，once 监听者仍会移除，后续监听者继续执行 |
 | 只有一个监听者 | 不租借 snapshot 列表，走更短路径；仍然是同步、可递归调用 |
 
@@ -300,14 +302,14 @@ dispatcher.Publish(GameEvents.Damage, evt);
 
 ## 8. 订阅句柄、全局门面与生命周期
 
-订阅返回 `IEventSubscription`。当前接口没有继承 `IDisposable`，只提供幂等的 `Unsubscribe()`；调用后句柄会清空内部 dispatcher/listener 引用，重复调用直接返回。
+订阅返回 `IEventSubscription`。当前接口没有继承 `IDisposable`，只提供幂等的 `Unsubscribe()`；退订前先清空句柄中的 listener 引用，重复调用直接返回。dispatcher 与通道键仍作为只读身份保留；句柄不负责释放回调目标，旧句柄不能移除之后创建的替代订阅。
 
 ```mermaid
 stateDiagram-v2
     [*] --> Active: Subscribe
     Active --> Active: Publish matched event
     Active --> Removed: subscription.Unsubscribe()
-    Active --> Removed: once listener returns
+    Active --> Removed: before once listener invocation
     Removed --> Removed: repeated Unsubscribe is ignored
 ```
 
@@ -342,7 +344,7 @@ public void Dispose()
 | 用常量保存事件名或事件 ID | 避免字符串拼写错误导致发布和订阅进入不同通道；字符串名最终会被稳定哈希成 int |
 | 事件参数类型保持稳定 | `EventKey` 包含 `typeof(TArgs)`，类型变化会改变通道 |
 | 字符串 ID 在入口处判空 | `null` 字符串在进入 `try/finally` 前直接返回，不派发也不自动释放载荷；调用方仍拥有它 |
-| 监听者回调保持短小并避免递归发布 | 当前派发同步且没有重入保护，长耗时阻塞发布者，递归会改变 once 和调用顺序语义 |
+| 监听者回调保持短小并管理嵌套发布 | 当前派发同步，一次性项保证最多执行一次；普通回调没有全局递归深度限制，调用方仍需管理顺序和参数所有权 |
 | 需要跨帧保存事件数据时复制字段 | 自动释放后，池化事件对象可能被复用 |
 | 模块卸载时调用 `Unsubscribe()` | `IEventSubscription` 没有 `Dispose()`，订阅所有者必须显式退订 |
 | 限制在单线程/单世界执行域 | dispatcher、channel 和字符串注册表都使用无锁字典/列表，不能声明为线程安全 |
@@ -367,21 +369,21 @@ dispatcher.Subscribe<HealEvent>(100, OnHeal);
 
 ### 10.3 把 EventDispatcher 当异步队列
 
-当前实现是同步派发：`Publish` 调用栈内直接执行监听者。它没有队列、线程切换或重入保护；需要排队、跨帧、网络传输时，应使用对应运行时模块。
+当前实现是同步派发：`Publish` 调用栈内直接执行监听者。一次性项具有单次执行保护，但没有事件队列、线程切换或全局递归深度限制；需要排队、跨帧、网络传输时，应使用对应运行时模块。
 
-### 10.4 以为 once 在递归发布前已经移除
+### 10.4 一次性订阅在重入发布中最多执行一次
 
-once listener 是在处理器调用结束后移除。若处理器同步递归发布相同事件，它仍在通道中，可能再次执行。需要严格至多一次语义时，处理器应先维护自己的状态门禁，或者禁止该事件递归发布。
+once listener 在回调调用前移除，并在执行回调前记录已执行状态。多监听器场景中，内层发布可能先消费外层快照尚未调用的 once listener，外层随后会跳过已消费的监听项；回调抛出异常也不重试。该保证不禁止普通回调嵌套发布。
 
 ### 10.5 以为退订能阻止当前 snapshot 中的后续回调
 
 多监听者路径会先复制 `_listeners` 到 snapshot，再遍历 snapshot。某个监听者在回调中退订另一个监听者时，被退订者如果已经在当前 snapshot 中，仍可能在当前发布周期被调用。需要强制阻止当前发布周期的后续逻辑时，应在事件参数或监听者自身状态里加显式有效性判断。
 
-### 10.6 单监听者快路径不是多监听者 snapshot 的缩小版
+### 10.6 单监听者快路径与通道替换
 
-只有一个监听者时，`Channel<TArgs>.Publish` 直接读取 `_listeners[0]`，回调结束后再按 once 执行 `RemoveAt(0)`。因此 once 回调若重入同一通道并插入更高优先级监听者，索引 0 可能已经指向新监听者：外层返回后会删掉新监听者，原 once 反而保留。该行为是当前源码缺陷，不是支持的动态订阅协议；在修复和补测前，应禁止同通道 once 回调内新增监听者，并用业务门禁防止递归消费。
+只有一个监听者时，`Channel<TArgs>.Publish` 直接取得该监听项，不租借快照列表；一次性项仍在回调前按对象身份移除。回调中重入、清空或新增监听项后，外层清理只会移除原先观察到的空通道，不会误删替代通道。
 
-多监听者 snapshot 与单监听者快路径由监听者数量决定，同一事件在运行期间可能在两种语义间切换。项目不能把“当前恰好只有一个监听者”当成稳定契约，也不应依赖回调内增删订阅来控制本轮派发。
+单监听者与多监听者路径共享优先级、单次执行和异常隔离契约，区别在于是否需要快照列表。回调内的订阅变更仍不能作为撤销当前普通监听项快照的手段。
 
 ---
 
@@ -393,8 +395,10 @@ once listener 是在处理器调用结束后移除。若处理器同步递归发
 | `Samples/Starter/FoundationStarter.cs` | 可执行 Starter 直接演示订阅、发布和退订；事件发布同样显式关闭自动释放 |
 | `Samples/Foundation/EventSystem.cs` | 仍包含实例化 `GlobalEventDispatcher`、`Dispatch` 和 `subscription.Dispose()` 等过期 API，只能视为待修样例文本，不能作为当前契约证据 |
 | `src/AbilityKit.Core.Tests/EventDispatcherTests.cs` | 覆盖字符串载荷恰好释放一次、稳定优先级/同优先级顺序、once 和监听器异常隔离，构成 Core 直接 E3 契约证据 |
+| `src/AbilityKit.Core.Tests/EventDispatcherContractTests.cs` | 本轮新增 12 项回归，覆盖一次性订阅嵌套发布、快照变更、替代通道、空引用事件名的参数所有权、释放异常及参数类型隔离 |
+| `src/AbilityKit.Triggering.Tests/AbilityKit.Triggering.Tests.csproj` | 本轮 .NET 跨包回归 26 项通过；验证范围为该测试工程 |
 
-2026-08-16 聚焦执行结果为 3/3 通过。当前仍需补的回归测试是：回调中增删监听器、单监听者 once 重入插入、once 递归发布、`null` 字符串 ID 的所有权、整数自动释放的三段优先级、跨线程误用和嵌套发布后的顺序。已有测试可以支持其覆盖范围内的契约声明，但不能外推为重入或线程安全保证。
+2026-08-16 的 3/3 是历史聚焦结果。本轮 2026-11-17 的 Core 全量直接测试为 173 项通过，Triggering 跨包回归为 26 项通过，均无失败或跳过。回调中增删监听器、单监听者 once 重入及替代订阅、多监听者 once 被内层消费、空引用事件名的参数所有权和释放异常已有回归覆盖。事件参数的对象池归还与 IPoolable 兜底完整组合，以及真实 Unity/IL2CPP 验收，仍待后续补齐。并发发布不属于支持契约，不能由这些单线程测试外推线程安全保证。具体命令和日志登记在 Core 稳定化推进记录中。
 
 ---
 
@@ -402,7 +406,7 @@ once listener 是在处理器调用结束后移除。若处理器同步递归发
 
 1. `EventDispatcher.Subscribe<TArgs>`：事件 ID、`EventKey` 和 `Channel<TArgs>` 的关系。
 2. `Channel<TArgs>.Add`：优先级和订阅顺序。
-3. `Channel<TArgs>.Publish`：单监听者快路径、多监听者 snapshot、异常隔离和 once 移除。
+3. `Channel<TArgs>.Publish` 与 `Listener<TArgs>.Invoke`：单监听者快路径、多监听者 snapshot、异常隔离、once 调用前移除及单次执行状态。
 4. string/int `Publish<TArgs>` 的委托关系：字符串入口关闭内层释放，由外层 `finally` 单点回收。
 5. `GlobalEventDispatcher` 与 `CommonEventDispatcherBus`：全局 facade 和生产适配的所有权差异。
 6. [对象池](./02-ObjectPool.md)：`Pools.TryRelease` 和事件系统的关系。
@@ -418,6 +422,6 @@ once listener 是在处理器调用结束后移除。若处理器同步递归发
 
 ---
 
-文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 源码、E2 生产消费者、E3 Core 契约测试；未达到 E4/E5
+文档类型：Canonical 设计 | 原事实基线：2026-08-16；事件实现与回归更新：2026-11-17 | 证据等级：E0 源码、E2 既有生产消费者、E3 Core 及 Triggering 契约测试；本轮未补真实 Unity/IL2CPP 验收，未达到 E4/E5
 
-*文档版本：v3.2 | 最后更新：2026-08-16*
+*文档版本：v3.3 | 最后更新：2026-11-17*

@@ -7,6 +7,11 @@
   ],
   "referencedMemoryPackTypes": [
     "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpRequest",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpResponse",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeRequest",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeResponse",
     "AbilityKit.Protocol.Moba.SkillInputEvent",
     "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
@@ -28,6 +33,14 @@
   "generatedTypes": [
     "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomPlayerSnapshot",
     "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpRequest",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpResponse",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCommand",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledDecision",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledIdentity",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeRequest",
+    "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeResponse",
     "AbilityKit.Protocol.Moba.SkillInputEvent",
     "AbilityKit.Protocol.Moba.StateSync.MobaActionAckEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
@@ -70,6 +83,19 @@
       "generatedTypes": [
         "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomPlayerSnapshot",
         "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot"
+      ]
+    },
+    {
+      "groupId": "settled-frames",
+      "generatedTypes": [
+        "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpRequest",
+        "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpResponse",
+        "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCommand",
+        "AbilityKit.Protocol.Moba.SettledFrames.WireSettledDecision",
+        "AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame",
+        "AbilityKit.Protocol.Moba.SettledFrames.WireSettledIdentity",
+        "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeRequest",
+        "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeResponse"
       ]
     },
     {
@@ -140,6 +166,14 @@
     "MobaStateHashSnapshotPayload.MemoryPack.g.cs",
     "ProjectMemoryPackCodecs.g.cs",
     "ProtocolCatalogs.g.cs",
-    "SkillInputEvent.MemoryPack.g.cs"
+    "SkillInputEvent.MemoryPack.g.cs",
+    "WireSettledCatchUpRequest.MemoryPack.g.cs",
+    "WireSettledCatchUpResponse.MemoryPack.g.cs",
+    "WireSettledCommand.MemoryPack.g.cs",
+    "WireSettledDecision.MemoryPack.g.cs",
+    "WireSettledFrame.MemoryPack.g.cs",
+    "WireSettledIdentity.MemoryPack.g.cs",
+    "WireSettledSubscribeRequest.MemoryPack.g.cs",
+    "WireSettledSubscribeResponse.MemoryPack.g.cs"
   ]
 }

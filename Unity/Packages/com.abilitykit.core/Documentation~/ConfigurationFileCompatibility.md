@@ -2,7 +2,7 @@
 
 `Runtime/Config` 的应用配置 API 已弃用，保留至下一主版本移除窗口。文件路径、序列化器、缓存更新和模块安装属于应用或引导包的策略，不再作为 Core 新能力扩展。本页详细说明 JsonSettingsFiles、PersistentJsonConfigLoader、ModuleInstallerConfig 与 ModuleInstallerConfigSet。
 
-扁平读取和分层合并继续使用既有 [FlatJsonSettings](../Runtime/Config/FlatJsonSettings.cs) 与 [LayeredJsonSettingsStore](../Runtime/Config/LayeredJsonSettingsStore.cs) 契约；本批未重写它们。包内的旧 UnityJsonSettingsBootstrap 仍调用 Core 文件工具，其路径、协程与异常边界见 [旧 Unity 设置引导兼容契约](./UnitySettingsBootstrapCompatibility.md)；同名 MOBA 类型则属于独立的应用命名空间，不能根据短类型名判断依赖或行为等价。
+扁平读取和分层合并继续使用既有 [FlatJsonSettings](../Runtime/Config/FlatJsonSettings.cs) 与 [LayeredJsonSettingsStore](../Runtime/Config/LayeredJsonSettingsStore.cs) 契约。已退役的 `UnityJsonSettingsBootstrap` 曾调用 Core 文件工具；其历史行为和迁移指引见 [旧 Unity 设置引导退役说明](./UnitySettingsBootstrapCompatibility.md)。同名 MOBA 类型属于独立的应用命名空间，不能根据短类型名判断依赖或行为等价。
 
 ## 设置文件读写
 

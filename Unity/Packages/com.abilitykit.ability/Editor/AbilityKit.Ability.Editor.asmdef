@@ -8,6 +8,7 @@
         "AbilityKit.Pipeline",
         "AbilityKit.Pipeline.Editor",
         "AbilityKit.Triggering",
+        "AbilityKit.Triggering.Authoring",
         "AbilityKit.World.Snapshot",
         "AbilityKit.Editor.Platform"
     ],

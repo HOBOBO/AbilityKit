@@ -293,6 +293,7 @@ public sealed class GatewayMultiplayerRoomSessionTests
         var battleId = phase == ClientRoomPhase.InBattle ? "battle-1" : string.Empty;
         var worldId = phase == ClientRoomPhase.InBattle ? 42UL : 0UL;
         var restoredSnapshot = Snapshot(phase, revision: 5, sequence: 8, battleId, worldId);
+        restoredSnapshot.GameplayId = 11;
         restoredSnapshot.OwnerAccountId = "owner-1";
         restoredSnapshot.Members = new[] { "owner-1" };
         restoredSnapshot.Players = new[]
@@ -329,6 +330,7 @@ public sealed class GatewayMultiplayerRoomSessionTests
         Assert.Equal(expectedNextStep, result.NextStep);
         Assert.Equal(15u, result.PlayerId);
         Assert.Equal(77UL, store.Current.NumericRoomId);
+        Assert.Equal(11, store.Current.GameplayId);
         Assert.Equal(phase, store.Current.Phase);
         Assert.Equal("owner-1", store.Current.OwnerAccountId);
         Assert.Single(store.Current.Members);

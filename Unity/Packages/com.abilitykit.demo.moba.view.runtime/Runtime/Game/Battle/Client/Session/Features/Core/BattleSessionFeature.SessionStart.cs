@@ -38,7 +38,7 @@ namespace AbilityKit.Game.Flow
                 ApplyAutoPlanActions();
                 SessionContextBinder.BindSession(_ctx, _state, _handles, Hooks, _plan);
 
-                BeginColdStartRecoveryIfReady(requireStartedSession: true);
+                BeginColdStartRecoveryIfRequested();
             }
             catch (Exception ex)
             {
@@ -64,26 +64,21 @@ namespace AbilityKit.Game.Flow
 
         internal void BeginColdStartRecoveryAfterImmediateSessionStart()
         {
-            BeginColdStartRecoveryIfReady(requireStartedSession: true);
+            BeginColdStartRecoveryIfRequested();
         }
 
-        private void BeginColdStartRecoveryIfReady(bool requireStartedSession)
+        private void BeginColdStartRecoveryIfRequested()
         {
-            if (!(_bootstrapper is ExistingGatewayRoomBattleBootstrapper existing) ||
-                !existing.ColdStartReconnect)
+            if (!(_bootstrapper is IBattleColdStartRecoveryIntent intent) ||
+                !intent.ColdStartReconnect)
             {
                 return;
             }
 
             if (_session == null)
             {
-                if (requireStartedSession)
-                {
-                    throw new InvalidOperationException(
-                        "Unable to start lockstep cold-start recovery before the battle session exists.");
-                }
-
-                return;
+                throw new InvalidOperationException(
+                    "Unable to start lockstep cold-start recovery before the battle session exists.");
             }
 
             if (!_runtime.LockstepRecovery.BeginColdStartRecovery(_ctx))

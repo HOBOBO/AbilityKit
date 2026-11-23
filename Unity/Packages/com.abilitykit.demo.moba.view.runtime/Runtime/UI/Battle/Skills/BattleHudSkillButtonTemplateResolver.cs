@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Share;
 
@@ -54,10 +55,14 @@ namespace AbilityKit.Game.Flow
         }
 
         public bool TryResolveSkill(int skillId, out SkillMO skill,
-            out SkillButtonTemplateMO template, out BattleHudSkillPresentationSpec spec)
+            out SkillButtonTemplateMO template, out BattleHudSkillPresentationSpec spec,
+            IReadOnlyDictionary<int, int> skillLevels = null)
         {
-            return _templates.TryResolve(skillId, out skill, out template, out spec);
+            return _templates.TryResolve(skillId, out skill, out template, out spec, skillLevels);
         }
+
+        public bool TryResolveBasicAttackRange(int skillId, IReadOnlyDictionary<int, int> skillLevels, out float range)
+            => _templates.TryResolveBasicAttackRange(skillId, skillLevels, out range);
 
         public static bool TryResolveSkillId(in BattlePlayerLoadout loadout, int slot, out int skillId)
         {

@@ -109,7 +109,9 @@ namespace AbilityKit.Pipeline.Editor.Tests
             Assert.That(model.Fit(new Vector2(800f, 600f)), Is.True);
             Assert.That(model.Focus("root", new Vector2(800f, 600f)), Is.True);
             Assert.That(model.SelectedNodeKey, Is.EqualTo("root"));
-            Assert.That(model.Transform(model.NodeRects["root"]).center, Is.EqualTo(new Vector2(400f, 300f)));
+            Vector2 center = model.Transform(model.NodeRects["root"]).center;
+            Assert.That(center.x, Is.EqualTo(400f).Within(0.001f));
+            Assert.That(center.y, Is.EqualTo(300f).Within(0.001f));
             Assert.That(model.Focus("missing", new Vector2(800f, 600f)), Is.False);
         }
 

@@ -26,8 +26,14 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
     internal readonly struct MobaProjectileLinkRollbackEntry
     {
         public MobaProjectileLinkRollbackEntry(int projectileId, int actorId,
-            in ProjectileSourceContext source, in MobaSkillRuntimeRetainHandle retain)
-        { ProjectileId = projectileId; ActorId = actorId; Source = source; Retain = retain; }
+            in ProjectileSourceContext source, in MobaSkillRuntimeRetainHandle retain,
+            int confirmedKills = 0, int lastKillingHit = 0)
+        {
+            ProjectileId = projectileId; ActorId = actorId; Source = source; Retain = retain;
+            ConfirmedKills = confirmedKills; LastKillingHit = lastKillingHit;
+        }
+        public int ConfirmedKills { get; }
+        public int LastKillingHit { get; }
         public int ProjectileId { get; }
         public int ActorId { get; }
         public ProjectileSourceContext Source { get; }
@@ -62,6 +68,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private readonly Dictionary<ProjectileId, int> _retiredActorIdByProjectile = new Dictionary<ProjectileId, int>();
         private readonly Dictionary<ProjectileId, ProjectileSourceContext> _sourceByProjectile = new Dictionary<ProjectileId, ProjectileSourceContext>();
         private readonly Dictionary<ProjectileId, MobaSkillRuntimeRetainHandle> _retainByProjectile = new Dictionary<ProjectileId, MobaSkillRuntimeRetainHandle>();
+        private readonly Dictionary<ProjectileId, (int Count, int LastHit)> _impactKills =
+            new Dictionary<ProjectileId, (int Count, int LastHit)>();
         private readonly Dictionary<int, LauncherLink> _launcherByActorId = new Dictionary<int, LauncherLink>();
 
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
@@ -82,7 +90,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             {
                 _sourceByProjectile.TryGetValue(pair.Key, out var source);
                 _retainByProjectile.TryGetValue(pair.Key, out var retain);
-                projectiles.Add(new MobaProjectileLinkRollbackEntry(pair.Key.Value, pair.Value, in source, in retain));
+                _impactKills.TryGetValue(pair.Key, out var impactKills);
+                projectiles.Add(new MobaProjectileLinkRollbackEntry(pair.Key.Value, pair.Value, in source, in retain,
+                    impactKills.Count, impactKills.LastHit));
             }
             projectiles.Sort((left, right) => left.ProjectileId.CompareTo(right.ProjectileId));
 
@@ -105,6 +115,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             _actorIdByProjectile.Clear();
             _retiredActorIdByProjectile.Clear();
             _sourceByProjectile.Clear();
+            _impactKills.Clear();
             _retainByProjectile.Clear();
             _launcherByActorId.Clear();
             foreach (var entry in state.Projectiles)
@@ -114,6 +125,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _actorIdByProjectile.Add(id, entry.ActorId);
                 if (entry.Source.IsValid) _sourceByProjectile.Add(id, entry.Source);
                 if (entry.Retain.IsValid) _retainByProjectile.Add(id, entry.Retain);
+                if (entry.ConfirmedKills > 0) _impactKills.Add(id, (entry.ConfirmedKills, entry.LastKillingHit));
             }
             foreach (var entry in state.Retired)
                 _retiredActorIdByProjectile.Add(new ProjectileId(entry.ProjectileId), entry.ActorId);
@@ -243,6 +255,25 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return _retiredActorIdByProjectile.TryGetValue(projectileId, out actorId);
         }
 
+        internal bool TryReadPriorImpactKills(ProjectileId projectileId, long sourceContextId, int hitIndex, out int count)
+        {
+            count = 0;
+            if (hitIndex <= 0 || !_actorIdByProjectile.ContainsKey(projectileId)
+                || !TryGetSource(projectileId, out var source) || source.SourceContextId != sourceContextId)
+                return false;
+
+            if (!_impactKills.TryGetValue(projectileId, out var kills)) return true;
+            if (hitIndex < kills.LastHit) return false;
+            count = hitIndex == kills.LastHit ? kills.Count - 1 : kills.Count;
+            return true;
+        }
+
+        internal void RecordImpactKill(ProjectileId projectileId, long sourceContextId, int hitIndex)
+        {
+            if (!TryReadPriorImpactKills(projectileId, sourceContextId, hitIndex, out var count)) return;
+            _impactKills[projectileId] = (count + 1, hitIndex);
+        }
+
         public bool TryGetSource(ProjectileId projectileId, out ProjectileSourceContext source)
         {
             return _sourceByProjectile.TryGetValue(projectileId, out source) && source.IsValid;
@@ -331,6 +362,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _actorIdByProjectile.Remove(pid);
                 _retiredActorIdByProjectile[pid] = actorId;
                 _sourceByProjectile.Remove(pid);
+                _impactKills.Remove(pid);
                 ConsumeAndReleaseRetain(pid);
                 _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
                 PublishProjectileLifecycle(
@@ -357,6 +389,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
 
             _sourceByProjectile.Remove(projectileId);
+            _impactKills.Remove(projectileId);
             ConsumeAndReleaseRetain(projectileId);
             if (removed)
             {
@@ -383,6 +416,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (expectedActorId > 0) _projectileByActorId.Remove(expectedActorId);
 
             _sourceByProjectile.Remove(projectileId);
+            _impactKills.Remove(projectileId);
             ConsumeAndReleaseRetain(projectileId);
             if (wasActive)
             {
@@ -424,6 +458,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             _actorIdByProjectile.Clear();
             _retiredActorIdByProjectile.Clear();
             _sourceByProjectile.Clear();
+            _impactKills.Clear();
             _launcherByActorId.Clear();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Projectile, 0);
         }

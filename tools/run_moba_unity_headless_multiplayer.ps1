@@ -7,7 +7,7 @@ param(
     [int]$GatewayPort = 4000,
     [string]$GatewayRegion = 'dev',
     [string]$GatewayServerId = 'local',
-    [string]$SyncTemplateId = 'frame-sync-authority',
+    [string]$SyncTemplateId = 'moba-settled-frame-sync-v2',
     [int]$SyncModel = 1,
     [int]$TimeoutSeconds = 240,
     [ValidateRange(1, 5)]
@@ -17,10 +17,14 @@ param(
     [string]$OutputRoot,
     [switch]$SkipCompileWarmup,
     [switch]$ColdRestart,
+    [switch]$SummonRejection,
     [switch]$EnableConfirmedAuthorityWorld
 )
 
 $ErrorActionPreference = 'Stop'
+if ($ColdRestart -and $SummonRejection) {
+    throw 'Use separate runs for cold restart and summon rejection.'
+}
 if ([string]::IsNullOrWhiteSpace($OwnerProject)) {
     $OwnerProject = Join-Path $PSScriptRoot '..\Unity'
 }
@@ -288,7 +292,7 @@ try {
     Wait-UnityProjectAvailable -ProjectPath $OwnerProject -Label 'owner client'
     Wait-UnityProjectAvailable -ProjectPath $MemberProject -Label 'member client'
 
-    $initialRunMode = if ($ColdRestart) { 'coldRestartSource' } else { 'hotResume' }
+    $initialRunMode = if ($SummonRejection) { 'summonRejection' } elseif ($ColdRestart) { 'coldRestartSource' } else { 'hotResume' }
     Write-Host "Starting Unity owner client. Project=$OwnerProject, mode=$initialRunMode" -ForegroundColor Cyan
     $ownerProcess = Start-Process -FilePath $UnityExe -ArgumentList (New-ClientArguments `
         -ProjectPath $OwnerProject -Role 'owner' -Account $ownerAccount `
@@ -443,6 +447,22 @@ try {
     }
     if ($ownerState.syncMode -ne 'Lockstep' -or $memberState.syncMode -ne 'Lockstep') {
         throw "FrameSync probe ran with an unexpected mode. owner=$($ownerState.syncMode), member=$($memberState.syncMode)"
+    }
+    if ($SummonRejection) {
+        $ownerEvidence = Get-Content -LiteralPath "$ownerResultPath.summon.json" -Raw | ConvertFrom-Json
+        $memberEvidence = Get-Content -LiteralPath "$memberResultPath.summon.json" -Raw | ConvertFrom-Json
+        if ($ownerEvidence.frame -ne $memberEvidence.frame -or $ownerEvidence.roster -cne $memberEvidence.roster -or
+            $ownerEvidence.authoritySequence -ne $memberEvidence.authoritySequence -or
+            $ownerEvidence.ownerVersion -ne $memberEvidence.ownerVersion -or
+            $ownerEvidence.ownerActor -ne $memberEvidence.ownerActor -or
+            $ownerEvidence.predictionKey -ne $memberEvidence.predictionKey -or
+            $ownerEvidence.restoreFrame -ne ($ownerEvidence.frame - 1) -or $ownerEvidence.spawnActor -le 0 -or
+            $memberEvidence.spawnActor -ne 0) {
+            throw 'Dual Unity summon rejection evidence did not converge at the same authoritative frame.'
+        }
+        Write-Host "MOBA Unity summon rejection PASSED. frame=$($ownerEvidence.frame) restore=$($ownerEvidence.restoreFrame) predicted=$($ownerEvidence.spawnActor):$($ownerEvidence.spawnVersion) roster=$($ownerEvidence.roster)"
+        Write-Host "Artifacts: $runDirectory"
+        return
     }
     if (-not [bool]$initialOwnerState.skillValidated -or -not [bool]$memberState.skillValidated) {
         throw 'Both clients must observe the owner skill synchronization probe.'

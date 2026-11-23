@@ -33,7 +33,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var magnitude = MobaEffectMagnitudeSchemaReader.Read(namedArgs, in ctx, value);
             TryReadBlackboardTarget(namedArgs, out var resultTarget, "result", "result_id", "shield_result");
             TryReadBlackboardTarget(namedArgs, out var resultCountTarget, "result_count", "shield_count");
-            return new AddShieldArgs(shieldId, value, absorbRatio, priority, damageTypeMask, durationFrames, durationMs, stackingPolicy, consumePolicy, sharePolicy, transferPolicy, in targetRequest, magnitude, resultTarget, resultCountTarget);
+            var retaliationLevelParameter = MobaEffectMagnitudeSchemaReader.ReadString(namedArgs, in ctx, "retaliation_skill_level_parameter");
+            var retaliationMagicRatio = ReadFloat(namedArgs, ctx, 0f, "retaliation_magic_ratio");
+            return new AddShieldArgs(shieldId, value, absorbRatio, priority, damageTypeMask, durationFrames, durationMs, stackingPolicy, consumePolicy, sharePolicy, transferPolicy, in targetRequest, magnitude, resultTarget, resultCountTarget,
+                retaliationLevelParameter, retaliationMagicRatio);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

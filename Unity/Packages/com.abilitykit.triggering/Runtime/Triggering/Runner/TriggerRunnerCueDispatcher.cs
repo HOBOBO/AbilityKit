@@ -2,14 +2,8 @@ using AbilityKit.Core.Eventing;
 
 namespace AbilityKit.Triggering.Runtime
 {
-    internal enum TriggerRunnerShortCircuitCueKind
-    {
-        Skipped,
-        Interrupted
-    }
-
     /// <summary>
-    /// 集中处理 TriggerRunner 的 Cue 上下文构建与短路 Cue 派发，避免主运行器混杂展示/反馈回调细节。
+    /// 构建触发器级 Cue 上下文，并为触发器与计划动作解析 Cue 数据。
     /// </summary>
     internal static class TriggerRunnerCueDispatcher
     {
@@ -79,22 +73,6 @@ namespace AbilityKit.Triggering.Runtime
             {
                 cueData = providedData;
                 if (!string.IsNullOrEmpty(providedPayload)) cuePayload = providedPayload;
-            }
-        }
-
-        public static void DispatchShortCircuitCue<TArgs, TCtx>(
-            ITrigger<TArgs, TCtx> trigger,
-            in TriggerCueContext cueContext,
-            TriggerRunnerShortCircuitCueKind cueKind)
-        {
-            switch (cueKind)
-            {
-                case TriggerRunnerShortCircuitCueKind.Skipped:
-                    trigger.Cue.OnSkipped(in cueContext);
-                    break;
-                case TriggerRunnerShortCircuitCueKind.Interrupted:
-                    trigger.Cue.OnInterrupted(in cueContext);
-                    break;
             }
         }
 

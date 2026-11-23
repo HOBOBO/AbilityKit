@@ -52,10 +52,11 @@ namespace AbilityKit.Combat.Projectile
     }
 
     /// <summary>
-    /// Removes an area during failed creation or rollback without emitting a gameplay expire event.
+    /// Inspects live areas and removes failed spawns without emitting gameplay events.
     /// </summary>
     public interface IAreaRollbackService : IService
     {
+        bool IsAreaActive(AreaId id);
         bool CancelArea(AreaId id);
     }
 }

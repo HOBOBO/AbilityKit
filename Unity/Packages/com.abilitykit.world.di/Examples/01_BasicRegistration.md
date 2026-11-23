@@ -14,22 +14,22 @@ using AbilityKit.Ability.World.Services;
 
 public sealed class TimeModule : IWorldModule
 {
-    public void Configure(IWorldContainerBuilder builder)
+    public void Configure(WorldContainerBuilder builder)
     {
         // 中文说明：
         // 1) Singleton：对每个 WorldContainer 只会创建一次。
         // 2) 适用于“无对局态”的基础设施能力，例如：时间源、随机数、日志适配等。
-        builder.Register<IWorldClock, WorldClock>(WorldLifetime.Singleton);
+        builder.RegisterType<IWorldClock, WorldClock>(WorldLifetime.Singleton);
 
         // 中文说明：
         // Scoped：每个 WorldScope（通常每个逻辑 world 一个 scope）一份实例。
         // 适用于：一局内缓存、对局态 manager、事件聚合器（如果 event 绑定在对局内）。
-        builder.Register<IFrameTime, FrameTimeImpl>(WorldLifetime.Scoped);
+        builder.RegisterType<IFrameTime, FrameTimeImpl>(WorldLifetime.Scoped);
 
         // 中文说明：
         // Transient：每次 Resolve 都是新对象。
         // 适用于：轻量、无状态、短生命周期的 helper。
-        builder.Register<IPathFinder, AStarPathFinder>(WorldLifetime.Transient);
+        builder.RegisterType<IPathFinder, AStarPathFinder>(WorldLifetime.Transient);
     }
 }
 ```

@@ -19,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     {
         public const int DefaultKey = 10007;
         // v2 (2026-08-15): 护盾数值字段定点化（Q32.32），快照以 raw long 存储（TotalRemaining/TransferRatio/CurrentValue/MaxValue/InitialValue/AbsorbRatio）。
-        internal const int CurrentPayloadVersion = 3;
+        internal const int CurrentPayloadVersion = 4;
 
         private readonly MobaActorRegistry _actors;
         private readonly MobaShieldService _shields;
@@ -311,6 +311,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                             $"Shield layer identities must be positive and unique. actor={entry.ActorId} " +
                             $"instanceId={layer.InstanceId} index={layerIndex}.");
                     }
+
+                    layer.ValidateRetaliation(entry.ActorId);
                 }
             }
         }
@@ -539,6 +541,9 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(25)] public readonly int ConsumePolicy;
         [MemoryPackOrder(26)] public readonly int SharePolicy;
         [MemoryPackOrder(27)] public readonly int TransferPolicy;
+        [MemoryPackOrder(28)] public readonly long RetaliationDamageRaw;
+        [MemoryPackOrder(29)] public readonly int RetaliationSourceVersion;
+        [MemoryPackOrder(30)] public readonly long[] RetaliatedAttackers;
 
         public MobaShieldLayerRollbackEntry(
             int instanceId,
@@ -568,7 +573,10 @@ namespace AbilityKit.Demo.Moba.Rollback
             int stackingPolicy,
             int consumePolicy,
             int sharePolicy,
-            int transferPolicy)
+            int transferPolicy,
+            long retaliationDamageRaw = 0,
+            int retaliationSourceVersion = 0,
+            long[] retaliatedAttackers = null)
         {
             InstanceId = instanceId;
             ShieldId = shieldId;
@@ -598,10 +606,42 @@ namespace AbilityKit.Demo.Moba.Rollback
             ConsumePolicy = consumePolicy;
             SharePolicy = sharePolicy;
             TransferPolicy = transferPolicy;
+            RetaliationDamageRaw = retaliationDamageRaw;
+            RetaliationSourceVersion = retaliationSourceVersion;
+            RetaliatedAttackers = retaliatedAttackers;
+        }
+
+        internal void ValidateRetaliation(int actorId)
+        {
+            if (RetaliationDamageRaw == 0 && RetaliationSourceVersion == 0 &&
+                !(RetaliatedAttackers?.Length > 0)) return;
+
+            if (RetaliationDamageRaw <= 0 || RetaliationSourceVersion <= 0 || SourceActorId <= 0 ||
+                TargetActorId != actorId || (ShieldStackingPolicy)StackingPolicy != ShieldStackingPolicy.Independent ||
+                (ShieldSharePolicy)SharePolicy != ShieldSharePolicy.None ||
+                (ShieldTransferPolicy)TransferPolicy != ShieldTransferPolicy.None || UsesSharedPoolValue || SharedPoolId != 0)
+                throw new InvalidOperationException($"Invalid shield retaliation state. actor={actorId} instanceId={InstanceId}.");
+
+            if (RetaliatedAttackers == null) return;
+            long previous = 0;
+            foreach (var identity in RetaliatedAttackers)
+            {
+                if (identity <= previous || (identity >> 32) <= 0 || unchecked((int)identity) <= 0)
+                    throw new InvalidOperationException($"Invalid shield retaliation attacker. actor={actorId} instanceId={InstanceId}.");
+                previous = identity;
+            }
         }
 
         public static MobaShieldLayerRollbackEntry FromLayer(ShieldLayer layer)
         {
+            long[] attackers = null;
+            if (layer.RetaliatedAttackers?.Count > 0)
+            {
+                attackers = new long[layer.RetaliatedAttackers.Count];
+                layer.RetaliatedAttackers.CopyTo(attackers);
+                Array.Sort(attackers);
+            }
+
             return new MobaShieldLayerRollbackEntry(
                 layer.InstanceId,
                 layer.ShieldId,
@@ -630,7 +670,10 @@ namespace AbilityKit.Demo.Moba.Rollback
                 (int)layer.StackingPolicy,
                 (int)layer.ConsumePolicy,
                 (int)layer.SharePolicy,
-                (int)layer.TransferPolicy);
+                (int)layer.TransferPolicy,
+                layer.RetaliationDamage.RawValue,
+                layer.RetaliationSourceVersion,
+                attackers);
         }
 
         public ShieldLayer ToLayer()
@@ -638,6 +681,9 @@ namespace AbilityKit.Demo.Moba.Rollback
             return new ShieldLayer
             {
                 InstanceId = InstanceId,
+                RetaliationDamage = Fixed64.FromRaw(RetaliationDamageRaw),
+                RetaliationSourceVersion = RetaliationSourceVersion,
+                RetaliatedAttackers = RetaliatedAttackers?.Length > 0 ? new HashSet<long>(RetaliatedAttackers) : null,
                 ShieldId = ShieldId,
                 SourceActorId = SourceActorId,
                 OwnerActorId = OwnerActorId,

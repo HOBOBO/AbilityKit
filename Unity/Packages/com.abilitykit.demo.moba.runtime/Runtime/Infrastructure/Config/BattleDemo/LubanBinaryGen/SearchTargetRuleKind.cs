@@ -20,6 +20,7 @@ namespace moba_luban
         RequireValidId = 516,
         RequireHasPosition = 517,
         RequireUnitSubType = 518,
+        RequireCasterTeam = 519,
         ExcludeCaster = 769,
         ExcludeExplicitTarget = 770,
         RectangleShape = 771,

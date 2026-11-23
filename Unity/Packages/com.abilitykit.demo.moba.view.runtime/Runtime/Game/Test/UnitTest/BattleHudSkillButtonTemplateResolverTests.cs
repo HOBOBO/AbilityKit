@@ -210,6 +210,50 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BasicAttackRangeRefreshesOnSourceSlotLevelAndWeaponChange()
+        {
+            var root = new GameObject("BasicAttackRangeHud", typeof(RectTransform), typeof(Canvas));
+            var context = BattleContext.Rent();
+            var controller = new BattleHudInputController(
+                context, root.GetComponent<RectTransform>(), root.GetComponent<Canvas>(), null);
+            const int actorId = 1001;
+            var loadout = CreateLoadout("jinx", 3002, 30020001, 30020101, 30020102, 30020103, 30020104);
+            var response = new BattleEnterGameSnapshot(
+                "test", "jinx", actorId, 1, 30, 0, playersLoadout: new[] { loadout });
+
+            try
+            {
+                controller.Ensure();
+                Assert.IsTrue(controller.ApplySkillButtonTemplates(response, "jinx"));
+                Apply(1, 30020003, 6.8f);
+                Apply(2, 30020003, 7.1f);
+                Apply(3, 30020003, 7.4f);
+                Apply(4, 30020003, 7.7f);
+                Apply(5, 30020003, 8f);
+                Apply(5, 30020002, 6f);
+            }
+            finally
+            {
+                controller.Dispose();
+                BattleContext.Return(context);
+                Object.DestroyImmediate(root);
+            }
+
+            void Apply(int qLevel, int attackSkillId, float expectedRange)
+            {
+                Assert.IsTrue(controller.ApplySkillStates(new[]
+                {
+                    new SkillStateData(actorId, 5, attackSkillId, level: 1),
+                    new SkillStateData(actorId, 1, 30020101, level: qLevel),
+                }, actorId));
+                var spec = controller.SkillSpecs[5];
+                Assert.AreEqual(expectedRange, spec.Range, 0.001f);
+                Assert.AreEqual(expectedRange, spec.SelfRadius, 0.001f);
+                Assert.IsFalse(spec.EnableAim);
+            }
+        }
+
+        [Test]
         public void SkillStateSnapshot_SwitchesSlotTemplateAndRestoresBaseSkill()
         {
             var root = new GameObject("SkillCandidateHud.Root", typeof(RectTransform), typeof(Canvas));

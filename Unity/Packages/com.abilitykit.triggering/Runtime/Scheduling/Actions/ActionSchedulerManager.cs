@@ -1,169 +1,57 @@
-using System;
 using System.Collections.Generic;
-using AbilityKit.Triggering.Runtime.Executable;
 using AbilityKit.Triggering.Runtime.Dispatcher;
 
 namespace AbilityKit.Triggering.Runtime.ActionScheduler
 {
     /// <summary>
-    /// Trigger 级别同步原语
-    /// 用于 Action 之间的协调
-    /// </summary>
-
-    /// <summary>
-    /// 等待句柄（信号机制）
-    /// 支持 AutoReset（自动重置）和 ManualReset（手动重置）
-    /// </summary>
-    public sealed class TriggerWaitHandle
-    {
-        private readonly Queue<Action> _waitingActions = new();
-        private bool _isSignaled;
-        private readonly bool _autoReset;
-
-        public bool IsSignaled => _isSignaled;
-
-        public TriggerWaitHandle(bool autoReset = true)
-        {
-            _autoReset = autoReset;
-            _isSignaled = false;
-        }
-
-        /// <summary>
-        /// 等待信号（阻塞当前 Action）
-        /// </summary>
-        public void WaitOne()
-        {
-            if (_isSignaled)
-            {
-                return;
-            }
-
-            throw new NotSupportedException("TriggerWaitHandle.WaitOne is not supported in the mainline scheduler. Use Signal/Set to release waiting actions, or move coordination into a coroutine/state-machine based executor.");
-        }
-
-        /// <summary>
-        /// 设置信号（唤醒等待的 Action）
-        /// </summary>
-        public void Set()
-        {
-            _isSignaled = true;
-            lock (_waitingActions)
-            {
-                foreach (var continuation in _waitingActions)
-                {
-                    continuation?.Invoke();
-                }
-                _waitingActions.Clear();
-            }
-
-            if (_autoReset)
-            {
-                _isSignaled = false;
-            }
-        }
-
-        /// <summary>
-        /// 重置信号（ManualReset 专用）
-        /// </summary>
-        public void Reset()
-        {
-            _isSignaled = false;
-        }
-    }
-
-    /// <summary>
-    /// 触发器互斥锁
-    /// 用于保护共享资源的临界区
-    /// </summary>
-    public sealed class TriggerMutex : IDisposable
-    {
-        private readonly string _mutexId;
-        private readonly object _lockObj = new();
-        private int _ownerInstanceId = -1;
-        private bool _isHeld;
-
-        public string MutexId => _mutexId;
-        public bool IsHeld => _isHeld;
-        public int OwnerInstanceId => _ownerInstanceId;
-
-        public TriggerMutex(string mutexId)
-        {
-            _mutexId = mutexId ?? throw new ArgumentNullException(nameof(mutexId));
-        }
-
-        /// <summary>
-        /// 进入临界区
-        /// </summary>
-        /// <returns>是否成功获取锁</returns>
-        public bool Enter(int instanceId)
-        {
-            lock (_lockObj)
-            {
-                if (_isHeld)
-                {
-                    return false;
-                }
-
-                _isHeld = true;
-                _ownerInstanceId = instanceId;
-                return true;
-            }
-        }
-
-        /// <summary>
-        /// 离开临界区
-        /// </summary>
-        public void Leave(int instanceId)
-        {
-            lock (_lockObj)
-            {
-                if (_isHeld && _ownerInstanceId == instanceId)
-                {
-                    _isHeld = false;
-                    _ownerInstanceId = -1;
-                }
-            }
-        }
-
-        public void Dispose()
-        {
-            Leave(_ownerInstanceId);
-        }
-    }
-
-    /// <summary>
-    /// ActionScheduler 全局管理器
-    /// 负责全局 Action 调度器的注册、更新和生命周期管理
+    /// 管理当前宿主按触发器 ID 分组的扁平动作实例，由宿主串行推进。
+    /// 不驱动执行树或业务定时规则，也不提供帧快照恢复。
     /// </summary>
     public sealed class ActionSchedulerManager
     {
         private readonly Dictionary<int, ActionScheduler> _schedulersByTriggerId = new();
         private readonly List<ActionScheduler> _allSchedulers = new();
-        private readonly List<ActionInstance> _allActions = new();
         private readonly AbilityKit.Triggering.Runtime.Pooling.TriggeringRuntimePools _pools;
 
+        /// <summary>
+        /// 创建空管理器；新增子调度器使用传入的可选对象池。
+        /// </summary>
         public ActionSchedulerManager(AbilityKit.Triggering.Runtime.Pooling.TriggeringRuntimePools pools = null)
         {
             _pools = pools;
         }
 
         /// <summary>
-        /// 总调度器数量
+        /// 已登记的子调度器数量。
         /// </summary>
         public int SchedulerCount => _allSchedulers.Count;
 
         /// <summary>
-        /// 总 Action 数量
+        /// 当前由本管理器的子调度器持有的 Action 实例数，包括等待、暂停和尚未回收的终态实例。
+        /// 每次读取时遍历子调度器，不依赖上一次更新的统计结果。
         /// </summary>
-        public int TotalActionCount => _allActions.Count;
+        public int TotalActionCount
+        {
+            get
+            {
+                var total = 0;
+                foreach (var scheduler in _allSchedulers)
+                {
+                    total += scheduler.ActionCount;
+                }
+
+                return total;
+            }
+        }
 
         /// <summary>
-        /// 活跃的 Action 数量
+        /// 最近一次更新汇总的活动动作数量；即时持有量请读取 <see cref="TotalActionCount"/>。
         /// </summary>
         public int ActiveActionCount { get; private set; }
 
         /// <summary>
-        /// 每帧更新（支持复用控制上下文）
+        /// 使用宿主传入的毫秒增量，从最后登记的子调度器向前推进并移除已空的分组。
+        /// 非空控制对象由本次更新共享；否则为每个子调度器创建独立控制对象。
         /// </summary>
         public void Update(float deltaTimeMs, ITriggerDispatcherContext context, ExecutionControl control)
         {
@@ -190,7 +78,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 创建或获取 Trigger 对应的 ActionScheduler
+        /// 按触发器 ID 获取已登记分组；未登记时创建并接管其生命周期。
         /// </summary>
         public ActionScheduler GetOrCreateScheduler(int triggerId)
         {
@@ -206,7 +94,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 获取指定 Trigger 的 ActionScheduler
+        /// 查询触发器 ID 对应的分组；不存在时返回空引用。
         /// </summary>
         public ActionScheduler GetScheduler(int triggerId)
         {
@@ -215,7 +103,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 移除并销毁 Trigger 对应的 ActionScheduler
+        /// 释放并移除指定分组；不存在时返回否，不刷新上次活动量统计。
         /// </summary>
         public bool RemoveScheduler(int triggerId)
         {
@@ -230,7 +118,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 全局更新（每帧调用）
+        /// 使用宿主传入的毫秒增量，为每个子调度器提供独立控制对象。
         /// </summary>
         public void Update(float deltaTimeMs, ITriggerDispatcherContext context)
         {
@@ -238,7 +126,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 中断指定 Trigger 的所有 Action
+        /// 向指定分组中的可中断动作提出中断请求；不存在时不执行任何操作。
         /// </summary>
         public void InterruptTriggerActions(int triggerId, string reason)
         {
@@ -249,7 +137,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 中断所有 Action
+        /// 向当前各分组的可中断动作提出中断请求，不直接释放分组。
         /// </summary>
         public void InterruptAll(string reason)
         {
@@ -260,7 +148,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 暂停所有 Action
+        /// 暂停当前登记的子调度器，不影响以后创建的分组。
         /// </summary>
         public void PauseAll()
         {
@@ -271,7 +159,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 恢复所有 Action
+        /// 恢复当前登记的子调度器，由各分组处理动作状态。
         /// </summary>
         public void ResumeAll()
         {
@@ -282,7 +170,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 清理所有调度器
+        /// 释放当前全部分组，清空索引并重置活动量统计。
         /// </summary>
         public void Clear()
         {

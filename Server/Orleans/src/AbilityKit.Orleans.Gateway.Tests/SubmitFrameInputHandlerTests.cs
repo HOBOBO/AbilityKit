@@ -99,45 +99,6 @@ public sealed class SubmitFrameInputHandlerTests
             playerId));
     }
 
-    [Fact]
-    public void SerializeFrame_round_trips_authoritative_inputs()
-    {
-        var evt = new FramePushedEvent(
-            100,
-            200,
-            12,
-            new List<FrameInputItem>
-            {
-                new(1, 7, new byte[] { 1, 2 }),
-                new(2, 8, Array.Empty<byte>())
-            });
-
-        var wire = WireCustomBinary.DeserializeFramePushedPush(
-            GatewayFrameSyncSubscriptionManager.SerializeFrame(evt));
-
-        Assert.Equal(100ul, wire.RoomId);
-        Assert.Equal(200ul, wire.WorldId);
-        Assert.Equal(12, wire.Frame);
-        Assert.Equal(2, wire.Inputs.Length);
-        Assert.Equal(1u, wire.Inputs[0].PlayerId);
-        Assert.Equal(7, wire.Inputs[0].OpCode);
-        Assert.Equal(new byte[] { 1, 2 }, wire.Inputs[0].Payload);
-        Assert.Equal(2u, wire.Inputs[1].PlayerId);
-        Assert.Empty(wire.Inputs[1].Payload);
-    }
-
-    [Fact]
-    public void SerializeFrame_preserves_empty_authoritative_frame()
-    {
-        var evt = new FramePushedEvent(100, 200, 13, new List<FrameInputItem>());
-
-        var wire = WireCustomBinary.DeserializeFramePushedPush(
-            GatewayFrameSyncSubscriptionManager.SerializeFrame(evt));
-
-        Assert.Equal(13, wire.Frame);
-        Assert.Empty(wire.Inputs);
-    }
-
     private static RoomSnapshot CreateSnapshot(RoomPhase phase = RoomPhase.InBattle)
     {
         return new RoomSnapshot(

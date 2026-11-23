@@ -92,7 +92,7 @@ messages:
 dotnet test src/AbilityKit.Protocol.Tests/AbilityKit.Protocol.Tests.csproj
 ```
 
-`.github/workflows/abilitykit-test-gates.yml` 中的 `protocol-catalogs` 作业会在每次拉取请求和推送时执行检查模式，因此过期的生成结果会阻断门禁。`compile-protocol-catalogs.ps1` 是唯一治理入口：不带参数时重新生成并写回，使用 `-Check` 时只校验而不写入。
+`compile-protocol-catalogs.ps1` 是 catalog 生成入口：不带参数时重新生成并写回，使用 `-Check` 时只校验而不写回生成物。旧 PR/push 作业不代表当前接入状态；是否自动运行和阻断，以[门禁接入状态](../../AbilityKit测试门禁与批量回归规范.md#8-ci-接入与静态校验)及实际工作流为准。
 
 生成过程是确定性的：递归发现源文件后按序号顺序排序，JSON 和 C# 输出顺序遵循源文件顺序。目录变更和两个生成文件必须包含在同一个变更集中。
 

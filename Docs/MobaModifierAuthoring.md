@@ -2,7 +2,7 @@
 
 正式版目标契约、扩展边界与放行条件见 [MobaModifierFormalDesign](MobaModifierFormalDesign.md)。只有活跃 `IContinuous` 实例或绑定其生命周期的桥接可以提供修改器效果；同一效果 owner 下通过阶段记录筛选参数。生命周期投影、部分阶段消费和类型化候选已接通；完整回滚、Unity 验收和规模基准尚未放行。
 
-当前效果表有 21 个参数目录项、33 条修饰效果定义和 33 条挂载，召唤继承表有 1 条配置。修改共用模板前运行 `python LubanConfig/Moba/tools/modifier_impact_report.py --output local/modifier-impact-report.json` 查看 Buff/持续过程的反向引用，再运行 `python LubanConfig/Moba/export_pipeline.py --check-published`。本轮验收和放量边界见 [实施记录](../local/docs/MobaModifierP0P4ImplementationRecord.md)。
+当前效果表有 21 个参数目录项、33 条修饰效果定义和 33 条挂载，召唤继承表有 1 条配置。修改共用模板前运行 `python LubanConfig/Moba/tools/modifier_impact_report.py --output local/modifier-impact-report.json` 查看 Buff/持续过程的反向引用，再运行 `python LubanConfig/Moba/export_pipeline.py --check-published`。本轮验收和放量边界见 `local/docs/MobaModifierP0P4ImplementationRecord.md`。
 
 ## 编辑来源与边界
 

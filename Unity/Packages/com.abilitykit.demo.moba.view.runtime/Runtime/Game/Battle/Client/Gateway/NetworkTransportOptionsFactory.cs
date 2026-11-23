@@ -28,6 +28,7 @@ namespace AbilityKit.Game.Battle
         public string BattleId { get; set; } = string.Empty;
         public string PublicRoomId { get; set; } = string.Empty;
         public bool UseFrameSyncInput { get; set; }
+        public bool UseFixedBaselineStateSync { get; set; }
         public Func<string>? GetReliableEventEpoch { get; set; }
         public Func<long>? GetReliableEventLastAcknowledgedSequence { get; set; }
     }
@@ -55,6 +56,7 @@ namespace AbilityKit.Game.Battle
             var battleId = options.BattleId;
             var publicRoomId = options.PublicRoomId;
             var useFrameSyncInput = options.UseFrameSyncInput;
+            var useFixedBaseline = !useFrameSyncInput && options.UseFixedBaselineStateSync;
             var getReliableEventEpoch = options.GetReliableEventEpoch;
             var getReliableEventLastAcknowledgedSequence = options.GetReliableEventLastAcknowledgedSequence;
             if (string.IsNullOrWhiteSpace(host)) throw new ArgumentException("Host is required.", nameof(host));
@@ -78,6 +80,8 @@ namespace AbilityKit.Game.Battle
                 configureBattle: (config, s) =>
                 {
                     config.WithResponseEnvelopeCodec(TcpGatewayRequestResponseEnvelopeCodec.Instance);
+                    if (useFixedBaseline)
+                        config.UseFixedBaselineStateSyncSubscription();
                     if (useFrameSyncInput)
                     {
                         config
@@ -120,31 +124,13 @@ namespace AbilityKit.Game.Battle
                         .WithSnapshotDeserializer(payload =>
                         {
                             var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
+                            if ((wire.SchemaVersion == FixedBaselineStateSyncProtocol.SchemaVersion) != useFixedBaseline)
+                                return null;
                             return GatewayRoomClient.ToGatewaySnapshot(in wire);
-                        })
-                        .WithFrameDeserializer(payload =>
-                        {
-                            var push = WireCustomBinary.DeserializeFramePushedPush(payload);
-                            var worldId = idCodec.DecodeWorld(push.WorldId);
-                            var frame = new FrameIndex(push.Frame);
-                            var inputs = (IReadOnlyList<PlayerInputCommand>)(push.Inputs == null || push.Inputs.Length == 0
-                                ? Array.Empty<PlayerInputCommand>()
-                                : ConvertInputs(frame, push.Inputs, idCodec));
-                            return new FramePacket(worldId, frame, inputs, snapshot: null);
                         })
                         .WithReliableEventCursor(getReliableEventEpoch, getReliableEventLastAcknowledgedSequence);
                 });
         }
 
-        private static PlayerInputCommand[] ConvertInputs(FrameIndex frame, WireInputItem[] inputs, NetworkIdCodec idCodec)
-        {
-            var arr = new PlayerInputCommand[inputs.Length];
-            for (int i = 0; i < inputs.Length; i++)
-            {
-                var it = inputs[i];
-                arr[i] = new PlayerInputCommand(frame, idCodec.DecodePlayer(it.PlayerId), it.OpCode, it.Payload);
-            }
-            return arr;
-        }
     }
 }

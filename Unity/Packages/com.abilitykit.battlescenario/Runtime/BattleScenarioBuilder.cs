@@ -7,6 +7,7 @@ namespace AbilityKit.BattleScenario
     public sealed class BattleScenarioBuilder
     {
         private readonly List<TestActor> _actors = new List<TestActor>();
+        private readonly List<TestSetupAction> _setup = new List<TestSetupAction>();
         private readonly List<TestObstacle> _obstacles = new List<TestObstacle>();
         private readonly List<TestTimelineStep> _timeline = new List<TestTimelineStep>();
         private readonly List<TestCommand> _commands = new List<TestCommand>();
@@ -51,6 +52,11 @@ namespace AbilityKit.BattleScenario
         /// <summary>追加一个 actor。</summary>
         public void AddActor(TestActor actor) => _actors.Add(actor);
 
+        /// <summary>
+        /// 追加角色创建后、时间线开始前执行的布置动作。
+        /// </summary>
+        public void AddSetupAction(TestSetupAction action) => _setup.Add(action);
+
         /// <summary>追加一个障碍物。</summary>
         public void AddObstacle(TestObstacle obstacle) => _obstacles.Add(obstacle);
 
@@ -80,6 +86,7 @@ namespace AbilityKit.BattleScenario
                 },
             },
             Actors = _actors,
+            Setup = _setup,
             Obstacles = _obstacles,
             Timeline = _timeline,
             Commands = _commands,

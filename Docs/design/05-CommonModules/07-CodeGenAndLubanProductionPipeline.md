@@ -63,8 +63,8 @@
 | [export_moba_configs.ps1](../../../LubanConfig/Moba/export_moba_configs.ps1) | 调用 Luban 生成候选 JSON 与 staged C#，再复制 C# 到 Runtime `LubanGen` |
 | [sync_moba_json_configs.ps1](../../../tools/sync_moba_json_configs.ps1) | 以 package Resources 为唯一权威源，检查或发布 Console JSON 副本 |
 | [test-gates.json](../../../tools/test-gates.json) | 声明 `moba-codegen` 与 `moba-content-contracts` 等门禁 |
-| [CI workflow](../../../.github/workflows/abilitykit-test-gates.yml) | PR/push 上调用 `moba-codegen` gate |
-| [ownership validator](../../../tools/validate_moba_codegen_ownership.ps1) | 检查框架与 MOBA 编译期所有权，但当前仍含失效路径 |
+| [门禁执行与 CI 状态](../../AbilityKit测试门禁与批量回归规范.md#8-ci-接入与静态校验) | 区分本地 gate 和 CI 接入；`moba-codegen` 的步骤以配置为准 |
+| [ownership validator](../../../tools/validate_moba_codegen_ownership.ps1) | 检查框架 Analyzer 与 MOBA 编译期所有权 |
 
 ---
 
@@ -158,15 +158,10 @@ JSON 与 C# 当前是非对称链路：
 | C# 发布 | staged code 直接递归覆盖 `LubanGen` | 没有 manifest、完整性校验或原子替换 |
 | 副本同步 | Check/DryRun/Apply 权限清晰，支持语义化 JSON 比较 | 只能证明目录副本一致，不能证明业务引用正确 |
 | 运行时 fallback | 部分 manifest 保留 reflection/DI 兼容路径 | 可能掩盖 Analyzer DLL 未生效或生成清单为空 |
-| `moba-codegen` gate | CI workflow 已配置在 PR/push 运行 | gate catalog 仍引用两个不存在目标，当前会在进入完整验证前失败，不能声明为有效 E5 阻断 |
-| `moba-content-contracts` | gate 已定义 | PR/push/schedule 均为 false，属于手动 gate |
+| `moba-codegen` gate | 当前配置与 ownership validator 不再引用已移除的框架 Source Generator 目录和测试工程 | 本地可从 gate 入口发起，静态路径核验不证明完整构建或 CI 阻断 |
+| `moba-content-contracts` | gate 已定义 | CI 状态同上，以实际接入事实为准 |
 
-`moba-codegen` 当前失效引用为：
-
-- `Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator/AbilityKit.SourceGenerator.csproj`
-- `src/AbilityKit.CodeGen.Tests/AbilityKit.CodeGen.Tests.csproj`
-
-`validate_moba_codegen_ownership.ps1` 也枚举了不存在的通用 CodeGen 源码根。在 `$ErrorActionPreference = 'Stop'` 下，`Get-ChildItem` 会先因缺失 `Unity/Packages/com.abilitykit.codegen` 中止，脚本来不及输出其余 ownership contract 结果。因此“validator 失败”目前主要证明入口陈旧，不能证明 MOBA 十组 Generator/Analyzer 的所有权规则被完整执行。它们是待修 gate 配置，不是当前包缺失某个构建错误的历史基线；文档不保留旧 `SyntaxReceiver` 冲突或固定错误数字。
+2026-08-17 发现的已移除框架 Source Generator 项目、测试工程和 ownership 扫描根，是历史入口问题，不再作为当前失败项。
 
 ---
 
@@ -178,8 +173,8 @@ JSON 与 C# 当前是非对称链路：
 | Runtime manifest/registry 消费 | E2 | 生成清单是 MOBA 默认运行路径，部分域保留 fallback |
 | 生成器工程及 DLL | E1 候选 | 存在可构建工程和包根 RoslynAnalyzer DLL；只有直接构建能证明源码可编译，仍需 hash/版本记录证明 DLL 对应当前源码 |
 | MOBA 配置/清单相关测试 | 局部 E3 | 可覆盖具体运行时清单契约，不能替代完整 Generator/Analyzer compilation tests |
-| `moba-codegen` | E5 入口存在但不可闭环 | workflow 会触发，但 gate 引用缺失项目，ownership validator 也会在缺失目录处提前中止；不能计为有效 E5 |
-| `moba-content-contracts` | 手动 E5 入口 | 未配置自动触发，不是持续 CI 保护 |
+| `moba-codegen` | E0：gate 入口及引用路径 | 本次未执行完整 gate，不计为 E5 |
+| `moba-content-contracts` | E0：gate 入口 | 配置存在，不计为 E5 |
 
 生产声明应限定为：“MOBA 已建立项目专用生成清单与候选/权威/副本数据模型；现有运行时有真实消费，但编译期 gate 和 Luban 失败传播仍需收敛。”
 
@@ -207,6 +202,6 @@ JSON 与 C# 当前是非对称链路：
 
 ---
 
-文档类型：Canonical 设计与生产链审计 | 事实基线：2026-08-17 | 证据等级：E0 编译期/脚本源码、E2 MOBA Runtime 消费、局部 E3；E5 入口存在但当前不可完整执行
+文档类型：Canonical 设计与生产链审计 | 事实基线：2026-11-21 仅复核门禁入口与 CI；其余沿用 2026-08-17 | 证据等级：E0 编译期/脚本源码、E2 MOBA Runtime 消费、局部 E3；无本次新增 E5 证据
 
-*文档版本：v3.1 | 最后更新：2026-08-17*
+*文档版本：v3.2 | 最后更新：2026-11-21*

@@ -419,7 +419,7 @@ public sealed class ServerGameplayModuleCatalog
         ServerSyncCapabilityDeclaration.FromResolver(
             ServerBattleSyncProfile.FromTemplates(
                 new ServerBattleSyncTemplate(
-                    ServerGameplayDescriptors.MobaFrameSyncTemplate,
+                    ServerGameplayDescriptors.MobaSettledFrameSyncTemplate,
                     ServerBattleSyncMode.FrameSync,
                     ServerBattleRuntimeMode.BattleWorldWithFrameSync,
                     1,
@@ -438,11 +438,11 @@ public sealed class ServerGameplayModuleCatalog
                         "Moba.AuthoritativeRemoteInterpolation",
                         CreateMobaStateSyncProfile(),
                         0,
-                        1);
+                        AbilityKit.Protocol.Room.FixedBaselineStateSyncProtocol.SchemaVersion);
                 }
 
                 return new ServerSyncCapabilityDefinition(
-                    nameof(NetworkSyncModel.Lockstep),
+                    AbilityKit.Protocol.Moba.SettledFrames.SettledFrameProtocol.CapabilityProfile,
                     NetworkSyncProfiles.Lockstep,
                     0,
                     1);

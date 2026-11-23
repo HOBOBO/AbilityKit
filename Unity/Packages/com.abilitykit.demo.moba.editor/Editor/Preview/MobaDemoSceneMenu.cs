@@ -21,6 +21,8 @@ namespace AbilityKit.Game.Editor
         static MobaDemoSceneMenu()
         {
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+            if (SessionState.GetBool(PendingLaunchKey, false))
+                IssueLocalMobaRequest();
         }
 
         [MenuItem(MenuRoot + "Open Demo Scene", priority = 10)]
@@ -69,16 +71,21 @@ namespace AbilityKit.Game.Editor
         [MenuItem(MenuRoot + "Play Existing Demo Scene", priority = 13)]
         private static void PlayExistingDemoScene()
         {
+            if (TryOpenExistingDemoScene()) LaunchLocalDemo();
+        }
+
+        internal static bool TryOpenExistingDemoScene()
+        {
             if (EditorApplication.isPlayingOrWillChangePlaymode ||
                 !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
             {
-                return;
+                return false;
             }
 
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(GameplayScenePath) == null)
             {
                 Debug.LogError($"MOBA gameplay scene is missing: {GameplayScenePath}");
-                return;
+                return false;
             }
 
             var scene = EditorSceneManager.OpenScene(GameplayScenePath, OpenSceneMode.Single);
@@ -87,14 +94,19 @@ namespace AbilityKit.Game.Editor
                 throw new InvalidOperationException($"Unable to open MOBA gameplay scene '{GameplayScenePath}'.");
             }
 
-            LaunchLocalDemo();
+            return true;
         }
 
-        private static void LaunchLocalDemo()
+        internal static void LaunchLocalDemo()
+        {
+            ScheduleLocalDemoLaunch();
+            EditorApplication.EnterPlaymode();
+        }
+
+        internal static void ScheduleLocalDemoLaunch()
         {
             SessionState.SetBool(PendingLaunchKey, true);
             IssueLocalMobaRequest();
-            EditorApplication.EnterPlaymode();
         }
 
         private static bool PrepareAndOpenGameplayScene()
@@ -127,7 +139,6 @@ namespace AbilityKit.Game.Editor
             if (state == PlayModeStateChange.EnteredPlayMode && SessionState.GetBool(PendingLaunchKey, false))
             {
                 SessionState.EraseBool(PendingLaunchKey);
-                IssueLocalMobaRequest();
             }
         }
 

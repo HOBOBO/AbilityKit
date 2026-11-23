@@ -60,6 +60,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float TargetMissingHpBonusMax;
         public readonly float TargetMissingHpDamageScaleCoefficient;
         public readonly float TargetMissingHpDamageScaleMaxBonus;
+        public readonly float ProjectileImpactKillBonus;
         public readonly float DamageScale;
         public readonly string DamageScaleSkillLevelParameter;
         public readonly float DamageMin;
@@ -101,10 +102,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             float targetMaxHpRatioCoefficient = 0f,
             string targetMaxHpRatioSkillLevelParameter = null,
             float targetMissingHpDamageScaleCoefficient = 0f,
-            float targetMissingHpDamageScaleMaxBonus = 0f)
+            float targetMissingHpDamageScaleMaxBonus = 0f,
+            float projectileImpactKillBonus = 0f)
         {
             TargetMissingHpDamageScaleCoefficient = targetMissingHpDamageScaleCoefficient;
             TargetMissingHpDamageScaleMaxBonus = targetMissingHpDamageScaleMaxBonus;
+            ProjectileImpactKillBonus = projectileImpactKillBonus;
             DamageValue = damageValue;
             ReasonParam = reasonParam;
             DamageType = damageType;

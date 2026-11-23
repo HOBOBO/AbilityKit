@@ -9,6 +9,7 @@ using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Client;
 using AbilityKit.Network.Sdk.Observability;
 using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Flow
 {
@@ -19,7 +20,8 @@ namespace AbilityKit.Game.Flow
             uint localPlayerId,
             ulong roomId,
             IDispatcher callbackDispatcher,
-            IDispatcher ioDispatcher);
+            IDispatcher ioDispatcher,
+            MobaSettledFrameSession settledFrames);
     }
 
     internal sealed class DefaultBattleSessionTransportFactory : IBattleSessionTransportFactory
@@ -33,9 +35,13 @@ namespace AbilityKit.Game.Flow
             uint localPlayerId,
             ulong roomId,
             IDispatcher callbackDispatcher,
-            IDispatcher ioDispatcher)
+            IDispatcher ioDispatcher,
+            MobaSettledFrameSession settledFrames)
         {
             var gateway = plan.Gateway;
+            var useFrameSyncInput = SessionSimRuntimeTuning.ShouldUseFrameSyncInput(plan.Sync.SyncMode);
+            if (useFrameSyncInput && settledFrames == null)
+                throw new System.InvalidOperationException("A MOBA Gateway lockstep battle requires the settled frame capability.");
             var gatewayOptions = NetworkTransportOptionsFactory.Create(new NetworkTransportOptionsFactoryOptions
             {
                 Host = gateway.Host,
@@ -46,7 +52,9 @@ namespace AbilityKit.Game.Flow
                 SessionToken = gateway.SessionToken,
                 BattleId = gateway.BattleId,
                 PublicRoomId = gateway.JoinRoomId,
-                UseFrameSyncInput = SessionSimRuntimeTuning.ShouldUseFrameSyncInput(plan.Sync.SyncMode)
+                UseFrameSyncInput = useFrameSyncInput,
+                UseFixedBaselineStateSync = !useFrameSyncInput &&
+                    plan.RemoteSyncCapabilities?.Capabilities.MaximumSchemaVersion >= FixedBaselineStateSyncProtocol.SchemaVersion
             });
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -63,8 +71,11 @@ namespace AbilityKit.Game.Flow
             };
 #endif
 
-            return MultiplayerClientSession.CreateBattleTransport(
+            settledFrames?.Configure(gatewayOptions);
+            var transport = MultiplayerClientSession.CreateBattleTransport(
                 gatewayOptions, callbackDispatcher, ioDispatcher, connect: false);
+            settledFrames?.Attach(transport);
+            return transport;
         }
 
     }

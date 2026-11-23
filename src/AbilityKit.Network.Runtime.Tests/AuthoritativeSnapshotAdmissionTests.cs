@@ -6,6 +6,26 @@ namespace AbilityKit.Network.Runtime.Tests;
 public sealed class AuthoritativeSnapshotAdmissionTests
 {
     [Fact]
+    public void Check_UsesCommittedCursorWithoutMutatingBaseline()
+    {
+        var admission = new AuthoritativeSnapshotAdmission(minSchemaVersion: 1, maxSchemaVersion: 3);
+        admission.Reset(42UL);
+        Assert.True(admission.Check(42UL, 10, isFullSnapshot: true, schemaVersion: 2).Accepted);
+        Assert.False(admission.HasBaseline);
+        Assert.Equal(0, admission.LastAcceptedFrame);
+        Assert.True(admission.Admit(42UL, 10, isFullSnapshot: true, schemaVersion: 2).Accepted);
+
+        var rejected = admission.Check(42UL, 11, isFullSnapshot: false, schemaVersion: 4);
+        Assert.Equal(AuthoritativeSnapshotAdmissionStatus.UnsupportedSchemaVersion, rejected.Status);
+        Assert.True(rejected.ShouldRequestFullResync);
+        Assert.True(admission.HasBaseline);
+        var valid = admission.Check(42UL, 12, isFullSnapshot: false, schemaVersion: 2);
+        Assert.True(valid.Accepted);
+        Assert.Equal(10, valid.LastAcceptedFrame);
+        Assert.Equal(10, admission.LastAcceptedFrame);
+    }
+
+    [Fact]
     public void DeltaBeforeBaseline_IsRejectedAndRequestsFullResync()
     {
         var admission = new AuthoritativeSnapshotAdmission();

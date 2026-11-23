@@ -79,7 +79,10 @@ public sealed class ClientSnapshotSyncPipelineTests
     public void DuplicateAndUnsupportedVersionAreRejectedWithoutApplying()
     {
         var applied = new List<int>();
-        var pipeline = CreatePipeline(applied);
+        var requests = new List<SnapshotRecoveryRequest>();
+        var options = CreateOptions(applied);
+        options.RecoveryHandler = (in Snapshot _, in SnapshotRecoveryRequest request) => requests.Add(request);
+        var pipeline = new ClientSnapshotSyncPipeline<Snapshot>(options);
         var baseline = Snapshot.Baseline(sequence: 10, frame: 10, stateHash: 100u);
         pipeline.Apply(in baseline);
         var unsupported = Snapshot.Baseline(sequence: 11, frame: 11, stateHash: 101u) with { Version = 2 };
@@ -92,6 +95,10 @@ public sealed class ClientSnapshotSyncPipelineTests
         Assert.Equal(ClientSnapshotSyncStatus.UnsupportedVersion, unsupportedResult.Status);
         Assert.Equal(SyncHealthEventKind.SnapshotDropped, unsupportedResult.HealthEvents[0].Kind);
         Assert.Equal(new[] { 10 }, applied);
+        Assert.Empty(requests);
+        Assert.False(pipeline.State.NeedsFullBaselineRecovery);
+        Assert.Equal(10, pipeline.State.LastAppliedFrame);
+        Assert.Equal(10, pipeline.State.LastBaselineFrame);
     }
 
     [Fact]

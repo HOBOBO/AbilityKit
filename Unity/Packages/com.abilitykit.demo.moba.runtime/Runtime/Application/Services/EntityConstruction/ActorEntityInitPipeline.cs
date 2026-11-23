@@ -104,65 +104,9 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             {
                 new ModelInitializer(),
                 new AttributeInitializer(_attributes),
-                new SkillInitializer(this, _skills),
-                new BrainInitializer(this)
+                new SkillInitializer(_services, _skills),
+                new BrainInitializer(_services)
             };
-        }
-
-        private void RegisterCharacterHfsmProfile(global::ActorEntity entity, int heroId)
-        {
-            if (entity == null || !entity.hasActorId || _services == null ||
-                !_services.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) || parameters == null)
-                return;
-
-            StateMachineDefinition definition;
-            if (_services.TryResolve<MobaCharacterHfsmProfileCatalog>(out var profiles) && profiles != null)
-            {
-                definition = profiles.Resolve(heroId);
-            }
-            else if (_services.TryResolve<ITextAssetLoader>(out var loader) && loader != null)
-            {
-                definition = MobaCharacterHfsmProfile.LoadDefinition(loader, heroId);
-            }
-            else
-            {
-                definition = MobaCharacterHfsmProfile.CreateGenericDefinition();
-            }
-
-            parameters.RegisterActorProfile(entity.actorId.Value, definition);
-        }
-
-        private void ApplyConfiguredBrain(global::ActorEntity entity, in MobaPlayerLoadout loadout)
-        {
-            if (entity == null) return;
-
-            if (_services != null && _services.TryResolve<MobaBrainService>(out var brains) && brains != null)
-            {
-                if (loadout.BrainId > 0 && loadout.EnableBrainOnSpawn)
-                {
-                    brains.ActivateBrain(entity, loadout.BrainId, MobaBrainSourceKinds.BattleTemplate, loadout.SpawnIndex);
-                }
-                else if (entity.hasActorBrain && entity.actorBrain.SourceKind == MobaBrainSourceKinds.BattleTemplate)
-                {
-                    brains.DeactivateBrain(entity);
-                }
-                return;
-            }
-
-            if (loadout.BrainId > 0 && loadout.EnableBrainOnSpawn)
-            {
-                if (entity.hasActorBrain)
-                    entity.ReplaceActorBrain(loadout.BrainId, entity.hasActorId ? entity.actorId.Value : 0,
-                        MobaBrainSourceKinds.BattleTemplate, loadout.SpawnIndex, 0L);
-                else
-                    entity.AddActorBrain(loadout.BrainId, entity.hasActorId ? entity.actorId.Value : 0,
-                        MobaBrainSourceKinds.BattleTemplate, loadout.SpawnIndex, 0L);
-            }
-            else if (entity.hasActorBrain && entity.actorBrain.SourceKind == MobaBrainSourceKinds.BattleTemplate)
-            {
-                entity.RemoveActorBrain();
-                if (entity.hasMoveInput) entity.ReplaceMoveInput(0f, 0f);
-            }
         }
 
         private bool EnsureConfig()
@@ -271,12 +215,12 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         [MobaActorInitializer("core.skills", 300)]
         private sealed class SkillInitializer : IMobaActorInitializerStep
         {
-            private readonly ActorEntityInitPipeline _pipeline;
+            private readonly IWorldResolver _services;
             private readonly MobaActorSkillLoadoutInitializer _initializer;
 
-            public SkillInitializer(ActorEntityInitPipeline pipeline, MobaActorSkillLoadoutInitializer initializer)
+            public SkillInitializer(IWorldResolver services, MobaActorSkillLoadoutInitializer initializer)
             {
-                _pipeline = pipeline;
+                _services = services;
                 _initializer = initializer;
             }
 
@@ -301,18 +245,41 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 _initializer.Apply(context.Entity, in prepared);
                 if (context.Entity.hasSkillLoadout)
                     context.Entity.skillLoadout.HeroId = context.Loadout.HeroId;
-                _pipeline.RegisterCharacterHfsmProfile(context.Entity, context.Loadout.HeroId);
+                RegisterCharacterHfsmProfile(context.Entity, context.Loadout.HeroId);
+            }
+
+            private void RegisterCharacterHfsmProfile(global::ActorEntity entity, int heroId)
+            {
+                if (entity == null || !entity.hasActorId || _services == null ||
+                    !_services.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) || parameters == null)
+                    return;
+
+                StateMachineDefinition definition;
+                if (_services.TryResolve<MobaCharacterHfsmProfileCatalog>(out var profiles) && profiles != null)
+                {
+                    definition = profiles.Resolve(heroId);
+                }
+                else if (_services.TryResolve<ITextAssetLoader>(out var loader) && loader != null)
+                {
+                    definition = MobaCharacterHfsmProfile.LoadDefinition(loader, heroId);
+                }
+                else
+                {
+                    definition = MobaCharacterHfsmProfile.CreateGenericDefinition();
+                }
+
+                parameters.RegisterActorProfile(entity.actorId.Value, definition);
             }
         }
 
         [MobaActorInitializer("core.brain", 400)]
         private sealed class BrainInitializer : IMobaActorInitializerStep
         {
-            private readonly ActorEntityInitPipeline _pipeline;
+            private readonly IWorldResolver _services;
 
-            public BrainInitializer(ActorEntityInitPipeline pipeline)
+            public BrainInitializer(IWorldResolver services)
             {
-                _pipeline = pipeline;
+                _services = services;
             }
 
             public string Id => "core.brain";
@@ -327,7 +294,40 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 
             public void Apply(in MobaActorInitializationContext context, object preparedState)
             {
-                _pipeline.ApplyConfiguredBrain(context.Entity, in context.Loadout);
+                ApplyConfiguredBrain(context.Entity, in context.Loadout);
+            }
+
+            private void ApplyConfiguredBrain(global::ActorEntity entity, in MobaPlayerLoadout loadout)
+            {
+                if (entity == null) return;
+
+                if (_services != null && _services.TryResolve<MobaBrainService>(out var brains) && brains != null)
+                {
+                    if (loadout.BrainId > 0 && loadout.EnableBrainOnSpawn)
+                    {
+                        brains.ActivateBrain(entity, loadout.BrainId, MobaBrainSourceKinds.BattleTemplate, loadout.SpawnIndex);
+                    }
+                    else if (entity.hasActorBrain && entity.actorBrain.SourceKind == MobaBrainSourceKinds.BattleTemplate)
+                    {
+                        brains.DeactivateBrain(entity);
+                    }
+                    return;
+                }
+
+                if (loadout.BrainId > 0 && loadout.EnableBrainOnSpawn)
+                {
+                    if (entity.hasActorBrain)
+                        entity.ReplaceActorBrain(loadout.BrainId, entity.hasActorId ? entity.actorId.Value : 0,
+                            MobaBrainSourceKinds.BattleTemplate, loadout.SpawnIndex, 0L);
+                    else
+                        entity.AddActorBrain(loadout.BrainId, entity.hasActorId ? entity.actorId.Value : 0,
+                            MobaBrainSourceKinds.BattleTemplate, loadout.SpawnIndex, 0L);
+                }
+                else if (entity.hasActorBrain && entity.actorBrain.SourceKind == MobaBrainSourceKinds.BattleTemplate)
+                {
+                    entity.RemoveActorBrain();
+                    if (entity.hasMoveInput) entity.ReplaceMoveInput(0f, 0f);
+                }
             }
         }
     }

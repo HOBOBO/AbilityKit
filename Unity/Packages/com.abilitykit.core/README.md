@@ -10,14 +10,10 @@
 
 Core 是第一批内部推广的 P0 基础底座包，适合被 `world.di`、`triggering`、`pipeline`、`combat.*`、`record`、`diagnostics` 等模块依赖。
 
-它主要负责：
+本候选的接口按[首发支持清单](./Documentation~/FirstReleaseSupport.md)分级：
 
-- 纯 C# 数学类型：`Vec2`、`Vec3`、`Quat`、`Transform3`。
-- 日志抽象：`Log`、`ILogSink`、`NullLogSink`。
-- 稳定集合和标识：`StablePriorityList<T>`、`SortedIntSet`、`StableHashV1`。
-- 有界运行时存储：按整数帧键保留的 `IFrameIndexedBuffer<T>` 和按插入顺序保留的 `ISequentialBuffer<T>`。
-- 所有权与时间契约：`PooledBufferOwner<T>`、`DisposableRegistration`、`IMonotonicClock`。
-- 当前兼容的事件与对象池基础设施。
+- 首发推荐数学、日志、稳定集合与标识、单调计时、所有权、实例对象池和类型化事件键。
+- 帧索引与顺序缓冲区、实例事件派发、全局事件与池门面及其管理配置继续交付，维持现有契约，但不作为新项目的默认入口。
 
 以下目录属于历史兼容面，不再接收新的领域能力：
 
@@ -47,11 +43,11 @@ com.abilitykit.core
 com.abilitykit.world.di
 ```
 
-在这个组合中，Core 提供数学、日志、集合、标识、所有权和兼容中的事件/对象池能力；`world.di` 负责战斗世界或关卡作用域的服务装配。
+在这个组合中，Core 提供跨包基础原语；`world.di` 负责战斗世界或关卡作用域的服务装配。新代码优先用实例 `ObjectPool<T>` 或由宿主持有的 `PoolScope`；使用 `EventKey<TArgs>` 不要求改用 Core 事件派发器，也不建议用全局派发器替代世界作用域。
 
 ## 验收要求
 
-源码注释、Core 局部 XML 文档错误门禁、依赖闭包与尚未完成的发布证据统一见 [验证门禁与发布缺口](./Documentation~/ValidationAndReleaseReadiness.md)。当前 Core 并非零依赖包，消费与发布须包含 Deterministic；[独立消费验证](./Documentation~/IndependentConsumption.md) 已覆盖本地 .NET 制品与真实 Unity Editor 导入，注册表安装、正式版本升级和 Player 平台矩阵仍待完成。
+源码注释、Core 局部 XML 文档错误门禁、依赖闭包与尚未完成的发布证据统一见 [验证门禁与发布缺口](./Documentation~/ValidationAndReleaseReadiness.md)。Core 依赖 `com.abilitykit.deterministic@0.1.0`；[独立消费验证](./Documentation~/IndependentConsumption.md) 已覆盖本地 .NET 制品与真实 Unity Editor 导入，尚未验收计划注册表的传递安装，没有可作为升级基线的正式旧版。Player 平台矩阵不在本候选的验证范围内。
 
 仓库发布计划已补齐 ready/candidate、精确依赖版本及失败校验；严格入口还核对完整包目录、固定 HEAD 和标签依赖内容，并输出 Git 对象证据。当前未提交输入会被严格校验拒绝；这些检查不改变 Core 的 candidate 状态，也不代替实际制品、平台验收或发布签核，详细规则见发布缺口文档。
 
@@ -72,7 +68,7 @@ Core 进入内部 Starter 前至少满足：
 - [`Documentation~/ContinuousCompatibility.md`](./Documentation~/ContinuousCompatibility.md)：旧持续体的登记、回调、查询、重入限制与独立包迁移差异。
 - [`Documentation~/ReflectionAndDisposalCompatibility.md`](./Documentation~/ReflectionAndDisposalCompatibility.md)：旧反射调用的异常、返回值及异步边界，以及释放回调、引用清空与重入契约。
 - [`Documentation~/ConfigurationFileCompatibility.md`](./Documentation~/ConfigurationFileCompatibility.md)：旧设置文件读写、对象缓存失效、模块描述及应用迁移边界。
-- [`Documentation~/UnitySettingsBootstrapCompatibility.md`](./Documentation~/UnitySettingsBootstrapCompatibility.md)：旧 Unity 引导的协程、路径、复制失败边界、同步差异及平台验收范围。
+- [`Documentation~/UnitySettingsBootstrapCompatibility.md`](./Documentation~/UnitySettingsBootstrapCompatibility.md)：已退役的 Unity 设置引导及应用层迁移说明。
 - [`Documentation~/Markers.md`](./Documentation~/Markers.md)：标记登记、实时查询、反射扫描及已冻结全局引导的兼容契约。
 - [`Documentation~/DebugDrawCompatibility.md`](./Documentation~/DebugDrawCompatibility.md)：旧绘制值、编辑器设置、SceneView 回调及 Diagnostics 迁移限制。
 - [`Documentation~/Observability.md`](./Documentation~/Observability.md)：观测值标识、有效性、同步接收、空对象及待完成的 Core 准入复核。

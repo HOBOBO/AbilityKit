@@ -1,4 +1,6 @@
 # AbilityKit World Record - 设计说明
+
+> **历史资料**：记录早期通用容器设计，不涵盖当前各记录格式的完整分工。现行接入见[使用契约](../Documentation~/Usage.md)。
  
  本文描述 record 模块的核心设计目标、职责边界与数据流。
  

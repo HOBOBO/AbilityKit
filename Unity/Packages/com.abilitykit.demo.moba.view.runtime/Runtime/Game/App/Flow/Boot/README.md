@@ -1,8 +1,5 @@
-# 启动调试/UI 边界
+# 启动调试 / UI 入口
 
-[`Boot`](Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/Boot) 目录当前包含启动菜单与根调试 OnGUI Feature。
+本目录保留旧导航入口；[`BootMenuOnGUIFeature`](../../../../UI/App/Debug/BootMenuOnGUIFeature.cs) 和 [`RootDebugOnGUIFeature`](../../../../UI/App/Debug/RootDebugOnGUIFeature.cs) 位于 `Runtime/UI/App/Debug/`。
 
-约束：
-
-- [`BootMenuOnGUIFeature`](Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/Boot/BootMenuOnGUIFeature.cs) 与 [`RootDebugOnGUIFeature`](Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/Boot/RootDebugOnGUIFeature.cs) 默认只应在 Editor/Development 配置下注册。
-- 后续 asmdef 分层阶段可迁移至 DebugTools 或 DemoTools 程序集。
+从[客户端 UI Feature 注册](../Composition/MobaUiFeatureRegistration.cs)核对接线。当前 `boot_menu` 受 `UNITY_EDITOR || DEVELOPMENT_BUILD` 编译条件约束；`root_debug` 的工厂注册不在该条件内，不把历史约束写成已实现的统一编译开关。

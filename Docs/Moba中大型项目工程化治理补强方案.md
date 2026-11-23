@@ -80,7 +80,7 @@
 
 ## 3. 配置校验补强方案
 
-当前已有 [`MobaRuntimeValidationService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaRuntimeValidation.cs:479) 和 [`MobaBattleConfigReferenceValidator`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs:11)，因此建议以“扩展现有 validator”为主，而不是另起炉灶。
+当前已有 [`MobaRuntimeValidationService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaRuntimeValidation.cs#L479) 和 [`MobaBattleConfigReferenceValidator`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs#L11)，因此建议以“扩展现有 validator”为主，而不是另起炉灶。
 
 ### 3.1 现有校验能力可直接复用的部分
 
@@ -108,7 +108,7 @@
 
 #### 3.2.2 Action schema 规则
 
-借助 [`MobaPlanActionSchemaBase`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionSchemaBase.cs:15) 的 `TryValidateArgs`，对每个 plan action 做：
+借助 [`MobaPlanActionSchemaBase`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionSchemaBase.cs#L15) 的 `TryValidateArgs`，对每个 plan action 做：
 
 - 必填字段检查。
 - 数值范围检查。
@@ -118,9 +118,9 @@
 
 #### 3.2.3 Runtime 依赖规则
 
-围绕 [`MobaSkillCastRuntimeService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:1)、[`MobaExecutionContextRegistry`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaExecutionContextRegistry.cs:1) 和可选 [`MobaTraceRegistry`](Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceRegistry.cs:1) 补充：
+围绕 [`MobaSkillCastRuntimeService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs#L1)、[`MobaExecutionContextRegistry`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaExecutionContextRegistry.cs#L1) 和可选 [`MobaTraceRegistry`](../Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceRegistry.cs#L1) 补充：
 
-- trace registry 缺失时禁止正式技能运行。
+- `MobaExecutionContextRegistry` 缺失时按正式业务依赖校验阻断；Trace Adapter / trace registry 是可选诊断投影，不作为正式技能运行前提。当前依赖以 `MobaRuntimeDependencyHealthValidator.cs` 为准。
 - runtime service 缺失时禁止正式技能运行。
 - 运行时 child 未清理必须在校验中暴露。
 - trace chain 断链必须可被检测。
@@ -152,13 +152,13 @@
 - blocksStartup。
 - message。
 
-这与 [`MobaRuntimeValidationReport`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaRuntimeValidation.cs:193) 的结构保持一致，便于输出到控制台、构建日志和自动化测试报告。
+这与 [`MobaRuntimeValidationReport`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaRuntimeValidation.cs#L193) 的结构保持一致，便于输出到控制台、构建日志和自动化测试报告。
 
 ---
 
 ## 4. 诊断工具补强方案
 
-当前已有 [`MobaBattleDiagnosticsService`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Diagnostics/MobaBattleDiagnosticsService.cs:142)、[`MobaPlanActionDiagnostics`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionDiagnostics.cs:9)、可选 [`MobaTraceRetention.ScanRetention()`](Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceRetention.cs:1) 和 [`MobaSkillCastRuntimeService.ScanDiagnostics()`](Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs:1)，可以组合为正式诊断入口；业务健康状态以 Execution Context 为准，Trace retention 仅作为已安装增强项。
+当前已有 [`MobaBattleDiagnosticsService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Diagnostics/MobaBattleDiagnosticsService.cs#L142)、[`MobaPlanActionDiagnostics`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/MobaPlanActionDiagnostics.cs#L9)、可选 [`MobaTraceRetention.ScanRetention()`](../Unity/Packages/com.abilitykit.demo.moba.trace.adapter/Runtime/MobaTraceRetention.cs#L1) 和 [`MobaSkillCastRuntimeService.ScanDiagnostics()`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Cast/Runtime/MobaSkillCastRuntimeService.cs#L1)，可以组合为正式诊断入口；业务健康状态以 Execution Context 为准，Trace retention 仅作为已安装增强项。
 
 ### 4.1 诊断入口建议
 

@@ -115,7 +115,8 @@ namespace AbilityKit.Demo.Moba.Services
                 Z = e.Point.Z,
                 HitCollider = e.HitCollider.Value,
                 ExitReason = 0,
-                ProjectileId = e.Projectile.Value
+                ProjectileId = e.Projectile.Value,
+                SnapshotFrame = e.Frame
             };
         }
 

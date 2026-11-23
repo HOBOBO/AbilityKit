@@ -135,7 +135,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                     entityManager,
                     summons,
                     restoresMissingActors,
-                    brainsForEntityCleanup));
+                    brainsForEntityCleanup,
+                    restorePathSlots ? actorCommands : null));
                 componentProvider = new MobaEntitasComponentRollbackProvider(
                     contexts.actor,
                     restoresMissingActors);
@@ -239,7 +240,11 @@ namespace AbilityKit.Demo.Moba.Rollback
 
                 if (world.Services.TryResolve<MobaBrainService>(out var brainService) && brainService != null)
                 {
-                    registry.Register(new MobaBrainRollbackProvider(actorRegistry, brainService));
+                    world.Services.TryResolve<MobaEntityManager>(out var brainEntities);
+                    world.Services.TryResolve<MobaSummonService>(out var brainSummons);
+                    MobaActorRollbackCommandRuntime brainCommands = null;
+                    if (restorePathSlots && brainEntities != null) brainEntities.TryGetActorRollbackCommands(out brainCommands);
+                    registry.Register(new MobaBrainRollbackProvider(actorRegistry, brainService, brainCommands, brainSummons));
                 }
 
                 if (world.Services.TryResolve<MobaShieldService>(out var shieldService) &&

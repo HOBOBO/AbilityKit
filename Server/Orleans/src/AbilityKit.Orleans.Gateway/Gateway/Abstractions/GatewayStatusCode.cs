@@ -12,6 +12,7 @@ public static class GatewayStatusCode
     public const int NotFound = 404;
     public const int Timeout = 408;
     public const int Conflict = 409;
+    public const int SettledFrameVersionMismatch = 426;
     public const int InternalError = 500;
     public const int UnhandledOpCode = 600;
     public const int Exception = 700;

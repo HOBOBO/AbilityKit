@@ -11,40 +11,30 @@ public sealed class PipelineDiagnosticsContractTests
         var starts = new List<PipelineRunStartedData>();
         var ends = new List<PipelineRunEndedData>();
         var traces = new List<PipelineTraceData>();
-        Action<PipelineRunStartedData> throwingStart = _ => throw new InvalidOperationException("observer failed");
-        Action<PipelineRunStartedData> captureStart = starts.Add;
-        Action<PipelineRunEndedData> captureEnd = ends.Add;
-        Action<IPipelineLifeOwner, PipelineTraceData> captureTrace = (_, data) => traces.Add(data);
-
-        PipelineDebugHooks.OnRunStartedDetailed += throwingStart;
-        PipelineDebugHooks.OnRunStartedDetailed += captureStart;
-        PipelineDebugHooks.OnRunEnded += captureEnd;
-        PipelineDebugHooks.OnTrace += captureTrace;
-
-        try
+        var config = new TestConfig();
+        int observerCalls = 0;
+        using var throwingObserver = new RunDiagnosticSubscription([config], onStart: _ =>
         {
-            var pipeline = CreatePipeline();
-            pipeline.AddPhase(PipelineGraph.Action<TestContext>(_ => { }));
+            observerCalls++;
+            throw new InvalidOperationException("observer failed");
+        });
+        using var observer = new RunDiagnosticSubscription(
+            [config], starts.Add, (_, data) => traces.Add(data), ends.Add);
 
-            var run = pipeline.Start(new TestConfig(), new TestContext());
-            run.Tick(0f);
+        var pipeline = CreatePipeline();
+        pipeline.AddPhase(PipelineGraph.Action<TestContext>(_ => { }));
+        var run = pipeline.Start(config, new TestContext());
+        run.Tick(0f);
 
-            Assert.Equal(EAbilityPipelineState.Completed, run.State);
-            Assert.Single(starts);
-            Assert.Single(ends);
-            Assert.Same(run, starts[0].Run);
-            Assert.Equal(starts[0].Owner.OwnerId, ends[0].Owner.OwnerId);
-            Assert.Contains(traces, trace => trace.Type == EPipelineTraceEventType.RunStart);
-            Assert.Contains(traces, trace => trace.Type == EPipelineTraceEventType.PhaseStart);
-            Assert.Contains(traces, trace => trace.Type == EPipelineTraceEventType.RunEnd);
-        }
-        finally
-        {
-            PipelineDebugHooks.OnRunStartedDetailed -= throwingStart;
-            PipelineDebugHooks.OnRunStartedDetailed -= captureStart;
-            PipelineDebugHooks.OnRunEnded -= captureEnd;
-            PipelineDebugHooks.OnTrace -= captureTrace;
-        }
+        Assert.Equal(1, observerCalls);
+        Assert.Equal(EAbilityPipelineState.Completed, run.State);
+        var started = Assert.Single(starts);
+        var ended = Assert.Single(ends);
+        Assert.Same(run, started.Run);
+        Assert.Equal(started.Owner.OwnerId, ended.Owner.OwnerId);
+        Assert.Contains(traces, trace => trace.Type == EPipelineTraceEventType.RunStart);
+        Assert.Contains(traces, trace => trace.Type == EPipelineTraceEventType.PhaseStart);
+        Assert.Contains(traces, trace => trace.Type == EPipelineTraceEventType.RunEnd);
     }
 
     [Fact]
@@ -160,17 +150,16 @@ public sealed class PipelineDiagnosticsContractTests
         var store = EditorPipelineRegistry.Instance;
         store.Shutdown();
         store.Initialize();
-        PipelineDebugHooks.OnRunStartedDetailed += store.CaptureRunStarted;
-        PipelineDebugHooks.OnTrace += store.CaptureTrace;
-        PipelineDebugHooks.OnRunEnded += store.CaptureRunEnded;
 
         try
         {
+            var config = new TestConfig();
+            using var observation = ObserveStore(store, config);
             var pipeline = CreatePipeline();
             var runtimeRegistry = pipeline.Runtime.Registry;
             pipeline.AddPhase(PipelineGraph.Action<TestContext>(context => context.SetData("result", 42)));
 
-            var run = pipeline.Start(new TestConfig(), new TestContext());
+            var run = pipeline.Start(config, new TestContext());
             var owner = Assert.IsAssignableFrom<IPipelineLifeOwner>(run);
             run.Tick(0f);
 
@@ -186,9 +175,6 @@ public sealed class PipelineDiagnosticsContractTests
         }
         finally
         {
-            PipelineDebugHooks.OnRunStartedDetailed -= store.CaptureRunStarted;
-            PipelineDebugHooks.OnTrace -= store.CaptureTrace;
-            PipelineDebugHooks.OnRunEnded -= store.CaptureRunEnded;
             store.Shutdown();
         }
     }
@@ -200,19 +186,19 @@ public sealed class PipelineDiagnosticsContractTests
         store.Shutdown();
         store.ConfigureStorage(1, 16);
         store.Initialize();
-        PipelineDebugHooks.OnRunStartedDetailed += store.CaptureRunStarted;
-        PipelineDebugHooks.OnTrace += store.CaptureTrace;
-        PipelineDebugHooks.OnRunEnded += store.CaptureRunEnded;
 
         try
         {
+            var firstConfig = new TestConfig();
+            var secondConfig = new TestConfig();
+            using var observation = ObserveStore(store, firstConfig, secondConfig);
             var firstPipeline = CreatePipeline();
             for (int i = 0; i < 10; i++)
             {
                 firstPipeline.AddPhase(PipelineGraph.Action<TestContext>(_ => { }));
             }
 
-            var first = firstPipeline.Start(new TestConfig(), new TestContext());
+            var first = firstPipeline.Start(firstConfig, new TestContext());
             var firstOwner = Assert.IsAssignableFrom<IPipelineLifeOwner>(first);
             first.Tick(0f);
 
@@ -221,9 +207,17 @@ public sealed class PipelineDiagnosticsContractTests
             Assert.Equal(16, firstEntry.Trace.Capacity);
             Assert.Equal(16, store.GetTraceSnapshot(firstOwner.OwnerId).Count);
 
+            var unrelated = firstPipeline.Start(new TestConfig(), new TestContext());
+            var unrelatedOwner = Assert.IsAssignableFrom<IPipelineLifeOwner>(unrelated);
+            unrelated.Tick(0f);
+
+            Assert.Equal(EAbilityPipelineState.Completed, unrelated.State);
+            Assert.False(store.TryGetEntry(unrelatedOwner.OwnerId, out _));
+            Assert.True(store.TryGetEntry(firstOwner.OwnerId, out _));
+
             var secondPipeline = CreatePipeline();
             secondPipeline.AddPhase(PipelineGraph.Action<TestContext>(_ => { }));
-            var second = secondPipeline.Start(new TestConfig(), new TestContext());
+            var second = secondPipeline.Start(secondConfig, new TestContext());
             var secondOwner = Assert.IsAssignableFrom<IPipelineLifeOwner>(second);
             second.Tick(0f);
 
@@ -233,9 +227,6 @@ public sealed class PipelineDiagnosticsContractTests
         }
         finally
         {
-            PipelineDebugHooks.OnRunStartedDetailed -= store.CaptureRunStarted;
-            PipelineDebugHooks.OnTrace -= store.CaptureTrace;
-            PipelineDebugHooks.OnRunEnded -= store.CaptureRunEnded;
             store.ConfigureStorage(128, 2048);
             store.Shutdown();
         }
@@ -247,7 +238,6 @@ public sealed class PipelineDiagnosticsContractTests
         var store = EditorPipelineRegistry.Instance;
         store.Shutdown();
         store.Initialize();
-        PipelineDebugHooks.OnRunStartedDetailed += store.CaptureRunStarted;
 
         try
         {
@@ -255,6 +245,8 @@ public sealed class PipelineDiagnosticsContractTests
             pipeline.AddPhase(PipelineGraph.Delay<TestContext>(10f));
             string structureId = pipeline.CaptureDebugGraph().StructureId;
             var matching = new LayoutConfig(structureId);
+            var stale = new LayoutConfig("STALE");
+            using var observation = new RunDiagnosticSubscription([matching, stale], onStart: store.CaptureRunStarted);
             var run = pipeline.Start(matching, new TestContext());
             var owner = Assert.IsAssignableFrom<IPipelineLifeOwner>(run);
 
@@ -266,7 +258,7 @@ public sealed class PipelineDiagnosticsContractTests
 
             var stalePipeline = CreatePipeline();
             stalePipeline.AddPhase(PipelineGraph.Delay<TestContext>(10f));
-            var staleRun = stalePipeline.Start(new LayoutConfig("STALE"), new TestContext());
+            var staleRun = stalePipeline.Start(stale, new TestContext());
             var staleOwner = Assert.IsAssignableFrom<IPipelineLifeOwner>(staleRun);
             Assert.True(store.TryGetEntry(staleOwner.OwnerId, out var staleEntry));
             Assert.Null(staleEntry!.GraphLayout);
@@ -275,7 +267,6 @@ public sealed class PipelineDiagnosticsContractTests
         }
         finally
         {
-            PipelineDebugHooks.OnRunStartedDetailed -= store.CaptureRunStarted;
             store.Shutdown();
         }
     }
@@ -287,15 +278,15 @@ public sealed class PipelineDiagnosticsContractTests
         store.Shutdown();
         store.ConfigureStorage(0, 64);
         store.Initialize();
-        PipelineDebugHooks.OnRunStartedDetailed += store.CaptureRunStarted;
-        PipelineDebugHooks.OnTrace += store.CaptureTrace;
-        PipelineDebugHooks.OnRunEnded += store.CaptureRunEnded;
 
         try
         {
+            var firstConfig = new TestConfig();
+            var secondConfig = new TestConfig();
+            using var observation = ObserveStore(store, firstConfig, secondConfig);
             var firstPipeline = CreatePipeline();
             firstPipeline.AddPhase(PipelineGraph.Delay<TestContext>(10f));
-            var first = firstPipeline.Start(new TestConfig(), new TestContext());
+            var first = firstPipeline.Start(firstConfig, new TestContext());
             var firstOwner = Assert.IsAssignableFrom<IPipelineLifeOwner>(first);
             store.SetPinned(firstOwner.OwnerId, true);
             first.Interrupt();
@@ -305,7 +296,7 @@ public sealed class PipelineDiagnosticsContractTests
 
             var secondPipeline = CreatePipeline();
             secondPipeline.AddPhase(PipelineGraph.Action<TestContext>(_ => { }));
-            var second = secondPipeline.Start(new TestConfig(), new TestContext());
+            var second = secondPipeline.Start(secondConfig, new TestContext());
             var secondOwner = Assert.IsAssignableFrom<IPipelineLifeOwner>(second);
             second.Tick(0f);
 
@@ -316,9 +307,6 @@ public sealed class PipelineDiagnosticsContractTests
         }
         finally
         {
-            PipelineDebugHooks.OnRunStartedDetailed -= store.CaptureRunStarted;
-            PipelineDebugHooks.OnTrace -= store.CaptureTrace;
-            PipelineDebugHooks.OnRunEnded -= store.CaptureRunEnded;
             store.ConfigureStorage(128, 2048);
             store.Shutdown();
         }
@@ -327,27 +315,26 @@ public sealed class PipelineDiagnosticsContractTests
     [Fact]
     public void PhaseErrorTraceContainsTheActualFailureMessage()
     {
+        var config = new TestConfig();
         var traces = new List<PipelineTraceData>();
-        Action<IPipelineLifeOwner, PipelineTraceData> capture = (_, data) => traces.Add(data);
-        PipelineDebugHooks.OnTrace += capture;
+        using var observation = new RunDiagnosticSubscription([config], onTrace: (_, data) => traces.Add(data));
 
-        try
-        {
-            var pipeline = CreatePipeline();
-            pipeline.AddPhase(PipelineGraph.Action<TestContext>(_ => throw new InvalidOperationException("missing target")));
+        var pipeline = CreatePipeline();
+        pipeline.AddPhase(PipelineGraph.Action<TestContext>(_ => throw new InvalidOperationException("missing target")));
 
-            var run = pipeline.Start(new TestConfig(), new TestContext());
-            run.Tick(0f);
+        var run = pipeline.Start(config, new TestContext());
+        var unrelated = pipeline.Start(new TestConfig(), new TestContext());
+        unrelated.Tick(0f);
+        run.Tick(0f);
 
-            Assert.Equal(EAbilityPipelineState.Failed, run.State);
-            var error = Assert.Single(traces, item => item.Type == EPipelineTraceEventType.PhaseError);
-            Assert.Equal("missing target", error.Message);
-        }
-        finally
-        {
-            PipelineDebugHooks.OnTrace -= capture;
-        }
+        Assert.Equal(EAbilityPipelineState.Failed, unrelated.State);
+        Assert.Equal(EAbilityPipelineState.Failed, run.State);
+        var error = Assert.Single(traces, item => item.Type == EPipelineTraceEventType.PhaseError);
+        Assert.Equal("missing target", error.Message);
     }
+
+    private static RunDiagnosticSubscription ObserveStore(EditorPipelineRegistry store, params IAbilityPipelineConfig[] configs) =>
+        new(configs, store.CaptureRunStarted, store.CaptureTrace, store.CaptureRunEnded);
 
     private static TestPipeline CreatePipeline()
     {

@@ -15,6 +15,7 @@ namespace AbilityKit.Game.Flow
         IFlowGateProvider,
         IBattleFlowProfileProvider,
         IBattleFlowModeProvider,
+        IBattleColdStartRecoveryIntent,
         IMobaReliableBattleEventCheckpointStore
     {
         private readonly BattleStartPlan _sourcePlan;
@@ -37,7 +38,8 @@ namespace AbilityKit.Game.Flow
         public string FlowHostMode => _sourcePlan.HostMode.ToString();
 
         public ExistingGatewayRoomBattleBootstrapper(
-            IBattleBootstrapper inner,
+            in BattleStartPlan sourcePlan,
+            string flowProfileId,
             string sessionToken,
             string roomId,
             string battleId,
@@ -50,11 +52,8 @@ namespace AbilityKit.Game.Flow
             RoomGatewayNetworkSyncCapabilities syncCapabilities = null,
             bool coldStartReconnect = false)
         {
-            if (inner == null) throw new ArgumentNullException(nameof(inner));
-
-            FlowProfileId = (inner as IBattleFlowProfileProvider)?.FlowProfileId;
-
-            _sourcePlan = inner.Build();
+            FlowProfileId = flowProfileId;
+            _sourcePlan = sourcePlan;
             _sessionToken = sessionToken ?? string.Empty;
             _roomId = roomId ?? string.Empty;
             _battleId = battleId ?? string.Empty;
@@ -121,6 +120,8 @@ namespace AbilityKit.Game.Flow
             _checkpointStore?.TryLoad(_battleId, out checkpoint);
             var launchSpec = BuildAuthoritativeLaunchSpec(in plan.LaunchSpec);
             var syncProfileName = MobaBattleSyncModePolicy.GetGatewayProfileName(plan.Sync.SyncMode);
+            if (plan.Sync.SyncMode == BattleSyncMode.Lockstep)
+                syncProfileName = AbilityKit.Protocol.Moba.SettledFrames.SettledFrameProtocol.CapabilityProfile;
             _syncCapabilities?.EnsureProfile(syncProfileName);
             var createWorldPayload = launchSpec.ToCreateWorldInitPayload();
             var worldOptions = new BattleStartPlanWorldOptions(

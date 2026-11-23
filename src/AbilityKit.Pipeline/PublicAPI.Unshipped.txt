@@ -1,0 +1,642 @@
+#nullable enable
+AbilityKit.Pipeline.AAbilityPipelineContext
+AbilityKit.Pipeline.AAbilityPipelineContext.AAbilityPipelineContext() -> void
+AbilityKit.Pipeline.AAbilityPipelineContext.AbilityInstance.get -> object?
+AbilityKit.Pipeline.AAbilityPipelineContext.AbilityInstance.set -> void
+AbilityKit.Pipeline.AAbilityPipelineContext.ClearData() -> void
+AbilityKit.Pipeline.AAbilityPipelineContext.CurrentPhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.AAbilityPipelineContext.CurrentPhaseId.set -> void
+AbilityKit.Pipeline.AAbilityPipelineContext.ElapsedTime.get -> float
+AbilityKit.Pipeline.AAbilityPipelineContext.GetData<T>(string! key, T defaultValue = default(T)) -> T
+AbilityKit.Pipeline.AAbilityPipelineContext.IsAborted.get -> bool
+AbilityKit.Pipeline.AAbilityPipelineContext.IsAborted.set -> void
+AbilityKit.Pipeline.AAbilityPipelineContext.IsPaused.get -> bool
+AbilityKit.Pipeline.AAbilityPipelineContext.IsPaused.set -> void
+AbilityKit.Pipeline.AAbilityPipelineContext.PipelineState.get -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.AAbilityPipelineContext.PipelineState.set -> void
+AbilityKit.Pipeline.AAbilityPipelineContext.RemoveData(string! key) -> bool
+AbilityKit.Pipeline.AAbilityPipelineContext.SetData<T>(string! key, T value) -> void
+AbilityKit.Pipeline.AAbilityPipelineContext.SharedData.get -> System.Collections.Generic.Dictionary<string!, object?>!
+AbilityKit.Pipeline.AAbilityPipelineContext.StartTime.get -> float
+AbilityKit.Pipeline.AAbilityPipelineContext.StartTime.set -> void
+AbilityKit.Pipeline.AAbilityPipelineContext.TryGetData<T>(string! key, out T value) -> bool
+AbilityKit.Pipeline.AbilityActionPhase<TCtx>
+AbilityKit.Pipeline.AbilityActionPhase<TCtx>.AbilityActionPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, System.Action<TCtx>! action) -> void
+AbilityKit.Pipeline.AbilityActionPhase<TCtx>.AbilityActionPhase(System.Action<TCtx>! action) -> void
+AbilityKit.Pipeline.AbilityActionPhase<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+AbilityKit.Pipeline.AbilityAndCondition
+AbilityKit.Pipeline.AbilityAndCondition.AbilityAndCondition(System.Collections.Generic.List<AbilityKit.Pipeline.IAbilityConditionNode!>! conditions) -> void
+AbilityKit.Pipeline.AbilityAndCondition.AbilityAndCondition(params AbilityKit.Pipeline.IAbilityConditionNode![]! conditions) -> void
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.AbilityCompositePhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.AddSubPhase(AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.CopySubPhasesTo(AbilityKit.Pipeline.AbilityCompositePhase<TCtx>! target) -> void
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.CurrentSubPhaseIndex.get -> int
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.CurrentSubPhaseIndex.set -> void
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.IsComplete.get -> bool
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.IsComplete.set -> void
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.IsComposite.get -> bool
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.PhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.PhaseId.set -> void
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.SetComplete(bool isComplete) -> void
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.SubPhases.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!>!
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>._currentSubPhaseIndex -> int
+AbilityKit.Pipeline.AbilityCompositePhase<TCtx>._subPhases -> System.Collections.Generic.List<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!>!
+AbilityKit.Pipeline.AbilityConditionNodeBase
+AbilityKit.Pipeline.AbilityConditionNodeBase.AbilityConditionNodeBase() -> void
+AbilityKit.Pipeline.AbilityConditionalBranch<TCtx>
+AbilityKit.Pipeline.AbilityConditionalBranch<TCtx>.AbilityConditionalBranch(AbilityKit.Pipeline.IAbilityConditionNode! condition, AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.AbilityConditionalBranch<TCtx>.Condition.get -> AbilityKit.Pipeline.IAbilityConditionNode!
+AbilityKit.Pipeline.AbilityConditionalBranch<TCtx>.Phase.get -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.AbilityConditionalPhase() -> void
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.AbilityConditionalPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.AddBranch(AbilityKit.Pipeline.IAbilityConditionNode! condition, AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.BranchResults.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.EPipelineDebugConditionResult>!
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.Branches.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.AbilityConditionalBranch<TCtx>!>!
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.CurrentBranchIndex.get -> int
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.Duration.get -> float
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.NoConditionBehavior.get -> AbilityKit.Pipeline.ENoConditionBehavior
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.NoConditionBehavior.set -> void
+AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.SetBranchProgress(int index, System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.EPipelineDebugConditionResult>! results) -> void
+AbilityKit.Pipeline.AbilityDelayPhase<TCtx>
+AbilityKit.Pipeline.AbilityDelayPhase<TCtx>.AbilityDelayPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, float delayTime) -> void
+AbilityKit.Pipeline.AbilityDelayPhase<TCtx>.AbilityDelayPhase(float delayTime) -> void
+AbilityKit.Pipeline.AbilityDelayPhase<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+AbilityKit.Pipeline.AbilityDelayPhase<TCtx>.DelayTime.get -> float
+AbilityKit.Pipeline.AbilityDelayPhase<TCtx>.DelayTime.set -> void
+AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>
+AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.AbilityDurationalPhaseBase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.AbilityDurationalPhaseBase(string! phaseName) -> void
+AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.Duration.get -> float
+AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.Duration.set -> void
+AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.ElapsedTime.get -> float
+AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.ElapsedTime.set -> void
+AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.ForceComplete(TCtx context) -> void
+AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>._elapsedTime -> float
+AbilityKit.Pipeline.AbilityGatePhase<TCtx>
+AbilityKit.Pipeline.AbilityGatePhase<TCtx>.AbilityGatePhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, AbilityKit.Pipeline.IAbilityConditionNode! condition) -> void
+AbilityKit.Pipeline.AbilityGatePhase<TCtx>.AbilityGatePhase(AbilityKit.Pipeline.IAbilityConditionNode! condition) -> void
+AbilityKit.Pipeline.AbilityGatePhase<TCtx>.Condition.get -> AbilityKit.Pipeline.IAbilityConditionNode!
+AbilityKit.Pipeline.AbilityGatePhase<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+AbilityKit.Pipeline.AbilityInstantPhaseBase<TCtx>
+AbilityKit.Pipeline.AbilityInstantPhaseBase<TCtx>.AbilityInstantPhaseBase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.AbilityInstantPhaseBase<TCtx>.AbilityInstantPhaseBase(string! phaseName) -> void
+AbilityKit.Pipeline.AbilityInterruptiblePhaseBase<TCtx>
+AbilityKit.Pipeline.AbilityInterruptiblePhaseBase<TCtx>.AbilityInterruptiblePhaseBase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.AbilityInterruptiblePhaseBase<TCtx>.AbilityInterruptiblePhaseBase(string! phaseName) -> void
+AbilityKit.Pipeline.AbilityNotCondition
+AbilityKit.Pipeline.AbilityNotCondition.AbilityNotCondition(AbilityKit.Pipeline.IAbilityConditionNode! condition) -> void
+AbilityKit.Pipeline.AbilityOrCondition
+AbilityKit.Pipeline.AbilityOrCondition.AbilityOrCondition(System.Collections.Generic.List<AbilityKit.Pipeline.IAbilityConditionNode!>! conditions) -> void
+AbilityKit.Pipeline.AbilityOrCondition.AbilityOrCondition(params AbilityKit.Pipeline.IAbilityConditionNode![]! conditions) -> void
+AbilityKit.Pipeline.AbilityParallelPhase<TCtx>
+AbilityKit.Pipeline.AbilityParallelPhase<TCtx>.AbilityParallelPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.AbilityParallelPhase<TCtx>.ActivePhaseIndices.get -> System.Collections.Generic.IReadOnlyList<int>!
+AbilityKit.Pipeline.AbilityParallelPhase<TCtx>.SetActivePhases(System.Collections.Generic.IReadOnlyList<int>! indices) -> void
+AbilityKit.Pipeline.AbilityPipeline<TCtx>
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.AbilityPipeline() -> void
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.AddExtensionPoint(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, AbilityKit.Pipeline.IAbilityPipelineExtensionPoint<TCtx>! extension, int order = 0) -> void
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.AddPhase(AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.AttachRun(AbilityKit.Pipeline.IAbilityPipelineConfig! config, TCtx context, System.Action<AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>!>! initialize) -> AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>!
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.CaptureDebugGraph() -> AbilityKit.Pipeline.PipelineDebugGraphSnapshot!
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.CaptureDebugStructure() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugNode!>!
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.Events.get -> AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>!
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.ExecuteExtensionPhaseComplete(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, TCtx context, AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.ExecuteExtensionPhaseStart(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, TCtx context, AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.InsertPhase(int index, AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.RemovePhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.Runtime.get -> AbilityKit.Pipeline.PipelineRuntime!
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.Runtime.set -> void
+AbilityKit.Pipeline.AbilityPipeline<TCtx>.Start(AbilityKit.Pipeline.IAbilityPipelineConfig! config, TCtx context) -> AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>!
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.AbilityPipelineEvents() -> void
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.Clear() -> void
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnPhaseComplete -> System.Action<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!, TCtx>?
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnPhaseError -> System.Action<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!, TCtx, System.Exception!>?
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnPhaseStart -> System.Action<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!, TCtx>?
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnPipelineComplete -> System.Action<TCtx>?
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnPipelineError -> System.Action<TCtx, System.Exception?>?
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnPipelineFailed -> System.Action<TCtx, System.Exception!>?
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnPipelineInterrupt -> System.Action<TCtx, bool>?
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnPipelinePause -> System.Action<TCtx>?
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnPipelineResume -> System.Action<TCtx>?
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnPipelineStart -> System.Action<TCtx>?
+AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>.OnTick -> System.Action<TCtx, float, AbilityKit.Pipeline.EAbilityPipelineState>?
+AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>
+AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.AbilityPipelinePhaseBase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.AbilityPipelinePhaseBase(string! phaseName) -> void
+AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.Execute(TCtx context) -> void
+AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.PhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.PhaseId.set -> void
+AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.PhaseName.get -> string!
+AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.PhaseName.set -> void
+AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.SetComplete(bool isComplete) -> void
+AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.AbilityPipelinePhaseId.AbilityPipelinePhaseId() -> void
+AbilityKit.Pipeline.AbilityPipelinePhaseId.AbilityPipelinePhaseId(string! value) -> void
+AbilityKit.Pipeline.AbilityPipelinePhaseId.Equals(AbilityKit.Pipeline.AbilityPipelinePhaseId other) -> bool
+AbilityKit.Pipeline.AbilityPipelinePhaseId.IsValid.get -> bool
+AbilityKit.Pipeline.AbilityPipelinePhaseResult
+AbilityKit.Pipeline.AbilityPipelinePhaseResult.AbilityPipelinePhaseResult() -> void
+AbilityKit.Pipeline.AbilityPipelinePhaseResult.AbilityPipelinePhaseResult(string! value) -> void
+AbilityKit.Pipeline.AbilityPipelinePhaseResult.Equals(AbilityKit.Pipeline.AbilityPipelinePhaseResult other) -> bool
+AbilityKit.Pipeline.AbilityPipelinePhaseResult.IsValid.get -> bool
+AbilityKit.Pipeline.AbilityRacePhase<TCtx>
+AbilityKit.Pipeline.AbilityRacePhase<TCtx>.AbilityRacePhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.AbilityRacePhase<TCtx>.ActivePhaseIndices.get -> System.Collections.Generic.IReadOnlyList<int>!
+AbilityKit.Pipeline.AbilityRacePhase<TCtx>.OnInterrupt(TCtx context) -> void
+AbilityKit.Pipeline.AbilityRacePhase<TCtx>.SetActivePhases(System.Collections.Generic.IReadOnlyList<int>! indices) -> void
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.AbilityRepeatPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, int repeatCount = -1) -> void
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.AbilityRepeatPhase(int repeatCount = -1) -> void
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.CurrentRepeatIndex.get -> int
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.HasCurrentSubPhase.get -> bool
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.IntervalTimer.get -> float
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.IsWaitingInterval.get -> bool
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.RepeatCount.get -> int
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.RepeatCount.set -> void
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.RepeatInterval.get -> float
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.RepeatInterval.set -> void
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.SetRepeatAction(System.Action<TCtx, int>! action) -> AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>!
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.SetRepeatPhase(AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>!
+AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.SetRepeatProgress(int repeatIndex, float intervalTimer, bool isWaitingInterval, bool hasCurrentSubPhase) -> void
+AbilityKit.Pipeline.AbilitySequencePhase<TCtx>
+AbilityKit.Pipeline.AbilitySequencePhase<TCtx>.AbilitySequencePhase() -> void
+AbilityKit.Pipeline.AbilitySequencePhase<TCtx>.AbilitySequencePhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.AbilityWaitUntilPhase<TCtx>
+AbilityKit.Pipeline.AbilityWaitUntilPhase<TCtx>.AbilityWaitUntilPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, System.Func<TCtx, bool>! predicate, float timeout = -1, bool completeOnTimeout = true) -> void
+AbilityKit.Pipeline.AbilityWaitUntilPhase<TCtx>.AbilityWaitUntilPhase(System.Func<TCtx, bool>! predicate, float timeout = -1, bool completeOnTimeout = true) -> void
+AbilityKit.Pipeline.AbilityWaitUntilPhase<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.EAbilityPipelineState.Completed = 2 -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.EAbilityPipelineState.Executing = 1 -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.EAbilityPipelineState.Failed = 3 -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.EAbilityPipelineState.Paused = 4 -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.EAbilityPipelineState.Ready = 0 -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.EConditionCheckStrategy
+AbilityKit.Pipeline.EConditionCheckStrategy.Continuous = 1 -> AbilityKit.Pipeline.EConditionCheckStrategy
+AbilityKit.Pipeline.EConditionCheckStrategy.OnEnter = 0 -> AbilityKit.Pipeline.EConditionCheckStrategy
+AbilityKit.Pipeline.EConditionCheckStrategy.OnEvent = 2 -> AbilityKit.Pipeline.EConditionCheckStrategy
+AbilityKit.Pipeline.ENoConditionBehavior
+AbilityKit.Pipeline.ENoConditionBehavior.Complete = 1 -> AbilityKit.Pipeline.ENoConditionBehavior
+AbilityKit.Pipeline.ENoConditionBehavior.Fail = 2 -> AbilityKit.Pipeline.ENoConditionBehavior
+AbilityKit.Pipeline.ENoConditionBehavior.Skip = 3 -> AbilityKit.Pipeline.ENoConditionBehavior
+AbilityKit.Pipeline.ENoConditionBehavior.Wait = 0 -> AbilityKit.Pipeline.ENoConditionBehavior
+AbilityKit.Pipeline.EPipelineDebugConditionResult
+AbilityKit.Pipeline.EPipelineDebugConditionResult.Matched = 1 -> AbilityKit.Pipeline.EPipelineDebugConditionResult
+AbilityKit.Pipeline.EPipelineDebugConditionResult.Rejected = 2 -> AbilityKit.Pipeline.EPipelineDebugConditionResult
+AbilityKit.Pipeline.EPipelineDebugConditionResult.Unknown = 0 -> AbilityKit.Pipeline.EPipelineDebugConditionResult
+AbilityKit.Pipeline.EPipelineDebugEdgeKind
+AbilityKit.Pipeline.EPipelineDebugEdgeKind.Child = 5 -> AbilityKit.Pipeline.EPipelineDebugEdgeKind
+AbilityKit.Pipeline.EPipelineDebugEdgeKind.Condition = 4 -> AbilityKit.Pipeline.EPipelineDebugEdgeKind
+AbilityKit.Pipeline.EPipelineDebugEdgeKind.Flow = 0 -> AbilityKit.Pipeline.EPipelineDebugEdgeKind
+AbilityKit.Pipeline.EPipelineDebugEdgeKind.Parallel = 2 -> AbilityKit.Pipeline.EPipelineDebugEdgeKind
+AbilityKit.Pipeline.EPipelineDebugEdgeKind.Race = 3 -> AbilityKit.Pipeline.EPipelineDebugEdgeKind
+AbilityKit.Pipeline.EPipelineDebugEdgeKind.Sequence = 1 -> AbilityKit.Pipeline.EPipelineDebugEdgeKind
+AbilityKit.Pipeline.EPipelineDebugExecutionState
+AbilityKit.Pipeline.EPipelineDebugExecutionState.Active = 1 -> AbilityKit.Pipeline.EPipelineDebugExecutionState
+AbilityKit.Pipeline.EPipelineDebugExecutionState.Completed = 2 -> AbilityKit.Pipeline.EPipelineDebugExecutionState
+AbilityKit.Pipeline.EPipelineDebugExecutionState.Failed = 4 -> AbilityKit.Pipeline.EPipelineDebugExecutionState
+AbilityKit.Pipeline.EPipelineDebugExecutionState.Pending = 0 -> AbilityKit.Pipeline.EPipelineDebugExecutionState
+AbilityKit.Pipeline.EPipelineDebugExecutionState.Skipped = 3 -> AbilityKit.Pipeline.EPipelineDebugExecutionState
+AbilityKit.Pipeline.EPipelineDebugNodeKind
+AbilityKit.Pipeline.EPipelineDebugNodeKind.Composite = 6 -> AbilityKit.Pipeline.EPipelineDebugNodeKind
+AbilityKit.Pipeline.EPipelineDebugNodeKind.Conditional = 4 -> AbilityKit.Pipeline.EPipelineDebugNodeKind
+AbilityKit.Pipeline.EPipelineDebugNodeKind.Gate = 5 -> AbilityKit.Pipeline.EPipelineDebugNodeKind
+AbilityKit.Pipeline.EPipelineDebugNodeKind.Parallel = 2 -> AbilityKit.Pipeline.EPipelineDebugNodeKind
+AbilityKit.Pipeline.EPipelineDebugNodeKind.Phase = 0 -> AbilityKit.Pipeline.EPipelineDebugNodeKind
+AbilityKit.Pipeline.EPipelineDebugNodeKind.Race = 3 -> AbilityKit.Pipeline.EPipelineDebugNodeKind
+AbilityKit.Pipeline.EPipelineDebugNodeKind.Sequence = 1 -> AbilityKit.Pipeline.EPipelineDebugNodeKind
+AbilityKit.Pipeline.EPipelineTraceEventType
+AbilityKit.Pipeline.EPipelineTraceEventType.Interrupt = 8 -> AbilityKit.Pipeline.EPipelineTraceEventType
+AbilityKit.Pipeline.EPipelineTraceEventType.Pause = 6 -> AbilityKit.Pipeline.EPipelineTraceEventType
+AbilityKit.Pipeline.EPipelineTraceEventType.PhaseComplete = 3 -> AbilityKit.Pipeline.EPipelineTraceEventType
+AbilityKit.Pipeline.EPipelineTraceEventType.PhaseError = 4 -> AbilityKit.Pipeline.EPipelineTraceEventType
+AbilityKit.Pipeline.EPipelineTraceEventType.PhaseStart = 2 -> AbilityKit.Pipeline.EPipelineTraceEventType
+AbilityKit.Pipeline.EPipelineTraceEventType.Resume = 7 -> AbilityKit.Pipeline.EPipelineTraceEventType
+AbilityKit.Pipeline.EPipelineTraceEventType.RunEnd = 1 -> AbilityKit.Pipeline.EPipelineTraceEventType
+AbilityKit.Pipeline.EPipelineTraceEventType.RunStart = 0 -> AbilityKit.Pipeline.EPipelineTraceEventType
+AbilityKit.Pipeline.EPipelineTraceEventType.Tick = 5 -> AbilityKit.Pipeline.EPipelineTraceEventType
+AbilityKit.Pipeline.IAbilityConditionNode
+AbilityKit.Pipeline.IAbilityConditionNode.CheckStrategy.get -> AbilityKit.Pipeline.EConditionCheckStrategy
+AbilityKit.Pipeline.IAbilityConditionNode.Evaluate(AbilityKit.Pipeline.IAbilityPipelineContext! context) -> bool
+AbilityKit.Pipeline.IAbilityInstantPhase<TCtx>
+AbilityKit.Pipeline.IAbilityPhaseConfig
+AbilityKit.Pipeline.IAbilityPhaseConfig.Duration.get -> float
+AbilityKit.Pipeline.IAbilityPhaseConfig.Parameters.get -> System.Collections.Generic.Dictionary<string!, object!>!
+AbilityKit.Pipeline.IAbilityPhaseConfig.PhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.IAbilityPhaseConfig.PhaseType.get -> string!
+AbilityKit.Pipeline.IAbilityPipeline<TCtx>
+AbilityKit.Pipeline.IAbilityPipeline<TCtx>.AddPhase(AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.IAbilityPipeline<TCtx>.Events.get -> AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>!
+AbilityKit.Pipeline.IAbilityPipeline<TCtx>.InsertPhase(int index, AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.IAbilityPipeline<TCtx>.RemovePhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> void
+AbilityKit.Pipeline.IAbilityPipeline<TCtx>.Reset() -> void
+AbilityKit.Pipeline.IAbilityPipeline<TCtx>.Start(AbilityKit.Pipeline.IAbilityPipelineConfig! config, TCtx context) -> AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>!
+AbilityKit.Pipeline.IAbilityPipelineConfig
+AbilityKit.Pipeline.IAbilityPipelineConfig.AllowInterrupt.get -> bool
+AbilityKit.Pipeline.IAbilityPipelineConfig.AllowPause.get -> bool
+AbilityKit.Pipeline.IAbilityPipelineConfig.ConfigId.get -> int
+AbilityKit.Pipeline.IAbilityPipelineConfig.ConfigName.get -> string!
+AbilityKit.Pipeline.IAbilityPipelineConfig.PhaseConfigs.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IAbilityPhaseConfig!>!
+AbilityKit.Pipeline.IAbilityPipelineContext
+AbilityKit.Pipeline.IAbilityPipelineContext.AbilityInstance.get -> object?
+AbilityKit.Pipeline.IAbilityPipelineContext.ClearData() -> void
+AbilityKit.Pipeline.IAbilityPipelineContext.CurrentPhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.IAbilityPipelineContext.CurrentPhaseId.set -> void
+AbilityKit.Pipeline.IAbilityPipelineContext.ElapsedTime.get -> float
+AbilityKit.Pipeline.IAbilityPipelineContext.GetData<T>(string! key, T defaultValue = default(T)) -> T
+AbilityKit.Pipeline.IAbilityPipelineContext.IsAborted.get -> bool
+AbilityKit.Pipeline.IAbilityPipelineContext.IsAborted.set -> void
+AbilityKit.Pipeline.IAbilityPipelineContext.IsPaused.get -> bool
+AbilityKit.Pipeline.IAbilityPipelineContext.IsPaused.set -> void
+AbilityKit.Pipeline.IAbilityPipelineContext.PipelineState.get -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.IAbilityPipelineContext.PipelineState.set -> void
+AbilityKit.Pipeline.IAbilityPipelineContext.RemoveData(string! key) -> bool
+AbilityKit.Pipeline.IAbilityPipelineContext.Reset() -> void
+AbilityKit.Pipeline.IAbilityPipelineContext.SetData<T>(string! key, T value) -> void
+AbilityKit.Pipeline.IAbilityPipelineContext.SharedData.get -> System.Collections.Generic.Dictionary<string!, object?>!
+AbilityKit.Pipeline.IAbilityPipelineContext.StartTime.get -> float
+AbilityKit.Pipeline.IAbilityPipelineContext.StartTime.set -> void
+AbilityKit.Pipeline.IAbilityPipelineContext.TryGetData<T>(string! key, out T value) -> bool
+AbilityKit.Pipeline.IAbilityPipelineContext<TAbilityInstance>
+AbilityKit.Pipeline.IAbilityPipelineContext<TAbilityInstance>.AbilityInstance.get -> TAbilityInstance
+AbilityKit.Pipeline.IAbilityPipelineExtensionPoint<TCtx>
+AbilityKit.Pipeline.IAbilityPipelineExtensionPoint<TCtx>.OnPhaseComplete(TCtx context, AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.IAbilityPipelineExtensionPoint<TCtx>.OnPhaseStart(TCtx context, AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>
+AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>.Execute(TCtx context) -> void
+AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>.HandleError(TCtx context, System.Exception! exception) -> void
+AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>.IsComplete.get -> bool
+AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>.IsComposite.get -> bool
+AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>.OnUpdate(TCtx context, float deltaTime) -> void
+AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>.PhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>.Reset() -> void
+AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>.ShouldExecute(TCtx context) -> bool
+AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>.SubPhases.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!>!
+AbilityKit.Pipeline.IAbilityPipelinePhaseInstanceFactory<TCtx>
+AbilityKit.Pipeline.IAbilityPipelinePhaseInstanceFactory<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>
+AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>.Context.get -> TCtx
+AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>.CurrentPhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>.CurrentPhaseIndex.get -> int
+AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>.HasCurrentPhase.get -> bool
+AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>.IsCancelled.get -> bool
+AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>.Phases.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!>!
+AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>.Release() -> void
+AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>.SetExecutionPosition(int phaseIndex, bool hasCurrentPhase, bool isPaused, bool isCancelled) -> void
+AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>.Tick(float deltaTime) -> void
+AbilityKit.Pipeline.IDurationalPhase<TCtx>
+AbilityKit.Pipeline.IDurationalPhase<TCtx>.Duration.get -> float
+AbilityKit.Pipeline.IInterruptiblePhase<TCtx>
+AbilityKit.Pipeline.IInterruptiblePhase<TCtx>.OnInterrupt(TCtx context) -> void
+AbilityKit.Pipeline.IPipelineDebugGraphLayoutProvider
+AbilityKit.Pipeline.IPipelineDebugGraphLayoutProvider.CaptureDebugGraphLayout() -> AbilityKit.Pipeline.PipelineDebugGraphLayout!
+AbilityKit.Pipeline.IPipelineDebugGraphProvider
+AbilityKit.Pipeline.IPipelineDebugGraphProvider.CaptureDebugGraph() -> AbilityKit.Pipeline.PipelineDebugGraphSnapshot!
+AbilityKit.Pipeline.IPipelineDebugStateProvider
+AbilityKit.Pipeline.IPipelineDebugStateProvider.CaptureDebugState() -> AbilityKit.Pipeline.PipelineDebugRunState!
+AbilityKit.Pipeline.IPipelineDebugStructureProvider
+AbilityKit.Pipeline.IPipelineDebugStructureProvider.CaptureDebugStructure() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugNode!>!
+AbilityKit.Pipeline.IPipelineInterruptible
+AbilityKit.Pipeline.IPipelineInterruptible.Interrupt() -> void
+AbilityKit.Pipeline.IPipelineLifeOwner
+AbilityKit.Pipeline.IPipelineLifeOwner.ActivePhases.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.AbilityPipelinePhaseId>!
+AbilityKit.Pipeline.IPipelineLifeOwner.CurrentPhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.IPipelineLifeOwner.IsPaused.get -> bool
+AbilityKit.Pipeline.IPipelineLifeOwner.OwnerId.get -> int
+AbilityKit.Pipeline.IPipelineLifeOwner.OwnerName.get -> string!
+AbilityKit.Pipeline.IPipelineLifeOwner.State.get -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.IPipelineRegistry
+AbilityKit.Pipeline.IPipelineRegistry.ActiveCount.get -> int
+AbilityKit.Pipeline.IPipelineRegistry.FillOwnersByPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, System.Collections.Generic.IList<AbilityKit.Pipeline.IPipelineLifeOwner!>! results) -> int
+AbilityKit.Pipeline.IPipelineRegistry.FillOwnersByState(AbilityKit.Pipeline.EAbilityPipelineState state, System.Collections.Generic.IList<AbilityKit.Pipeline.IPipelineLifeOwner!>! results) -> int
+AbilityKit.Pipeline.IPipelineRegistry.GetActiveOwners() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IPipelineLifeOwner!>!
+AbilityKit.Pipeline.IPipelineRegistry.GetOwnersByPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IPipelineLifeOwner!>!
+AbilityKit.Pipeline.IPipelineRegistry.GetOwnersByState(AbilityKit.Pipeline.EAbilityPipelineState state) -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IPipelineLifeOwner!>!
+AbilityKit.Pipeline.IPipelineRegistry.InterruptAll() -> void
+AbilityKit.Pipeline.IPipelineRegistry.Register(AbilityKit.Pipeline.IPipelineLifeOwner! owner) -> void
+AbilityKit.Pipeline.IPipelineRegistry.RentOwnersByPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> AbilityKit.Pipeline.PipelineRegistryOwnerListLease
+AbilityKit.Pipeline.IPipelineRegistry.RentOwnersByState(AbilityKit.Pipeline.EAbilityPipelineState state) -> AbilityKit.Pipeline.PipelineRegistryOwnerListLease
+AbilityKit.Pipeline.IPipelineRegistry.Unregister(AbilityKit.Pipeline.IPipelineLifeOwner! owner) -> void
+AbilityKit.Pipeline.IPipelineRunControl
+AbilityKit.Pipeline.IPipelineRunControl.Cancel() -> void
+AbilityKit.Pipeline.IPipelineRunControl.IsPaused.get -> bool
+AbilityKit.Pipeline.IPipelineRunControl.Pause() -> void
+AbilityKit.Pipeline.IPipelineRunControl.Resume() -> void
+AbilityKit.Pipeline.IPipelineRunControl.State.get -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.IPipelineRunTrace
+AbilityKit.Pipeline.IPipelineRunTrace.Add(AbilityKit.Pipeline.EPipelineTraceEventType type, AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, AbilityKit.Pipeline.EAbilityPipelineState state, string! message) -> void
+AbilityKit.Pipeline.IPipelineRunTrace.Capacity.get -> int
+AbilityKit.Pipeline.IPipelineRunTrace.Count.get -> int
+AbilityKit.Pipeline.IPipelineRunTrace.GetSnapshot() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelineTraceEvent>!
+AbilityKit.Pipeline.IPipelineTraceRecorder
+AbilityKit.Pipeline.IPipelineTraceRecorder.GetSnapshot(int ownerId) -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelineTraceEvent>!
+AbilityKit.Pipeline.IPipelineTraceRecorder.GetTrace(int ownerId) -> AbilityKit.Pipeline.IPipelineRunTrace?
+AbilityKit.Pipeline.IPipelineTraceRecorder.IsEnabled.get -> bool
+AbilityKit.Pipeline.IPipelineTraceRecorder.Record(AbilityKit.Pipeline.IPipelineLifeOwner! owner, AbilityKit.Pipeline.PipelineTraceData data) -> void
+AbilityKit.Pipeline.ITimeProvider
+AbilityKit.Pipeline.ITimeProvider.RealtimeSinceStartup.get -> float
+AbilityKit.Pipeline.InstantAbilityPipeline<TCtx>
+AbilityKit.Pipeline.InstantAbilityPipeline<TCtx>.AddPhase(AbilityKit.Pipeline.IAbilityInstantPhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.InstantAbilityPipeline<TCtx>.Events.get -> AbilityKit.Pipeline.AbilityPipelineEvents<TCtx>!
+AbilityKit.Pipeline.InstantAbilityPipeline<TCtx>.InsertPhase(int index, AbilityKit.Pipeline.IAbilityInstantPhase<TCtx>! phase) -> void
+AbilityKit.Pipeline.InstantAbilityPipeline<TCtx>.InstantAbilityPipeline() -> void
+AbilityKit.Pipeline.InstantAbilityPipeline<TCtx>.Reset() -> void
+AbilityKit.Pipeline.InstantAbilityPipeline<TCtx>.RunToCompletion(AbilityKit.Pipeline.IAbilityPipelineConfig! config, TCtx context) -> AbilityKit.Pipeline.PipelineExecutionResult
+AbilityKit.Pipeline.NoOpPipelineRunTrace
+AbilityKit.Pipeline.NoOpPipelineRunTrace.Add(AbilityKit.Pipeline.EPipelineTraceEventType type, AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, AbilityKit.Pipeline.EAbilityPipelineState state, string! message) -> void
+AbilityKit.Pipeline.NoOpPipelineRunTrace.Capacity.get -> int
+AbilityKit.Pipeline.NoOpPipelineRunTrace.Count.get -> int
+AbilityKit.Pipeline.NoOpPipelineRunTrace.GetSnapshot() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelineTraceEvent>!
+AbilityKit.Pipeline.NoOpPipelineRunTrace.NoOpPipelineRunTrace() -> void
+AbilityKit.Pipeline.NoOpPipelineTraceRecorder
+AbilityKit.Pipeline.NoOpPipelineTraceRecorder.GetSnapshot(int ownerId) -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelineTraceEvent>!
+AbilityKit.Pipeline.NoOpPipelineTraceRecorder.GetTrace(int ownerId) -> AbilityKit.Pipeline.IPipelineRunTrace!
+AbilityKit.Pipeline.NoOpPipelineTraceRecorder.IsEnabled.get -> bool
+AbilityKit.Pipeline.NoOpPipelineTraceRecorder.NoOpPipelineTraceRecorder() -> void
+AbilityKit.Pipeline.NoOpPipelineTraceRecorder.Record(AbilityKit.Pipeline.IPipelineLifeOwner! owner, AbilityKit.Pipeline.PipelineTraceData data) -> void
+AbilityKit.Pipeline.Pipeline
+AbilityKit.Pipeline.PipelineDebugGraphLayout
+AbilityKit.Pipeline.PipelineDebugGraphLayout.Nodes.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelineDebugNodeLayout>!
+AbilityKit.Pipeline.PipelineDebugGraphLayout.PipelineDebugGraphLayout(string! structureId, System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelineDebugNodeLayout>? nodes, string! sourceName = "") -> void
+AbilityKit.Pipeline.PipelineDebugGraphLayout.SourceName.get -> string!
+AbilityKit.Pipeline.PipelineDebugGraphLayout.StructureId.get -> string!
+AbilityKit.Pipeline.PipelineDebugGraphSnapshot
+AbilityKit.Pipeline.PipelineDebugGraphSnapshot.Edges.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugEdge!>!
+AbilityKit.Pipeline.PipelineDebugGraphSnapshot.PipelineDebugGraphSnapshot(System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugNode!>? roots, System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugEdge!>? edges, string! structureId) -> void
+AbilityKit.Pipeline.PipelineDebugGraphSnapshot.Roots.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugNode!>!
+AbilityKit.Pipeline.PipelineDebugGraphSnapshot.StructureId.get -> string!
+AbilityKit.Pipeline.PipelineDebugHooks
+AbilityKit.Pipeline.PipelineDebugNodeLayout
+AbilityKit.Pipeline.PipelineDebugNodeLayout.NodeKey.get -> string!
+AbilityKit.Pipeline.PipelineDebugNodeLayout.PipelineDebugNodeLayout() -> void
+AbilityKit.Pipeline.PipelineDebugNodeLayout.PipelineDebugNodeLayout(string! nodeKey, float x, float y) -> void
+AbilityKit.Pipeline.PipelineDebugNodeLayout.X.get -> float
+AbilityKit.Pipeline.PipelineDebugNodeLayout.Y.get -> float
+AbilityKit.Pipeline.PipelineDebugRunState
+AbilityKit.Pipeline.PipelineDebugRunState.Nodes.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugState!>!
+AbilityKit.Pipeline.PipelineDebugRunState.PipelineDebugRunState(System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugState!>? nodes) -> void
+AbilityKit.Pipeline.PipelineExecutionProgress<TCtx, TNode>
+AbilityKit.Pipeline.PipelineExecutionResult
+AbilityKit.Pipeline.PipelineExecutionResult.Exception.get -> System.Exception?
+AbilityKit.Pipeline.PipelineExecutionResult.IsTerminalFailure.get -> bool
+AbilityKit.Pipeline.PipelineExecutionResult.LastPhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.PipelineExecutionResult.PipelineExecutionResult() -> void
+AbilityKit.Pipeline.PipelineExecutionResult.PipelineExecutionResult(AbilityKit.Pipeline.EAbilityPipelineState state, AbilityKit.Pipeline.AbilityPipelinePhaseId lastPhaseId, System.Exception? exception = null) -> void
+AbilityKit.Pipeline.PipelineExecutionResult.State.get -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.PipelineExecutionResult.Succeeded.get -> bool
+AbilityKit.Pipeline.PipelineGraph
+AbilityKit.Pipeline.PipelinePhaseDebugEdge
+AbilityKit.Pipeline.PipelinePhaseDebugEdge.ChildIndex.get -> int
+AbilityKit.Pipeline.PipelinePhaseDebugEdge.Kind.get -> AbilityKit.Pipeline.EPipelineDebugEdgeKind
+AbilityKit.Pipeline.PipelinePhaseDebugEdge.Label.get -> string!
+AbilityKit.Pipeline.PipelinePhaseDebugEdge.PipelinePhaseDebugEdge(string! sourceNodeKey, string! targetNodeKey, AbilityKit.Pipeline.EPipelineDebugEdgeKind kind, string! label = "", int childIndex = -1) -> void
+AbilityKit.Pipeline.PipelinePhaseDebugEdge.SourceNodeKey.get -> string!
+AbilityKit.Pipeline.PipelinePhaseDebugEdge.TargetNodeKey.get -> string!
+AbilityKit.Pipeline.PipelinePhaseDebugNode
+AbilityKit.Pipeline.PipelinePhaseDebugNode.Children.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugNode!>!
+AbilityKit.Pipeline.PipelinePhaseDebugNode.IsComposite.get -> bool
+AbilityKit.Pipeline.PipelinePhaseDebugNode.Kind.get -> AbilityKit.Pipeline.EPipelineDebugNodeKind
+AbilityKit.Pipeline.PipelinePhaseDebugNode.NodeKey.get -> string!
+AbilityKit.Pipeline.PipelinePhaseDebugNode.PhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.PipelinePhaseDebugNode.PhaseType.get -> string!
+AbilityKit.Pipeline.PipelinePhaseDebugNode.PipelinePhaseDebugNode(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, string! phaseType, System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugNode!>? children = null) -> void
+AbilityKit.Pipeline.PipelinePhaseDebugNode.PipelinePhaseDebugNode(string! nodeKey, AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, string! phaseType, AbilityKit.Pipeline.EPipelineDebugNodeKind kind, string! summary, System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.PipelinePhaseDebugNode!>? children = null) -> void
+AbilityKit.Pipeline.PipelinePhaseDebugNode.Summary.get -> string!
+AbilityKit.Pipeline.PipelinePhaseDebugState
+AbilityKit.Pipeline.PipelinePhaseDebugState.ChildConditions.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.EPipelineDebugConditionResult>!
+AbilityKit.Pipeline.PipelinePhaseDebugState.NodeKey.get -> string!
+AbilityKit.Pipeline.PipelinePhaseDebugState.PipelinePhaseDebugState(string! nodeKey, AbilityKit.Pipeline.EPipelineDebugExecutionState state, int selectedChildIndex = -1, System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.EPipelineDebugConditionResult>? childConditions = null) -> void
+AbilityKit.Pipeline.PipelinePhaseDebugState.SelectedChildIndex.get -> int
+AbilityKit.Pipeline.PipelinePhaseDebugState.State.get -> AbilityKit.Pipeline.EPipelineDebugExecutionState
+AbilityKit.Pipeline.PipelinePhaseProgress
+AbilityKit.Pipeline.PipelinePhaseProgress.PipelinePhaseProgress() -> void
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.Children.get -> TNode![]!
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.Children.set -> void
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.Integers.get -> int[]!
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.Integers.set -> void
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.IsComplete.get -> bool
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.IsComplete.set -> void
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.Longs.get -> long[]!
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.Longs.set -> void
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.Numbers.get -> double[]!
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.Numbers.set -> void
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.PhaseId.get -> string!
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.PhaseId.set -> void
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.PhaseType.get -> string!
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.PhaseType.set -> void
+AbilityKit.Pipeline.PipelinePhaseProgress<TNode>.PipelinePhaseProgress() -> void
+AbilityKit.Pipeline.PipelineRegistry
+AbilityKit.Pipeline.PipelineRegistry.ActiveCount.get -> int
+AbilityKit.Pipeline.PipelineRegistry.FillOwnersByPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, System.Collections.Generic.IList<AbilityKit.Pipeline.IPipelineLifeOwner!>! results) -> int
+AbilityKit.Pipeline.PipelineRegistry.FillOwnersByState(AbilityKit.Pipeline.EAbilityPipelineState state, System.Collections.Generic.IList<AbilityKit.Pipeline.IPipelineLifeOwner!>! results) -> int
+AbilityKit.Pipeline.PipelineRegistry.GetActiveOwners() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IPipelineLifeOwner!>!
+AbilityKit.Pipeline.PipelineRegistry.GetOwnersByPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IPipelineLifeOwner!>!
+AbilityKit.Pipeline.PipelineRegistry.GetOwnersByState(AbilityKit.Pipeline.EAbilityPipelineState state) -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IPipelineLifeOwner!>!
+AbilityKit.Pipeline.PipelineRegistry.Initialize() -> void
+AbilityKit.Pipeline.PipelineRegistry.InterruptAll() -> void
+AbilityKit.Pipeline.PipelineRegistry.PipelineRegistry() -> void
+AbilityKit.Pipeline.PipelineRegistry.Register(AbilityKit.Pipeline.IPipelineLifeOwner! owner) -> void
+AbilityKit.Pipeline.PipelineRegistry.RentOwnersByPhase(AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId) -> AbilityKit.Pipeline.PipelineRegistryOwnerListLease
+AbilityKit.Pipeline.PipelineRegistry.RentOwnersByState(AbilityKit.Pipeline.EAbilityPipelineState state) -> AbilityKit.Pipeline.PipelineRegistryOwnerListLease
+AbilityKit.Pipeline.PipelineRegistry.Shutdown() -> void
+AbilityKit.Pipeline.PipelineRegistry.Unregister(AbilityKit.Pipeline.IPipelineLifeOwner! owner) -> void
+AbilityKit.Pipeline.PipelineRegistryEvents
+AbilityKit.Pipeline.PipelineRegistryOwnerListLease
+AbilityKit.Pipeline.PipelineRegistryOwnerListLease.Count.get -> int
+AbilityKit.Pipeline.PipelineRegistryOwnerListLease.Dispose() -> void
+AbilityKit.Pipeline.PipelineRegistryOwnerListLease.Owners.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IPipelineLifeOwner!>!
+AbilityKit.Pipeline.PipelineRegistryOwnerListLease.PipelineRegistryOwnerListLease() -> void
+AbilityKit.Pipeline.PipelineRegistryOwnerListLease.PipelineRegistryOwnerListLease(System.Collections.Generic.List<AbilityKit.Pipeline.IPipelineLifeOwner!>! owners) -> void
+AbilityKit.Pipeline.PipelineRegistryOwnerListLease.this[int index].get -> AbilityKit.Pipeline.IPipelineLifeOwner!
+AbilityKit.Pipeline.PipelineRunEndedData
+AbilityKit.Pipeline.PipelineRunEndedData.LastPhaseId.get -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+AbilityKit.Pipeline.PipelineRunEndedData.Owner.get -> AbilityKit.Pipeline.IPipelineLifeOwner!
+AbilityKit.Pipeline.PipelineRunEndedData.PipelineRunEndedData() -> void
+AbilityKit.Pipeline.PipelineRunEndedData.PipelineRunEndedData(AbilityKit.Pipeline.IPipelineLifeOwner! owner) -> void
+AbilityKit.Pipeline.PipelineRunEndedData.State.get -> AbilityKit.Pipeline.EAbilityPipelineState
+AbilityKit.Pipeline.PipelineRunEndedData.UtcTime.get -> System.DateTime
+AbilityKit.Pipeline.PipelineRunProgress<TNode>
+AbilityKit.Pipeline.PipelineRunProgress<TNode>.ConfigId.get -> int
+AbilityKit.Pipeline.PipelineRunProgress<TNode>.ConfigName.get -> string!
+AbilityKit.Pipeline.PipelineRunProgress<TNode>.CurrentPhaseIndex.get -> int
+AbilityKit.Pipeline.PipelineRunProgress<TNode>.HasCurrentPhase.get -> bool
+AbilityKit.Pipeline.PipelineRunProgress<TNode>.IsCancelled.get -> bool
+AbilityKit.Pipeline.PipelineRunProgress<TNode>.IsPaused.get -> bool
+AbilityKit.Pipeline.PipelineRunProgress<TNode>.Phases.get -> TNode![]!
+AbilityKit.Pipeline.PipelineRunProgress<TNode>.PipelineRunProgress() -> void
+AbilityKit.Pipeline.PipelineRunProgress<TNode>.PipelineRunProgress(int configId, string! configName, int currentPhaseIndex, bool hasCurrentPhase, bool isPaused, bool isCancelled, TNode![]! phases) -> void
+AbilityKit.Pipeline.PipelineRunStartedData
+AbilityKit.Pipeline.PipelineRunStartedData.Config.get -> AbilityKit.Pipeline.IAbilityPipelineConfig!
+AbilityKit.Pipeline.PipelineRunStartedData.Context.get -> AbilityKit.Pipeline.IAbilityPipelineContext!
+AbilityKit.Pipeline.PipelineRunStartedData.Owner.get -> AbilityKit.Pipeline.IPipelineLifeOwner!
+AbilityKit.Pipeline.PipelineRunStartedData.Pipeline.get -> object!
+AbilityKit.Pipeline.PipelineRunStartedData.PipelineRunStartedData() -> void
+AbilityKit.Pipeline.PipelineRunStartedData.PipelineRunStartedData(AbilityKit.Pipeline.IPipelineLifeOwner! owner, object! pipeline, AbilityKit.Pipeline.IAbilityPipelineConfig! config, AbilityKit.Pipeline.IPipelineRunControl! run, AbilityKit.Pipeline.IAbilityPipelineContext! context) -> void
+AbilityKit.Pipeline.PipelineRunStartedData.Run.get -> AbilityKit.Pipeline.IPipelineRunControl!
+AbilityKit.Pipeline.PipelineRunStartedData.UtcTime.get -> System.DateTime
+AbilityKit.Pipeline.PipelineRuntime
+AbilityKit.Pipeline.PipelineRuntime.Initialize() -> void
+AbilityKit.Pipeline.PipelineRuntime.IsDebugEnabled.get -> bool
+AbilityKit.Pipeline.PipelineRuntime.PipelineRuntime(AbilityKit.Pipeline.IPipelineRegistry? registry = null, AbilityKit.Pipeline.IPipelineTraceRecorder? traceRecorder = null) -> void
+AbilityKit.Pipeline.PipelineRuntime.RecordTrace(AbilityKit.Pipeline.IPipelineLifeOwner! owner, AbilityKit.Pipeline.PipelineTraceData data) -> void
+AbilityKit.Pipeline.PipelineRuntime.Registry.get -> AbilityKit.Pipeline.IPipelineRegistry!
+AbilityKit.Pipeline.PipelineRuntime.SetRegistry(AbilityKit.Pipeline.IPipelineRegistry! registry) -> void
+AbilityKit.Pipeline.PipelineRuntime.SetTraceRecorder(AbilityKit.Pipeline.IPipelineTraceRecorder! recorder) -> void
+AbilityKit.Pipeline.PipelineRuntime.Shutdown() -> void
+AbilityKit.Pipeline.PipelineRuntime.TraceRecorder.get -> AbilityKit.Pipeline.IPipelineTraceRecorder!
+AbilityKit.Pipeline.PipelineTraceData
+AbilityKit.Pipeline.PipelineTraceData.PipelineTraceData() -> void
+AbilityKit.Pipeline.PipelineTraceData.PipelineTraceData(int sequence, AbilityKit.Pipeline.EPipelineTraceEventType type, AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, AbilityKit.Pipeline.EAbilityPipelineState state, string! message) -> void
+AbilityKit.Pipeline.PipelineTraceEvent
+AbilityKit.Pipeline.PipelineTraceEvent.PipelineTraceEvent() -> void
+AbilityKit.Pipeline.PipelineTraceEvent.PipelineTraceEvent(int seq, AbilityKit.Pipeline.EPipelineTraceEventType type, AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, AbilityKit.Pipeline.EAbilityPipelineState state, string! message) -> void
+AbilityKit.Pipeline.PipelineTraceEvent.PipelineTraceEvent(int seq, AbilityKit.Pipeline.EPipelineTraceEventType type, AbilityKit.Pipeline.AbilityPipelinePhaseId phaseId, AbilityKit.Pipeline.EAbilityPipelineState state, string! message, System.DateTime utcTime) -> void
+AbilityKit.Pipeline.Pooling.PipelinePools
+AbilityKit.Pipeline.TimeProvider
+abstract AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+abstract AbilityKit.Pipeline.AbilityConditionNodeBase.Evaluate(AbilityKit.Pipeline.IAbilityPipelineContext! context) -> bool
+abstract AbilityKit.Pipeline.AbilityInstantPhaseBase<TCtx>.OnInstantExecute(TCtx context) -> void
+abstract AbilityKit.Pipeline.AbilityPipeline<TCtx>.ReleaseContext(TCtx context) -> void
+abstract AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.OnExecute(TCtx context) -> void
+const AbilityKit.Pipeline.AbilityPipelinePhaseResult.SuccessName = "Success" -> string!
+const AbilityKit.Pipeline.Pooling.PipelinePools.ConfigModuleName = "AbilityKit.Pipeline.Pools" -> string!
+const AbilityKit.Pipeline.Pooling.PipelinePools.ScopeName = "AbilityKit.Pipeline" -> string!
+override AbilityKit.Pipeline.AbilityAndCondition.CheckStrategy.get -> AbilityKit.Pipeline.EConditionCheckStrategy
+override AbilityKit.Pipeline.AbilityAndCondition.Evaluate(AbilityKit.Pipeline.IAbilityPipelineContext! context) -> bool
+override AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+override AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.Execute(TCtx context) -> void
+override AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.OnUpdate(TCtx context, float deltaTime) -> void
+override AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>.Reset() -> void
+override AbilityKit.Pipeline.AbilityDelayPhase<TCtx>.OnExecute(TCtx context) -> void
+override AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.OnEnter(TCtx context) -> void
+override AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.OnUpdate(TCtx context, float deltaTime) -> void
+override AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.Reset() -> void
+override AbilityKit.Pipeline.AbilityNotCondition.CheckStrategy.get -> AbilityKit.Pipeline.EConditionCheckStrategy
+override AbilityKit.Pipeline.AbilityNotCondition.Evaluate(AbilityKit.Pipeline.IAbilityPipelineContext! context) -> bool
+override AbilityKit.Pipeline.AbilityOrCondition.CheckStrategy.get -> AbilityKit.Pipeline.EConditionCheckStrategy
+override AbilityKit.Pipeline.AbilityOrCondition.Evaluate(AbilityKit.Pipeline.IAbilityPipelineContext! context) -> bool
+override AbilityKit.Pipeline.AbilityParallelPhase<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+override AbilityKit.Pipeline.AbilityParallelPhase<TCtx>.Execute(TCtx context) -> void
+override AbilityKit.Pipeline.AbilityParallelPhase<TCtx>.OnUpdate(TCtx context, float deltaTime) -> void
+override AbilityKit.Pipeline.AbilityParallelPhase<TCtx>.Reset() -> void
+override AbilityKit.Pipeline.AbilityPipelinePhaseId.Equals(object? obj) -> bool
+override AbilityKit.Pipeline.AbilityPipelinePhaseId.GetHashCode() -> int
+override AbilityKit.Pipeline.AbilityPipelinePhaseId.ToString() -> string!
+override AbilityKit.Pipeline.AbilityPipelinePhaseResult.Equals(object? obj) -> bool
+override AbilityKit.Pipeline.AbilityPipelinePhaseResult.GetHashCode() -> int
+override AbilityKit.Pipeline.AbilityPipelinePhaseResult.ToString() -> string!
+override AbilityKit.Pipeline.AbilityRacePhase<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+override AbilityKit.Pipeline.AbilityRacePhase<TCtx>.Execute(TCtx context) -> void
+override AbilityKit.Pipeline.AbilityRacePhase<TCtx>.OnUpdate(TCtx context, float deltaTime) -> void
+override AbilityKit.Pipeline.AbilityRacePhase<TCtx>.Reset() -> void
+override AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.OnEnter(TCtx context) -> void
+override AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.OnExecute(TCtx context) -> void
+override AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.OnTick(TCtx context, float deltaTime) -> void
+override AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.SubPhases.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!>!
+override AbilityKit.Pipeline.AbilitySequencePhase<TCtx>.CreateRunPhase() -> AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!
+override AbilityKit.Pipeline.AbilityWaitUntilPhase<TCtx>.OnUpdate(TCtx context, float deltaTime) -> void
+override AbilityKit.Pipeline.PipelineTraceEvent.ToString() -> string!
+override sealed AbilityKit.Pipeline.AbilityInstantPhaseBase<TCtx>.OnExecute(TCtx context) -> void
+readonly AbilityKit.Pipeline.AbilityPipelinePhaseId.Value -> string!
+readonly AbilityKit.Pipeline.AbilityPipelinePhaseResult.Value -> string!
+readonly AbilityKit.Pipeline.PipelineTraceData.Message -> string!
+readonly AbilityKit.Pipeline.PipelineTraceData.PhaseId -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+readonly AbilityKit.Pipeline.PipelineTraceData.Sequence -> int
+readonly AbilityKit.Pipeline.PipelineTraceData.State -> AbilityKit.Pipeline.EAbilityPipelineState
+readonly AbilityKit.Pipeline.PipelineTraceData.Type -> AbilityKit.Pipeline.EPipelineTraceEventType
+readonly AbilityKit.Pipeline.PipelineTraceData.UtcTime -> System.DateTime
+readonly AbilityKit.Pipeline.PipelineTraceEvent.Message -> string!
+readonly AbilityKit.Pipeline.PipelineTraceEvent.PhaseId -> AbilityKit.Pipeline.AbilityPipelinePhaseId
+readonly AbilityKit.Pipeline.PipelineTraceEvent.Seq -> int
+readonly AbilityKit.Pipeline.PipelineTraceEvent.State -> AbilityKit.Pipeline.EAbilityPipelineState
+readonly AbilityKit.Pipeline.PipelineTraceEvent.Type -> AbilityKit.Pipeline.EPipelineTraceEventType
+readonly AbilityKit.Pipeline.PipelineTraceEvent.UtcTime -> System.DateTime
+static AbilityKit.Pipeline.AbilityActionPhase<TCtx>.Create(System.Action<TCtx>! action) -> AbilityKit.Pipeline.AbilityActionPhase<TCtx>!
+static AbilityKit.Pipeline.AbilityDelayPhase<TCtx>.Create(float delayTime) -> AbilityKit.Pipeline.AbilityDelayPhase<TCtx>!
+static AbilityKit.Pipeline.AbilityGatePhase<TCtx>.Create(AbilityKit.Pipeline.IAbilityConditionNode! condition) -> AbilityKit.Pipeline.AbilityGatePhase<TCtx>!
+static AbilityKit.Pipeline.AbilityPipelinePhaseId.operator !=(AbilityKit.Pipeline.AbilityPipelinePhaseId a, AbilityKit.Pipeline.AbilityPipelinePhaseId b) -> bool
+static AbilityKit.Pipeline.AbilityPipelinePhaseId.operator ==(AbilityKit.Pipeline.AbilityPipelinePhaseId a, AbilityKit.Pipeline.AbilityPipelinePhaseId b) -> bool
+static AbilityKit.Pipeline.AbilityPipelinePhaseResult.Success.get -> AbilityKit.Pipeline.AbilityPipelinePhaseResult
+static AbilityKit.Pipeline.AbilityPipelinePhaseResult.operator !=(AbilityKit.Pipeline.AbilityPipelinePhaseResult a, AbilityKit.Pipeline.AbilityPipelinePhaseResult b) -> bool
+static AbilityKit.Pipeline.AbilityPipelinePhaseResult.operator ==(AbilityKit.Pipeline.AbilityPipelinePhaseResult a, AbilityKit.Pipeline.AbilityPipelinePhaseResult b) -> bool
+static AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.Create(System.Action<TCtx, int>! action, int repeatCount = -1, float interval = 0) -> AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>!
+static AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>.Create(int repeatCount = -1) -> AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>!
+static AbilityKit.Pipeline.AbilityWaitUntilPhase<TCtx>.Create(System.Func<TCtx, bool>! predicate, float timeout = -1, bool completeOnTimeout = true) -> AbilityKit.Pipeline.AbilityWaitUntilPhase<TCtx>!
+static AbilityKit.Pipeline.Pipeline.DefaultRuntime.get -> AbilityKit.Pipeline.PipelineRuntime!
+static AbilityKit.Pipeline.Pipeline.Initialize() -> void
+static AbilityKit.Pipeline.Pipeline.IsDebugEnabled.get -> bool
+static AbilityKit.Pipeline.Pipeline.RecordTrace(AbilityKit.Pipeline.IPipelineLifeOwner! owner, AbilityKit.Pipeline.PipelineTraceData data) -> void
+static AbilityKit.Pipeline.Pipeline.Registry.get -> AbilityKit.Pipeline.IPipelineRegistry!
+static AbilityKit.Pipeline.Pipeline.SetRegistry(AbilityKit.Pipeline.IPipelineRegistry! registry) -> void
+static AbilityKit.Pipeline.Pipeline.SetTraceRecorder(AbilityKit.Pipeline.IPipelineTraceRecorder! recorder) -> void
+static AbilityKit.Pipeline.Pipeline.Shutdown() -> void
+static AbilityKit.Pipeline.Pipeline.TraceRecorder.get -> AbilityKit.Pipeline.IPipelineTraceRecorder!
+static AbilityKit.Pipeline.PipelineDebugHooks.HasHooks.get -> bool
+static AbilityKit.Pipeline.PipelineDebugHooks.NotifyRunEnded(AbilityKit.Pipeline.IPipelineLifeOwner! owner) -> void
+static AbilityKit.Pipeline.PipelineDebugHooks.NotifyRunStarted<TCtx>(AbilityKit.Pipeline.IPipelineLifeOwner! owner, object! pipeline, AbilityKit.Pipeline.IAbilityPipelineConfig! config, AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>! run) -> void
+static AbilityKit.Pipeline.PipelineDebugHooks.NotifyTrace(AbilityKit.Pipeline.IPipelineLifeOwner! owner, AbilityKit.Pipeline.PipelineTraceData data) -> void
+static AbilityKit.Pipeline.PipelineDebugHooks.OnRunEnded -> System.Action<AbilityKit.Pipeline.PipelineRunEndedData>?
+static AbilityKit.Pipeline.PipelineDebugHooks.OnRunStarted -> System.Action<AbilityKit.Pipeline.IPipelineLifeOwner!, object!, object!>?
+static AbilityKit.Pipeline.PipelineDebugHooks.OnRunStartedDetailed -> System.Action<AbilityKit.Pipeline.PipelineRunStartedData>?
+static AbilityKit.Pipeline.PipelineDebugHooks.OnTrace -> System.Action<AbilityKit.Pipeline.IPipelineLifeOwner!, AbilityKit.Pipeline.PipelineTraceData>?
+static AbilityKit.Pipeline.PipelineExecutionProgress<TCtx, TNode>.Capture(AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>! run, AbilityKit.Pipeline.IAbilityPipelineConfig! config, System.Func<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!, TNode?>? captureCustom = null) -> AbilityKit.Pipeline.PipelineRunProgress<TNode!>
+static AbilityKit.Pipeline.PipelineExecutionProgress<TCtx, TNode>.Restore(AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>! run, AbilityKit.Pipeline.IAbilityPipelineConfig! config, in AbilityKit.Pipeline.PipelineRunProgress<TNode!> state, System.Func<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!, TNode!, bool>? validateCustom = null, System.Func<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!, TNode!, bool>? restoreCustom = null, System.Action<AbilityKit.Pipeline.IAbilityPipelineRun<TCtx>!>? prepare = null) -> void
+static AbilityKit.Pipeline.PipelineExecutionProgress<TCtx, TNode>.Validate(AbilityKit.Pipeline.IAbilityPipelineConfig! config, System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!>! phases, in AbilityKit.Pipeline.PipelineRunProgress<TNode!> state, System.Func<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!, TNode!, bool>? validateCustom = null) -> void
+static AbilityKit.Pipeline.PipelineGraph.Action<TCtx>(System.Action<TCtx>! action) -> AbilityKit.Pipeline.AbilityActionPhase<TCtx>!
+static AbilityKit.Pipeline.PipelineGraph.Conditional<TCtx>(AbilityKit.Pipeline.IAbilityConditionNode! condition, AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! whenTrue, AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>? whenFalse = null) -> AbilityKit.Pipeline.AbilityConditionalPhase<TCtx>!
+static AbilityKit.Pipeline.PipelineGraph.Delay<TCtx>(float seconds) -> AbilityKit.Pipeline.AbilityDelayPhase<TCtx>!
+static AbilityKit.Pipeline.PipelineGraph.Gate<TCtx>(AbilityKit.Pipeline.IAbilityConditionNode! condition) -> AbilityKit.Pipeline.AbilityGatePhase<TCtx>!
+static AbilityKit.Pipeline.PipelineGraph.Parallel<TCtx>(params AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>![]! phases) -> AbilityKit.Pipeline.AbilityParallelPhase<TCtx>!
+static AbilityKit.Pipeline.PipelineGraph.Repeat<TCtx>(AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>! phase, int repeatCount = -1, float interval = 0) -> AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>!
+static AbilityKit.Pipeline.PipelineGraph.Repeat<TCtx>(System.Action<TCtx, int>! action, int repeatCount = -1, float interval = 0) -> AbilityKit.Pipeline.AbilityRepeatPhase<TCtx>!
+static AbilityKit.Pipeline.PipelineGraph.Sequence<TCtx>(params AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>![]! phases) -> AbilityKit.Pipeline.AbilitySequencePhase<TCtx>!
+static AbilityKit.Pipeline.PipelineGraph.WaitUntil<TCtx>(System.Func<TCtx, bool>! predicate, float timeout = -1, bool completeOnTimeout = true) -> AbilityKit.Pipeline.AbilityWaitUntilPhase<TCtx>!
+static AbilityKit.Pipeline.PipelineRegistryEvents.OnChanged -> System.Action?
+static AbilityKit.Pipeline.PipelineRegistryEvents.OnGlobalInterrupt -> System.Action?
+static AbilityKit.Pipeline.PipelineRegistryEvents.OnRunEnded -> System.Action<AbilityKit.Pipeline.IPipelineLifeOwner!, AbilityKit.Pipeline.EAbilityPipelineState>?
+static AbilityKit.Pipeline.PipelineRegistryEvents.OnRunStarted -> System.Action<AbilityKit.Pipeline.IPipelineLifeOwner!>?
+static AbilityKit.Pipeline.Pooling.PipelinePools.CreateConfigBuilder(string! moduleName, string? source = null, int priority = 100) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+static AbilityKit.Pipeline.Pooling.PipelinePools.RegisterDefaultConfig() -> AbilityKit.Core.Pooling.PoolConfigModule!
+static AbilityKit.Pipeline.Pooling.PipelinePools.RegisterOverride(System.Action<AbilityKit.Core.Pooling.PoolConfigBuilder!>! configure, string! moduleName, string? source = null, int priority = 100) -> AbilityKit.Core.Pooling.PoolConfigRegistration
+static AbilityKit.Pipeline.Pooling.PipelinePools.ReleaseLifeOwnerList(System.Collections.Generic.List<AbilityKit.Pipeline.IPipelineLifeOwner!>! list) -> void
+static AbilityKit.Pipeline.Pooling.PipelinePools.ReleaseRunPhaseList<TCtx>(System.Collections.Generic.List<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!>! list) -> void
+static AbilityKit.Pipeline.Pooling.PipelinePools.RentLifeOwnerList() -> System.Collections.Generic.List<AbilityKit.Pipeline.IPipelineLifeOwner!>!
+static AbilityKit.Pipeline.Pooling.PipelinePools.RentRunPhaseList<TCtx>() -> System.Collections.Generic.List<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!>!
+static AbilityKit.Pipeline.TimeProvider.Instance.get -> AbilityKit.Pipeline.ITimeProvider!
+static AbilityKit.Pipeline.TimeProvider.Instance.set -> void
+static AbilityKit.Pipeline.TimeProvider.RealtimeSinceStartup.get -> float
+static readonly AbilityKit.Pipeline.NoOpPipelineRunTrace.Instance -> AbilityKit.Pipeline.NoOpPipelineRunTrace!
+static readonly AbilityKit.Pipeline.NoOpPipelineTraceRecorder.Instance -> AbilityKit.Pipeline.NoOpPipelineTraceRecorder!
+static readonly AbilityKit.Pipeline.PipelineDebugGraphSnapshot.Empty -> AbilityKit.Pipeline.PipelineDebugGraphSnapshot!
+static readonly AbilityKit.Pipeline.PipelineDebugRunState.Empty -> AbilityKit.Pipeline.PipelineDebugRunState!
+static readonly AbilityKit.Pipeline.PipelineRegistry.Instance -> AbilityKit.Pipeline.PipelineRegistry!
+static readonly AbilityKit.Pipeline.Pooling.PipelinePools.LifeOwnerListKey -> AbilityKit.Core.Pooling.PoolKey
+virtual AbilityKit.Pipeline.AAbilityPipelineContext.Initialize(object! abilityInstance) -> void
+virtual AbilityKit.Pipeline.AAbilityPipelineContext.Reset() -> void
+virtual AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.Execute(TCtx context) -> void
+virtual AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.ExecuteNextSubPhase(TCtx context) -> void
+virtual AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.HandleError(TCtx context, System.Exception! exception) -> void
+virtual AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.OnAllSubPhasesComplete(TCtx context) -> void
+virtual AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.OnUpdate(TCtx context, float deltaTime) -> void
+virtual AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.Reset() -> void
+virtual AbilityKit.Pipeline.AbilityCompositePhase<TCtx>.ShouldExecute(TCtx context) -> bool
+virtual AbilityKit.Pipeline.AbilityConditionNodeBase.CheckStrategy.get -> AbilityKit.Pipeline.EConditionCheckStrategy
+virtual AbilityKit.Pipeline.AbilityDurationalPhaseBase<TCtx>.OnTick(TCtx context, float deltaTime) -> void
+virtual AbilityKit.Pipeline.AbilityInterruptiblePhaseBase<TCtx>.OnInterrupt(TCtx context) -> void
+virtual AbilityKit.Pipeline.AbilityPipeline<TCtx>.Reset() -> void
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.Complete(TCtx context) -> void
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.HandleError(TCtx context, System.Exception! exception) -> void
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.IsComplete.get -> bool
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.IsComplete.set -> void
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.IsComposite.get -> bool
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.OnEnter(TCtx context) -> void
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.OnExit(TCtx context) -> void
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.OnUpdate(TCtx context, float deltaTime) -> void
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.Reset() -> void
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.ShouldExecute(TCtx context) -> bool
+virtual AbilityKit.Pipeline.AbilityPipelinePhaseBase<TCtx>.SubPhases.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Pipeline.IAbilityPipelinePhase<TCtx>!>!

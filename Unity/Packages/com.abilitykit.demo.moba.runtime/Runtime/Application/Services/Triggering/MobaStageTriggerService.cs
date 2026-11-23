@@ -132,6 +132,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             if (!sourceContext.IsValid) return;
 
             var hitContextId = 0L;
+            var launchSourceContextId = sourceContext.SourceContextId;
             var rootContextId = sourceContext.RootContextId != 0L
                 ? sourceContext.RootContextId
                 : sourceContext.SourceContextId;
@@ -174,6 +175,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                     Frame = evt.Frame,
                     Raw = evt,
                     SourceContext = sourceContext,
+                    LaunchSourceContextId = launchSourceContextId,
                     CasterActorId = sourceActorId,
                     ProjectileTemplateId = projectile.Id,
                     ProjectileId = evt.Projectile,
@@ -337,6 +339,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                 OwnerKind = CueKindProjectile,
                 InstanceId = projectileId.Value,
                 InstanceKey = instanceKey,
+                SourceFrame = eventId == EventProjectileHit ? frame : 0,
                 LifecycleReason = lifecycleReason,
                 ContextKind = (int)EffectContextKind.Projectile,
                 OriginKind = (int)(eventId == EventProjectileHit ? MobaExecutionKind.ProjectileHit : MobaExecutionKind.ProjectileLaunch),

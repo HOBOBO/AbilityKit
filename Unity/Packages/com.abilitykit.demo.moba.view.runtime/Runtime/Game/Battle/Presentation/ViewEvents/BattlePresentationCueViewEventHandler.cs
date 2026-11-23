@@ -55,7 +55,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 handlers.CreateViewPort(world, query, vfx, in vfxNode));
         }
 
-        public void HandleSnapshot(PresentationCueData[] entries)
+        public void HandleSnapshot(PresentationCueData[] entries,
+            BattleProjectileViewEventHandler projectileEvents = null, int snapshotFrame = 0)
         {
             if (entries == null || entries.Length == 0) return;
 
@@ -103,12 +104,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                     continue;
                 }
 
-                HandleSnapshotEntry(entries[i]);
+                HandleSnapshotEntry(entries[i], projectileEvents, snapshotFrame);
             }
 
         }
 
-        private void HandleSnapshotEntry(in PresentationCueData data)
+        private void HandleSnapshotEntry(in PresentationCueData data,
+            BattleProjectileViewEventHandler projectileEvents, int snapshotFrame)
         {
             var decision = ResolveDecision(in data);
             var update = BattlePresentationCueReconciliationMapper.CreateUpdate(
@@ -116,7 +118,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 in decision,
                 _reconciliation.CurrentGeneration);
             var reconciliation = _reconciliation.Process(in update);
-            _views.Apply(in reconciliation);
+            var isProjectileImpact = projectileEvents != null && reconciliation.Accepted &&
+                reconciliation.Command == PresentationCueCommandKind.EmitTransient &&
+                data.Domain == PresentationCueDomain.Projectile && data.Stage == PresentationCueStage.Executed;
+            var frame = data.SourceFrame > 0 ? data.SourceFrame : snapshotFrame;
+            var payload = reconciliation.Payload;
+            if (isProjectileImpact && projectileEvents.TryPairCueImpact(data.InstanceId, frame, in payload)) return;
+            if (_views.Apply(in reconciliation) && isProjectileImpact)
+                projectileEvents.RecordCueImpact(data.InstanceId, frame, in payload);
         }
 
         private BattlePresentationCueDecision ResolveDecision(in PresentationCueData data)

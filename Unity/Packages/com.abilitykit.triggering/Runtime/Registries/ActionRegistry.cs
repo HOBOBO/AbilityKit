@@ -7,6 +7,11 @@ namespace AbilityKit.Triggering.Registry
     {
         private readonly Dictionary<Key, Entry> _actions = new Dictionary<Key, Entry>();
 
+        /// <summary>
+        /// 获取当前实例的注册代次；不能作为委托内容的版本。
+        /// </summary>
+        public long RegistrationVersion { get; private set; }
+
         private readonly struct Key : IEquatable<Key>
         {
             public readonly int Id;
@@ -54,6 +59,7 @@ namespace AbilityKit.Triggering.Registry
         {
             if (action == null) throw new ArgumentNullException(nameof(action));
             _actions[new Key(id.Value, typeof(TDelegate))] = new Entry(action, isDeterministic);
+            RegistrationVersion++;
         }
 
         public bool TryGet<TDelegate>(ActionId id, out TDelegate action, out bool isDeterministic)

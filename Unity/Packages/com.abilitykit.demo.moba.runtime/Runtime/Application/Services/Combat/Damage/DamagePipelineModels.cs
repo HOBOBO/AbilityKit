@@ -329,6 +329,7 @@ namespace AbilityKit.Demo.Moba
         public float ShieldAbsorb;
         public float TargetHp;
         public float TargetMaxHp;
+        internal bool TargetBecameDead;
 
         public override Services.EffectContextKind Kind => Services.EffectContextKind.Trigger;
 

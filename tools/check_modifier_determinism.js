@@ -27,7 +27,7 @@ const path = require('path');
 
 const DEFAULT_SCOPES = [
   'Unity/Packages/com.abilitykit.modifiers/Runtime',
-  'Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Modifiers',
+  'Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Modifiers',
   'Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous',
 ];
 

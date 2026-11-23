@@ -22,7 +22,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
             if (plan.PredicateKind == EPredicateKind.Expr)
             {
-                return EvaluateExpr(in plan, in args, in ctx);
+                return EvaluateExpression(in plan.PredicateExpr, in args, in ctx);
             }
 
             if (plan.PredicateKind != EPredicateKind.Function)
@@ -97,9 +97,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        private static bool EvaluateExpr(in TriggerPlan<TArgs> plan, in TArgs args, in ExecCtx<TCtx> ctx)
+        /// <summary>
+        /// 求值触发器或执行节点的表达式；没有节点时视为条件成立。
+        /// </summary>
+        internal static bool EvaluateExpression(in PredicateExprPlan expression, in TArgs args, in ExecCtx<TCtx> ctx)
         {
-            var nodes = plan.PredicateExpr.Nodes;
+            var nodes = expression.Nodes;
             if (nodes == null || nodes.Length == 0)
             {
                 return true;
