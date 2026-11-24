@@ -2,6 +2,13 @@
   "Id": 30010604,
   "Name": "Jhin - Basic Attack 4",
   "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": true,
+  "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": false,
+  "RequiredBuffQualificationId": 0,
   "Phases": [
     {
       "Type": 18,
@@ -16,6 +23,9 @@
       "PhaseId": "skill_30010604_shot",
       "Timeline": {
         "DurationMs": 3625,
+        "RecoveryStartMs": -1,
+        "CastGateTagTemplateId": 0,
+        "CastGateEndMs": 0,
         "Events": [
           {
             "AtMs": 0,

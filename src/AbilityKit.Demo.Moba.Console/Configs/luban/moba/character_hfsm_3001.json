@@ -118,12 +118,9 @@
           "id": "attack.slot.5",
           "behaviorKey": "",
           "logicEntryActionKeys": [
-            "trigger.enter.30010006",
-            "trigger.enter.30010014"
+            "trigger.enter.30010006"
           ],
-          "logicExitActionKeys": [
-            "trigger.exit.30010007"
-          ],
+          "logicExitActionKeys": [],
           "childMachineId": "",
           "requiresExitApproval": false,
           "isGhostState": false,
@@ -465,6 +462,19 @@
           "minimumActiveDurationRaw": 0
         },
         {
+          "id": "controlled.attack.slot.5.reload",
+          "fromAnyState": false,
+          "fromStateId": "controlled",
+          "toStateId": "attack.slot.5",
+          "triggerId": "",
+          "conditionKey": "attack.slot.5.reload.after.control",
+          "actionKey": "",
+          "priority": 75,
+          "forceImmediate": false,
+          "exitMachine": false,
+          "minimumActiveDurationRaw": 0
+        },
+        {
           "id": "controlled.cast",
           "fromAnyState": false,
           "fromStateId": "controlled",
@@ -660,17 +670,17 @@
           "minimumActiveDurationRaw": 0
         },
         {
-          "id": "attack.slot.5.reload.complete",
+          "id": "attack.slot.5.reload.retry",
           "fromAnyState": false,
           "fromStateId": "attack.slot.5",
           "toStateId": "idle",
           "triggerId": "",
-          "conditionKey": "attack.slot.5.reload.complete",
+          "conditionKey": "attack.slot.5.reload.retry",
           "actionKey": "",
-          "priority": 30,
+          "priority": 29,
           "forceImmediate": false,
           "exitMachine": false,
-          "minimumActiveDurationRaw": 10737418240
+          "minimumActiveDurationRaw": 0
         },
         {
           "id": "attack.slot.1.reset",
@@ -772,19 +782,6 @@
           "conditionKey": "attack.slot.5.reload.ready",
           "actionKey": "",
           "priority": 21,
-          "forceImmediate": false,
-          "exitMachine": false,
-          "minimumActiveDurationRaw": 0
-        },
-        {
-          "id": "attack.slot.1.to.attack.slot.5",
-          "fromAnyState": false,
-          "fromStateId": "attack.slot.1",
-          "toStateId": "attack.slot.5",
-          "triggerId": "",
-          "conditionKey": "attack.cast.slot.5",
-          "actionKey": "",
-          "priority": 20,
           "forceImmediate": false,
           "exitMachine": false,
           "minimumActiveDurationRaw": 0
@@ -894,19 +891,6 @@
           "minimumActiveDurationRaw": 0
         },
         {
-          "id": "attack.slot.2.to.attack.slot.5",
-          "fromAnyState": false,
-          "fromStateId": "attack.slot.2",
-          "toStateId": "attack.slot.5",
-          "triggerId": "",
-          "conditionKey": "attack.cast.slot.5",
-          "actionKey": "",
-          "priority": 20,
-          "forceImmediate": false,
-          "exitMachine": false,
-          "minimumActiveDurationRaw": 0
-        },
-        {
           "id": "attack.slot.3.reset",
           "fromAnyState": false,
           "fromStateId": "attack.slot.3",
@@ -1006,19 +990,6 @@
           "conditionKey": "attack.slot.5.reload.ready",
           "actionKey": "",
           "priority": 21,
-          "forceImmediate": false,
-          "exitMachine": false,
-          "minimumActiveDurationRaw": 0
-        },
-        {
-          "id": "attack.slot.3.to.attack.slot.5",
-          "fromAnyState": false,
-          "fromStateId": "attack.slot.3",
-          "toStateId": "attack.slot.5",
-          "triggerId": "",
-          "conditionKey": "attack.cast.slot.5",
-          "actionKey": "",
-          "priority": 20,
           "forceImmediate": false,
           "exitMachine": false,
           "minimumActiveDurationRaw": 0
@@ -1128,19 +1099,6 @@
           "minimumActiveDurationRaw": 15569256448
         },
         {
-          "id": "attack.slot.4.to.attack.slot.5",
-          "fromAnyState": false,
-          "fromStateId": "attack.slot.4",
-          "toStateId": "attack.slot.5",
-          "triggerId": "",
-          "conditionKey": "attack.cast.slot.5",
-          "actionKey": "",
-          "priority": 20,
-          "forceImmediate": false,
-          "exitMachine": false,
-          "minimumActiveDurationRaw": 15569256448
-        },
-        {
           "id": "attack.slot.5.to.attack.slot.1",
           "fromAnyState": false,
           "fromStateId": "attack.slot.5",
@@ -1245,19 +1203,6 @@
           "minimumActiveDurationRaw": 0
         },
         {
-          "id": "casting.attack.slot.5",
-          "fromAnyState": false,
-          "fromStateId": "casting",
-          "toStateId": "attack.slot.5",
-          "triggerId": "",
-          "conditionKey": "attack.cast.slot.5",
-          "actionKey": "",
-          "priority": 20,
-          "forceImmediate": false,
-          "exitMachine": false,
-          "minimumActiveDurationRaw": 0
-        },
-        {
           "id": "casting.attack.slot.1.ready",
           "fromAnyState": false,
           "fromStateId": "casting",
@@ -1315,7 +1260,7 @@
           "fromStateId": "casting",
           "toStateId": "attack.slot.5",
           "triggerId": "",
-          "conditionKey": "attack.slot.5.ready",
+          "conditionKey": "attack.slot.5.reload.ready",
           "actionKey": "",
           "priority": 19,
           "forceImmediate": false,
@@ -1380,7 +1325,7 @@
           "fromStateId": "idle",
           "toStateId": "attack.slot.5",
           "triggerId": "",
-          "conditionKey": "parameter.10.eq.5",
+          "conditionKey": "attack.slot.5.reload.ready",
           "actionKey": "",
           "priority": 20,
           "forceImmediate": false,
@@ -1445,7 +1390,7 @@
           "fromStateId": "moving",
           "toStateId": "attack.slot.5",
           "triggerId": "",
-          "conditionKey": "parameter.10.eq.5",
+          "conditionKey": "attack.slot.5.reload.ready",
           "actionKey": "",
           "priority": 20,
           "forceImmediate": false,

@@ -289,7 +289,7 @@ Host 是逻辑世界运行、连接管理和消息广播的外壳。它不直接
 | `HostRuntime` | `Unity/Packages/com.abilitykit.host/Runtime/Host/Framework/HostRuntime.cs` | 创建/销毁 World，Tick WorldManager，广播 ServerMessage |
 | `HostRuntimeOptions` | `Unity/Packages/com.abilitykit.host/Runtime/Host/Framework/HostRuntimeOptions.cs` | Before/After hooks 和兼容事件 |
 | `WorldHostBuilder` | `Unity/Packages/com.abilitykit.host/Runtime/Host/Builder/WorldHostBuilder.cs` | 组合 TimeDriver、InputDriver、SnapshotProvider 等部件 |
-| `FramePacketNetAdapter` | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs` | 把 FramePacket 转成可发送/可接收的会话数据 |
+| `FramePacketNetAdapter` | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/FramePacketNetAdapter.cs` | MOBA 客户端双世界帧包输入与快照路由 |
 | Protocol packages | `Unity/Packages/com.abilitykit.protocol*` | 房间、MOBA、Shooter 等协议 DTO 和 opCode |
 
 Host Tick 流程：

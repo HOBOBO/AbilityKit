@@ -90,8 +90,10 @@ namespace AbilityKit.Demo.Moba.Systems
 
                 var alive = _rules == null || _rules.IsAlive(actor);
                 var controlled = alive && _rules != null && _rules.IsStunned(actor.actorId.Value);
+                var castBinding = actor.hasCharacterHfsm ? actor.characterHfsm.Runtime?.CastBinding(skillId) : null;
                 if (castInstanceId != 0 && _configs != null && _configs.TryGetSkill(skillId, out var selectedSkill) &&
-                    _configs.TryGetSkillFlow(selectedSkill.CastFlowId, out var selectedFlow) && selectedFlow.ContinueThroughControl) controlled = false;
+                    _configs.TryGetSkillFlow(selectedSkill.CastFlowId, out var selectedFlow) && selectedFlow.ContinueThroughControl &&
+                    castBinding?.RespectActionControl != true) controlled = false;
                 var moving = alive && actor.hasMoveInput &&
                     (actor.moveInput.Dx != 0f || actor.moveInput.Dz != 0f) &&
                     (_rules == null || _rules.CanMove(actor.actorId.Value));

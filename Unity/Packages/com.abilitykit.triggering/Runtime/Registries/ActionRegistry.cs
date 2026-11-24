@@ -8,7 +8,7 @@ namespace AbilityKit.Triggering.Registry
         private readonly Dictionary<Key, Entry> _actions = new Dictionary<Key, Entry>();
 
         /// <summary>
-        /// 获取当前实例的注册代次；不能作为委托内容的版本。
+        /// 获取当前实例的注册代次；不能作为委托内容的版本，也不会使已有计划的动作绑定失效。
         /// </summary>
         public long RegistrationVersion { get; private set; }
 

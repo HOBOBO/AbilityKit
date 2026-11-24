@@ -18,6 +18,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     {
         private const string View = "Packages/com.abilitykit.demo.moba.view.runtime/";
         private const string Folder = View + "Resources/ChampionVfx/10.Gragas_StarGuardian/";
+        private const string PresentationFolder = View + "Resources/moba/presentation/gragas/";
 
         public static void Inspect()
         {
@@ -71,6 +72,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             BuildQPresentation();
+            BuildRPresentation();
+            BuildEDashPresentation();
             var flows = AssetDatabase.LoadAssetAtPath<TextAsset>(View + "Configs/Moba/GragasSkillFlows.json");
             var asset = AssetDatabase.LoadAssetAtPath<SkillFlowSO>(View + "Configs/Moba/SkillFlowCO.asset");
             if (flows == null || asset == null || EditorUtility.IsDirty(asset))
@@ -105,7 +108,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         // Content derivation only. Original assets live behind a junction and stay read-only.
         public static void BuildQPresentation()
         {
-            const string target = View + "Resources/moba/presentation/gragas/";
+            const string target = PresentationFolder;
             Directory.CreateDirectory(Path.GetFullPath(Path.Combine(Application.dataPath, "..", target)));
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             var original = AssetDatabase.LoadAssetAtPath<AnimationClip>(Folder + "Animations/Gragas_VFX_Q_Projectile.anim")
@@ -162,6 +165,131 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             finally { UnityEngine.Object.DestroyImmediate(instance); }
             AssetDatabase.SaveAssets();
             Debug.Log("[GragasSkillSync] Derived Q flight, deployed and 0.5s detonation clips/controller/prefab.");
+        }
+
+        /// <summary>
+        /// 从原展示的独立爆炸粒子和材质冲击波生成同锚点的爆心资源，不修改源预制体。
+        /// </summary>
+        public static void BuildRPresentation()
+        {
+            var impact = AssetDatabase.LoadAssetAtPath<GameObject>(Folder + "Gragas_StarGuardian_R_Impact.prefab");
+            var wave = AssetDatabase.LoadAssetAtPath<GameObject>(Folder + "Gragas_StarGuardian_R_Shockwave.prefab");
+            var source = AssetDatabase.LoadAssetAtPath<AnimationClip>(Folder + "Animations/Gragas_VFX_R_Shockwave.anim");
+            if (impact == null || wave == null || source == null)
+                throw new InvalidOperationException("Missing Gragas R impact, shockwave or its material animation.");
+
+            const float sourceLeadIn = 1f;
+            const float sourceImpactGroundOffset = 0.54f;
+            const float sourceShockwaveGroundOffset = 0.005f;
+            var clipPath = PresentationFolder + "R_Shockwave_AtImpact.anim";
+            var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(clipPath);
+            if (clip == null)
+            {
+                clip = new AnimationClip();
+                AssetDatabase.CreateAsset(clip, clipPath);
+            }
+            clip.ClearCurves();
+            clip.frameRate = source.frameRate;
+            foreach (var binding in AnimationUtility.GetCurveBindings(source))
+            {
+                var curve = AnimationUtility.GetEditorCurve(source, binding);
+                var keys = curve.keys.Where(key => key.time >= sourceLeadIn).Select(key =>
+                {
+                    key.time -= sourceLeadIn;
+                    return key;
+                }).ToList();
+                if (keys.Count == 0 || keys[0].time > 0f)
+                    keys.Insert(0, new Keyframe(0f, curve.Evaluate(sourceLeadIn)));
+                AnimationUtility.SetEditorCurve(clip, binding, new AnimationCurve(keys.ToArray()));
+            }
+            var controllerPath = PresentationFolder + "R_Shockwave.controller";
+            var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath)
+                ?? AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
+            var machine = controller.layers[0].stateMachine;
+            var state = machine.defaultState ?? machine.AddState("Impact");
+            state.motion = clip;
+            machine.defaultState = state;
+            EditorUtility.SetDirty(clip);
+            EditorUtility.SetDirty(state);
+
+            var root = new GameObject("R_Impact");
+            try
+            {
+                var impactInstance = (GameObject)PrefabUtility.InstantiatePrefab(impact, root.transform);
+                impactInstance.transform.localPosition += Vector3.up * sourceImpactGroundOffset;
+                var waveInstance = (GameObject)PrefabUtility.InstantiatePrefab(wave, root.transform);
+                waveInstance.transform.localPosition += Vector3.up * sourceShockwaveGroundOffset;
+                foreach (var renderer in waveInstance.GetComponentsInChildren<MeshRenderer>(true))
+                    renderer.sharedMaterial = BuildGroundShockwaveMaterial(renderer.sharedMaterial);
+                var animator = waveInstance.GetComponent<Animator>()
+                    ?? throw new InvalidOperationException("Missing Gragas R shockwave Animator.");
+                animator.runtimeAnimatorController = controller;
+                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                if (PrefabUtility.SaveAsPrefabAsset(root, PresentationFolder + "R_Impact.prefab") == null)
+                    throw new InvalidOperationException("Could not save Gragas R impact composition.");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); }
+            AssetDatabase.SaveAssets();
+        }
+
+        private static Material BuildGroundShockwaveMaterial(Material source)
+        {
+            if (source == null || !source.HasProperty("_V_Offset") || !source.HasProperty("_Depth"))
+                throw new InvalidOperationException("Gragas R shockwave material does not support the animated UV offset and depth fade.");
+
+            var path = PresentationFolder + "R_Shockwave_" + source.name + ".mat";
+            var groundMaterial = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (groundMaterial == null)
+            {
+                groundMaterial = new Material(source);
+                AssetDatabase.CreateAsset(groundMaterial, path);
+            }
+            else
+            {
+                groundMaterial.shader = source.shader;
+                groundMaterial.CopyPropertiesFromMaterial(source);
+            }
+            groundMaterial.SetFloat("_Depth", 0f);
+            EditorUtility.SetDirty(groundMaterial);
+            return groundMaterial;
+        }
+
+        /// <summary>
+        /// 从只读源资源抽取冲刺分支，保留相对模型的朝向和比例，不带展示爆炸。
+        /// </summary>
+        public static void BuildEDashPresentation()
+        {
+            var source = AssetDatabase.LoadAssetAtPath<GameObject>(Folder + "Gragas_StarGuardian_E.prefab");
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(Folder + "Gragas_StarGuardian_Model.prefab");
+            var animation = AssetDatabase.LoadAssetAtPath<AnimationClip>(Folder + "Animations/Gragas_Model_SpellE.anim");
+            if (source == null || model == null || animation == null)
+                throw new InvalidOperationException("Missing Gragas E presentation source, model or animation.");
+            var sourceBranch = source.transform.Find("root/FX_SpellE_Root")
+                ?? throw new InvalidOperationException("Missing Gragas E dash branch.");
+            var root = new GameObject("E_Dash");
+            var sampleModel = UnityEngine.Object.Instantiate(model);
+            try
+            {
+                animation.SampleAnimation(sampleModel, 1f / 3f);
+                var modelRoot = sampleModel.transform.Find("root")
+                    ?? throw new InvalidOperationException("Missing Gragas model root.");
+                var mount = new GameObject("DashMount").transform;
+                mount.SetParent(root.transform, false);
+                mount.localPosition = modelRoot.localPosition;
+                mount.localRotation = modelRoot.localRotation;
+                mount.localScale = modelRoot.localScale;
+                var branch = UnityEngine.Object.Instantiate(sourceBranch.gameObject, mount, false);
+                branch.name = sourceBranch.name;
+                branch.SetActive(true);
+                if (PrefabUtility.SaveAsPrefabAsset(root, PresentationFolder + "E_Dash.prefab") == null)
+                    throw new InvalidOperationException("Could not save Gragas E dash presentation.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(sampleModel);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+            AssetDatabase.SaveAssets();
         }
 
         public static void PublishRuntime()

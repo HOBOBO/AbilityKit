@@ -1,0 +1,139 @@
+{
+  "format": "abilitykit.local-statesync-replay",
+  "version": 2,
+  "caseId": "local-statesync-replay-history-gap",
+  "variant": "default",
+  "tickRate": 100,
+  "checkpoints": [
+    {
+      "command": "initial-full",
+      "deliveryTick": 10,
+      "generation": 1,
+      "admission": "AppliedFullBaseline",
+      "validation": "AcceptedFullBaseline",
+      "reconciliation": "AuthoritativeOnly",
+      "sequence": 1,
+      "appliedTick": 10,
+      "baselineTick": 10,
+      "publishedRevision": 1,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 1,
+      "publishedPosition": 110,
+      "authority": 110,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "before-gap",
+      "deliveryTick": 13,
+      "generation": 1,
+      "admission": "AppliedDelta",
+      "validation": "AcceptedDelta",
+      "reconciliation": "Predicted",
+      "sequence": 2,
+      "appliedTick": 11,
+      "baselineTick": 10,
+      "publishedRevision": 2,
+      "reconciledRevision": 2,
+      "terminalSequence": 1,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 2,
+      "publishedPosition": 113,
+      "authority": 113,
+      "prediction": 113,
+      "pending": [],
+      "replayTicks": [
+        12,
+        13
+      ],
+      "replaySteps": [
+        {
+          "tick": 12,
+          "before": 113,
+          "after": 113
+        },
+        {
+          "tick": 13,
+          "before": 113,
+          "after": 113
+        }
+      ]
+    },
+    {
+      "command": "crosses-gap",
+      "deliveryTick": 18,
+      "generation": 1,
+      "admission": "AppliedDelta",
+      "validation": "AcceptedDelta",
+      "reconciliation": "MissingTickCoverage",
+      "sequence": 3,
+      "appliedTick": 14,
+      "baselineTick": 10,
+      "publishedRevision": 3,
+      "reconciledRevision": 3,
+      "terminalSequence": 2,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 3,
+      "publishedPosition": 116,
+      "authority": 116,
+      "prediction": null,
+      "pending": [
+        3
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "past-gap",
+      "deliveryTick": 19,
+      "generation": 1,
+      "admission": "AppliedDelta",
+      "validation": "AcceptedDelta",
+      "reconciliation": "Predicted",
+      "sequence": 4,
+      "appliedTick": 16,
+      "baselineTick": 10,
+      "publishedRevision": 4,
+      "reconciledRevision": 4,
+      "terminalSequence": 2,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 4,
+      "publishedPosition": 118,
+      "authority": 118,
+      "prediction": 125,
+      "pending": [
+        3
+      ],
+      "replayTicks": [
+        17,
+        18,
+        19
+      ],
+      "replaySteps": [
+        {
+          "tick": 17,
+          "before": 118,
+          "after": 125
+        },
+        {
+          "tick": 18,
+          "before": 125,
+          "after": 125
+        },
+        {
+          "tick": 19,
+          "before": 125,
+          "after": 125
+        }
+      ]
+    }
+  ]
+}

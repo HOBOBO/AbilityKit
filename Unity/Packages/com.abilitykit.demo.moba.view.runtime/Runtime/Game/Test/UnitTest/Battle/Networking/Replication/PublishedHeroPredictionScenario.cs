@@ -152,7 +152,7 @@ namespace AbilityKit.Game.Test.UnitTest
                         Require(actors.TryGet(summonId, out var summon) && summon.hasOwnerLink && summon.ownerLink.OwnerActorId == casterId && summon.hasActorBrain,
                             "Tibbers must retain its owner and brain");
                         Require(Hp(targets[0]) < initialHp[0], "R impact must damage the target");
-                        Until(() => Count(MobaExecutionKind.DamageApply, Loadout(scenario.Hero)[0], summonId) > 0, 180, "Tibbers attack");
+                        Until(() => Count(MobaExecutionKind.DamageApply, 30030102, summonId) > 0, 180, "Tibbers attack");
                         Until(() => summons.GetAliveCount(casterId, 30030502) == 0 && !actors.TryGet(summonId, out _), 460, "Tibbers lifetime cleanup");
                         Require(Count(MobaExecutionKind.SummonSpawn, 30030502) == 1 && Count(MobaExecutionKind.DamageApply, scenario.Skill) == 1,
                             "R must spawn once and settle impact once");

@@ -1,5 +1,7 @@
 # FrameSync 服务端设计文档（v0.1.0）
 
+> 历史资料：描述早期 Orleans 帧同步接入，不是 `host.extension` 的包契约，也不代表现行 MOBA 结算链。
+
 **最后更新**: 2026-08-01  
 **覆盖范围**: `BattleFrameSyncGrain` (Orleans) + 帧同步合约 + Gateway 处理器 + 协议层
 

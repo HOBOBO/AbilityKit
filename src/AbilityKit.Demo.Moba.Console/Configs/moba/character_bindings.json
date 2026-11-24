@@ -177,14 +177,36 @@
             },
             {
               "Not": {
-                "Fact": "casting"
+                "Fact": "controlled"
               }
+            },
+            {
+              "Any": [
+                {
+                  "Not": {
+                    "Fact": "casting"
+                  }
+                },
+                {
+                  "Fact": "auxiliary.skill.cast"
+                }
+              ]
             }
           ]
         }
       },
       {
-        "Key": "attack.slot.5.reload.complete",
+        "Key": "attack.slot.5.reload.after.control",
+        "Expression": {
+          "All": [
+            { "ParameterId": 10, "Value": 5 },
+            { "Not": { "Fact": "controlled" } },
+            { "Not": { "Fact": "active.skill.cast" } }
+          ]
+        }
+      },
+      {
+        "Key": "attack.slot.5.reload.retry",
         "Expression": {
           "All": [
             {
@@ -245,6 +267,11 @@
         "CastKind": "Active",
         "AimScope": "curtain_call",
         "CaptureAim": false
+      },
+      {
+        "Path": "life/alive/action/attack.slot.5",
+        "CastContext": "Current",
+        "CastKind": "Auxiliary"
       }
     ],
     "Casts": [
@@ -280,6 +307,7 @@
       },
       {
         "SkillId": 30010604,
+        "RespectActionControl": true,
         "ParameterSnapshots": [
           {
             "TargetParameterId": 12,
@@ -301,6 +329,11 @@
         "AimScope": "curtain_call",
         "AimConeHalfAngleDegrees": 30,
         "CastKind": "Active"
+      },
+      {
+        "SkillId": 30010605,
+        "RespectActionControl": true,
+        "CastKind": "Auxiliary"
       }
     ]
   },

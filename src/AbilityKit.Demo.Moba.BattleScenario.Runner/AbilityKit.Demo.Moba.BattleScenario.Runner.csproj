@@ -11,6 +11,10 @@
   <ItemGroup>
     <!-- 内核已抽到 AbilityKit.Demo.Moba.Acceptance.LiveSim；这里只剩 CLI 壳（序列化场景 + 调内核 + 写结果）。 -->
     <ProjectReference Include="..\AbilityKit.Scenario\AbilityKit.Scenario.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.StateSync\AbilityKit.World.StateSync.csproj" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.battlescenario/Editor/LocalStateSyncReplay.cs"
+             Link="LocalStateSyncReplay.cs" />
+    <None Update="Flows/PredictionPrerequisites/*.battlescenario" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance.LiveSim\AbilityKit.Demo.Moba.Acceptance.LiveSim.csproj" />
   </ItemGroup>
 </Project>

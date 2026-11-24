@@ -6,6 +6,7 @@
 - [`StageClosureGuide.md`](StageClosureGuide.md)：接入路径、对象池建议与后续测试流程。
 - [`FormalApiBoundary.md`](FormalApiBoundary.md)：正式、兼容与待删除入口的权威清单。
 - [`SourceLayout.md`](SourceLayout.md)：当前源码落点、运行器内部职责与后续目录整理顺序。
+- [`ExecutionRootOutcomeBaseline.md`](ExecutionRootOutcomeBaseline.md)：执行根结果、派发与资格计数的行为基线及待确认项。
 - [`PredictionRollbackBoundary.md`](PredictionRollbackBoundary.md)：预测回滚状态账本、延迟任务上下文与试点验收。
 - [`LegacyMigrationPolicy.md`](LegacyMigrationPolicy.md)：兼容与下线流程。
 - [`ProductAcceptanceGuide.md`](ProductAcceptanceGuide.md)：产品化验收基线。

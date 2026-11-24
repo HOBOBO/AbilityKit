@@ -69,12 +69,15 @@ Unity 测试源文件放在 `Tests/Editor/` 下，由 `AbilityKit.Triggering.Tes
 | `RuntimeServices/Dispatcher/` | `ITriggerDispatcherContext` 与 `TriggerPredicate<TArgs>` 分文件保存，仍被计划注册与动作调度链引用。 |
 | `LegacyCompatibility/Optional/Dispatcher/` | 保留旧派发器接口、基类、注册类型和原上下文适配器。不作为新接入入口，仍随包编译。 |
 | `LegacyCompatibility/Optional/ActionSynchronization/` | 保留旧动作信号句柄、互斥句柄和信号门控执行器。不作为新接入入口，仍随包编译。 |
+| `LegacyCompatibility/Optional/PlanRegistration/` | 只存放 JSON 数据库的旧批量注册重载。数据库类型及正式加载、查询、合并不随此组裁剪。 |
 | `LegacyCompatibility/Required/` | 存放主线仍依赖的兼容实现。`QueuedActionExecutor` 仍服务既有计划策略，不列入 `Optional/` 排除验证。 |
 | `RuntimeServices/Time/`、`RuntimeServices/Random/` | 时间和随机源适配，仍被上下文接口引用；宿主决定如何供给，不在本批更换时钟或随机流。 |
 | `RuntimeServices/Continuous/` | 与持续执行契约的桥接；已有注册表回归，不改状态及生命周期。 |
 | `RuntimeServices/Instance/`、`RuntimeServices/Sync/` | 保留的实例与快照相关入口，不是主线计划订阅，也不等同于 MOBA 帧同步；不以缺少包外源码调用作为删除依据。 |
 | `Diagnostics/`、`Editor/Diagnostics/` | 运行时收集器由调用方显式记录；编辑器目录只负责报告菜单，不能作为运行时依赖。 |
 | `Compatibility/`、`Validation/Compatibility/` | 前者持有根目录占位清单；后者保留校验门面。同一清单只维护一份。 |
+
+新增正式计划、事件或调度路径不得引用 `LegacyCompatibility/Optional/` 中的类型或方法。兼容入口的行为测试集中与主线测试区分，便于在隔离的源码裁剪验收中排除仅针对旧入口的测试；裁剪验证和正式下线不是同一项工作。
 
 ## 后续整理
 

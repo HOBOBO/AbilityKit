@@ -16,6 +16,42 @@ namespace AbilityKit.Host.Network.Tests;
 public sealed class HostNetworkAdvancedTests
 {
     [Fact]
+    public void Start_RejectsInvalidLifecycleBeforeCreatingListener()
+    {
+        var calls = 0;
+        var manager = new HostNetworkConnectionManager(() =>
+        {
+            calls++;
+            return new InProcessChannelListener();
+        }, new TestMessageCodec());
+        using (manager)
+        {
+            Assert.Throws<InvalidOperationException>(manager.Start);
+            Assert.Equal(0, calls);
+            manager.Attach(CreateRuntime());
+            manager.Start();
+            Assert.Throws<InvalidOperationException>(manager.Start);
+            Assert.Equal(1, calls);
+        }
+
+        Assert.Throws<ObjectDisposedException>(manager.Start);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public void Start_DisposesListenerWhenHostOptionsAreRejected()
+    {
+        var listener = new InProcessChannelListener();
+        using var manager = new HostNetworkConnectionManager(() => listener, new TestMessageCodec(),
+            networkOptions: new NetworkHostOptions { MaxConnections = 0 });
+        manager.Attach(CreateRuntime());
+
+        Assert.Throws<ArgumentOutOfRangeException>(manager.Start);
+        Assert.Throws<ObjectDisposedException>(listener.Start);
+        Assert.False(manager.IsListening);
+    }
+
+    [Fact]
     public async Task TryBindClient_ReplacesTemporaryIdentityUsedByRuntimeBroadcast()
     {
         var listener = new InProcessChannelListener();
@@ -201,6 +237,47 @@ public sealed class HostNetworkAdvancedTests
         Assert.Empty(manager.Connections);
         Assert.Equal(1, manager.GetDiagnostics().GracefulStops);
         Assert.Equal(1, manager.GetDiagnostics().RequestsCompleted);
+    }
+
+    [Fact]
+    public async Task StopAsync_BlocksRestartAndDetachUntilPreviousRunIsDrained()
+    {
+        var listener = new InProcessChannelListener();
+        var calls = 0;
+        var started = Completion();
+        var release = Completion();
+        using var manager = HostNetworkConnectionManager.CreateAsync(
+            () => ++calls == 1 ? listener : new InProcessChannelListener(),
+            new TestMessageCodec(),
+            new DelegateAsyncHostHandler(async (_, _, _, _, _, token) =>
+            {
+                started.TrySetResult();
+                await release.Task.WaitAsync(token);
+            }));
+        manager.Attach(CreateRuntime());
+        manager.Start();
+        using var client = Connect(listener);
+        client.Send(10, Bytes(1), (ushort)NetworkPacketFlags.Request, 1);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var stopping = manager.StopAsync(TimeSpan.FromSeconds(2));
+        try
+        {
+            Assert.False(stopping.IsCompleted);
+            Assert.Throws<InvalidOperationException>(manager.Start);
+            Assert.Throws<InvalidOperationException>(manager.Detach);
+            Assert.Equal(1, calls);
+        }
+        finally
+        {
+            release.TrySetResult();
+            await stopping.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+
+        Assert.Empty(manager.Connections);
+        manager.Start();
+        Assert.True(manager.IsListening);
+        Assert.Equal(2, calls);
     }
 
     [Fact]

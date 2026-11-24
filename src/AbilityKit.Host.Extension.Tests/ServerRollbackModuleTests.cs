@@ -13,40 +13,107 @@ namespace AbilityKit.Host.Extension.Tests;
 
 public sealed class ServerRollbackModuleTests
 {
+    private const float FixedDelta = 1f / 30f;
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DetachedWorld_IsNotRestoredOrCaptured_AndReplacementStartsWithoutOldHistory(bool disposeAll)
+    {
+        using var scope = new RuntimeScope();
+        var worldId = new WorldId("server-rollback-replacement");
+        var original = scope.Create(worldId);
+        scope.Runtime.Tick(FixedDelta);
+        var firstFrame = scope.FrameSync.Frame;
+        Assert.Equal(1, original.ExportCount);
+
+        if (disposeAll)
+            scope.Worlds.DisposeAll();
+        else
+        {
+            original.ThrowOnDispose = true;
+            Assert.Throws<InvalidOperationException>(() => scope.Runtime.DestroyWorld(worldId));
+        }
+
+        var healthy = scope.Create(new WorldId("server-rollback-healthy"));
+        scope.Runtime.Tick(FixedDelta);
+        Assert.Equal(1, healthy.ExportCount);
+        Assert.Equal(1, original.ExportCount);
+        Assert.False(scope.Rollback.TryRollbackAndReplay(worldId, firstFrame, scope.FrameSync.Frame, FixedDelta));
+        Assert.Equal(0, original.ImportCount);
+        Assert.Equal(0, original.InputSink.BeginReplayCount);
+        Assert.Equal(1, original.TickCount);
+
+        var replacement = scope.Create(worldId);
+        Assert.False(scope.Rollback.TryRollbackAndReplay(worldId, firstFrame, firstFrame, FixedDelta));
+        scope.Runtime.Tick(FixedDelta);
+        var baseline = scope.FrameSync.Frame;
+        scope.Runtime.Tick(FixedDelta);
+        Assert.True(scope.Rollback.TryRollbackAndReplay(worldId, baseline, scope.FrameSync.Frame, FixedDelta));
+        Assert.Equal(1, replacement.ImportCount);
+        Assert.Equal(1, replacement.InputSink.EndReplayCount);
+        Assert.Equal(1, original.ExportCount);
+    }
+
+    [Fact]
+    public void ReplacedWorld_WithoutHostNotification_CannotUsePreviousInstanceHistory()
+    {
+        using var scope = new RuntimeScope();
+        var worldId = new WorldId("server-rollback-direct-replacement");
+        var original = scope.Create(worldId);
+        scope.Runtime.Tick(FixedDelta);
+        var baseline = scope.FrameSync.Frame;
+        Assert.True(scope.Worlds.Destroy(worldId));
+        var replacement = Assert.IsType<TestWorld>(scope.Worlds.Create(new WorldCreateOptions(worldId, "test")));
+
+        Assert.False(scope.Rollback.TryRollbackAndReplay(worldId, baseline, baseline, FixedDelta));
+        Assert.Equal(0, original.ImportCount);
+        Assert.Equal(0, replacement.ImportCount);
+    }
+
+    [Fact]
+    public void Uninstall_DropsLiveWorldHistory_AndReinstallOnlyTracksNewWorlds()
+    {
+        using var scope = new RuntimeScope();
+        var worldId = new WorldId("server-rollback-uninstall");
+        var original = scope.Create(worldId);
+        scope.Runtime.Tick(FixedDelta);
+        var baseline = scope.FrameSync.Frame;
+
+        scope.Rollback.Uninstall(scope.Runtime, scope.Options);
+        Assert.False(scope.Rollback.TryRollbackAndReplay(worldId, baseline, baseline, FixedDelta));
+        scope.Runtime.Tick(FixedDelta);
+        Assert.Equal(1, original.ExportCount);
+        Assert.Equal(0, original.ImportCount);
+
+        scope.Rollback.Install(scope.Runtime, scope.Options);
+        Assert.False(scope.Rollback.TryRollbackAndReplay(worldId, baseline, baseline, FixedDelta));
+        var nextId = new WorldId("server-rollback-next-installation");
+        var next = scope.Create(nextId);
+        scope.Runtime.Tick(FixedDelta);
+        Assert.Equal(1, original.ExportCount);
+        Assert.Equal(1, next.ExportCount);
+        Assert.True(scope.Rollback.TryRollbackAndReplay(nextId, scope.FrameSync.Frame, scope.FrameSync.Frame, FixedDelta));
+    }
+
     [Fact]
     public void Replay_failure_is_propagated_and_always_ends_the_replay_lifecycle()
     {
-        const float fixedDelta = 1f / 30f;
-        var worlds = new TestWorldManager();
-        var options = new HostRuntimeOptions();
-        var runtime = new HostRuntime(worlds, options);
-        var frameSync = new FrameSyncDriverModule();
-        var rollback = new ServerRollbackModule(
-            historyFrames: 8,
-            captureEveryNFrames: 1,
-            buildRegistry: world =>
-            {
-                var registry = new RollbackRegistry();
-                registry.Register(new TestStateProvider((TestWorld)world));
-                return registry;
-            });
-
-        frameSync.Install(runtime, options);
-        rollback.Install(runtime, options);
+        using var scope = new RuntimeScope();
         var worldId = new WorldId("server-rollback-replay-failure");
-        var world = Assert.IsType<TestWorld>(runtime.CreateWorld(new WorldCreateOptions(worldId, "test")));
+        var world = scope.Create(worldId);
 
-        runtime.Tick(fixedDelta);
-        Assert.True(runtime.Features.TryGetFeature<IFrameSyncInputHub>(out var inputs));
+        scope.Runtime.Tick(FixedDelta);
+        Assert.True(scope.Runtime.Features.TryGetFeature<IFrameSyncInputHub>(out var inputs));
         Assert.True(inputs.SubmitInput(
             new ServerClientId("client"),
             worldId,
             new PlayerInputCommand(new FrameIndex(2), new PlayerId("player"), 1001, new byte[] { 1 })));
-        runtime.Tick(fixedDelta);
+        scope.Runtime.Tick(FixedDelta);
 
         world.InputSink.ThrowDuringReplay = true;
         var error = Assert.Throws<InvalidOperationException>(() =>
-            rollback.TryRollbackAndReplay(worldId, new FrameIndex(1), new FrameIndex(2), fixedDelta));
+            scope.Rollback.TryRollbackAndReplay(worldId, new FrameIndex(1), new FrameIndex(2), FixedDelta));
 
         Assert.Contains("replay failed", error.Message, StringComparison.Ordinal);
         Assert.Equal(1, world.InputSink.BeginReplayCount);
@@ -54,28 +121,40 @@ public sealed class ServerRollbackModuleTests
         Assert.Equal(1, world.TickCount);
     }
 
-    private sealed class TestWorldManager : IWorldManager
+    private sealed class RuntimeScope : IDisposable
     {
-        private readonly Dictionary<WorldId, IWorld> _worlds = new();
-
-        public IReadOnlyDictionary<WorldId, IWorld> Worlds => _worlds;
-
-        public IWorld Create(WorldCreateOptions options)
+        public RuntimeScope()
         {
-            var world = new TestWorld(options.Id, options.WorldType);
-            _worlds.Add(world.Id, world);
-            return world;
+            Runtime = new HostRuntime(Worlds, Options);
+            Rollback = new ServerRollbackModule(8, 1, world =>
+            {
+                var registry = new RollbackRegistry();
+                registry.Register(new TestStateProvider((TestWorld)world));
+                return registry;
+            });
+            FrameSync.Install(Runtime, Options);
+            Rollback.Install(Runtime, Options);
         }
 
-        public bool TryGet(WorldId id, out IWorld world) => _worlds.TryGetValue(id, out world!);
-        public bool Destroy(WorldId id) => _worlds.Remove(id);
+        public WorldManager Worlds { get; } = new(new TestWorldFactory());
+        public HostRuntimeOptions Options { get; } = new();
+        public HostRuntime Runtime { get; }
+        public FrameSyncDriverModule FrameSync { get; } = new();
+        public ServerRollbackModule Rollback { get; }
 
-        public void Tick(float deltaTime)
+        public TestWorld Create(WorldId id) => Assert.IsType<TestWorld>(Runtime.CreateWorld(new WorldCreateOptions(id, "test")));
+
+        public void Dispose()
         {
-            foreach (var world in _worlds.Values) world.Tick(deltaTime);
+            Rollback.Uninstall(Runtime, Options);
+            FrameSync.Uninstall(Runtime, Options);
+            Worlds.DisposeAll();
         }
+    }
 
-        public void DisposeAll() => _worlds.Clear();
+    private sealed class TestWorldFactory : IWorldFactory
+    {
+        public IWorld Create(WorldCreateOptions options) => new TestWorld(options.Id, options.WorldType);
     }
 
     private sealed class TestWorld : IWorld
@@ -93,10 +172,16 @@ public sealed class ServerRollbackModuleTests
         public IWorldResolver Services { get; }
         public FailingReplayInputSink InputSink { get; }
         public int TickCount { get; set; }
+        public int ExportCount { get; set; }
+        public int ImportCount { get; set; }
+        public bool ThrowOnDispose { get; set; }
 
         public void Initialize() { }
         public void Tick(float deltaTime) => TickCount++;
-        public void Dispose() { }
+        public void Dispose()
+        {
+            if (ThrowOnDispose) throw new InvalidOperationException("release failed");
+        }
     }
 
     private sealed class TestStateProvider : IRollbackStateProvider
@@ -105,8 +190,17 @@ public sealed class ServerRollbackModuleTests
 
         public TestStateProvider(TestWorld world) => _world = world;
         public int Key => 1;
-        public byte[] Export(FrameIndex frame) => BitConverter.GetBytes(_world.TickCount);
-        public void Import(FrameIndex frame, byte[] payload) => _world.TickCount = BitConverter.ToInt32(payload, 0);
+        public byte[] Export(FrameIndex frame)
+        {
+            _world.ExportCount++;
+            return BitConverter.GetBytes(_world.TickCount);
+        }
+
+        public void Import(FrameIndex frame, byte[] payload)
+        {
+            _world.ImportCount++;
+            _world.TickCount = BitConverter.ToInt32(payload, 0);
+        }
     }
 
     private sealed class FailingReplayInputSink : IWorldInputReplaySink

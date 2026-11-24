@@ -212,11 +212,8 @@ namespace AbilityKit.Game.Tests
                     5f, sourceId: unchecked((int)committedSource));
                 parameters.Set(actorId, committedSource, MobaCharacterHfsmTestFixture.AttackSlot, in slot);
                 runtime.Tick(4, Fixed64.FromRaw(2), true, false, false, 0, 0);
-                Assert.AreEqual("life/alive/action/idle", runtime.Action.Path,
-                    "Control release first exits the controlled state before selecting the persisted slot.");
-                runtime.Tick(5, Fixed64.FromRaw(3), true, false, false, 0, 0);
                 StringAssert.EndsWith("action/attack.slot.5", runtime.Action.Path,
-                    "On the next HFSM evaluation after control, the effective slot parameter must select reload automatically.");
+                    "The first free HFSM evaluation must select reload from the persisted empty slot.");
             }
 
             parameters.ClearSource(actorId, slotSource);
@@ -406,11 +403,19 @@ namespace AbilityKit.Game.Tests
             var path = "life/alive/action/attack.slot." + slot;
             var view = new BattleCharacterHfsmComponent(
                 MobaCharacterHfsmTestFixture.CreateDefinition(), catalog, entityCode: 3001);
-            var action = new CharacterActionData(41, 1, 0, path,
-                ((long)41 << 32) | 100u, 0, 0, 0, 0);
+            var ready = new CharacterActionData(41, 1, 0, path,
+                ((long)41 << 32) | 99u, 0, 0, 0, 0);
+            view.ApplyPresentation(in ready);
+            var idle = view.Evaluate(0, 24);
+            Assert.IsTrue(idle.HasValue);
+            Assert.AreEqual("Idle", idle.Value.AnimatorState);
+            Assert.IsTrue(idle.Value.Loop);
+
+            var action = new CharacterActionData(41, 1, 1, path,
+                ((long)41 << 32) | 100u, 1, 0, 77, 30010600 + slot);
             view.ApplyPresentation(in action);
 
-            var playback = view.Evaluate(0, 24);
+            var playback = view.Evaluate(1, 24);
             Assert.IsTrue(playback.HasValue);
             Assert.AreEqual(expectedState, playback.Value.AnimatorState);
             Assert.AreEqual(frames, playback.Value.FrameCount);
@@ -454,16 +459,16 @@ namespace AbilityKit.Game.Tests
 
                 AssertJhinStateAndAction(parameters, runtime, view, actorId,
                     MobaCharacterHfsmTestFixture.AttackSlot, 1f, sourceId,
-                    "life/alive/action/attack.slot.1", "AutoAttack_1", 78);
+                    "life/alive/action/attack.slot.1", "Idle", 238);
                 AssertJhinStateAndAction(parameters, runtime, view, actorId,
                     MobaCharacterHfsmTestFixture.AttackSlot, 2f, sourceId,
-                    "life/alive/action/attack.slot.2", "AutoAttack_2", 78);
+                    "life/alive/action/attack.slot.2", "Idle", 238);
                 AssertJhinStateAndAction(parameters, runtime, view, actorId,
                     MobaCharacterHfsmTestFixture.AttackSlot, 3f, sourceId,
-                    "life/alive/action/attack.slot.3", "AutoAttack_3", 87);
+                    "life/alive/action/attack.slot.3", "Idle", 238);
                 AssertJhinStateAndAction(parameters, runtime, view, actorId,
                     MobaCharacterHfsmTestFixture.AttackSlot, 4f, sourceId,
-                    "life/alive/action/attack.slot.4", "AutoAttack_4", 87);
+                    "life/alive/action/attack.slot.4", "Idle", 238);
                 AssertJhinStateAndAction(parameters, runtime, view, actorId,
                     MobaCharacterHfsmTestFixture.AttackSlot, 5f, sourceId,
                     "life/alive/action/attack.slot.5", "AutoAttack_Reload", 75);
@@ -527,9 +532,9 @@ namespace AbilityKit.Game.Tests
             }
         }
 
-        [TestCase(2, "life/alive/action/attack.slot.2", "AutoAttack_2", 30010101, 1, "Spell_Q")]
-        [TestCase(2, "life/alive/action/attack.slot.2", "AutoAttack_2", 30010201, 2, "Spell_W")]
-        [TestCase(2, "life/alive/action/attack.slot.2", "AutoAttack_2", 30010301, 3, "Spell_E")]
+        [TestCase(2, "life/alive/action/attack.slot.2", "Idle", 30010101, 1, "Spell_Q")]
+        [TestCase(2, "life/alive/action/attack.slot.2", "Idle", 30010201, 2, "Spell_W")]
+        [TestCase(2, "life/alive/action/attack.slot.2", "Idle", 30010301, 3, "Spell_E")]
         [TestCase(5, "life/alive/action/attack.slot.5", "AutoAttack_Reload", 30010101, 1, "Spell_Q")]
         [TestCase(5, "life/alive/action/attack.slot.5", "AutoAttack_Reload", 30010201, 2, "Spell_W")]
         [TestCase(5, "life/alive/action/attack.slot.5", "AutoAttack_Reload", 30010301, 3, "Spell_E")]

@@ -34,7 +34,7 @@ AbilityKit 网络同步层解决的是“多人战斗怎么从本地输入变成
 | 网络帧信封 | 用一个对象同时承载输入和可选快照 | `Unity/Packages/com.abilitykit.world.networkfragments/Runtime/Frames/FramePacket.cs` |
 | 远端帧聚合 | 接收端按帧聚合输入和快照，抵抗乱序/批量到达 | `Unity/Packages/com.abilitykit.world.networkfragments/Runtime/Frames/RemoteFrameAggregator.cs` |
 | 会话与控制面 | 按阶段执行登录、create/join/restore、ready/loading/start、subscribe | `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewaySessionFlow.cs` |
-| 网络适配 | 把 `FramePacket` 写入 remote-driven/confirmed 双输入源并路由快照 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs` |
+| 网络适配 | 把 `FramePacket` 写入 remote-driven/confirmed 双输入源并路由快照 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/FramePacketNetAdapter.cs` |
 | 服务端承载 | Room 管理成员和开战，Battle Host 管理权威 Tick、输入缓冲和快照推送 | `Server/Orleans/src/AbilityKit.Orleans.Grains` |
 | 记录回放 | 记录输入、状态 hash、快照，用于复盘、调试、回归 | `Unity/Packages/com.abilitykit.record/Runtime/Record` |
 
@@ -153,9 +153,9 @@ flowchart TB
 | Coordinator | `Unity/Packages/com.abilitykit.coordinator/Runtime` | 当前仅有会话配置、host/policy 契约和数据 DTO；不含 coordinator/adapter/transport 实现 |
 | Network Room | `Unity/Packages/com.abilitykit.network.room/Runtime` | 阶段化 `RoomGatewaySessionFlow`、线性 `MultiplayerRoomSession`，以及 Room 远端同步能力绑定 |
 | Network SDK | `Unity/Packages/com.abilitykit.network.sdk/Runtime` | `NetworkSyncSessionBuilder`、`ReliableEventSessionBuilder` 与恢复策略；装配通用契约，不内置玩法同步算法 |
-| Host Extension | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session`、`Runtime/Client/StateSync` | `FramePacketNetAdapter`、远端输入提交队列 |
+| Host Extension | `Unity/Packages/com.abilitykit.host.extension/Runtime/FrameSync`、`Runtime/Client/StateSync` | 帧驱动、输入缓冲端口、远端输入提交队列 |
 | Record | `Unity/Packages/com.abilitykit.record/Runtime/Record` | 通用容器、事件轨道、固定步长回放、按帧记录文件 |
-| Demo View | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session` | `BattleSessionNetAdapter` 如何复用通用 `FramePacketNetAdapter` |
+| Demo View | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session` | `BattleSessionNetAdapter` 与内部 `FramePacketNetAdapter` 组成的 MOBA 双世界帧包接入 |
 | Shooter View | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client`、`Runtime/Unity/PlayMode` | 已有完整 session 如何组合 Gateway flow、预测回滚和 `RemoteClientInputSubmitQueue` |
 
 ### 3.2 Server/Orleans 侧

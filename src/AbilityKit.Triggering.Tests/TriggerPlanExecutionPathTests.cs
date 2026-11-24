@@ -79,6 +79,30 @@ public sealed class TriggerPlanExecutionPathTests
     }
 
     [Fact]
+    public void Flat_plan_resolves_all_actions_before_running_any_and_retries_after_binding_failure()
+    {
+        var first = new ActionId(23);
+        var second = new ActionId(24);
+        var plan = new TriggerPlan<object>(0, 0, actions: new[] { new ActionCallPlan(first), new ActionCallPlan(second) });
+        var trigger = new PlannedTrigger<object, ObservingContext>(in plan);
+        var registry = new ActionRegistry();
+        var ctx = CreateContext(registry);
+        var calls = new List<string>();
+
+        void Register(ActionId id, string name) => registry.Register<NamedAction0<object, object, ObservingContext>>(
+            id, (_, _, _) => calls.Add(name), isDeterministic: true);
+
+        Register(first, "before failure");
+        Assert.Throws<InvalidOperationException>(() => trigger.Execute(new object(), in ctx));
+        Assert.Empty(calls);
+
+        Register(first, "first");
+        Register(second, "second");
+        trigger.Execute(new object(), in ctx);
+        Assert.Equal(new[] { "first", "second" }, calls);
+    }
+
+    [Fact]
     public void Action_failure_exits_each_scope_once_and_propagates_the_original_exception()
     {
         var actionId = new ActionId(22);

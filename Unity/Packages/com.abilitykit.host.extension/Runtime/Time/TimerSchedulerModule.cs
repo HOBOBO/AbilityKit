@@ -1,98 +1,83 @@
+#nullable enable
 using System;
-using System.Collections.Generic;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.Services;
 using AbilityKit.Timer;
 
 namespace AbilityKit.Ability.Host.Extensions.Time
 {
     /// <summary>
-    /// 把 timer 的 IScheduler 作为每世界受驱服务接入 Host 运行时。
-    /// 每个世界在创建时注册一个 DefaultScheduler（一世界一份），Host 的 PostTick 驱动
-    /// scheduler.Tick(deltaTime)，避免各包各自 Tick 不受管理。
-    ///
-    /// 确定性边界：当前由 PostTick 的宿主墙钟 dt 驱动；确定性世界接入时应改用
-    /// FrameSyncDriverEvents.AddPostStep 的帧驱动路径（固定步长 dt），见后续消费者迁移。
+    /// 在世界创建前向服务构建器注册调度器，由宿主帧尾按传入的时间增量推进。
+    /// 不提供确定性帧推进或回滚能力。
     /// </summary>
     public sealed class TimerSchedulerModule : IHostRuntimeModule
     {
-        private readonly Dictionary<WorldId, DefaultScheduler> _schedulers = new Dictionary<WorldId, DefaultScheduler>();
+        private readonly HostedWorldService<IScheduler> _schedulers = new HostedWorldService<IScheduler>(() => new DefaultScheduler());
+        private HostRuntime? _runtime;
 
         private readonly Action<WorldCreateOptions> _onBeforeCreateWorld;
-        private readonly Action<WorldId> _onWorldDestroyed;
         private readonly Action<float> _onPostTick;
 
+        /// <summary>
+        /// 创建独立的调度器模块实例。
+        /// </summary>
         public TimerSchedulerModule()
         {
             _onBeforeCreateWorld = OnBeforeCreateWorld;
-            _onWorldDestroyed = OnWorldDestroyed;
             _onPostTick = OnPostTick;
         }
 
-        /// <summary>按 worldId 取该世界的 scheduler（模块自有查询，便于测试与诊断）。</summary>
+        /// <summary>
+        /// 查询仍已登记、且绑定到本次安装的世界调度器。
+        /// </summary>
         public bool TryGet(WorldId worldId, out IScheduler scheduler)
         {
-            if (_schedulers.TryGetValue(worldId, out var s) && s != null)
-            {
-                scheduler = s;
-                return true;
-            }
+            if (_runtime?.Worlds.TryGet(worldId, out var world) == true)
+                return _schedulers.TryGet(world, out scheduler);
 
             scheduler = null!;
             return false;
         }
 
+        /// <summary>
+        /// 注册世界服务装配与宿主帧尾回调。
+        /// </summary>
         public void Install(HostRuntime runtime, HostRuntimeOptions options)
         {
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (options == null) throw new ArgumentNullException(nameof(options));
 
+            _runtime = runtime;
             options.BeforeCreateWorld.Add(_onBeforeCreateWorld);
-            options.WorldDestroyed.Add(_onWorldDestroyed);
             options.PostTick.Add(_onPostTick);
         }
 
+        /// <summary>
+        /// 取消宿主回调并断开本次安装的调度器绑定。
+        /// </summary>
         public void Uninstall(HostRuntime runtime, HostRuntimeOptions options)
         {
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (options == null) throw new ArgumentNullException(nameof(options));
 
             options.BeforeCreateWorld.Remove(_onBeforeCreateWorld);
-            options.WorldDestroyed.Remove(_onWorldDestroyed);
             options.PostTick.Remove(_onPostTick);
 
-            _schedulers.Clear();
+            _runtime = null;
+            _schedulers.Detach();
         }
 
         private void OnBeforeCreateWorld(WorldCreateOptions options)
         {
-            if (options == null) return;
-
-            if (options.ServiceBuilder == null)
-            {
-                options.ServiceBuilder = WorldServiceContainerFactory.CreateDefaultOnly();
-            }
-
-            if (!_schedulers.TryGetValue(options.Id, out var scheduler) || scheduler == null)
-            {
-                scheduler = new DefaultScheduler();
-                _schedulers[options.Id] = scheduler;
-            }
-
-            options.ServiceBuilder.RegisterInstance<IScheduler>(scheduler);
-        }
-
-        private void OnWorldDestroyed(WorldId worldId)
-        {
-            _schedulers.Remove(worldId);
+            if (options != null) _schedulers.Register(options);
         }
 
         private void OnPostTick(float deltaTime)
         {
-            foreach (var kv in _schedulers)
+            if (_runtime == null) return;
+            foreach (var world in _runtime.Worlds.Worlds.Values)
             {
-                kv.Value?.Tick(deltaTime);
+                if (_schedulers.TryGet(world, out var scheduler)) scheduler.Tick(deltaTime);
             }
         }
     }

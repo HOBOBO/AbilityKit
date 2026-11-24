@@ -50,11 +50,13 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [TestCase(3001, 30010301, 3, 42010301, 1, false)]
-        [TestCase(3002, 30020301, 3, 42020301, 3, false)]
+        [TestCase(3002, 30020301, 3, 42020301, 1, false)]
+        [TestCase(3002, 30020301, 3, 42020302, 1, false)]
+        [TestCase(3002, 30020301, 3, 42020303, 1, false)]
         [TestCase(3003, 30030301, 2, 42030301, 1, false)]
         [TestCase(3004, 30040301, 2, 42040301, 1, false)]
         [TestCase(3004, 30040401, 3, 42040401, 1, false)]
-        [TestCase(3002, 30020301, 3, 42020301, 3, true)]
+        [TestCase(3002, 30020301, 3, 42020301, 1, true)]
         [TestCase(3004, 30040401, 3, 42040401, 1, true)]
         public void RealAreaCuesProjectConfiguredVisualAndReleaseWithArea(
             int heroId, int skillId, int slot, int areaTemplateId, int expectedCount, bool removeEarly)
@@ -73,7 +75,7 @@ namespace AbilityKit.Game.Test.UnitTest
             foreach (var entry in new[]
             {
                 (Hero: 3001, Skill: 30010301, Slot: 3, Area: 42010301, Count: 1),
-                (Hero: 3002, Skill: 30020301, Slot: 3, Area: 42020301, Count: 3),
+                (Hero: 3002, Skill: 30020301, Slot: 3, Area: 42020301, Count: 1),
                 (Hero: 3003, Skill: 30030301, Slot: 2, Area: 42030301, Count: 1),
                 (Hero: 3004, Skill: 30040301, Slot: 2, Area: 42040301, Count: 1),
                 (Hero: 3004, Skill: 30040401, Slot: 3, Area: 42040401, Count: 1),

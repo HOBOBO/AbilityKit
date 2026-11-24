@@ -19,6 +19,21 @@
             }
           ],
           "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        },
+        {
+          "name": "CastParticle",
+          "active": true,
+          "actionClips": [
+            {
+              "resourceKey": "ChampionVfx/14.Void_Annie/Void_Annie_Q_Cast",
+              "presentationTemplateId": 90033010,
+              "startTime": 0.0,
+              "length": 1.0,
+              "name": "PlayParticle",
+              "$type": "AbilityKit.ActionEditorImpl.PlayParticle"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.EffectTrack"
         }
       ]
     }

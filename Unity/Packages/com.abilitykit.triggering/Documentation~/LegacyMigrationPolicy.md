@@ -15,13 +15,24 @@
 
 `Runtime/LegacyCompatibility/` 存放兼容实现，不复用 `Runtime/Compatibility/`：后者是根目录占位治理清单，仍被现有校验门面引用。首批迁移保留同一运行时程序集、命名空间、公开成员及原 `.meta`；仍随包编译，不引入发布开关。
 
-| 分组 | 首批范围与处理 |
+| 分组 | 当前范围与处理 |
 | --- | --- |
 | `LegacyCompatibility/Optional/Dispatcher/` | 旧派发器和旧上下文适配器已迁入。主线的 `ITriggerDispatcherContext` 与 `TriggerPredicate<TArgs>` 留在原位。 |
 | `LegacyCompatibility/Optional/ActionSynchronization/` | `TriggerWaitHandle`、`TriggerMutex` 和 `SynchronizedActionExecutor` 已迁入。三者按组管理，避免单独剔除公开签名中的依赖类型。 |
+| `LegacyCompatibility/Optional/PlanRegistration/` | `TriggerPlanJsonDatabase.RegisterAll` 的两个重载在同程序集的分部文件内归档，数据库原脚本及 `.meta` 不变；裁剪此组会减少两个公开方法，不会移除数据库类型。 |
 | `LegacyCompatibility/Required/` | `QueuedActionExecutor` 已拆为独立文件。调度工厂、实例策略检查和对象池仍引用它，不能随 `Optional/` 排除；只移除该实现不能维持 `Queued` 配置的既有行为。校验门面、.NET 类型转发与其他待核对的兼容 API 保持原位。 |
 
-**依赖验证。** 迁移后，默认构建和仓库外隔离构建（仅从 `AbilityKit.Triggering` 编译项排除 `Optional/` 下的 5 个源码文件）均通过 47 项 Triggering .NET 测试。迁移后的源码和原 `.meta` 哈希一致。本次未运行 Unity 测试；.NET 排除构建通过不代表 Unity 资产、已发行程序集或仓库外消费者可以无损升级。
+**源码依赖验证（2026-11-24）。** 默认构建通过 85 项 .NET 测试；隔离构建仅排除 `Optional/` 的运行时源码和两个旧批量入口专用测试，83 项通过。两种构建均通过即时消费样例。反射探针核对旧派发、同步的 9 个公开类型及 `RegisterAll` 的 2 个公开重载随 `Optional` 消失；数据库类型、主线上下文和 `QueuedActionExecutor` 保留。10 个可选组及文件的 `.meta` GUID 在受检 Unity 源码和非发布资源中只匹配各自声明。该结果不涵盖 Unity 导入、Player、发布文件或外部消费者。
+
+在仓库根目录可重复运行裁剪探针。将 `RestoreSources` 限制为现有本地 NuGet 缓存，不解析已发布的 Triggering 包；缓存缺少依赖时此探针直接报错。测试目标只通过命令显式导入，不改变默认编译或发布配置。
+
+```powershell
+$probe = (Resolve-Path 'src/AbilityKit.Triggering.Tests/OptionalCompatibilityProbe.targets').Path
+$cache = ((dotnet nuget locals global-packages --list) -replace '^global-packages: ', '').TrimEnd('\')
+dotnet test src/AbilityKit.Triggering.Tests/AbilityKit.Triggering.Tests.csproj `
+    --artifacts-path local/triggering-optional-probe `
+    "-p:CustomAfterMicrosoftCommonTargets=$probe" "-p:RestoreSources=$cache" -p:NuGetAudit=false
+```
 
 **首发裁剪门槛。** 正式主线不得反向依赖 `Optional/`。先核查当前仓库消费方、Unity GUID、程序集引用和配置；再分别验证完整与排除兼容组的构建、UPM 与 .NET 的公开 API 差异和干净消费项目。确定首发范围后，在待发布源码中成组移除对应实现和 `.meta`，不在打包时临时删文件。当前发布工具按完整包子树核对输入，目录分隔本身不会改变发布内容。
 

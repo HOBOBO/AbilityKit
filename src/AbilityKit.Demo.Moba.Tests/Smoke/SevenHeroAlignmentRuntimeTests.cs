@@ -53,7 +53,7 @@ public sealed class SevenHeroAlignmentRuntimeTests
             using var battle = new Battle(3001, targetZ: 4);
             var plans = battle.Services.Resolve<TriggerPlanJsonDatabase>();
             Assert.True(plans.TryGetPlanByTriggerId(30010111, out var hitPlan));
-            var damageAction = Assert.Single(hitPlan.Actions, action => action.Args?.ContainsKey("damage_value") == true);
+            var damageAction = Assert.Single(hitPlan.Actions, action => action.Args?.ContainsKey("projectile_impact_kill_bonus") == true);
             Assert.True(damageAction.Args.TryGetValue("projectile_impact_kill_bonus", out var configuredBonus));
             Assert.Equal(ENumericValueRefKind.Const, configuredBonus.Ref.Kind);
             Assert.True(configuredBonus.Ref.ConstValue > 0d && configuredBonus.Ref.ConstValue <= 1d);
@@ -165,7 +165,7 @@ public sealed class SevenHeroAlignmentRuntimeTests
     [InlineData(3003, 2, "MAGIC_ATTACK", 85f)]
     [InlineData(3003, 4, "MAGIC_ATTACK", 65f)]
     [InlineData(3002, 2, "PHYSICS_ATTACK", 140f)]
-    [InlineData(3001, 1, "PHYSICS_ATTACK", 80f)]
+    [InlineData(3001, 1, "PHYSICS_ATTACK", 44f)]
     public void Spell_scaling_reads_the_authored_combat_attribute(int hero, int slot, string attribute, float expectedBonus)
     {
         static float Damage(int hero, int slot, string attribute, float value)

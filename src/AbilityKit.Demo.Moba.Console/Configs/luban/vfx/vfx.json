@@ -306,7 +306,7 @@
   },
   {
     "Id": 90033006,
-    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_Tibbers_Spawn",
+    "Resource": "MobaVfx/Annie/Tibbers_Spawn",
     "DurationMs": 833
   },
   {
@@ -461,7 +461,7 @@
   },
   {
     "Id": 90035003,
-    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_E",
+    "Resource": "moba/presentation/gragas/E_Dash",
     "DurationMs": 1000
   },
   {
@@ -506,7 +506,7 @@
   },
   {
     "Id": 90035012,
-    "Resource": "ChampionVfx/10.Gragas_StarGuardian/Gragas_StarGuardian_R_Impact",
+    "Resource": "moba/presentation/gragas/R_Impact",
     "DurationMs": 1000
   },
   {
@@ -718,5 +718,45 @@
     "Id": 90031011,
     "Resource": "MobaVfx/Jhin/E_Charge",
     "DurationMs": 2000
+  },
+  {
+    "Id": 90032008,
+    "Resource": "MobaVfx/Jinx/E_Trap_left",
+    "DurationMs": 5000
+  },
+  {
+    "Id": 90032009,
+    "Resource": "MobaVfx/Jinx/E_Trap_right",
+    "DurationMs": 5000
+  },
+  {
+    "Id": 90032010,
+    "Resource": "MobaVfx/Jinx/E_Hit_center",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90032011,
+    "Resource": "MobaVfx/Jinx/E_Hit_left",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90032012,
+    "Resource": "MobaVfx/Jinx/E_Hit_right",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90033007,
+    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_Tibbers_Hit",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90033010,
+    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_Q_Cast",
+    "DurationMs": 1000
+  },
+  {
+    "Id": 90033017,
+    "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_AA_Hit",
+    "DurationMs": 1000
   }
 ]

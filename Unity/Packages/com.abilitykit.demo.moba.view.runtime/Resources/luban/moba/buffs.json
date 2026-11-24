@@ -1096,7 +1096,7 @@
     "OnAddEffects": [],
     "OnIntervalEffects": [],
     "OnRemoveEffects": [],
-    "PresentationTemplateId": 90033003,
+    "PresentationTemplateId": 0,
     "RefreshPolicy": 1,
     "StackingPolicy": 0,
     "TriggerIds": [],
@@ -2019,6 +2019,28 @@
     "StackingPolicy": 4,
     "TriggerIds": [],
     "TagNames": null,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 32010624,
+    "ContinuousTagTemplateId": 0,
+    "DispelCategory": 0,
+    "DispelPolicy": 2,
+    "DurationMs": 0,
+    "IntervalMs": 0,
+    "MaxStacks": 1,
+    "ModifierIds": [],
+    "Name": "Jhin – Empty Magazine",
+    "OnAddEffects": [],
+    "OnIntervalEffects": [],
+    "OnRemoveEffects": [],
+    "PresentationTemplateId": 0,
+    "RefreshPolicy": 0,
+    "StackingPolicy": 1,
+    "TriggerIds": [],
+    "TagNames": [
+      "State.Attack.Locked"
+    ],
     "DispelBlockedByTagNames": null
   }
 ]

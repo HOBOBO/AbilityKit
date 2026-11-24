@@ -7,8 +7,12 @@ using AbilityKit.Triggering.Variables.Numeric;
 namespace AbilityKit.Triggering.Runtime.Plan
 {
     /// <summary>
-    /// 触发器计划（不可变数据结构）
+    /// 描述触发器的条件、动作及执行策略；只读结构不保证引用成员深度不可变。
     /// </summary>
+    /// <remarks>
+    /// 计划副本可共享数组及参数对象。交给运行时后，调用方须将这些数据视为只读，
+    /// 不在已有注册或调度任务仍使用时原地修改；变更应创建新计划并重新装配。
+    /// </remarks>
     public readonly struct TriggerPlan<TArgs>
     {
         public readonly int Phase;
@@ -20,8 +24,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly int TriggerId;
 
         /// <summary>
-        /// 优先级打断阈值。Execute 成功后自动调用 StopBelowPriority。
-        /// 0 = 不自动打断；>0 = 以此值为阈值打断更低优先级的触发器。
+        /// 自动优先级中断阈值。正值仅在实际执行路径应用此配置时拦截更低优先级的触发器。
+        /// 执行根正常返回不代表业务成功；即时扁平路径不应用此配置。
         /// </summary>
         public readonly int InterruptPriority;
 
@@ -35,6 +39,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         public readonly PredicateExprPlan PredicateExpr;
 
+        /// <summary>
+        /// 按执行顺序存放动作描述；数组可与调用方或其他计划共享，装配后不得原地修改。
+        /// </summary>
         public readonly ActionCallPlan[] Actions;
 
         /// <summary>
@@ -211,6 +218,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 PredicateArity, PredicateArg0, PredicateArg1, PredicateExpr, newActions, Cue, in Schedule, in ExecutionControl);
         }
 
+        /// <summary>
+        /// 返回另一事件参数类型的计划视图；复用动作数组及其他引用数据，不做深拷贝。
+        /// </summary>
         public TriggerPlan<TNextArgs> AsArgs<TNextArgs>()
         {
             return new TriggerPlan<TNextArgs>(Phase, Priority, TriggerId, InterruptPriority, PredicateKind, HasPredicate, PredicateId,

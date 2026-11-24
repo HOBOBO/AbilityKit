@@ -10,7 +10,7 @@
 | 注册与派发 | `TriggerRunner<TCtx>` 的宿主装配构造、`Register<TArgs>`（`ITrigger<TArgs, TCtx>`）、`TriggerRunnerPlanExtensions.RegisterPlan<TArgs, TCtx>`（`TriggerPlan<TArgs>`）、返回的 `IDisposable` | 同一事件按阶段升序、优先级降序，同值按注册顺序。宿主持有并释放注册，最后一条正常释放时解除总线订阅。`RegisterPlan` 使用计划的阶段和优先级，只检查扁平动作的调度装配，不替代计划校验。运行器不替宿主推进时间，不承诺回调中修改活动注册时的遍历结果。 |
 | 计划与校验 | `TriggerPlanFactory.Create`、`When`、`WhenExpr`、`AddActions`，以及这些入口使用的计划数据类型（如 `ActionCallPlan`、`NumericValueRef`）；`TriggerPlanValidation.ValidateRuntimeBoundary` / `ThrowIfInvalidRuntimeBoundary` 及其 `ValidationContext<TArgs>`、`ValidationResult` | 先校验再注册；默认上下文只做可从结构确定的检查，引用核对需要宿主提供校验上下文。`PlannedTrigger<TArgs, TCtx>` 通常由注册入口装配，不要求新消费者自行构造。 |
 | 显式扩展 | `ActionRegistry.Register<TDelegate>`、`FunctionRegistry.Register<TDelegate>`，及 `ActionId`、`FunctionId`、条件/动作委托；`ITriggerContextSource<TCtx>.GetContext` 与处理器读取 `ExecCtx<TCtx>.Context` | 宿主提供和管理上下文。现有构造签名所需的服务接口与选项随该签名使用；不承诺服务实现、池化策略、`ExecCtx` 所有构造方式，也不把程序集扫描作为默认接入。 |
-| JSON 适配器 | `TriggerPlanJsonDatabase.Load(ITextLoader, string)` / `LoadFromJson`、`Records` / `TryGetRecordByTriggerId` / `TryGetPlanByTriggerId` / `TryGetExecutionRootByTriggerId`、显式 `MergeFrom` | 成功加载替换存储，解析或转换失败保留原存储；聚合覆盖由宿主明确决定。目录发现、加载顺序和注册生命周期归宿主。需要独立释放订阅时，读取计划、校验后调用带句柄的 `RegisterPlan`，不要用不返回句柄的 `RegisterAll`。JSON 格式不等于通用计划契约。 |
+| JSON 适配器 | `TriggerPlanJsonDatabase.Load(ITextLoader, string)` / `LoadFromJson`、`Records` / `TryGetRecordByTriggerId` / `TryGetPlanByTriggerId` / `TryGetExecutionRootByTriggerId`、显式 `MergeFrom` | 成功加载替换存储，解析或转换失败保留原存储；正式环境允许宿主显式用规则覆盖聚合。宿主选择加载顺序、校验合并结果并持有注册句柄：扁平记录使用 `RegisterPlan`，执行树须保留执行根并显式注册适配的触发器。JSON 格式不等于通用计划契约。 |
 
 ## 专项宿主入口
 
@@ -26,6 +26,8 @@
 新接入可通过 Package Manager 导入 **Triggering Mainline**。源码位于 [`Samples~/FormalMainline/FormalTriggeringMainlineExample.cs`](../Samples~/FormalMainline/FormalTriggeringMainlineExample.cs)，不默认编入运行时程序集。定时规则另用 **Triggering Rule Scheduling**，不需要导入才能使用主线样例。
 
 **扁平动作装配失败。** 类型化与动态 `RegisterPlan` 遇到非即时动作且运行器未装配 `ActionSchedulerManager` 时，在新增事件订阅前抛出 `InvalidOperationException`，指出计划 `TriggerId`、首个需调度的动作索引及模式。经通用 `Register` 或直接调用 `PlannedTrigger.Execute` 时，同一检查在任何扁平动作绑定与执行前进行，不执行部分计划或消耗触发资格；事件派发仍走已有失败通知。实际使用执行根时不检查未使用的扁平列表。显式装配后，宿主推进同一实例；包不检查宿主是否漏调 `Update`。
+
+**装配生命周期。** `TriggerPlan<TArgs>` 只读结构不等于深度不可变。从交给运行时起，不原地改计划、参数或替换活跃规则的注册表绑定。扁平动作首次成功绑定后复用缓存；执行树动作节点每次绑定，`RegistrationVersion` 不会让两条路径同步热更。需更新时由宿主结束旧注册及相关调度任务，再用新计划和已装配的注册表重建；这不限制启动装配时显式覆盖聚合。执行结果和通知的差异见[执行根基线](ExecutionRootOutcomeBaseline.md)。
 
 **动作参数。** 委托元数须与计划一致。无参数使用 `new ActionCallPlan(id)` 和 `NamedAction0`；需要保留显式的位置常量零时，使用 `ActionCallPlan(ActionId, params double[])`，不要依赖以默认值推断元数的 `NumericValueRef` 可选参数构造。
 
@@ -50,6 +52,7 @@
 | `DecoratorRegistry` / `DecoratorBuilder`、`SyncedTriggerExecutor` | 未发现包外源码调用。`DecoratorBuilder` 使用装饰器注册表；同步执行器连接 Behavior、`TriggerInstance` 与 `ITriggerSyncService`。未找到针对这两个入口的专项运行回归。 | 分别评估，不整目录删除。计划执行节点和 MOBA 帧同步都不能视为同步实例及其状态捕获的直接替代。 |
 | `ITriggerDispatcher` / `TriggerDispatcherBase`、`DispatcherRegistration<TArgs>`、`EDispatcherType`、`TriggerExecutor<TArgs>`、`EventBusDispatcherContext` | 已归入 `Runtime/LegacyCompatibility/Optional/Dispatcher`。仓库源码未发现该旧派发器链的调用，亦未找到旧上下文适配器的使用；保留公开类型、成员和原脚本 GUID。 | 兼容归档不等于下线批准。后续单独核对二进制消费者；不把 `ActionSchedulerManager.Update` 当成旧派发器的完整替代。 |
 | `TriggerWaitHandle` / `TriggerMutex` / `SynchronizedActionExecutor` | 已归入 `Runtime/LegacyCompatibility/Optional/ActionSynchronization`。MOBA、示例及其他受检源码未发现调用；`SynchronizedActionExecutor` 的公开构造签名仍依赖 `TriggerWaitHandle`。主线执行器工厂不创建这些类型。`WaitOne` 不阻塞，未置位时抛出异常；同步执行器只检查信号，未置位即跳过。 | 不作为新接入的等待或互斥机制。保留程序集、命名空间、公开成员和现有行为；评估下线前仍须检查发布和二进制消费面。 |
+| `TriggerPlanJsonDatabase.RegisterAll` 的两个重载 | 已归入 `Runtime/LegacyCompatibility/Optional/PlanRegistration`，仍属于同一个数据库类型。MOBA、示例和其他受检源码未发现旧入口消费者。 | 不返回句柄，中途失败不撤销前项，忽略执行根。不作为正式接入。改用宿主显式读取、校验、按扁平或执行树分别注册并持有订阅句柄。 |
 | `RpnNumericExprParserExtensions` / `AccessorRegistry` | 直接调用只在包内测试及扫描链内；扩展首次使用扫描已加载程序集，`RescanAccessors` 可重扫。`RpnNumericExprParserExtensionsTests` 覆盖稳定 ID、已声明域通过和未知域拒绝。 | `SkillCore` 已示范在宿主注册 `combat` 域，并用 `RpnNumericExprParser.Parse` 的显式回调拒绝未知域；`.NET` 的 `RpnNumericExprParserTests` 验证已声明域 ID 一致及未知域拒绝。扫描入口保留，不能用默认解析替换严格解析。 |
 | `ValidatingTriggerPlanJsonDatabase` / `TriggerValidationOptions` | 未发现包外调用。`ValidatingTriggerPlanJsonDatabaseExecutionRootTests` 有直接回归；MOBA 启动使用 `TriggerPlanJsonDatabase`，不经包装器。 | 替代方向为 `TriggerPlanJsonDatabase` 加显式投影与校验。必须对齐执行根、诊断和失败时机；原包装器先加载后验证，报错不回滚，不能宣称两条路径等价。 |
 | `TriggerRegistry` 与 `Runtime/RuntimeServices/Instance` 的实例入口 | 未发现包外源码调用；[`TriggerRegistryTests`](../Tests/Editor/Compatibility/TriggerRegistryTests.cs) 覆盖配置注册、查找和句柄释放，不覆盖实例快照和恢复。同步执行器仍使用 `TriggerInstance`。 | `TriggerRunner.RegisterPlan` 是事件订阅，不提供按 ID 查找、恢复或原句柄语义；先单独验证这些契约，不作机械替换。 |

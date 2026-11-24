@@ -1,7 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Host.Extensions.Session;
 using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Abstractions;
@@ -38,7 +37,7 @@ namespace AbilityKit.Game.Flow
         {
             _ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
             _diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
-            _adapter = new FramePacketNetAdapter(new AdapterContext(ctx));
+            _adapter = new FramePacketNetAdapter(ctx);
         }
 
         public FramePacket ProcessAndFeed(FramePacket packet)
@@ -76,59 +75,6 @@ namespace AbilityKit.Game.Flow
                     FilledDefaultCount = jb.FilledDefaultCount,
                 });
             }
-        }
-
-        private sealed class AdapterContext : IFramePacketNetAdapterContext
-        {
-            private readonly IBattleSessionNetAdapterContext _ctx;
-
-            public AdapterContext(IBattleSessionNetAdapterContext ctx)
-            {
-                _ctx = ctx;
-            }
-
-            public int InputDelayFrames => _ctx.InputDelayFrames;
-
-            public IWorld RemoteDrivenWorld => _ctx.RemoteDrivenWorld;
-            public IWorld ConfirmedWorld => _ctx.ConfirmedWorld;
-
-            public IRemoteFrameSource<PlayerInputCommand[]> RemoteDrivenInputSource
-            {
-                get => _ctx.RemoteDrivenInputSource;
-                set => _ctx.RemoteDrivenInputSource = value;
-            }
-
-            public IConsumableRemoteFrameSource<PlayerInputCommand[]> RemoteDrivenConsumable
-            {
-                get => _ctx.RemoteDrivenConsumable;
-                set => _ctx.RemoteDrivenConsumable = value;
-            }
-
-            public IRemoteFrameSink<PlayerInputCommand[]> RemoteDrivenSink
-            {
-                get => _ctx.RemoteDrivenSink;
-                set => _ctx.RemoteDrivenSink = value;
-            }
-
-            public IRemoteFrameSource<PlayerInputCommand[]> ConfirmedInputSource
-            {
-                get => _ctx.ConfirmedInputSource;
-                set => _ctx.ConfirmedInputSource = value;
-            }
-
-            public IConsumableRemoteFrameSource<PlayerInputCommand[]> ConfirmedConsumable
-            {
-                get => _ctx.ConfirmedConsumable;
-                set => _ctx.ConfirmedConsumable = value;
-            }
-
-            public IRemoteFrameSink<PlayerInputCommand[]> ConfirmedSink
-            {
-                get => _ctx.ConfirmedSink;
-                set => _ctx.ConfirmedSink = value;
-            }
-
-            public FrameSnapshotDispatcher Snapshots => _ctx.Snapshots;
         }
     }
 }

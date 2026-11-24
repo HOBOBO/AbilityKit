@@ -10,12 +10,9 @@ using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync
 {
-    // TODO(v1.0): Extract IClientPredictionDriver interface from this module to unify the
-    // three parallel prediction stacks currently in the codebase:
-    //   1. This module (host.extension, used by MOBA demo)
-    //   2. host.extension/Client/FrameSync/* Generic primitives (used by ConfirmedAuthority path)
-    //   3. ShooterClientPredictionRuntimeAdapter + ShooterPackedSnapshotRollbackProvider (shooter demo)
-    // See: Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/
+    /// <summary>
+    /// 在宿主帧内推进客户端预测、确认及可选回滚；每个上下文只适用于登记时绑定的世界实例。
+    /// </summary>
     public sealed class ClientPredictionDriverModule : IHostRuntimeModule, IHostRuntimeTickGate, IClientPredictionDriverStats, IClientPredictionTuningControl, IClientPredictionReconcileTarget, IClientPredictionReconcileControl, IClientPredictionBaselineControl, IClientPredictionRestoreFloor
     {
         private const int ReplayWaitTimeoutTicks = 120;
@@ -26,18 +23,21 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             Replaying = 1,
         }
 
+        /// <summary>
+        /// 重置指定世界的对账；未找到记录时仅对仍登记的上下文执行兜底重置。
+        /// </summary>
         public void ResetReconcile(WorldId worldId)
         {
-            if (_contexts.TryGetValue(worldId, out var ctx) && ctx != null)
+            if (_contexts.TryGetValue(worldId, out var ctx))
             {
-                ResetReconcileInternal(ctx);
+                if (IsRegistered(ctx.World)) ResetReconcileInternal(ctx);
             }
             else
             {
                 // 防御性处理：如果 worldId 不匹配，则重置所有世界，避免卡在回放状态。
                 foreach (var kv in _contexts)
                 {
-                    if (kv.Value != null) ResetReconcileInternal(kv.Value);
+                    if (IsRegistered(kv.Value.World)) ResetReconcileInternal(kv.Value);
                 }
             }
         }
@@ -131,6 +131,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         }
 
         private readonly Dictionary<WorldId, WorldContext> _contexts = new Dictionary<WorldId, WorldContext>();
+        private readonly List<WorldId> _detachedContexts = new List<WorldId>();
 
         private readonly Func<WorldId, IConsumableRemoteFrameSource<PlayerInputCommand[]>> _resolveRemoteInputs;
         private readonly bool _useSettledExecutionInputs;
@@ -301,12 +302,15 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         public long TotalIdealFrameStalls => _totalIdealFrameStalls;
 
+        /// <summary>
+        /// 查询当前登记世界的理想帧上限与停滞统计。
+        /// </summary>
         public bool TryGetIdealFrameStallStats(WorldId worldId, out int idealFrameLimit, out bool stalled, out long stallsTotal)
         {
             idealFrameLimit = 0;
             stalled = false;
             stallsTotal = 0;
-            if (!_contexts.TryGetValue(worldId, out var ctx) || ctx == null) return false;
+            if (!TryGetActiveContext(worldId, out var ctx)) return false;
             idealFrameLimit = ctx.IdealFrameLimit;
             stalled = ctx.IdealFrameStalled;
             stallsTotal = ctx.IdealFrameStallsTotal;
@@ -394,9 +398,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         public bool ShouldRunWorldTick => _shouldRunWorldTick;
 
+        /// <summary>
+        /// 查询当前登记世界尚未提交的本地输入批次数。
+        /// </summary>
         public bool TryGetLocalDelayQueueDepth(WorldId worldId, out int depth)
         {
-            if (_contexts.TryGetValue(worldId, out var ctx) && ctx?.PendingLocalInputs != null)
+            if (TryGetActiveContext(worldId, out var ctx) && ctx.PendingLocalInputs != null)
             {
                 depth = 0;
                 foreach (var pending in ctx.PendingLocalInputs)
@@ -410,9 +417,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             return false;
         }
 
+        /// <summary>
+        /// 查询当前登记世界的输入积压、预测窗口和停滞状态。
+        /// </summary>
         public bool TryGetPredictionWindowStats(WorldId worldId, out int backlogRaw, out float backlogEwma, out int window, out bool stalled)
         {
-            if (_contexts.TryGetValue(worldId, out var ctx) && ctx != null)
+            if (TryGetActiveContext(worldId, out var ctx))
             {
                 backlogRaw = ctx.BacklogRaw;
                 backlogEwma = ctx.BacklogEwma;
@@ -428,9 +438,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             return false;
         }
 
+        /// <summary>
+        /// 查询当前登记世界的预测窗口状态，并返回该实例的累计停滞次数。
+        /// </summary>
         public bool TryGetPredictionWindowStats(WorldId worldId, out int backlogRaw, out float backlogEwma, out int window, out bool stalled, out long stallsTotal)
         {
-            if (_contexts.TryGetValue(worldId, out var ctx) && ctx != null)
+            if (TryGetActiveContext(worldId, out var ctx))
             {
                 backlogRaw = ctx.BacklogRaw;
                 backlogEwma = ctx.BacklogEwma;
@@ -448,9 +461,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             return false;
         }
 
+        /// <summary>
+        /// 查询当前登记世界的确认帧和预测帧。
+        /// </summary>
         public bool TryGetFrames(WorldId worldId, out FrameIndex confirmed, out FrameIndex predicted)
         {
-            if (_contexts.TryGetValue(worldId, out var ctx) && ctx != null)
+            if (TryGetActiveContext(worldId, out var ctx))
             {
                 confirmed = ctx.ConfirmedFrame;
                 predicted = ctx.PredictedFrame;
@@ -468,7 +484,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         public bool TryGetRestoreFloor(WorldId worldId, out FrameIndex frame)
         {
             frame = default;
-            return _contexts.TryGetValue(worldId, out var ctx) && ctx?.Rollback != null &&
+            return TryGetActiveContext(worldId, out var ctx) && ctx.Rollback != null &&
                    ctx.Rollback.TryGetRestoreFloor(out frame);
         }
 
@@ -480,7 +496,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         /// </summary>
         public bool TryCommitVerifiedRestoreAnchor(WorldId worldId, FrameIndex frame)
         {
-            if (!_contexts.TryGetValue(worldId, out var ctx) || ctx?.Rollback == null || ctx.RollbackFaulted ||
+            if (!TryGetActiveContext(worldId, out var ctx) || ctx.Rollback == null || ctx.RollbackFaulted ||
                 ctx.Mode != ReplayMode.Normal || ctx.InputReplayActive ||
                 frame.Value > ctx.LastProcessedRollbackFrame.Value || frame.Value > ctx.PredictedFrame.Value ||
                 (frame.Value < ctx.PredictedFrame.Value && frame.Value > ctx.ConfirmedFrame.Value))
@@ -498,8 +514,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         public bool TryRebase(WorldId worldId, FrameIndex baselineFrame)
         {
             if (baselineFrame.Value < 0 ||
-                !_contexts.TryGetValue(worldId, out var ctx) ||
-                ctx == null || ctx.SettledTimeline != null)
+                !TryGetActiveContext(worldId, out var ctx) || ctx.SettledTimeline != null)
             {
                 return false;
             }
@@ -575,6 +590,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             runtime.Features.RegisterFeature<IHostRuntimeTickGate>(this);
         }
 
+        /// <summary>
+        /// 解绑宿主回调和功能，结束存活世界的重演并丢弃本次安装的预测上下文。
+        /// </summary>
         public void Uninstall(HostRuntime runtime, HostRuntimeOptions options)
         {
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
@@ -595,9 +613,10 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
             foreach (var entry in _contexts)
             {
-                EndInputReplay(entry.Value);
+                if (IsRegistered(entry.Value.World)) EndInputReplay(entry.Value);
             }
             _contexts.Clear();
+            _detachedContexts.Clear();
             _lastConsumedConfirmedFrames = 0;
             _totalConsumedConfirmedFrames = 0;
             _totalPredictedFrames = 0;
@@ -624,7 +643,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         private void OnWorldCreated(IWorld world)
         {
-            if (world == null) return;
+            if (world == null || !IsRegistered(world)) return;
 
             IWorldInputSink sink = null;
             FrameTime frameTime = null;
@@ -681,6 +700,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 ? sink as IWorldSettledTimelineSink ?? throw new InvalidOperationException("Missing settled timeline sink.")
                 : null;
             timeline?.BindSettledTimeline();
+            if (!IsRegistered(world)) return;
             _contexts[world.Id] = new WorldContext
             {
                 World = world,
@@ -716,24 +736,30 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             };
         }
 
+        /// <summary>
+        /// 设置指定世界的对账开关；未找到记录时沿用对当前登记世界的统一设置。
+        /// </summary>
         public void SetReconcileEnabled(WorldId worldId, bool enabled)
         {
-            if (_contexts.TryGetValue(worldId, out var ctx) && ctx != null)
+            if (_contexts.TryGetValue(worldId, out var ctx))
             {
-                ctx.ReconcileEnabled = enabled;
+                if (IsRegistered(ctx.World)) ctx.ReconcileEnabled = enabled;
             }
             else
             {
                 foreach (var kv in _contexts)
                 {
-                    if (kv.Value != null) kv.Value.ReconcileEnabled = enabled;
+                    if (IsRegistered(kv.Value.World)) kv.Value.ReconcileEnabled = enabled;
                 }
             }
         }
 
+        /// <summary>
+        /// 查询当前登记世界的对账开关。
+        /// </summary>
         public bool TryGetReconcileEnabled(WorldId worldId, out bool enabled)
         {
-            if (_contexts.TryGetValue(worldId, out var ctx) && ctx != null)
+            if (TryGetActiveContext(worldId, out var ctx))
             {
                 enabled = ctx.ReconcileEnabled;
                 return true;
@@ -743,13 +769,16 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             return false;
         }
 
+        /// <summary>
+        /// 记录收到的权威哈希；只对当前登记且启用对账的世界执行比较。
+        /// </summary>
         public void OnAuthoritativeStateHash(WorldId worldId, FrameIndex frame, WorldStateHash hash)
         {
             _totalAuthoritativeHashReceived++;
             _lastAuthoritativeHashFrame = frame;
             _lastAuthoritativeHash = hash;
 
-            if (!_contexts.TryGetValue(worldId, out var ctx) || ctx == null) return;
+            if (!TryGetActiveContext(worldId, out var ctx)) return;
             if (ctx.Reconciler == null)
             {
                 _totalAuthoritativeHashIgnoredNoReconciler++;
@@ -786,7 +815,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         private void RequestReconcileRollback(WorldId worldId, FrameIndex mismatchFrame)
         {
-            if (!_contexts.TryGetValue(worldId, out var ctx) || ctx == null) return;
+            if (!TryGetActiveContext(worldId, out var ctx)) return;
             if (!_enableRollback || ctx.Rollback == null || ctx.RollbackFaulted) return;
 
             // 避免回滚风暴（例如调试强制不一致），并避免在回放期间重入。
@@ -1016,14 +1045,46 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         private void OnWorldDestroyed(WorldId worldId)
         {
-            if (_contexts.TryGetValue(worldId, out var ctx)) EndInputReplay(ctx);
-            _contexts.Remove(worldId);
+            if (_contexts.TryGetValue(worldId, out var ctx) && !IsRegistered(ctx.World))
+            {
+                _contexts.Remove(worldId);
+                EndInputReplay(ctx);
+            }
+        }
+
+        private bool IsRegistered(IWorld world)
+        {
+            return _runtime != null && _runtime.TryGetWorld(world.Id, out var current) && ReferenceEquals(current, world);
+        }
+
+        private bool TryGetActiveContext(WorldId worldId, out WorldContext context)
+        {
+            if (_contexts.TryGetValue(worldId, out var candidate) && IsRegistered(candidate.World))
+            {
+                context = candidate;
+                return true;
+            }
+
+            context = null!;
+            return false;
+        }
+
+        private void PruneDetachedContexts()
+        {
+            foreach (var entry in _contexts)
+            {
+                if (!IsRegistered(entry.Value.World)) _detachedContexts.Add(entry.Key);
+            }
+
+            foreach (var worldId in _detachedContexts) _contexts.Remove(worldId);
+            _detachedContexts.Clear();
         }
 
         private void OnPreTick(float deltaTime)
         {
             if (_runtime == null) return;
 
+            PruneDetachedContexts();
             _shouldRunWorldTick = false;
             _lastConsumedConfirmedFrames = 0;
             _lastConsumedPredictedFrames = 0;
@@ -1042,8 +1103,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             {
                 var worldId = kv.Key;
                 var ctx = kv.Value;
-                if (ctx == null) continue;
-                if (ctx.World == null || ctx.InputSink == null) continue;
+                if (!IsRegistered(ctx.World) || ctx.InputSink == null) continue;
                 if (ctx.RollbackFaulted) continue;
                 if (ctx.PendingSettledFrame != null)
                 {
@@ -1589,7 +1649,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             foreach (var kv in _contexts)
             {
                 var ctx = kv.Value;
-                if (ctx == null) continue;
+                if (!IsRegistered(ctx.World)) continue;
                 if (ctx.World?.Services?.TryResolve<IWorldFrameGuard>(out var postGuard) == true && !postGuard.CanCommit)
                 {
                     ctx.PendingSettlement = null;

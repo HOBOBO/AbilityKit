@@ -352,10 +352,16 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsNotNull(hfsm, "Published character HFSM should be available to the runtime.");
             StringAssert.Contains("attack.slot.5", hfsm.text);
             StringAssert.Contains("trigger.enter.30010006", hfsm.text);
-            StringAssert.Contains("trigger.enter.30010014", hfsm.text);
+            StringAssert.DoesNotContain("trigger.enter.30010014", hfsm.text);
+            StringAssert.DoesNotContain("trigger.exit.30010007", hfsm.text);
 
             var plans = Resources.Load<TextAsset>("ability/ability_trigger_plans");
             Assert.IsNotNull(plans, "Published trigger plans should be available to the runtime.");
+            var document = Newtonsoft.Json.Linq.JObject.Parse(plans.text);
+            var reloadEntry = document["Triggers"].Single(trigger => (int)trigger["TriggerId"] == 30010006);
+            Assert.AreEqual(0, (int?)reloadEntry["Scope"] ?? 0, "HFSM logic invokes global callable plans.");
+            Assert.AreEqual((int)TriggeringConstants.GetActionId(TriggeringConstants.Actions.StartAuxiliarySkill).Value,
+                (int)reloadEntry["Actions"].Single()["ActionId"]);
             StringAssert.Contains("30010014", plans.text);
             StringAssert.Contains("template_id", plans.text);
             StringAssert.Contains("90013015", plans.text);
@@ -365,7 +371,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var resolver = new MobaPresentationTemplateResolver();
             Assert.IsTrue(resolver.TryCreateRequest(
                 90013015, "jhin.reload", null, 2500, 0f, out var request),
-                "Reload entry trigger should resolve its published presentation template and VFX.");
+                "Reload cast should resolve its published presentation template and VFX.");
             Assert.AreEqual(90013015, request.AssetId);
             Assert.AreEqual(2500, request.DurationMs);
             Assert.AreEqual(PresentationAttachmentKind.Actor, request.Attachment.Kind);
@@ -2028,7 +2034,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     "Jhin R final-shot skill level table should be published.");
                 Assert.AreEqual("finalDamage", finalShotLevelTable.ParamNames[4],
                     "Jhin R final shot must expose finalDamage as a configurable level parameter.");
-                Assert.AreEqual(800f, finalShotLevelTable.Levels[0].Params[4], 0.001f,
+                Assert.AreEqual(100f, finalShotLevelTable.Levels[0].Params[4], 0.001f,
                     "Jhin R finalDamage should come from the final-shot skill's level table.");
 
                 Assert.IsTrue(harness.Config.TryGetProjectileLauncher(RLauncherId, out var launcher));
@@ -2577,10 +2583,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.AreEqual(4, normal.Length, "The normal-health R cast should resolve three regular shots and one final shot.");
             Assert.AreEqual(4, low.Length, "The low-health R cast should resolve three regular shots and one final shot.");
-            Assert.AreEqual(normal[0], normal[1], 0.001f, "Targets at 75% health should not receive the low-health bonus on regular shots.");
-            Assert.AreEqual(normal[1], normal[2], 0.001f, "Targets at 75% health should not receive the low-health bonus on regular shots.");
-            Assert.Greater(low[0], normal[0], "A target below 50% health should receive the configured missing-health bonus on a regular R shot.");
-            Assert.Greater(low[3], normal[3], "A target below 50% health should receive the configured missing-health bonus on the final R shot.");
+            Assert.Greater(normal[1], normal[0], "Each regular R shot must read the target's current missing health before damage.");
+            Assert.Greater(normal[2], normal[1], "Missing-health scaling must also apply above 50% health.");
+            Assert.Greater(low[0], normal[0], "More missing health must increase regular-shot damage.");
+            Assert.Greater(low[3], normal[3], "More missing health must increase final-shot damage.");
         }
 
         private static float[] CaptureRDamageAtHealthRatio(float healthRatio, string worldName)
@@ -2594,8 +2600,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "health_target", 9450, x: 0f, z: 5f);
                 harness.Tick(1);
 
-                // Keep the target alive through all four shots so the test observes
-                // the before-calc condition independently for regular and final R.
+                /*
+                 * 固定攻击力并移除护甲，逐发验证结算前生命比例；
+                 * 高生命上限确保第四发仍可验证同一伤害事务的倍率。
+                 */
+                harness.SetScenarioActorAttribute(casterActorId, "physics_attack", 100f);
+                harness.SetScenarioActorAttribute(targetActorId, "physics_defense", 0f);
                 harness.SetScenarioActorAttribute(targetActorId, "max_hp", 10000f);
                 var maxHp = harness.GetActorAttribute(targetActorId, BattleAttributeType.MAX_HP);
                 harness.SetScenarioActorAttribute(targetActorId, "hp", maxHp * healthRatio);
@@ -2612,6 +2622,10 @@ namespace AbilityKit.Game.Test.UnitTest
                     var currentHp = harness.GetActorHp(targetActorId);
                     damage[i] = previousHp - currentHp;
                     Assert.Greater(damage[i], 0f, "Each R shot should apply positive damage while the target remains alive.");
+                    var baseDamage = i == 3 ? 150f : 75f;
+                    var expectedDamage = baseDamage * (1f + 3f * (1f - previousHp / maxHp));
+                    Assert.AreEqual(expectedDamage, damage[i], 0.05f,
+                        "R must apply rank base plus AD, then one missing-health multiplier using HP before this shot.");
                     previousHp = currentHp;
                     baseline = harness.CaptureTraceBaseline();
                     if (i == 2)

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "displayName": "AbilityKit Host Extensions",
   "unity": "2022.3",
-  "description": "Generic host runtime extensions (FrameSync/Rollback/Session/Time/WorldStart). Moba-specific host adapter extracted to com.abilitykit.demo.moba.host as of 0.1.0.",
+  "description": "Generic host runtime extensions for frame sync, rollback, time and world startup. Gameplay-specific session assembly lives in the consuming package.",
   "author": { "name": "AbilityKit" },
   "dependencies": {
     "com.abilitykit.host": "0.1.0",

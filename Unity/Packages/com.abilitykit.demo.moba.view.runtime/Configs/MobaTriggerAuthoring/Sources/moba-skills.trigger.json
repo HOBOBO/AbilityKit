@@ -22549,54 +22549,11 @@
               "type": "give_damage",
               "arguments": [
                 {
-                  "name": "damage_value",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 500.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
-                  "name": "source_attack_ratio",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 0.8,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
                   "name": "damage_type",
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 1,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 1
                   }
                 },
                 {
@@ -22631,6 +22588,54 @@
                       "z": 0.0
                     },
                     "fields": []
+                  }
+                },
+                {
+                  "name": "magnitude_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 6
+                  }
+                },
+                {
+                  "name": "magnitude_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "damage"
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 1.0
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "physicalAttackRatio"
                   }
                 }
               ],
@@ -22732,7 +22737,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Jhin authoritative trigger 30010111."
+        "note": "Jhin authoritative trigger 30010111. Numeric baseline 2026-11-24: damage and coefficient use the current Cast's frozen rank parameters; public/project provenance is recorded in the baseline plan."
       },
       {
         "id": 30010201,
@@ -23068,9 +23073,30 @@
               "kind": "Condition",
               "type": "payload_actor_type",
               "arguments": [
-                { "name": "participant", "value": { "source": "Constant", "type": "Integer", "integerValue": 0 } },
-                { "name": "main_type", "value": { "source": "Constant", "type": "Integer", "integerValue": 1 } },
-                { "name": "unit_sub_type", "value": { "source": "Constant", "type": "Integer", "integerValue": 1 } }
+                {
+                  "name": "participant",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0
+                  }
+                },
+                {
+                  "name": "main_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                },
+                {
+                  "name": "unit_sub_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                }
               ],
               "children": [],
               "elseChildren": []
@@ -23449,54 +23475,11 @@
               "type": "give_damage",
               "arguments": [
                 {
-                  "name": "damage_value",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 80.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
-                  "name": "source_attack_ratio",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 0.5,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
                   "name": "damage_type",
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 1,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 1
                   }
                 },
                 {
@@ -23531,6 +23514,54 @@
                       "z": 0.0
                     },
                     "fields": []
+                  }
+                },
+                {
+                  "name": "magnitude_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 6
+                  }
+                },
+                {
+                  "name": "magnitude_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "damage"
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 1.0
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "physicalAttackRatio"
                   }
                 }
               ],
@@ -23587,7 +23618,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "W projectile damage is resolved once by the projectile hit callback; trigger 30010211 owns marked-target control only."
+        "note": "W projectile damage is resolved once by the projectile hit callback; trigger 30010211 owns marked-target control only. Numeric baseline 2026-11-24: damage and coefficient use the current Cast's frozen rank parameters; public/project provenance is recorded in the baseline plan."
       },
       {
         "id": 30010301,
@@ -23970,57 +24001,11 @@
               "type": "give_damage",
               "arguments": [
                 {
-                  "name": "damage_value",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 240.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
-                  "name": "source_attack_ratio",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 0.7,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
                   "name": "damage_type",
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 1,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 2
                   }
                 },
                 {
@@ -24075,6 +24060,54 @@
                       "z": 0.0
                     },
                     "fields": []
+                  }
+                },
+                {
+                  "name": "magnitude_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 6
+                  }
+                },
+                {
+                  "name": "magnitude_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "damage"
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 1.0
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "physicalAttackRatio"
                   }
                 }
               ],
@@ -24192,7 +24225,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Samples enemies around the frozen trap center when the countdown ends; the blast is not bound to the entering actor."
+        "note": "Samples enemies around the frozen trap center when the countdown ends; the blast is not bound to the entering actor. Numeric baseline 2026-11-24: damage and coefficient use the current Cast's frozen rank parameters; public/project provenance is recorded in the baseline plan."
       },
       {
         "id": 30010400,
@@ -24927,54 +24960,11 @@
               "type": "give_damage",
               "arguments": [
                 {
-                  "name": "damage_value",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 500.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
-                  "name": "source_attack_ratio",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 0.8,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
                   "name": "damage_type",
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 1,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 1
                   }
                 },
                 {
@@ -24992,6 +24982,70 @@
                       "z": 0.0
                     },
                     "fields": []
+                  }
+                },
+                {
+                  "name": "target_missing_hp_damage_scale_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 3.0
+                  }
+                },
+                {
+                  "name": "target_missing_hp_damage_scale_max_bonus",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 3.0
+                  }
+                },
+                {
+                  "name": "magnitude_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 6
+                  }
+                },
+                {
+                  "name": "magnitude_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "damage"
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 1.0
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "physicalAttackRatio"
                   }
                 }
               ],
@@ -25076,7 +25130,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Jhin authoritative trigger 30010402."
+        "note": "Jhin authoritative trigger 30010402. Numeric baseline 2026-11-24: damage and coefficient use the current Cast's frozen rank parameters; public/project provenance is recorded in the baseline plan."
       },
       {
         "id": 30010411,
@@ -25263,57 +25317,11 @@
               "type": "give_damage",
               "arguments": [
                 {
-                  "name": "damage_value",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 3000.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
-                  "name": "source_attack_ratio",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 0.9,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
                   "name": "damage_type",
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 1,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 1
                   }
                 },
                 {
@@ -25335,21 +25343,27 @@
                   }
                 },
                 {
+                  "name": "target_missing_hp_damage_scale_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 3.0
+                  }
+                },
+                {
+                  "name": "target_missing_hp_damage_scale_max_bonus",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 3.0
+                  }
+                },
+                {
                   "name": "magnitude_type",
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 6,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 6
                   }
                 },
                 {
@@ -25357,17 +25371,39 @@
                   "value": {
                     "source": "Constant",
                     "type": "String",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "finalDamage",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "stringValue": "finalDamage"
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 1.0
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "physicalAttackRatio"
                   }
                 }
               ],
@@ -25407,7 +25443,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Jhin authoritative trigger 30010412."
+        "note": "Jhin authoritative trigger 30010412. Numeric baseline 2026-11-24: damage and coefficient use the current Cast's frozen rank parameters; public/project provenance is recorded in the baseline plan."
       },
       {
         "id": 30010413,
@@ -26560,16 +26596,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 500.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "numberValue": 0.0
                   }
                 },
                 {
@@ -26577,16 +26604,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 0.8,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "numberValue": 1.0
                   }
                 },
                 {
@@ -26594,16 +26612,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 2,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 1
                   }
                 },
                 {
@@ -26611,16 +26620,15 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 30010601,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 30010601
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
                   }
                 }
               ],
@@ -27154,7 +27162,7 @@
           "moba",
           "skills"
         ],
-        "enabled": true,
+        "enabled": false,
         "entryMode": "Event",
         "event": "damage.attack.before_calc",
         "phase": "immediate",
@@ -27333,7 +27341,283 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Jhin authored HFSM/action integration trigger 30010415."
+        "note": "Retired numeric event: R hit actions now use the existing capped missing-health multiplier once within the damage request."
+      },
+      {
+        "id": 30030102,
+        "name": "Tibbers Basic Attack",
+        "groupPath": "trigger_30030102",
+        "tags": [
+          "moba",
+          "annie"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_2409b54e44ca4da2aa696defcca9842e",
+          "enabled": true,
+          "kind": "Action",
+          "type": "give_damage",
+          "arguments": [
+            {
+              "name": "damage_value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 0.0
+              }
+            },
+            {
+              "name": "source_attack_ratio",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "numberValue": 1.0
+              }
+            },
+            {
+              "name": "damage_type",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1
+              }
+            },
+            {
+              "name": "reason_kind",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2
+              }
+            },
+            {
+              "name": "reason_param",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30030102
+              }
+            },
+            {
+              "name": "target_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "target_max_count",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Preserves Annie basic attack timing and damage; independent reason identity for Tibbers hit presentation."
+      },
+      {
+        "id": 30030112,
+        "name": "Tibbers Basic Attack Impact",
+        "groupPath": "trigger_30030112",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 0,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_020a613ebde64091a6ec30e52955cbf8",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_bf471bc9bafd40cc831eaaeec4c17c42",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_697eeb54cf7e4572845dfa672e626d72",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_param"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030102,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_7c11629226464c888249e3a60102aff2",
+          "enabled": true,
+          "kind": "Action",
+          "type": "play_presentation",
+          "arguments": [
+            {
+              "name": "template_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 90033007
+              }
+            },
+            {
+              "name": "target_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 6
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Emit the original Tibbers impact on each committed basic attack damage recipient."
       },
       {
         "id": 30030101,
@@ -27376,16 +27660,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Number",
-                "integerValue": 0,
-                "numberValue": 60.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "numberValue": 0.0
               }
             },
             {
@@ -27393,16 +27668,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Number",
-                "integerValue": 0,
-                "numberValue": 1.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "numberValue": 1.0
               }
             },
             {
@@ -27410,16 +27676,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 1,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "integerValue": 1
               }
             },
             {
@@ -27427,16 +27684,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 2,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "integerValue": 2
               }
             },
             {
@@ -27444,16 +27692,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 30030101,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+                "integerValue": 30030101
               }
             },
             {
@@ -27496,6 +27735,165 @@
         },
         "blackboard": [],
         "note": "Annie basic attack using the shared direct-damage action."
+      },
+      {
+        "id": 30030113,
+        "name": "Annie Basic Attack Impact",
+        "groupPath": "trigger_30030113",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 0,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_590d8d38ee5941ddb83a7f6ebcbf4ae6",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_cf3aa1fc07bf4f5ab7cc3bcbbe5f9835",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_82701adc30c64fe8b400e3291b5c27d1",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "reason_param"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030101,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_369aaa7a06b840dbadabb175726c7eba",
+          "enabled": true,
+          "kind": "Action",
+          "type": "play_presentation",
+          "arguments": [
+            {
+              "name": "template_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 90033017
+              }
+            },
+            {
+              "name": "target_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 6
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Play the original Annie impact once per committed Annie basic attack damage result."
       },
       {
         "id": 30030201,
@@ -29093,6 +29491,153 @@
         "note": "A qualifying Q kill refunds the original paid mana once, then refunds 50% of that cast's frozen effective cooldown."
       },
       {
+        "id": 30030213,
+        "name": "Annie Q Impact",
+        "groupPath": "trigger_30030213",
+        "tags": [
+          "moba",
+          "skills"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "damage.apply.after",
+        "phase": "immediate",
+        "priority": 0,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "nodeId": "node_7dbd37b0b30c5cb992b24fdf5e428607",
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_503bc1b52ed15b16b2e9b3000e152193",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "path": "reason_kind"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_36f5e175c1545ccab8a0abebf4769124",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_eq",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "path": "reason_param"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30030201
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_322565a54fc95c9b89315ec8b949e984",
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "path": "damage_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.0
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "nodeId": "node_d7bb6f33b2345cba9d33ab7329b9e8f7",
+          "enabled": true,
+          "kind": "Action",
+          "type": "play_presentation",
+          "arguments": [
+            {
+              "name": "template_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 90033018
+              }
+            },
+            {
+              "name": "target_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 6
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Play the original Q impact once per positive Q damage result, including empowered Q."
+      },
+      {
         "id": 30020101,
         "name": "Jinx Q toggle weapon mode through Buff modifiers",
         "groupPath": "trigger_30020101",
@@ -30460,7 +31005,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 42020301,
+                    "integerValue": 42020302,
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "integerListValue": [],
@@ -30684,7 +31229,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 42020301,
+                    "integerValue": 42020303,
                     "numberValue": 0.0,
                     "booleanValue": false,
                     "integerListValue": [],
@@ -30789,7 +31334,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Three separate Area requests share the cast root and group claim. Direction offsets are replaceable placeholders."
+        "note": "Three separate Area requests share the cast root and group claim. Left (-2), center (0), right (+2) share the same gameplay policy and use separate visual bindings."
       },
       {
         "id": 30020313,
@@ -30870,16 +31415,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 2,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 2
                   }
                 },
                 {
@@ -30938,17 +31474,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 6,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 6
                   }
                 },
                 {
@@ -30956,35 +31482,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "String",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "damage",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
-                  "name": "magnitude_coefficient",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 1.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "stringValue": "damage"
                   }
                 },
                 {
@@ -30992,17 +31490,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 2
                   }
                 },
                 {
@@ -31010,17 +31498,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "integerValue": 5
                   }
                 },
                 {
@@ -31028,17 +31506,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "numberValue": 1.0
                   }
                 },
                 {
@@ -31046,35 +31514,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "String",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
-                  "name": "magnitude_combine",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 0,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
+                    "stringValue": "magicAttackRatio"
                   }
                 }
               ],
@@ -31085,7 +31525,244 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Placeholder pending Riot official numeric/layout value; editable in production config. Enter uses the existing Area event target context."
+        "note": "Project baseline: one magic trap hit, rank base plus 1.0 AP. Existing area claim/root semantics are preserved."
+      },
+      {
+        "id": 30020314,
+        "name": "Jinx E trap hit visual center",
+        "groupPath": "trigger_30020314",
+        "tags": [
+          "moba",
+          "jinx",
+          "skills",
+          "e"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_a834c07068c34b58abcd3a353fabb314",
+          "enabled": true,
+          "kind": "Action",
+          "type": "spawn_area",
+          "arguments": [
+            {
+              "name": "area_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 42020304,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "position_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Visual only. Area Enter supplies the originating trap center, not the target position."
+      },
+      {
+        "id": 30020315,
+        "name": "Jinx E trap hit visual left",
+        "groupPath": "trigger_30020315",
+        "tags": [
+          "moba",
+          "jinx",
+          "skills",
+          "e"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_a834c07068c34b58abcd3a353fabb315",
+          "enabled": true,
+          "kind": "Action",
+          "type": "spawn_area",
+          "arguments": [
+            {
+              "name": "area_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 42020305,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "position_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Visual only. Area Enter supplies the originating trap center, not the target position."
+      },
+      {
+        "id": 30020316,
+        "name": "Jinx E trap hit visual right",
+        "groupPath": "trigger_30020316",
+        "tags": [
+          "moba",
+          "jinx",
+          "skills",
+          "e"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_a834c07068c34b58abcd3a353fabb316",
+          "enabled": true,
+          "kind": "Action",
+          "type": "spawn_area",
+          "arguments": [
+            {
+              "name": "area_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 42020306,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "position_mode",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 2,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Visual only. Area Enter supplies the originating trap center, not the target position."
       },
       {
         "id": 30020403,
@@ -31332,6 +32009,14 @@
                     "fields": [],
                     "stringValue": "missingHpRatioCoefficient"
                   }
+                },
+                {
+                  "name": "source_attack_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 1.0
+                  }
                 }
               ],
               "children": [],
@@ -31507,6 +32192,14 @@
                     "fields": [],
                     "stringValue": "secondaryDamageScale"
                   }
+                },
+                {
+                  "name": "source_attack_ratio",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 1.0
+                  }
                 }
               ],
               "children": [],
@@ -31516,7 +32209,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Project placeholder; replace with confirmed Riot numeric value. Primary uses projectile context target; secondary query excludes it."
+        "note": "Project baseline: (rank base + 1.0 total AD + elapsed seconds * 10 + each target's missing HP * rank ratio), secondary * 0.8. This is the existing elapsed-time formula, not League's distance/bonus-AD formula."
       },
       {
         "id": 30040101,
@@ -37321,101 +38014,137 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_3c33f7aec8139ed41040843fa2951f2c",
+          "nodeId": "node_709e8f69f025f416c12c809a71b50243",
           "enabled": true,
           "kind": "Action",
-          "type": "give_damage",
-          "arguments": [
+          "type": "seq",
+          "arguments": [],
+          "children": [
             {
-              "name": "damage_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2
-              }
+              "nodeId": "node_3c33f7aec8139ed41040843fa2951f2c",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30050701
+                  }
+                },
+                {
+                  "name": "magnitude_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 6
+                  }
+                },
+                {
+                  "name": "magnitude_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "damage"
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 5
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.7
+                  }
+                },
+                {
+                  "name": "target_query_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 52050301
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 32
+                  }
+                },
+                {
+                  "name": "target_max_hp_ratio_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.07
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             },
             {
-              "name": "reason_kind",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 1
-              }
-            },
-            {
-              "name": "reason_param",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 30050701
-              }
-            },
-            {
-              "name": "magnitude_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 6
-              }
-            },
-            {
-              "name": "magnitude_parameter",
-              "value": {
-                "source": "Constant",
-                "type": "String",
-                "stringValue": "damage"
-              }
-            },
-            {
-              "name": "magnitude_secondary_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2
-              }
-            },
-            {
-              "name": "magnitude_secondary_attribute",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 5
-              }
-            },
-            {
-              "name": "magnitude_secondary_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "numberValue": 0.7
-              }
-            },
-            {
-              "name": "target_query_id",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 52050301
-              }
-            },
-            {
-              "name": "target_max_count",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 32
-              }
-            },
-            {
-              "name": "target_max_hp_ratio_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "numberValue": 0.07
-              }
+              "nodeId": "node_3625cbc7e59833332c6d1b9e2277099f",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90035002
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             }
           ],
-          "children": [],
           "elseChildren": []
         },
         "blackboard": [],
@@ -37571,101 +38300,137 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_1913287ab94059eb370f03d4796454cc",
+          "nodeId": "node_7fbe8ed753330abcbf224d162ac0d724",
           "enabled": true,
           "kind": "Action",
-          "type": "give_damage",
-          "arguments": [
+          "type": "seq",
+          "arguments": [],
+          "children": [
             {
-              "name": "damage_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2
-              }
+              "nodeId": "node_1913287ab94059eb370f03d4796454cc",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30050702
+                  }
+                },
+                {
+                  "name": "magnitude_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 6
+                  }
+                },
+                {
+                  "name": "magnitude_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "damage"
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 5
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.7
+                  }
+                },
+                {
+                  "name": "target_query_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 52050301
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 32
+                  }
+                },
+                {
+                  "name": "target_max_hp_ratio_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.07
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             },
             {
-              "name": "reason_kind",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 1
-              }
-            },
-            {
-              "name": "reason_param",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 30050702
-              }
-            },
-            {
-              "name": "magnitude_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 6
-              }
-            },
-            {
-              "name": "magnitude_parameter",
-              "value": {
-                "source": "Constant",
-                "type": "String",
-                "stringValue": "damage"
-              }
-            },
-            {
-              "name": "magnitude_secondary_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2
-              }
-            },
-            {
-              "name": "magnitude_secondary_attribute",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 5
-              }
-            },
-            {
-              "name": "magnitude_secondary_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "numberValue": 0.7
-              }
-            },
-            {
-              "name": "target_query_id",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 52050301
-              }
-            },
-            {
-              "name": "target_max_count",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 32
-              }
-            },
-            {
-              "name": "target_max_hp_ratio_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "numberValue": 0.07
-              }
+              "nodeId": "node_bc4029688b39a50ac010bf32f44e0d44",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90035002
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             }
           ],
-          "children": [],
           "elseChildren": []
         },
         "blackboard": [],
@@ -37821,101 +38586,137 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_27240fdb9cd238ca571002cfd9d2ad51",
+          "nodeId": "node_3c450def0be5a047df4d171a3416be73",
           "enabled": true,
           "kind": "Action",
-          "type": "give_damage",
-          "arguments": [
+          "type": "seq",
+          "arguments": [],
+          "children": [
             {
-              "name": "damage_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2
-              }
+              "nodeId": "node_27240fdb9cd238ca571002cfd9d2ad51",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30050703
+                  }
+                },
+                {
+                  "name": "magnitude_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 6
+                  }
+                },
+                {
+                  "name": "magnitude_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "damage"
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 5
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.7
+                  }
+                },
+                {
+                  "name": "target_query_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 52050301
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 32
+                  }
+                },
+                {
+                  "name": "target_max_hp_ratio_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.07
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             },
             {
-              "name": "reason_kind",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 1
-              }
-            },
-            {
-              "name": "reason_param",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 30050703
-              }
-            },
-            {
-              "name": "magnitude_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 6
-              }
-            },
-            {
-              "name": "magnitude_parameter",
-              "value": {
-                "source": "Constant",
-                "type": "String",
-                "stringValue": "damage"
-              }
-            },
-            {
-              "name": "magnitude_secondary_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2
-              }
-            },
-            {
-              "name": "magnitude_secondary_attribute",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 5
-              }
-            },
-            {
-              "name": "magnitude_secondary_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "numberValue": 0.7
-              }
-            },
-            {
-              "name": "target_query_id",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 52050301
-              }
-            },
-            {
-              "name": "target_max_count",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 32
-              }
-            },
-            {
-              "name": "target_max_hp_ratio_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "numberValue": 0.07
-              }
+              "nodeId": "node_aa199834c7e051bd5f03d1a2bd0e298e",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90035002
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             }
           ],
-          "children": [],
           "elseChildren": []
         },
         "blackboard": [],
@@ -38071,101 +38872,137 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_d716ce2ca46b23b10cd6d095f0b7e638",
+          "nodeId": "node_d9bc16830e442ae1af5ce18c9eab918f",
           "enabled": true,
           "kind": "Action",
-          "type": "give_damage",
-          "arguments": [
+          "type": "seq",
+          "arguments": [],
+          "children": [
             {
-              "name": "damage_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2
-              }
+              "nodeId": "node_d716ce2ca46b23b10cd6d095f0b7e638",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30050704
+                  }
+                },
+                {
+                  "name": "magnitude_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 6
+                  }
+                },
+                {
+                  "name": "magnitude_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "damage"
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 5
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.7
+                  }
+                },
+                {
+                  "name": "target_query_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 52050301
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 32
+                  }
+                },
+                {
+                  "name": "target_max_hp_ratio_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.07
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             },
             {
-              "name": "reason_kind",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 1
-              }
-            },
-            {
-              "name": "reason_param",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 30050704
-              }
-            },
-            {
-              "name": "magnitude_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 6
-              }
-            },
-            {
-              "name": "magnitude_parameter",
-              "value": {
-                "source": "Constant",
-                "type": "String",
-                "stringValue": "damage"
-              }
-            },
-            {
-              "name": "magnitude_secondary_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2
-              }
-            },
-            {
-              "name": "magnitude_secondary_attribute",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 5
-              }
-            },
-            {
-              "name": "magnitude_secondary_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "numberValue": 0.7
-              }
-            },
-            {
-              "name": "target_query_id",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 52050301
-              }
-            },
-            {
-              "name": "target_max_count",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 32
-              }
-            },
-            {
-              "name": "target_max_hp_ratio_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "numberValue": 0.07
-              }
+              "nodeId": "node_d402a7f513dae7eaa2ff7162895b3c84",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90035002
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             }
           ],
-          "children": [],
           "elseChildren": []
         },
         "blackboard": [],
@@ -38321,101 +39158,137 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_d8c847b3a4190281be7d9e36fe4bdbcf",
+          "nodeId": "node_aa57f865a10a23a82dbfbeec8138d8c6",
           "enabled": true,
           "kind": "Action",
-          "type": "give_damage",
-          "arguments": [
+          "type": "seq",
+          "arguments": [],
+          "children": [
             {
-              "name": "damage_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2
-              }
+              "nodeId": "node_d8c847b3a4190281be7d9e36fe4bdbcf",
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                },
+                {
+                  "name": "reason_param",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30050705
+                  }
+                },
+                {
+                  "name": "magnitude_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 6
+                  }
+                },
+                {
+                  "name": "magnitude_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "damage"
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_type",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_attribute",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 5
+                  }
+                },
+                {
+                  "name": "magnitude_secondary_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.7
+                  }
+                },
+                {
+                  "name": "target_query_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 52050301
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 32
+                  }
+                },
+                {
+                  "name": "target_max_hp_ratio_coefficient",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.07
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             },
             {
-              "name": "reason_kind",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 1
-              }
-            },
-            {
-              "name": "reason_param",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 30050705
-              }
-            },
-            {
-              "name": "magnitude_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 6
-              }
-            },
-            {
-              "name": "magnitude_parameter",
-              "value": {
-                "source": "Constant",
-                "type": "String",
-                "stringValue": "damage"
-              }
-            },
-            {
-              "name": "magnitude_secondary_type",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 2
-              }
-            },
-            {
-              "name": "magnitude_secondary_attribute",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 5
-              }
-            },
-            {
-              "name": "magnitude_secondary_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "numberValue": 0.7
-              }
-            },
-            {
-              "name": "target_query_id",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 52050301
-              }
-            },
-            {
-              "name": "target_max_count",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 32
-              }
-            },
-            {
-              "name": "target_max_hp_ratio_coefficient",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
-                "numberValue": 0.07
-              }
+              "nodeId": "node_525bd815e5ab84e1981c83626e730fe3",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90035002
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             }
           ],
-          "children": [],
           "elseChildren": []
         },
         "blackboard": [],

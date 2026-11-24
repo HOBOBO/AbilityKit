@@ -1,0 +1,134 @@
+{
+  "format": "abilitykit.local-statesync-replay",
+  "version": 2,
+  "caseId": "local-statesync-import-failure",
+  "variant": "default",
+  "tickRate": 100,
+  "checkpoints": [
+    {
+      "command": "initial",
+      "deliveryTick": 3,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": 10,
+      "prediction": 20,
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": [],
+      "commit": {
+        "admittedRevision": 1,
+        "admittedTick": 0,
+        "materializedRevision": 1,
+        "materializedPosition": 10,
+        "stages": []
+      }
+    },
+    {
+      "command": "fail-import",
+      "deliveryTick": 3,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": 10,
+      "prediction": 20,
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": [],
+      "commit": {
+        "admittedRevision": 1,
+        "admittedTick": 0,
+        "materializedRevision": 1,
+        "materializedPosition": 10,
+        "stages": [
+          "Import"
+        ]
+      }
+    },
+    {
+      "command": "retry-import",
+      "deliveryTick": 4,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": "Predicted",
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": 2,
+      "reconciledRevision": 2,
+      "terminalSequence": 1,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": 14,
+      "authority": 14,
+      "prediction": 21,
+      "pending": [
+        2
+      ],
+      "replayTicks": [
+        2,
+        3,
+        4
+      ],
+      "replaySteps": [
+        {
+          "tick": 2,
+          "before": 14,
+          "after": 21
+        },
+        {
+          "tick": 3,
+          "before": 21,
+          "after": 21
+        },
+        {
+          "tick": 4,
+          "before": 21,
+          "after": 21
+        }
+      ],
+      "commit": {
+        "admittedRevision": 2,
+        "admittedTick": 1,
+        "materializedRevision": 2,
+        "materializedPosition": 14,
+        "stages": [
+          "Import",
+          "CommitAdmission",
+          "CommitBaseline",
+          "Publish"
+        ]
+      }
+    }
+  ]
+}

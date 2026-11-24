@@ -1040,6 +1040,10 @@
       },
       {
         "Kind": 519
+      },
+      {
+        "Kind": 518,
+        "UnitSubType": 1
       }
     ],
     "Scorers": [

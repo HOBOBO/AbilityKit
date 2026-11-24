@@ -17,6 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="AbilityKit.Demo.Moba.BattleScenario.Runner" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Console\AbilityKit.Demo.Moba.Console.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Trace.Adapter\AbilityKit.Demo.Moba.Trace.Adapter.csproj" />

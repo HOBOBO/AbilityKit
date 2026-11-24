@@ -1,0 +1,209 @@
+{
+  "format": "abilitykit.local-statesync-replay",
+  "version": 2,
+  "caseId": "local-statesync-fixed-baseline-recovery",
+  "variant": "with-proof",
+  "tickRate": 100,
+  "checkpoints": [
+    {
+      "command": "initial-full",
+      "deliveryTick": 10,
+      "generation": 1,
+      "admission": "AppliedFullBaseline",
+      "validation": "AcceptedFullBaseline",
+      "reconciliation": "AuthoritativeOnly",
+      "sequence": 1,
+      "appliedTick": 10,
+      "baselineTick": 10,
+      "publishedRevision": 1,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 1,
+      "publishedPosition": 110,
+      "authority": 110,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "current-delta",
+      "deliveryTick": 17,
+      "generation": 1,
+      "admission": "AppliedDelta",
+      "validation": "AcceptedDelta",
+      "reconciliation": "Predicted",
+      "sequence": 3,
+      "appliedTick": 13,
+      "baselineTick": 10,
+      "publishedRevision": 3,
+      "reconciledRevision": 3,
+      "terminalSequence": 1,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 2,
+      "publishedPosition": 113,
+      "authority": 113,
+      "prediction": 120,
+      "pending": [
+        2
+      ],
+      "replayTicks": [
+        14,
+        15,
+        16,
+        17
+      ],
+      "replaySteps": [
+        {
+          "tick": 14,
+          "before": 113,
+          "after": 113
+        },
+        {
+          "tick": 15,
+          "before": 113,
+          "after": 113
+        },
+        {
+          "tick": 16,
+          "before": 113,
+          "after": 120
+        },
+        {
+          "tick": 17,
+          "before": 120,
+          "after": 120
+        }
+      ]
+    },
+    {
+      "command": "late-delta",
+      "deliveryTick": 17,
+      "generation": 1,
+      "admission": "IgnoredStale",
+      "validation": "IgnoredStale",
+      "reconciliation": null,
+      "sequence": 3,
+      "appliedTick": 13,
+      "baselineTick": 10,
+      "publishedRevision": 3,
+      "reconciledRevision": 3,
+      "terminalSequence": 1,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 2,
+      "publishedPosition": 113,
+      "authority": 113,
+      "prediction": 120,
+      "pending": [
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "wrong-baseline",
+      "deliveryTick": 18,
+      "generation": 1,
+      "admission": "NeedsFullBaseline",
+      "validation": "BaselineMismatch",
+      "reconciliation": null,
+      "sequence": 3,
+      "appliedTick": 13,
+      "baselineTick": 10,
+      "publishedRevision": 3,
+      "reconciledRevision": 3,
+      "terminalSequence": 1,
+      "streamWaiting": true,
+      "predictionWaiting": true,
+      "imports": 2,
+      "publishedPosition": 113,
+      "authority": null,
+      "prediction": null,
+      "pending": [
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "delta-during-recovery",
+      "deliveryTick": 18,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 3,
+      "appliedTick": 13,
+      "baselineTick": 10,
+      "publishedRevision": 3,
+      "reconciledRevision": 3,
+      "terminalSequence": 1,
+      "streamWaiting": true,
+      "predictionWaiting": true,
+      "imports": 2,
+      "publishedPosition": 113,
+      "authority": null,
+      "prediction": null,
+      "pending": [
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "recovery-full",
+      "deliveryTick": 20,
+      "generation": 1,
+      "admission": "AppliedFullBaseline",
+      "validation": "AcceptedFullBaseline",
+      "reconciliation": "Predicted",
+      "sequence": 6,
+      "appliedTick": 16,
+      "baselineTick": 16,
+      "publishedRevision": 6,
+      "reconciledRevision": 6,
+      "terminalSequence": 2,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 3,
+      "publishedPosition": 130,
+      "authority": 130,
+      "prediction": 135,
+      "pending": [
+        3
+      ],
+      "replayTicks": [
+        17,
+        18,
+        19,
+        20
+      ],
+      "replaySteps": [
+        {
+          "tick": 17,
+          "before": 130,
+          "after": 130
+        },
+        {
+          "tick": 18,
+          "before": 130,
+          "after": 130
+        },
+        {
+          "tick": 19,
+          "before": 130,
+          "after": 135
+        },
+        {
+          "tick": 20,
+          "before": 135,
+          "after": 135
+        }
+      ]
+    }
+  ]
+}

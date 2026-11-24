@@ -3,6 +3,11 @@
 本包遵循 [Keep a Changelog](https://keepachangelog.com/) 风格；版本号遵循语义化版本。
 AbilityKit 整体仍处于开发期，0.x 版本不承诺向后兼容。
 
+## [Unreleased]
+
+- 按会话配置与世界驱动职责拆分源码目录；端点配置归会话层。公开命名空间、签名和数据语义不变。
+- Unity 程序集不再隐式引用引擎；README 收口为当前配置、数据和桥接契约，不再把历史协调器与同步适配器写成包能力。
+
 ## [0.1.0] — 2026-07-31 — Beta
 
 首个 Beta 里程碑。Session 协调框架（LocalSyncAdapter / RemoteSyncAdapter / SessionCoordinator）

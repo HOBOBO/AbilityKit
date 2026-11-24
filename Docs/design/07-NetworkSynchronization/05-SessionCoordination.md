@@ -42,7 +42,7 @@ AbilityKit 当前把这些职责拆成几层：
 | 房间域 | 成员、准备、玩法房间状态、恢复、晚加入、开战入口 | `RoomGrain`、`RoomMemberTracker`、`IRoomGameplayAdapter` |
 | 战斗域 | 权威 Tick、输入调度、运行时 session、快照推送 | `BattleLogicHostGrain`、`BattleInputBuffer`、`BattleTickDriver` |
 | 帧同步广播 | 纯 frame push 场景下按帧广播输入 | `BattleFrameSyncGrain` |
-| 端侧消费 | 通用帧包双写，或由业务数据面排队并路由 packed/pure-state push | `FramePacketNetAdapter`、`ShooterBattleDataPlane` |
+| 端侧消费 | MOBA 帧包装配双写，或由业务数据面排队并路由 packed/pure-state push | `FramePacketNetAdapter`、`ShooterBattleDataPlane` |
 
 设计目标：
 
@@ -60,14 +60,14 @@ AbilityKit 当前把这些职责拆成几层：
 
 | 能力 | 源码 | 说明 |
 |------|------|------|
-| Coordinator 配置与契约 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Core` | `SessionConfig`、枚举、host/policy、drive gate、spawn service 等；不含 coordinator 实现 |
-| Coordinator 数据对象 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Data` | payload codec、实体状态、帧快照、端点、输入和 spawn DTO |
+| Coordinator 配置与契约 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Session`、`Runtime/WorldBridge` | 会话配置、端点值、host/policy、drive gate、spawn service；不持有连接，不含协调器实现 |
+| Coordinator 数据对象 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Data` | payload codec、实体状态、帧快照、输入和 spawn DTO |
 | Gateway flow | `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewaySessionFlow.cs` | create/join/ready/loading/start/subscribe/restore 阶段编排 |
 | 房间线性流程入口 | `Unity/Packages/com.abilitykit.network.room/Runtime/MultiplayerRoomSession.cs` | gateway room 协议的线性/最小流程入口；双连接组合由 `network.client` 的 `MultiplayerClientSession` 提供，复杂阶段仍用原子 Flow |
 | 同步会话装配 | `Unity/Packages/com.abilitykit.network.sdk/Runtime/NetworkSyncSessionBuilder.cs` | Profile 解析、本地校验、远端能力协商、controller 工厂与不可变 descriptor |
 | 可靠事件会话 | `Unity/Packages/com.abilitykit.network.sdk/Runtime/ReliableEventSessionBuilder.cs` | cursor、checkpoint store、权威 baseline、flush/retry/circuit 与生命周期诊断 |
 | Room 能力绑定 | `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewayNetworkSyncSessionBinding.cs` | 把 wire capability metadata 转换并绑定到同步 session |
-| 帧包适配 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs` | 输入双写和快照路由 |
+| MOBA 帧包适配 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/FramePacketNetAdapter.cs` | 输入双写和快照路由 |
 | 远端输入队列 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Client/StateSync/RemoteClientInputSubmitQueue.cs` | 一个在途请求加一个最新等待输入；不拥有连接生命周期 |
 | MOBA view adapter | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/BattleSessionNetAdapter.cs` | Demo View 包对通用帧包适配器的封装 |
 | Shooter 客户端会话 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client` | 业务 session、Room 控制面、独立 battle 数据面、输入和恢复 |
@@ -524,7 +524,7 @@ sequenceDiagram
 
 ### 8.2 MOBA View 的封装
 
-`BattleSessionNetAdapter` 在 MOBA View 包中包装通用 `FramePacketNetAdapter`。它的 `AdapterContext` 把 Demo 自己的 `IBattleSessionNetAdapterContext` 映射到通用 `IFramePacketNetAdapterContext`。
+`BattleSessionNetAdapter` 在 MOBA View 包中包装同会话的内部 `FramePacketNetAdapter` 并发布诊断，两者共用 `IBattleSessionNetAdapterContext`。框架不再导出双世界适配器。
 
 额外行为是更新 jitter buffer 调试统计：
 
@@ -707,7 +707,7 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 
 ## 13. 源码阅读路径
 
-1. `Unity/Packages/com.abilitykit.coordinator/Runtime/Core`：当前保留的配置和 host/policy 契约。
+1. `Unity/Packages/com.abilitykit.coordinator/Runtime/Session` 与 `Runtime/WorldBridge`：当前保留的会话配置、host/policy 和世界驱动契约。
 2. `Unity/Packages/com.abilitykit.coordinator/Runtime/Data`：当前保留的数据对象和 codec。
 3. `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewaySessionFlow.cs`：阶段化 create/join/ready/loading/start/restore 编排。
 4. `Unity/Packages/com.abilitykit.network.room/Runtime/MultiplayerRoomSession.cs`：线性流程门面、hook、订阅开关与一次性 host 边界。
@@ -716,7 +716,7 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 7. `Unity/Packages/com.abilitykit.host.extension/Runtime/Client/StateSync/RemoteClientInputSubmitQueue.cs`：远端输入背压和最新值替换。
 8. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs`：房间和恢复语义。
 9. `Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs`：权威 Tick 和输入调度。
-10. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs`：通用帧包如何落到输入源和快照路由。
+10. `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/FramePacketNetAdapter.cs`：MOBA 会话如何将帧包分发到输入源和快照路由。
 11. `Unity/Packages/com.abilitykit.network.sdk/Runtime/NetworkSyncSessionBuilder.cs`：Profile 与远端能力协商。
 12. `Unity/Packages/com.abilitykit.network.sdk/Runtime/ReliableEventSessionBuilder.cs`：checkpoint、baseline 与 flush 生命周期。
 13. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomNetworkSyncCapabilityResolver.cs`：服务端能力声明来源。

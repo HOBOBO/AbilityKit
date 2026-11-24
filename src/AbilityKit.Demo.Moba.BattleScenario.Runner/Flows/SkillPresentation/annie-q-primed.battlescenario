@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 3, "caseId": "annie-q-primed", "displayName": "Annie Q - Pyromania (three E casts, then Q)",
+  "tags": ["skill-presentation", "annie", "pyromania"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "maxDurationMs": 65000, "settleDurationMs": 4500},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3003, "attributeTemplateId": 3003, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": 0}}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 3, "targetAlias": "caster", "position": {"x": 7, "y": 0, "z": -4}, "direction": {"x": 0, "y": 0, "z": 1}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 17000, "action": "cast_skill", "actorAlias": "caster", "slot": 3, "targetAlias": "caster", "position": {"x": 7, "y": 0, "z": -4}, "direction": {"x": 0, "y": 0, "z": 1}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 34000, "action": "cast_skill", "actorAlias": "caster", "slot": 3, "targetAlias": "caster", "position": {"x": 7, "y": 0, "z": -4}, "direction": {"x": 0, "y": 0, "z": 1}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 51000, "action": "cast_skill", "actorAlias": "caster", "slot": 1, "targetAlias": "target", "position": {"x": 7, "y": 0, "z": 0}, "direction": {"x": 0, "y": 0, "z": 1}}
+    ],
+    "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30030401, "minCount": 3, "maxCount": 3},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30030201, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "BuffApply", "configId": 30030211, "maxCount": 1}
+    ]
+  }
+}

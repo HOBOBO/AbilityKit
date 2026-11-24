@@ -729,7 +729,8 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.host": "0.1.0",
-        "com.abilitykit.network.host": "0.1.0"
+        "com.abilitykit.network.host": "0.1.0",
+        "com.abilitykit.network.runtime": "0.1.0"
       }
     },
     "com.abilitykit.hotreload": {

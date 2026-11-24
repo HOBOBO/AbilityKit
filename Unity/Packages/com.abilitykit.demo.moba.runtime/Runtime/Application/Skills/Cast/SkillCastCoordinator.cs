@@ -20,6 +20,7 @@ namespace AbilityKit.Demo.Moba.Services
 {
     public readonly struct SkillCastPolicy
     {
+        internal const int AuxiliaryConflictGroup = -1;
         public static readonly SkillCastPolicy Default = new SkillCastPolicy(allowParallel: false, interruptRunning: false);
 
         public SkillCastPolicy(bool allowParallel, bool interruptRunning, int conflictGroup = 0,
@@ -39,6 +40,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int InterruptPriority { get; }
         public bool Uninterruptible { get; }
         public SkillTargetLostPolicy TargetLostPolicy { get; }
+        internal bool IsAuxiliary => ConflictGroup == AuxiliaryConflictGroup;
 
         public SkillCastPolicy WithAllowParallel(bool allowParallel)
         {
@@ -397,6 +399,17 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillCastResult TryCastSkill(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir, int targetActorId)
         {
             return CastSkillInternal(actorId, skillId, slot, aimPos, aimDir, hasAim: true, targetActorId);
+        }
+
+        /// <summary>
+        /// 从逻辑行为启动无输入槽位的辅助技能；同一技能的运行实例不会因重复入场而重启。
+        /// </summary>
+        internal MobaSkillCastResult TryCastAuxiliarySkill(int actorId, int skillId)
+        {
+            var policy = new SkillCastPolicy(allowParallel: true, interruptRunning: false,
+                conflictGroup: SkillCastPolicy.AuxiliaryConflictGroup);
+            return CastSkillInternal(actorId, skillId, 0, aimPos: default, aimDir: default,
+                hasAim: false, policyOverride: policy);
         }
 
         public MobaSkillCastResult TryCastDerivedSkill(

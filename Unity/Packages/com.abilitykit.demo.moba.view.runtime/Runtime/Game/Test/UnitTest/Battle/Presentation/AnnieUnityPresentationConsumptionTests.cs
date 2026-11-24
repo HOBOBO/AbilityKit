@@ -7,6 +7,7 @@ using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Events.Summon;
+using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Share;
@@ -40,14 +41,15 @@ namespace AbilityKit.Game.Tests
     public sealed class AnnieUnityPresentationConsumptionTests
     {
         private const int AnnieHeroId = 3003;
-        private const int AnnieBasicAttackSkillId = 30030101;
+        private const int TibbersBasicAttackSkillId = 30030102;
         private const int AnnieQSkillId = 30030201;
         private const int AnnieWSkillId = 30030301;
         private const int AnnieESkillId = 30030401;
         private const int AnnieRSkillId = 30030501;
         private const int AnnieStunBuffId = 30030211;
         private const int AnnieEBuffId = 30030402;
-        private const int AnnieStunPresentationId = 90033003;
+        private const int AnnieWrPyromaniaPresentationId = 90033003;
+        private const int AnnieQImpactPresentationId = 90033018;
         private const int AnnieRPreviewVfxId = 90033005;
         private const int TibbersSummonId = 30030502;
         private const string AnnieWAreaVfxResource =
@@ -100,12 +102,90 @@ namespace AbilityKit.Game.Tests
                         "Annie linked VFX prefab is missing: " + entry.Resource);
                 }
 
-                AssertBuffPresentation(harness, templates, vfxDb,
-                    AnnieStunBuffId, AnnieStunPresentationId,
-                    "ChampionVfx/14.Void_Annie/Void_Annie_Q_Hit");
+                Assert.IsTrue(harness.Config.TryGetBuff(AnnieStunBuffId, out var stun));
+                Assert.AreEqual(0, stun.PresentationTemplateId);
+                Assert.IsTrue(templates.TryGet(AnnieQImpactPresentationId, out var impact));
+                Assert.AreEqual(AnnieWrPyromaniaPresentationId, impact.AssetId);
+                Assert.IsTrue(vfxDb.TryGet(impact.AssetId, out var impactVfx));
+                var impactResource = string.IsNullOrEmpty(impactVfx.ResourceKey) ? impactVfx.Resource : impactVfx.ResourceKey;
+                Assert.AreEqual("ChampionVfx/14.Void_Annie/Void_Annie_Q_Hit", impactResource);
+                Assert.IsNotNull(Resources.Load<GameObject>(impactResource));
                 AssertBuffPresentation(harness, templates, vfxDb,
                     AnnieEBuffId, 90033004,
                     "moba/AnnieShield");
+            }
+        }
+
+        [TestCase(1, false, false, false, AnnieQImpactPresentationId)]
+        [TestCase(1, true, false, false, AnnieQImpactPresentationId)]
+        [TestCase(1, false, true, false, AnnieQImpactPresentationId)]
+        [TestCase(1, false, false, true, 0)]
+        [TestCase(2, true, false, false, AnnieWrPyromaniaPresentationId)]
+        [TestCase(4, true, false, false, AnnieWrPyromaniaPresentationId)]
+        public void QImpactAndWrPyromania_PublishOnlyTheExpectedCue(
+            int slot, bool primed, bool lethal, bool loseTarget, int expectedTemplateId)
+        {
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(
+                       new[] { AnnieQSkillId, AnnieWSkillId, AnnieESkillId, AnnieRSkillId },
+                       worldId: "annie_impact_cue_split", heroId: AnnieHeroId, attributeTemplateId: AnnieHeroId))
+            {
+                harness.EnterGameAndWarmup();
+                var source = harness.AssertPlayerActorBound();
+                var target = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "impact_target", 9303, x: 3f, z: 0f);
+                if (lethal) harness.SetScenarioActorAttribute(target, "hp", 1f);
+                if (primed)
+                {
+                    var counter = MobaGameplayVariableKeys.ResolveScopedKey(30030002, source);
+                    harness.World.Services.Resolve<MobaGameplayVariableService>().Set(counter, 3d);
+                }
+
+                var initialHp = harness.GetActorHp(target);
+                var cast = harness.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(
+                    source, slot, aimPos: Vec3.Right * 3f, aimDir: Vec3.Right, targetActorId: target);
+                Assert.IsTrue(cast.Success, "Annie test cast failed: " + cast.FailReason);
+
+                if (loseTarget)
+                {
+                    harness.TickUntilTraceNode(MobaExecutionKind.ProjectileLaunch, 32030101, 30,
+                        "The missile must launch before the target becomes invalid.");
+                    harness.SetScenarioActorAttribute(target, "hp", 0f);
+                }
+
+                var firstDamageFrame = -1;
+                var impactCount = 0;
+                var stunned = false;
+                var snapshots = new List<WorldStateSnapshot>();
+                for (var tick = 0; tick < 60; tick++)
+                {
+                    harness.Tick(1);
+                    var frame = harness.FrameTime.Frame.Value;
+                    if (!loseTarget && firstDamageFrame < 0 && harness.GetActorHp(target) < initialHp)
+                        firstDamageFrame = frame;
+                    stunned |= harness.HasActorBuff(target, AnnieStunBuffId);
+                    snapshots.Clear();
+                    harness.World.Services.Resolve<IWorldStateSnapshotBatchProvider>()
+                        .CollectSnapshots(harness.FrameTime.Frame, snapshots, 32);
+                    foreach (var snapshot in snapshots)
+                    {
+                        if (snapshot.OpCode != MobaOpCodes.Snapshot.PresentationCue) continue;
+                        foreach (var cue in MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload))
+                        {
+                            if (cue.TemplateId != AnnieQImpactPresentationId && cue.TemplateId != AnnieWrPyromaniaPresentationId)
+                                continue;
+                            if (cue.Stage != (int)AbilityKit.Protocol.Moba.StateSync.PresentationCueStage.Started &&
+                                cue.Stage != (int)AbilityKit.Protocol.Moba.StateSync.PresentationCueStage.Executed)
+                                continue;
+                            Assert.AreEqual(expectedTemplateId, cue.TemplateId);
+                            Assert.AreEqual(target, cue.TargetActorId);
+                            Assert.AreEqual(firstDamageFrame, frame);
+                            impactCount++;
+                        }
+                    }
+                }
+
+                if (!loseTarget) Assert.That(firstDamageFrame, Is.GreaterThanOrEqualTo(0));
+                Assert.AreEqual(primed, stunned);
+                Assert.AreEqual(expectedTemplateId == 0 ? 0 : 1, impactCount);
             }
         }
 
@@ -120,10 +200,14 @@ namespace AbilityKit.Game.Tests
                 Assert.IsNotNull(asset, "Annie presentation timeline is missing: " + skillId);
 
                 var sink = new TimelineRecordingSink();
-                var runtime = new MobaSkillPresentationTimelineRuntime(skillId, asset.text, sink);
+                var runtime = new MobaSkillPresentationTimelineRuntime(
+                    skillId, asset.text, sink, new MobaPresentationTemplateResolver());
                 runtime.StartAt(0f);
-                Assert.AreEqual(0, sink.ClipCount,
-                    "Annie skill VFX are emitted by their projectile, area, Buff, or summon gameplay cues.");
+                for (var tick = 0; tick < 1000; tick++) runtime.Tick(0.01f);
+                Assert.AreEqual(skillId == AnnieQSkillId ? 1 : 0, sink.ClipCount,
+                    "Only Annie Q's authored cast cue belongs to the timeline; gameplay hit VFX must not be duplicated.");
+                CollectionAssert.AreEqual(skillId == AnnieQSkillId ? new[] { 90033010 } : Array.Empty<int>(),
+                    sink.AssetIds, "The timeline may only emit the Q cast asset, never projectile/impact/stun VFX.");
                 runtime.Stop();
                 Assert.AreEqual(1, sink.StopCount);
             }
@@ -731,8 +815,8 @@ namespace AbilityKit.Game.Tests
                         "Tibbers behavior must publish a generic attack-slot CharacterAction snapshot.");
                     Assert.Greater(tibbersAttack.CastInstanceId, 0,
                         "Tibbers attack action must retain the authoritative skill cast instance.");
-                    Assert.AreEqual(AnnieBasicAttackSkillId, tibbersAttack.SkillId,
-                        "Tibbers attack action must identify the configured shared basic attack skill.");
+                    Assert.AreEqual(TibbersBasicAttackSkillId, tibbersAttack.SkillId,
+                        "Tibbers attack action must identify its configured basic attack skill.");
                     Assert.IsNotNull(Resources.Load<GameObject>(TibbersSpawnVfxResource),
                         "Tibbers spawn VFX must resolve to the linked authored prefab.");
                     var vfxDb = BattleViewFactory.GetOrLoadVfxDb();
@@ -983,7 +1067,7 @@ namespace AbilityKit.Game.Tests
 
                     actionContext.SetAction(new CharacterActionData(
                         tibbersActorId, 1, 48, "life/alive/action/attack.slot.1",
-                        ((long)tibbersActorId << 32) | 4u, 4, 0, 901, AnnieBasicAttackSkillId));
+                        ((long)tibbersActorId << 32) | 4u, 4, 0, 901, TibbersBasicAttackSkillId));
                     binder.Sync(entity, actionContext);
                     Assert.AreEqual("life/alive/action/attack.slot.1", tibbersHfsm.Action.Path);
                     var attackPlayback = tibbersHfsm.Evaluate(48, 30, null);
@@ -1011,7 +1095,7 @@ namespace AbilityKit.Game.Tests
 
                     actionContext.SetAction(new CharacterActionData(
                         tibbersActorId, 1, 60, "life/alive/action/attack.slot.2",
-                        ((long)tibbersActorId << 32) | 5u, 5, 0, 902, AnnieBasicAttackSkillId));
+                        ((long)tibbersActorId << 32) | 5u, 5, 0, 902, TibbersBasicAttackSkillId));
                     binder.Sync(entity, actionContext);
                     AssertAnimatorState(shell, "Void_Annie_Tibbers_Attack2");
 
@@ -1175,10 +1259,17 @@ namespace AbilityKit.Game.Tests
             }
         }
 
-        private sealed class TimelineRecordingSink : IMobaSkillPresentationTimelineSink
+        private sealed class TimelineRecordingSink : IMobaSkillPresentationTimelineSink, IMobaSkillPresentationRequestSink
         {
             public int ClipCount { get; private set; }
             public int StopCount { get; private set; }
+            public List<int> AssetIds { get; } = new List<int>();
+
+            public void OnPresentationRequest(in PresentationRequest request, GroupDto group, ClipDto clip, float offsetSeconds)
+            {
+                ClipCount++;
+                AssetIds.Add(request.AssetId);
+            }
 
             public void OnClipStart(long skillInstanceId, GroupDto group, ClipDto clip, float offsetSeconds)
             {

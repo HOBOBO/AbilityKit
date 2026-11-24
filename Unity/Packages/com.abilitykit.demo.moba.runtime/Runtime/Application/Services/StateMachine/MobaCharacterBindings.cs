@@ -87,14 +87,14 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             foreach (var state in States)
                 if (state == null || !paths.Contains(state.Path) || !keys.Add(state.Path) ||
                     (state.CastContext != "None" && state.CastContext != "Current" && state.CastContext != "RetainCommitted") ||
-                    (state.CastKind != "Any" && state.CastKind != "BasicAttack" && state.CastKind != "Active") ||
+                    (state.CastKind != "Any" && state.CastKind != "BasicAttack" && state.CastKind != "Active" && state.CastKind != "Auxiliary") ||
                     (state.CaptureAim && string.IsNullOrWhiteSpace(state.AimScope)))
                     throw new InvalidOperationException("Invalid character state binding.");
             keys.Clear();
             foreach (var cast in Casts)
             {
                 if (cast == null || cast.ParameterSnapshots == null || cast.SkillId <= 0 || !keys.Add(cast.SkillId.ToString()) ||
-                    (cast.CastKind != "LoadoutSlot" && cast.CastKind != "BasicAttack" && cast.CastKind != "Active") ||
+                    (cast.CastKind != "LoadoutSlot" && cast.CastKind != "BasicAttack" && cast.CastKind != "Active" && cast.CastKind != "Auxiliary") ||
                     (cast.AimSource != "Input" && cast.AimSource != "StateAimSnapshot" && cast.AimSource != "InputWithinStateCone") ||
                     (cast.AimSource != "Input" && (string.IsNullOrWhiteSpace(cast.AimScope) ||
                         !States.Exists(x => x.AimScope == cast.AimScope && x.CaptureAim))) ||
@@ -153,7 +153,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             if (kinds != 1 || float.IsNaN(Value) || float.IsInfinity(Value))
                 throw new InvalidOperationException("Invalid character condition expression.");
             if (Fact != null && Fact != "alive" && Fact != "dead" && Fact != "controlled" && Fact != "casting" &&
-                Fact != "basic.attack.cast" && Fact != "active.skill.cast" && Fact != "moving" && Fact != "idle")
+                Fact != "basic.attack.cast" && Fact != "active.skill.cast" && Fact != "auxiliary.skill.cast" && Fact != "moving" && Fact != "idle")
                 throw new InvalidOperationException("Unknown character fact: " + Fact);
             if (ParameterId != 0 && (!parameters.Contains(ParameterId) ||
                 (Comparison != "eq" && Comparison != "ne" && Comparison != "lt" && Comparison != "le" && Comparison != "gt" && Comparison != "ge")))
@@ -205,6 +205,8 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
     {
         public int SkillId { get; set; }
         public string CastKind { get; set; } = "LoadoutSlot";
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public bool RespectActionControl { get; set; }
         public string AimSource { get; set; } = "Input";
         public string AimScope { get; set; }
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]

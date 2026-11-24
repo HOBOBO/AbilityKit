@@ -8,7 +8,7 @@ namespace AbilityKit.Triggering.Registry
         private readonly Dictionary<int, Entry> _functions = new Dictionary<int, Entry>();
 
         /// <summary>
-        /// 获取当前实例的注册代次；不能作为委托内容的版本。
+        /// 获取当前实例的注册代次；不能作为委托内容的版本，不提供计划热更新或执行期同步。
         /// </summary>
         public long RegistrationVersion { get; private set; }
 

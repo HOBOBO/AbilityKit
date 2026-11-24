@@ -1,3 +1,4 @@
+#nullable enable annotations
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
@@ -7,22 +8,28 @@ using AbilityKit.Ability.Host.Transport;
 using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Ability.Host.Extensions.FrameSync
 {
+    /// <summary>
+    /// 在宿主帧内收集并发布会话输入，可绑定当前世界实例，也可显式登记无世界会话。
+    /// </summary>
     public sealed class FrameSyncDriverModule : IHostRuntimeModule, IFrameSyncInputHub, IFrameSyncDriverEvents
     {
+        /// <summary>
+        /// 保存会话待提交的输入及其世界绑定，不拥有世界的释放权。
+        /// </summary>
         private sealed class WorldSession
         {
             public readonly List<PlayerInputCommand> PendingInputs = new List<PlayerInputCommand>(16);
 
-            public bool HasWorld;
+            public IWorld? World;
             public FrameIndex PendingFrame;
             public PlayerInputCommand[] PendingInputsArray;
         }
 
         private readonly Dictionary<WorldId, WorldSession> _sessions = new Dictionary<WorldId, WorldSession>();
+        private readonly List<WorldId> _detachedSessions = new List<WorldId>();
 
         private HostRuntime _runtime;
         private HostRuntimeOptions _options;
@@ -66,6 +73,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             runtime.Features.RegisterFeature<IFrameSyncDriverEvents>(this);
         }
 
+        /// <summary>
+        /// 解除宿主回调，丢弃本次安装的会话及其中等待提交的输入。
+        /// </summary>
         public void Uninstall(HostRuntime runtime, HostRuntimeOptions options)
         {
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
@@ -80,6 +90,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             runtime.Features.UnregisterFeature<IFrameSyncDriverEvents>();
 
             _sessions.Clear();
+            _detachedSessions.Clear();
             _inputsFlushed.Clear();
             _postStep.Clear();
             _runtime = null;
@@ -110,9 +121,13 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             _postStep.Remove(handler);
         }
 
+        /// <summary>
+        /// 显式登记无世界会话；不解除已登记的世界绑定。
+        /// </summary>
         public void RegisterSession(WorldId worldId)
         {
-            RegisterSession(worldId, hasWorld: false);
+            if (!_sessions.TryGetValue(worldId, out var session) || !IsCurrentSession(worldId, session))
+                _sessions[worldId] = new WorldSession();
         }
 
         public void UnregisterSession(WorldId worldId)
@@ -120,10 +135,13 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             _sessions.Remove(worldId);
         }
 
+        /// <summary>
+        /// 向会话排入输入；不存在或已脱离登记世界的会话拒绝输入。
+        /// </summary>
         public bool SubmitInput(ServerClientId clientId, WorldId worldId, PlayerInputCommand input)
         {
             if (_runtime == null) return false;
-            if (!_sessions.TryGetValue(worldId, out var session))
+            if (!_sessions.TryGetValue(worldId, out var session) || !IsCurrentSession(worldId, session))
             {
                 Log.Error($"[FrameSyncDriverModule] SubmitInput rejected: session not found. worldId={worldId}, clientId={clientId.Value}, opCode={input.OpCode}");
                 return false;
@@ -135,30 +153,47 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         private void OnWorldCreated(IWorld world)
         {
-            if (world == null) return;
-            RegisterSession(world.Id, hasWorld: true);
+            if (world == null || !IsRegistered(world.Id, world)) return;
+
+            if (!_sessions.TryGetValue(world.Id, out var session) || !IsCurrentSession(world.Id, session))
+                _sessions[world.Id] = session = new WorldSession();
+
+            session.World = world;
         }
 
         private void OnWorldDestroyed(WorldId worldId)
         {
-            _sessions.Remove(worldId);
+            if (_sessions.TryGetValue(worldId, out var session) &&
+                (session.World == null || !IsCurrentSession(worldId, session)))
+                _sessions.Remove(worldId);
         }
 
-        private void RegisterSession(WorldId worldId, bool hasWorld)
+        private bool IsRegistered(WorldId worldId, IWorld world)
         {
-            if (!_sessions.TryGetValue(worldId, out var session) || session == null)
+            return _runtime != null && _runtime.TryGetWorld(worldId, out var current) && ReferenceEquals(current, world);
+        }
+
+        private bool IsCurrentSession(WorldId worldId, WorldSession session)
+        {
+            return session.World == null || IsRegistered(worldId, session.World);
+        }
+
+        private void PruneDetachedSessions()
+        {
+            foreach (var entry in _sessions)
             {
-                session = new WorldSession();
-                _sessions[worldId] = session;
+                if (!IsCurrentSession(entry.Key, entry.Value)) _detachedSessions.Add(entry.Key);
             }
 
-            session.HasWorld |= hasWorld;
+            foreach (var worldId in _detachedSessions) _sessions.Remove(worldId);
+            _detachedSessions.Clear();
         }
 
         private void OnPreTick(float deltaTime)
         {
             if (_runtime == null) return;
 
+            PruneDetachedSessions();
             var nextFrame = new FrameIndex(_frame.Value + 1);
 
             foreach (var kv in _sessions)
@@ -166,8 +201,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 var worldId = kv.Key;
                 var session = kv.Value;
 
-                IWorld world = null;
-                if (session.HasWorld && (!_runtime.Worlds.TryGet(worldId, out world) || world == null)) continue;
+                var world = session.World;
+                if (!IsCurrentSession(worldId, session)) continue;
 
                 if (world?.Services?.TryResolve<IWorldFrameGuard>(out var preGuard) == true && !preGuard.CanAdvance) continue;
 
@@ -193,7 +228,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     }
                 }
 
-                if (session.HasWorld)
+                if (world != null && IsRegistered(worldId, world))
                 {
                     if (world.Services == null)
                     {
@@ -230,8 +265,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 var worldId = kv.Key;
                 var session = kv.Value;
 
-                IWorld world = null;
-                if (session.HasWorld && (!_runtime.Worlds.TryGet(worldId, out world) || world == null)) continue;
+                var world = session.World;
+                if (!IsCurrentSession(worldId, session)) continue;
 
                 var frame = session.PendingFrame.Value > 0 ? session.PendingFrame : currentFrame;
                 /*
@@ -242,7 +277,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 var inputs = session.PendingInputsArray ?? Array.Empty<PlayerInputCommand>();
 
                 var broadcasted = false;
-                if (session.HasWorld && world.Services != null && world.Services.TryResolve<AbilityKit.Ability.Host.IWorldStateSnapshotProvider>(out var provider) && provider != null)
+                if (world?.Services != null && world.Services.TryResolve<AbilityKit.Ability.Host.IWorldStateSnapshotProvider>(out var provider) && provider != null)
                 {
                     if (provider is AbilityKit.Ability.Host.IWorldStateSnapshotBatchProvider batchProvider)
                     {
@@ -284,107 +319,5 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
             _frame = currentFrame;
         }
-    }
-
-    public static class WorldCatchUpDriver
-    {
-        public static int CatchUpAndFeedSnapshots(
-            HostRuntime runtime,
-            IWorld world,
-            int lastTickedFrame,
-            int driveTargetFrame,
-            float fixedDelta,
-            int stepsBudget,
-            AbilityKit.Ability.Host.IWorldStateSnapshotProvider provider,
-            int maxSnapshotsPerStep,
-            Action<FramePacket> feed)
-        {
-            if (runtime == null) return lastTickedFrame;
-            if (world == null) return lastTickedFrame;
-            if (driveTargetFrame <= 0) return lastTickedFrame;
-            if (stepsBudget <= 0) return lastTickedFrame;
-
-            if (maxSnapshotsPerStep <= 0) maxSnapshotsPerStep = 0;
-
-            var worldId = world.Id;
-
-            var steps = 0;
-            while (steps < stepsBudget && lastTickedFrame < driveTargetFrame)
-            {
-                IWorldFrameGuard frameGuard = null;
-                world.Services?.TryResolve(out frameGuard);
-                if (frameGuard != null && !frameGuard.CanAdvance) break;
-                var nextFrame = lastTickedFrame + 1;
-                var frameIndex = new FrameIndex(nextFrame);
-
-                runtime.Tick(fixedDelta);
-                if (frameGuard != null && !frameGuard.CanCommit) break;
-
-                if (provider != null && feed != null && maxSnapshotsPerStep > 0)
-                {
-                    SnapshotProviderDrain.DrainSnapshots(provider, worldId, frameIndex, maxSnapshotsPerStep, feed);
-                }
-
-                lastTickedFrame = nextFrame;
-                steps++;
-            }
-
-            return lastTickedFrame;
-        }
-    }
-
-    public static class FrameSyncInputHubFactory
-    {
-        public static FrameJitterBufferHub<TFrame> CreateJitterBufferHub<TFrame>(
-            int delayFrames,
-            MissingFrameMode missingMode,
-            Func<TFrame> missingFrameFactory,
-            int initialCapacity = 256)
-        {
-            var buf = new AbilityKit.Network.Runtime.FrameJitterBuffer<TFrame>(delayFrames, missingMode, missingFrameFactory, initialCapacity);
-            return new FrameJitterBufferHub<TFrame>(buf);
-        }
-    }
-
-    public sealed class FrameJitterBufferHub<TFrame> :
-        AbilityKit.Network.Abstractions.IConsumableRemoteFrameSource<TFrame>,
-        AbilityKit.Network.Abstractions.IRemoteFrameSink<TFrame>
-    {
-        private readonly AbilityKit.Network.Runtime.FrameJitterBuffer<TFrame> _buf;
-
-        public FrameJitterBufferHub(AbilityKit.Network.Runtime.FrameJitterBuffer<TFrame> buf)
-        {
-            _buf = buf ?? throw new ArgumentNullException(nameof(buf));
-        }
-
-        public int DelayFrames
-        {
-            get => _buf.DelayFrames;
-            set => _buf.DelayFrames = value;
-        }
-
-        public int MaxReceivedFrame => _buf.MaxReceivedFrame;
-
-        public int TargetFrame => _buf.TargetFrame;
-
-        public int LastConsumedFrame => _buf.LastConsumedFrame;
-
-        public long AddedCount => _buf.AddedCount;
-
-        public long DuplicateCount => _buf.DuplicateCount;
-
-        public long LateCount => _buf.LateCount;
-
-        public int Count => _buf.Count;
-
-        public bool TryGet(int frame, out TFrame frameData) => _buf.TryGet(frame, out frameData);
-
-        public bool TryConsume(int frame, out TFrame frameData) => _buf.TryConsume(frame, out frameData);
-
-        public void TrimBefore(int minFrameInclusive) => _buf.TrimBefore(minFrameInclusive);
-
-        public void Add(int frame, TFrame frameData) => _buf.Add(frame, frameData);
-
-        public void Dispose() => _buf.Dispose();
     }
 }

@@ -426,7 +426,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 { 90033003, "ChampionVfx/14.Void_Annie/Void_Annie_Q_Hit" },
                 { 90033004, "moba/AnnieShield" },
                 { 90033005, "ChampionVfx/14.Void_Annie/Void_Annie_R_Summon" },
-                { 90033006, "ChampionVfx/14.Void_Annie/Void_Annie_Tibbers_Spawn" },
+                { 90033006, "MobaVfx/Annie/Tibbers_Spawn" },
             };
             var entries = LoadArray<VfxConfigRoot, VfxDTO>("vfx/vfx", root => root.Items);
             foreach (var pair in expectedVfx)

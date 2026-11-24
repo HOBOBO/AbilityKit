@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 3,
+  "caseId": "gragas-e-q-clear",
+  "displayName": "预测回滚前置：古拉加斯 E 落空，接 Q",
+  "tags": ["prediction-prerequisite", "gragas", "veigar"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 2200},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3005, "attributeTemplateId": 3005, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 3004, "attributeTemplateId": 3004, "teamId": 2, "position": {"x": 11, "y": 0, "z": -1}}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 3, "position": {"x": 7, "y": 0, "z": 2}, "direction": {"x": 0, "y": 0, "z": 1}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 3000, "action": "cast_skill", "actorAlias": "caster", "slot": 1, "position": {"x": 7, "y": 0, "z": 4}, "direction": {"x": 0, "y": 0, "z": 1}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 5200, "action": "cast_skill", "actorAlias": "caster", "slot": 1}
+    ],
+    "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050401, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30050401},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050201, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42050201, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050601, "maxCount": 1}
+    ]
+  }
+}

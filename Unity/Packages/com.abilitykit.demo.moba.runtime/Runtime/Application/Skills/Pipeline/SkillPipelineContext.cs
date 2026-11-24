@@ -279,6 +279,12 @@ namespace AbilityKit.Demo.Moba.Services
             if (PreservesCharacterCastContext) return;
             if (TryGetCharacterHfsm(out var hfsm))
             {
+                if (hfsm.CastBinding(SkillId)?.CastKind == "Auxiliary" &&
+                    WorldServices.TryResolve<SkillCastCoordinator>(out var coordinator) &&
+                    coordinator.TryGetLatestRunning(CasterActorId, out var selected) &&
+                    selected.InstanceId != SourceContextId)
+                    return;
+
                 var basicSlot = 0;
                 if (WorldServices.TryResolve<MobaActorLookupService>(out var actors) &&
                     actors.TryGetActorEntity(CasterActorId, out var actor) && actor.hasSkillLoadout)

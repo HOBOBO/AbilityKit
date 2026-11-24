@@ -464,6 +464,8 @@ namespace AbilityKit.Demo.Moba.Services
             for (var i = 0; i < _running.Count; i++)
             {
                 var running = _running[i];
+                if (policy.IsAuxiliary && running.Request.SkillId == request.SkillId)
+                    return RejectStart(in request, triggerContext, SkillFailureCodes.Start.AlreadyRunning, "Auxiliary skill is already running.");
                 if (serializeAttackSlot && running.Request.SkillSlot == request.SkillSlot && !IsNormalRecovery(in running))
                     return RejectStart(in request, triggerContext, SkillFailureCodes.Start.AlreadyRunning, "Basic attack is winding up.");
                 if (!Conflicts(in policy, in running.Policy)) continue;
@@ -894,6 +896,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         private static bool Conflicts(in SkillCastPolicy incoming, in SkillCastPolicy running)
         {
+            if (incoming.IsAuxiliary || running.IsAuxiliary) return false;
             if (incoming.ConflictGroup > 0 && running.ConflictGroup > 0)
                 return incoming.ConflictGroup == running.ConflictGroup;
             return !incoming.AllowParallel;

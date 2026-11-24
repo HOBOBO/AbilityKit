@@ -1,0 +1,252 @@
+{
+  "format": "abilitykit.local-statesync-replay",
+  "version": 2,
+  "caseId": "local-statesync-partial-commit-failure",
+  "variant": "default",
+  "tickRate": 100,
+  "checkpoints": [
+    {
+      "command": "initial",
+      "deliveryTick": 3,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": 10,
+      "prediction": 20,
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": [],
+      "commit": {
+        "admittedRevision": 1,
+        "admittedTick": 0,
+        "materializedRevision": 1,
+        "materializedPosition": 10,
+        "stages": []
+      }
+    },
+    {
+      "command": "fail-baseline-commit",
+      "deliveryTick": 3,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": true,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": [],
+      "commit": {
+        "admittedRevision": 2,
+        "admittedTick": 1,
+        "materializedRevision": 1,
+        "materializedPosition": 10,
+        "stages": [
+          "Import",
+          "CommitAdmission",
+          "CommitBaseline"
+        ]
+      }
+    },
+    {
+      "command": "retry-partial-full",
+      "deliveryTick": 4,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": true,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": [],
+      "commit": {
+        "admittedRevision": 2,
+        "admittedTick": 1,
+        "materializedRevision": 1,
+        "materializedPosition": 10,
+        "stages": []
+      }
+    },
+    {
+      "command": "delta-while-waiting",
+      "deliveryTick": 4,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": true,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": [],
+      "commit": {
+        "admittedRevision": 2,
+        "admittedTick": 1,
+        "materializedRevision": 1,
+        "materializedPosition": 10,
+        "stages": []
+      }
+    },
+    {
+      "command": "new-full-without-proof",
+      "deliveryTick": 5,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": "InvalidTerminalProof",
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": 4,
+      "reconciledRevision": 4,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": 14,
+      "authority": 14,
+      "prediction": null,
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": [],
+      "commit": {
+        "admittedRevision": 4,
+        "admittedTick": 1,
+        "materializedRevision": 4,
+        "materializedPosition": 14,
+        "stages": [
+          "Import",
+          "CommitAdmission",
+          "CommitBaseline",
+          "Publish"
+        ]
+      }
+    },
+    {
+      "command": "new-delta-with-proof",
+      "deliveryTick": 6,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": "Predicted",
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": 5,
+      "reconciledRevision": 5,
+      "terminalSequence": 1,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": 15,
+      "authority": 15,
+      "prediction": 22,
+      "pending": [
+        2
+      ],
+      "replayTicks": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "replaySteps": [
+        {
+          "tick": 2,
+          "before": 15,
+          "after": 22
+        },
+        {
+          "tick": 3,
+          "before": 22,
+          "after": 22
+        },
+        {
+          "tick": 4,
+          "before": 22,
+          "after": 22
+        },
+        {
+          "tick": 5,
+          "before": 22,
+          "after": 22
+        },
+        {
+          "tick": 6,
+          "before": 22,
+          "after": 22
+        }
+      ],
+      "commit": {
+        "admittedRevision": 5,
+        "admittedTick": 1,
+        "materializedRevision": 5,
+        "materializedPosition": 15,
+        "stages": [
+          "Import",
+          "CommitAdmission",
+          "CommitBaseline",
+          "Publish"
+        ]
+      }
+    }
+  ]
+}

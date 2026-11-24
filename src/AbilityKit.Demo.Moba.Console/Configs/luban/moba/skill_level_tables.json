@@ -1583,8 +1583,8 @@
         "CooldownMs": 7000,
         "Cost": 40,
         "Params": [
-          200,
-          0.5,
+          45,
+          0.44,
           12,
           18,
           4,
@@ -1598,8 +1598,8 @@
         "CooldownMs": 6500,
         "Cost": 45,
         "Params": [
-          240,
-          0.55,
+          70,
+          0.515,
           12,
           19,
           4,
@@ -1613,8 +1613,8 @@
         "CooldownMs": 6000,
         "Cost": 50,
         "Params": [
-          280,
-          0.6,
+          95,
+          0.59,
           12,
           20,
           4,
@@ -1628,8 +1628,8 @@
         "CooldownMs": 5500,
         "Cost": 55,
         "Params": [
-          320,
-          0.65,
+          120,
+          0.665,
           12,
           21,
           4,
@@ -1643,8 +1643,8 @@
         "CooldownMs": 5000,
         "Cost": 60,
         "Params": [
-          360,
-          0.7,
+          145,
+          0.74,
           12,
           22,
           4,
@@ -1674,7 +1674,7 @@
         "CooldownMs": 12000,
         "Cost": 50,
         "Params": [
-          80,
+          60,
           0.5,
           25,
           25
@@ -1684,7 +1684,7 @@
         "CooldownMs": 12000,
         "Cost": 55,
         "Params": [
-          110,
+          95,
           0.5,
           25,
           25
@@ -1694,7 +1694,7 @@
         "CooldownMs": 12000,
         "Cost": 60,
         "Params": [
-          140,
+          130,
           0.5,
           25,
           25
@@ -1704,7 +1704,7 @@
         "CooldownMs": 12000,
         "Cost": 65,
         "Params": [
-          170,
+          165,
           0.5,
           25,
           25
@@ -1735,14 +1735,52 @@
         "CooldownMs": 18000,
         "Cost": 30,
         "Params": [
-          180,
-          1500
+          80,
+          1500,
+          1.2
+        ]
+      },
+      {
+        "CooldownMs": 17000,
+        "Cost": 30,
+        "Params": [
+          135,
+          1500,
+          1.2
+        ]
+      },
+      {
+        "CooldownMs": 16000,
+        "Cost": 30,
+        "Params": [
+          190,
+          1500,
+          1.2
+        ]
+      },
+      {
+        "CooldownMs": 15000,
+        "Cost": 30,
+        "Params": [
+          245,
+          1500,
+          1.2
+        ]
+      },
+      {
+        "CooldownMs": 14000,
+        "Cost": 30,
+        "Params": [
+          300,
+          1500,
+          1.2
         ]
       }
     ],
     "ParamNames": [
       "damage",
-      "slowDurationMs"
+      "slowDurationMs",
+      "physicalAttackRatio"
     ]
   },
   {
@@ -1752,8 +1790,30 @@
         "CooldownMs": 120000,
         "Cost": 100,
         "Params": [
-          250,
-          0.5,
+          50,
+          0.25,
+          30,
+          30,
+          100
+        ]
+      },
+      {
+        "CooldownMs": 105000,
+        "Cost": 100,
+        "Params": [
+          125,
+          0.25,
+          30,
+          30,
+          250
+        ]
+      },
+      {
+        "CooldownMs": 90000,
+        "Cost": 100,
+        "Params": [
+          200,
+          0.25,
           30,
           30,
           400
@@ -1775,11 +1835,11 @@
         "CooldownMs": 0,
         "Cost": 0,
         "Params": [
-          250,
-          0.5,
+          50,
+          0.25,
           30,
           30,
-          400
+          100
         ]
       }
     ],
@@ -1798,11 +1858,11 @@
         "CooldownMs": 0,
         "Cost": 0,
         "Params": [
-          250,
+          50,
           0.5,
           30,
           30,
-          800
+          100
         ]
       }
     ],
@@ -1882,6 +1942,7 @@
         "CooldownMs": 24000,
         "Cost": 90,
         "Params": [
+          70,
           1
         ]
       },
@@ -1889,6 +1950,7 @@
         "CooldownMs": 20500,
         "Cost": 90,
         "Params": [
+          120,
           1
         ]
       },
@@ -1896,6 +1958,7 @@
         "CooldownMs": 17000,
         "Cost": 90,
         "Params": [
+          170,
           1
         ]
       },
@@ -1903,6 +1966,7 @@
         "CooldownMs": 13500,
         "Cost": 90,
         "Params": [
+          220,
           1
         ]
       },
@@ -1910,12 +1974,14 @@
         "CooldownMs": 10000,
         "Cost": 90,
         "Params": [
+          270,
           1
         ]
       }
     ],
     "ParamNames": [
-      "damage"
+      "damage",
+      "magicAttackRatio"
     ]
   },
   {
@@ -1927,8 +1993,8 @@
         "Params": [
           100,
           10,
-          0.1,
-          0.5
+          0.25,
+          0.8
         ]
       },
       {
@@ -1937,8 +2003,8 @@
         "Params": [
           200,
           10,
-          0.1,
-          0.5
+          0.3,
+          0.8
         ]
       },
       {
@@ -1947,8 +2013,8 @@
         "Params": [
           300,
           10,
-          0.1,
-          0.5
+          0.35,
+          0.8
         ]
       }
     ],
@@ -1975,7 +2041,18 @@
     "Levels": [
       {
         "CooldownMs": 800,
-        "Cost": 60,
+        "Cost": 0,
+        "Params": []
+      }
+    ],
+    "ParamNames": []
+  },
+  {
+    "Id": 30030102,
+    "Levels": [
+      {
+        "CooldownMs": 800,
+        "Cost": 0,
         "Params": []
       }
     ],
@@ -2221,7 +2298,7 @@
         "CooldownMs": 800,
         "Cost": 0,
         "Params": [
-          60
+          0
         ]
       }
     ],
@@ -2331,35 +2408,35 @@
     "Id": 30040401,
     "Levels": [
       {
-        "CooldownMs": 18000,
+        "CooldownMs": 20000,
         "Cost": 70,
         "Params": [
           1500
         ]
       },
       {
-        "CooldownMs": 16500,
+        "CooldownMs": 18500,
         "Cost": 75,
         "Params": [
           1750
         ]
       },
       {
-        "CooldownMs": 15000,
+        "CooldownMs": 17000,
         "Cost": 80,
         "Params": [
           2000
         ]
       },
       {
-        "CooldownMs": 13500,
+        "CooldownMs": 15500,
         "Cost": 85,
         "Params": [
           2250
         ]
       },
       {
-        "CooldownMs": 12000,
+        "CooldownMs": 14000,
         "Cost": 90,
         "Params": [
           2500

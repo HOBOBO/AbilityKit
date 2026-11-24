@@ -2,6 +2,35 @@
     "schemaVersion": 1,
     "runtimeType": "presentation",
     "length": 2.208333,
-    "groups": [],
+    "groups": [
+        {
+            "name": "Logic_30030201",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.EffectTrack",
+                    "name": "CastParticle",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.PlayParticle",
+                            "runtimeType": "presentation",
+                            "start": 0.0,
+                            "length": 1.0,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "presentationTemplateId": "90033010"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
     "$type": "AbilityKit.ActionSchema.SkillAssetDto"
 }

@@ -48,10 +48,10 @@ namespace AbilityKit.Game.Tests
         private const string JhinEHitVfxResource =
             "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_E_Hit";
 
-        [TestCase("life/alive/action/attack.slot.1", 0, 10, "AutoAttack_1")]
-        [TestCase("life/alive/action/attack.slot.2", 0, 10, "AutoAttack_2")]
-        [TestCase("life/alive/action/attack.slot.3", 0, 10, "AutoAttack_3")]
-        [TestCase("life/alive/action/attack.slot.4", 0, 10, "AutoAttack_4")]
+        [TestCase("life/alive/action/attack.slot.1", 30010601, 10, "AutoAttack_1")]
+        [TestCase("life/alive/action/attack.slot.2", 30010602, 10, "AutoAttack_2")]
+        [TestCase("life/alive/action/attack.slot.3", 30010603, 10, "AutoAttack_3")]
+        [TestCase("life/alive/action/attack.slot.4", 30010604, 10, "AutoAttack_4")]
         [TestCase("life/alive/action/attack.slot.5", 0, 10, "AutoAttack_Reload")]
         [TestCase("life/alive/action/casting", 30010101, 10, "Spell_Q")]
         [TestCase("life/alive/action/casting", 30010201, 10, "Spell_W")]
@@ -941,9 +941,9 @@ namespace AbilityKit.Game.Tests
                     component.ApplyPresentation(resumed);
                     view.SeekToFrame(resumed.SnapshotFrame, harness.FixedDelta);
                     yield return null;
-                    Assert.AreEqual(Animator.StringToHash("AutoAttack_2"),
+                    Assert.AreEqual(Animator.StringToHash("Idle"),
                         animator.GetCurrentAnimatorStateInfo(0).shortNameHash,
-                        "The next normal attack must resume its matching model action.");
+                        "The next magazine slot must stay idle until another basic attack is cast.");
                 }
                 finally
                 {
@@ -1028,10 +1028,10 @@ namespace AbilityKit.Game.Tests
                         view.Bind(component, harness.TickRate);
                         view.SeekToFrame(resumed.SnapshotFrame, harness.FixedDelta);
                         yield return null;
-                        Assert.AreEqual(Animator.StringToHash("AutoAttack_2"),
+                        Assert.AreEqual(Animator.StringToHash("Idle"),
                             instance.GetComponentInChildren<Animator>(true)
                                 .GetCurrentAnimatorStateInfo(0).shortNameHash,
-                            $"Skill {skill.id} must restore the matching normal-attack model action.");
+                            $"Skill {skill.id} must leave the next magazine slot visually idle.");
                     }
                     finally
                     {
@@ -1075,6 +1075,7 @@ namespace AbilityKit.Game.Tests
                         MobaCharacterHfsmTestFixture.CreateDefinition(),
                         CharacterPresentationActionCatalog.Load(new ResourcesTextAssetLoader()), 3001);
                     Transform previousVfx = null;
+                    var animator = instance.GetComponentInChildren<Animator>(true);
 
                     for (var shotIndex = 0; shotIndex < expectedSkills.Length; shotIndex++)
                     {
@@ -1107,6 +1108,8 @@ namespace AbilityKit.Game.Tests
 
                         component.ApplyPresentation(action);
                         view.Bind(component, harness.TickRate);
+                        Assert.AreEqual(Animator.StringToHash("AutoAttack_" + (shotIndex + 1)),
+                            animator.GetCurrentAnimatorStateInfo(0).shortNameHash);
                         var particle = expectedParticles[shotIndex];
                         for (var frame = 0; frame < 180 && FindTimelineVfx(instance, particle) == null; frame++)
                             yield return null;
@@ -1123,6 +1126,10 @@ namespace AbilityKit.Game.Tests
                         yield return null;
                         Assert.AreSame(currentVfx, FindTimelineVfx(instance, particle),
                             "Repeated snapshots must not duplicate basic attack VFX.");
+
+                        if (shotIndex == expectedSkills.Length - 1)
+                            Assert.IsFalse(skills.CheckCombatRules(actorId, expectedSkills[shotIndex]).Passed,
+                                "The successful fourth launch must lock attacks before reload starts.");
 
                         harness.TickUntilSkillStops(actorId, 5, maxTicks: BasicAttackTimeoutTicks(harness, expectedSkills[shotIndex]),
                             message: "Jhin basic attack flow should finish before the next slot is submitted.");
@@ -1149,6 +1156,9 @@ namespace AbilityKit.Game.Tests
                             component.ApplyPresentation(next);
                             view.SeekToFrame(next.SnapshotFrame, harness.FixedDelta);
                             yield return null;
+                            Assert.AreEqual(Animator.StringToHash("Idle"),
+                                animator.GetCurrentAnimatorStateInfo(0).shortNameHash,
+                                $"After shot {shotIndex + 1}, the next magazine slot is ready but has no cast.");
                             Assert.IsTrue(currentVfx == null,
                                 "Entering the next attack slot must stop the old timeline VFX.");
                         }
@@ -1159,37 +1169,69 @@ namespace AbilityKit.Game.Tests
                     {
                         harness.Tick(1);
                         reload = CaptureAction(harness, actorId);
-                        if (reload.Path.EndsWith("action/attack.slot.5",
-                                System.StringComparison.Ordinal)) break;
+                        if (reload.SkillId == 30010605 && reload.CastInstanceId > 0) break;
                     }
                     StringAssert.EndsWith("action/attack.slot.5", reload.Path,
                         "The fourth shot must enter the authored reload HFSM state.");
-                    Assert.AreEqual(0, reload.CastInstanceId,
-                        "Reload is a state-owned action and must not carry a short skill cast.");
+                    Assert.AreEqual(30010605, reload.SkillId);
+                    Assert.Greater(reload.CastInstanceId, 0);
+                    Assert.AreEqual(2500, reload.CastDurationMs);
+                    Assert.IsFalse(skills.TryCastBySlot(actorId, 5).Success,
+                        "The authoritative slot must reject an attack at reload start.");
                     component.ApplyPresentation(reload);
                     view.SeekToFrame(reload.SnapshotFrame, harness.FixedDelta);
                     yield return null;
-                    var animator = instance.GetComponentInChildren<Animator>(true);
                     Assert.AreEqual(Animator.StringToHash("AutoAttack_Reload"),
                         animator.GetCurrentAnimatorStateInfo(0).shortNameHash);
+
+                    var qTarget = HeroSkillHeadlessContract.SpawnEnemyHero(harness, "jhin_reload_q_target", 9711, x: 0f, z: 4f);
+                    var qCast = skills.TryCastBySlot(actorId, 1, default, Vec3.Forward, qTarget);
+                    Assert.IsTrue(qCast.Success, qCast.FailReason);
+                    harness.Tick(1);
+                    var qAction = CaptureAction(harness, actorId);
+                    Assert.AreEqual(30010101, qAction.SkillId);
+                    component.ApplyPresentation(qAction);
+                    view.Bind(component, harness.TickRate);
+                    Assert.IsFalse(skills.TryCastBySlot(actorId, 5).Success);
+                    harness.TickUntilSkillStops(actorId, 1, 35);
+                    harness.Tick(1);
+                    var resumed = CaptureAction(harness, actorId);
+                    Assert.AreEqual(reload.CastInstanceId, resumed.CastInstanceId);
+                    Assert.AreEqual(reload.CastStartFrame, resumed.CastStartFrame);
+                    component.ApplyPresentation(resumed);
+                    view.Bind(component, harness.TickRate);
+                    var resumedState = animator.GetCurrentAnimatorStateInfo(0);
+                    Assert.AreEqual(Animator.StringToHash("AutoAttack_Reload"), resumedState.shortNameHash);
+                    Assert.AreEqual((resumed.SnapshotFrame - reload.CastStartFrame) * harness.FixedDelta / 2.5f,
+                        resumedState.normalizedTime, 0.03f);
 
                     var parameters = harness.World.Services.Resolve<MobaCharacterHfsmParameterService>();
                     CharacterActionData afterReload = reload;
                     for (var tick = 0; tick < 80; tick++)
                     {
+                        Assert.IsFalse(skills.TryCastBySlot(actorId, 5).Success,
+                            "Attacks must remain blocked until the last reload frame finishes.");
                         harness.Tick(1);
                         afterReload = CaptureAction(harness, actorId);
                         if (!afterReload.Path.EndsWith("action/attack.slot.5",
                                 System.StringComparison.Ordinal)) break;
+                        Assert.AreEqual(reload.CastInstanceId, afterReload.CastInstanceId);
                     }
                     Assert.IsFalse(afterReload.Path.EndsWith("action/attack.slot.5",
                             System.StringComparison.Ordinal),
-                        "The authored 75-frame reload action must finish and leave slot 5 through its HFSM condition.");
+                        "The auxiliary Timeline must finish before leaving the reload state.");
                     Assert.AreEqual(0f, parameters.Resolve(actorId,
                             MobaCharacterHfsmTestFixture.AttackSlot),
-                        "The reload state's logical exit action must clear the source-owned AttackSlot contribution.");
+                        "Normal cast completion must clear the source-owned AttackSlot contribution.");
                     Assert.AreEqual(0, afterReload.CastInstanceId,
-                        "Reload completion is state-driven and must not create or retain a cast context.");
+                        "The completed reload must no longer own the model action.");
+                    component.ApplyPresentation(afterReload);
+                    view.SeekToFrame(afterReload.SnapshotFrame, harness.FixedDelta);
+                    Assert.AreEqual(Animator.StringToHash("Idle"),
+                        animator.GetCurrentAnimatorStateInfo(0).shortNameHash);
+                    harness.AssertSlotSkill(5, 30010601);
+                    Assert.IsTrue(skills.TryCastBySlot(actorId, 5, default, Vec3.Forward, 0).Success,
+                        "Normal completion must unlock the next magazine's first attack.");
                 }
                 finally
                 {

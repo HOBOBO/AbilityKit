@@ -28,7 +28,14 @@ namespace AbilityKit.BattleScenario.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                if (GUILayout.Button("配置校验", EditorStyles.toolbarButton, GUILayout.Width(70))) ValidateCurrent();
+                GUILayout.Label("当前草稿", EditorStyles.miniBoldLabel);
+                if (GUILayout.Button(new GUIContent("配置校验", "校验当前编辑内容，无需保存"), EditorStyles.toolbarButton, GUILayout.Width(68)))
+                    ValidateCurrent();
+                using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
+                    DrawDraftReplayMenu();
+
+                GUILayout.Space(12);
+                GUILayout.Label(new GUIContent("已保存用例", _casePath.Length == 0 ? "先选择或保存用例" : _casePath), EditorStyles.miniBoldLabel);
                 using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode || _casePath.Length == 0))
                 {
                     using (new EditorGUI.DisabledScope(BattleScenarioEditorIntegration.PlaySavedCase == null))
@@ -45,12 +52,13 @@ namespace AbilityKit.BattleScenario.Editor
                     if (GUILayout.Button("运行断言", EditorStyles.toolbarButton, GUILayout.Width(70))) RunSavedAssertions();
                 }
                 using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
+                {
                     if (GUILayout.Button("批量运行", EditorStyles.toolbarButton, GUILayout.Width(70))) RunBatch();
+                }
 
-                var label = _casePath.Length == 0 ? "先选择或保存用例" : Path.GetFileName(_casePath);
-                GUILayout.Label(new GUIContent(label, _casePath), EditorStyles.miniLabel, GUILayout.Width(200));
                 GUILayout.FlexibleSpace();
-                GUILayout.Label("预览与断言使用已保存版本", EditorStyles.miniLabel);
+                var label = _casePath.Length == 0 ? "未选保存用例" : Path.GetFileName(_casePath);
+                GUILayout.Label(new GUIContent(label, _casePath), EditorStyles.miniLabel);
             }
         }
 

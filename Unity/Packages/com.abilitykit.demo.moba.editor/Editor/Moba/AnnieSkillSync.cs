@@ -21,6 +21,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         public static void SyncAndPublish()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            PublishSummonPresentation();
             SyncAuthoredFlows();
             AssetDatabase.SaveAssets();
             InvokeTriggerAuthoring("ImportProductionSourcesBatch");
@@ -34,6 +35,36 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("[AnnieSkillSync] Published and checked Annie passive/Q/W/E authored configuration.");
+        }
+
+        /// <summary>
+        /// Derives the autonomous landing effect from the showcase particle branch.
+        /// </summary>
+        public static void PublishSummonPresentation()
+        {
+            const string root = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/";
+            const string source = root + "ChampionVfx/14.Void_Annie/Void_Annie_Tibbers_Spawn.prefab";
+            const string destination = root + "MobaVfx/Annie/Tibbers_Spawn.prefab";
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(source)
+                ?? throw new InvalidDataException("Missing Tibbers landing source: " + source);
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            try
+            {
+                var particles = instance.GetComponentsInChildren<ParticleSystem>(true);
+                if (particles.Length == 0) throw new InvalidDataException("Missing Tibbers landing particles.");
+                foreach (var particle in particles)
+                {
+                    var main = particle.main;
+                    main.playOnAwake = true;
+                    PrefabUtility.RecordPrefabInstancePropertyModifications(particle);
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(destination));
+                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+                if (PrefabUtility.SaveAsPrefabAsset(instance, destination) == null)
+                    throw new InvalidDataException("Could not publish Tibbers landing variant: " + destination);
+                AssetDatabase.SaveAssets();
+            }
+            finally { UnityEngine.Object.DestroyImmediate(instance); }
         }
 
         private static void SyncAuthoredFlows()

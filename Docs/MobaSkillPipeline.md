@@ -166,13 +166,17 @@ Initial content: Lux W entry 250ms, matching its existing projectile submission;
 
 The bounded extensions approved in [Lux readiness](../plans/LuxImplementationReadiness.2026-11-13.md) are explicit Flow fields and default to false:
 
-- `ContinueThroughControl` separates admission from continuation. New casts still pass the skill's ordinary combat gate. An existing cast ignores that skill's control result mask in both per-cast checks and its Pipeline Continuous execution gate; explicitly configured Continuous template requirements still apply. Death and removal terminate the cast. Character HFSM retains this cast action through ordinary control.
+- `ContinueThroughControl` separates admission from continuation. New casts still pass the skill's ordinary combat gate. An existing cast ignores that skill's control result mask in both per-cast checks and its Pipeline Continuous execution gate; explicitly configured Continuous template requirements still apply. Death and removal terminate the cast. Character HFSM retains the cast action through ordinary control unless its cast binding sets `RespectActionControl`, in which case control can take over presentation without pausing the cast clock.
 - `PreserveCharacterCastContext` makes an auxiliary cast leave the primary character Cast, aim and action cursor intact. HFSM cast selection and `TryGetLatestRunning` exclude that auxiliary context; its own runtime, effects and cleanup remain independent.
 - `QueueRecastInFlight` lets a recast bind the exact original channel, slot, base skill, Cast generation and unique projectile. Repeated requests set one pending flag. Landing retains the Area before releasing the projectile and consumes the pending request through the same terminal claim as deployed recast. The original Cast blackboard carries pending identity through rollback; death clears the owned channel.
 
 `resolve_cast_area` supports `pending_only` for landing handover and `owned_area` for resolving a unique Area owned by the current Cast. Area callbacks carry the original center and forward vector; the query reads that frame rather than the caster's later transform. These contracts contain no hero identity checks.
 
 Character presentation binding must preserve a live action's progress when a forward snapshot is behind the frame already sampled by the view timeline. Binding the same action/Cast samples at the later frame instead of replaying one-shot clips; explicit backward seeks still stop/rebuild presentation as before. Placement-only (`Follow=false`) timeline particles must not retain the moving implicit self Transform as a parent. These are consumer contract repairs, not a source of gameplay timing or aim authority.
+
+Use the callable `start_auxiliary_skill` action to start an independent, slotless cast from an HFSM state entry. It uses normal cast admission, rejects a second live instance of the same skill, and does not compete with foreground casts for runner conflict resolution. A character binding can mark a cast `Auxiliary` to give it its own state/condition while letting foreground actions take precedence. For a single uninterrupted Timeline the presentation snapshot carries the original cast start and its authored duration; switching presentation states does not restart the model animation. The extra fields are view projection data, not input or rollback authority.
+
+Jhin's fourth successful projectile launch installs the magazine lock (`CannotAttack`); the HFSM starts reload skill `30010605` when the actor can enter reload. The 2500 ms Timeline, not state exit or an Animator event, removes the lock and resets the magazine. The original non-looping reload clip is sampled against the Timeline progress.
 
 ### Approved Cast presentation frame
 

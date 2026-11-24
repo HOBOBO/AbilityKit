@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Runtime.Config.Plans;
 using Newtonsoft.Json;
@@ -218,31 +217,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             var store = TriggerPlanJsonReader.Read(json, sourceName, CreateCue, out var dto);
             Publish(store, dto);
-        }
-
-        /// <summary>
-        /// 将全局作用域的已加载计划注册到指定运行器。
-        /// </summary>
-        public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner)
-        {
-            RegisterAll(runner, TriggerPlanScope.Global);
-        }
-
-        /// <summary>
-        /// 按记录顺序注册指定作用域的计划，跳过无事件 ID 的记录。
-        /// </summary>
-        public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner, TriggerPlanScope scope)
-        {
-            if (runner == null) throw new ArgumentNullException(nameof(runner));
-
-            for (int i = 0; i < _store.Records.Count; i++)
-            {
-                var r = _store.Records[i];
-                if (r.EventId == 0) continue;
-                if (r.Scope != scope) continue;
-                var key = new EventKey<object>(r.EventId);
-                runner.RegisterPlan<object, TCtx>(key, r.Plan);
-            }
         }
 
         internal void LoadFromDto(TriggerPlanDatabaseDto dto) => Publish(TriggerPlanJsonReader.Read(dto, CreateCue), dto);

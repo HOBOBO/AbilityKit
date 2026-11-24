@@ -41,6 +41,7 @@ namespace AbilityKit.Game.Test.UnitTest
         private const int HeroId = 3003;
         private const int PassiveId = 30030000;
         private const int BasicAttackSkillId = 30030101;
+        private const int TibbersBasicAttackSkillId = 30030102;
         private const int QSkillId = 30030201;
         private const int WSkillId = 30030301;
         private const int ESkillId = 30030401;
@@ -51,7 +52,8 @@ namespace AbilityKit.Game.Test.UnitTest
         private const int CounterKeyId = 30030002;
         private const int AnnieQPreviewVfxId = 90033001;
         private const int AnnieWPreviewVfxId = 90033002;
-        private const int AnnieStunPresentationTemplateId = 90033003;
+        private const int AnnieWrPyromaniaPresentationTemplateId = 90033003;
+        private const int AnnieQImpactPresentationTemplateId = 90033018;
         private const int AnnieEPresentationTemplateId = 90033004;
         private const int AnnieRPreviewVfxId = 90033005;
 
@@ -70,8 +72,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.AreEqual(AnnieRPreviewVfxId, GetSkillPreviewVfx(harness, RSkillId));
 
                 Assert.IsTrue(harness.Config.TryGetBuff(30030211, out var stun));
-                Assert.AreEqual(AnnieStunPresentationTemplateId, stun.PresentationTemplateId,
-                    "Annie's passive stun Buff must resolve the dedicated Annie hit presentation.");
+                Assert.AreEqual(0, stun.PresentationTemplateId,
+                    "Annie Q and W/R emit their own hit feedback; the shared stun must not replay it.");
                 Assert.IsTrue(harness.Config.TryGetBuff(EMoveSpeedBuffId, out var shield));
                 Assert.AreEqual(AnnieEPresentationTemplateId, shield.PresentationTemplateId,
                     "Annie E's shield/movement Buff must resolve the dedicated Annie shield presentation.");
@@ -80,7 +82,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 foreach (var templateId in new[]
                          {
                              AnnieQPreviewVfxId, AnnieWPreviewVfxId,
-                             AnnieStunPresentationTemplateId,
+                             AnnieWrPyromaniaPresentationTemplateId,
                              AnnieEPresentationTemplateId, AnnieRPreviewVfxId,
                          })
                 {
@@ -89,6 +91,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     Assert.AreEqual(templateId, template.AssetId,
                         "Annie presentation template must point at its same-id VFX asset.");
                 }
+                Assert.IsTrue(templates.TryGet(AnnieQImpactPresentationTemplateId, out var qImpact));
+                Assert.AreEqual(AnnieWrPyromaniaPresentationTemplateId, qImpact.AssetId);
             }
         }
 
@@ -1127,6 +1131,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 harness.EnterGameAndWarmup(reason: "Annie R impact and Tibbers summon contract");
                 var actorId = harness.AssertPlayerActorBound();
+                harness.SetScenarioActorAttribute(actorId, "magic_attack", 100f);
                 var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(
                     harness, "annie_r_impact_target", 9307, x: 3f, z: 0f);
                 var hpBefore = harness.GetActorHp(targetActorId);
@@ -1185,15 +1190,19 @@ namespace AbilityKit.Game.Test.UnitTest
                 var owner = harness.AssertActorEntity(actorId);
                 Assert.IsTrue(owner.hasAttributeGroup && owner.attributeGroup.Group != null);
                 Assert.IsTrue(tibbers.hasAttributeGroup && tibbers.attributeGroup.Group != null);
-                Assert.AreEqual(owner.GetMobaAttrs().MaxHp, tibbers.GetMobaAttrs().MaxHp, 0.001f,
-                    "Tibbers MaxHP must inherit the owner's configured MaxHP at 1.0 ratio.");
+                Assert.AreEqual(1200f, tibbers.GetMobaAttrs().MaxHp, 0.001f,
+                    "Tibbers must use the project baseline template HP rather than the owner's HP.");
+                Assert.AreEqual(50f, tibbers.GetMobaAttrs().PhysicsAttack, 0.001f,
+                    "Tibbers must use its template AD rather than inherit the owner's AD.");
+                Assert.AreEqual(100f, tibbers.GetMobaAttrs().MagicAttack, 0.001f,
+                    "Tibbers must retain the configured 1.0 owner AP inheritance.");
                 Assert.Less((tibbers.transform.Value.Position - aimPos).Magnitude, 0.5f,
                     "Tibbers must spawn at the R aimed position.");
 
                 Assert.IsTrue(tibbers.hasSkillLoadout && tibbers.skillLoadout.ActiveSkills != null,
                     "Tibbers must initialize a runtime skill loadout from the summon SkillIds column.");
-                Assert.IsTrue(ContainsActiveSkill(tibbers, BasicAttackSkillId),
-                    "Tibbers SkillLoadout must expose the configured Annie basic attack skill.");
+                Assert.IsTrue(ContainsActiveSkill(tibbers, TibbersBasicAttackSkillId),
+                    "Tibbers SkillLoadout must expose its configured basic attack skill.");
                 var brains = harness.World.Services.Resolve<MobaBrainService>();
                 Assert.IsTrue(brains.TryGetBehavior(tibbers.actorBrain.BehaviorInstanceId, out var tibbersBehavior),
                     "Tibbers must bind a runtime behavior instance when it is spawned.");
@@ -1213,7 +1222,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     if (node.Metadata.ConfigId == RSkillId && node.Metadata.SourceActorId == actorId)
                         impactCount++;
                     if (node.Metadata.SourceActorId == tibbersActorId &&
-                        node.Metadata.ConfigId == BasicAttackSkillId)
+                        node.Metadata.ConfigId == TibbersBasicAttackSkillId)
                         summonAttackCount++;
                 }
                 Assert.AreEqual(1, impactCount, "R impact must settle once; later damage must come from summon attacks.");

@@ -1,0 +1,62 @@
+{
+  "format": "abilitykit.local-statesync-replay",
+  "version": 2,
+  "caseId": "gragas-e-local-statesync",
+  "variant": "without-proof",
+  "tickRate": 30,
+  "positionLabel": "MOBA 世界 Z 轴（每 1000 格 = 1 世界单位）",
+  "checkpoints": [
+    {
+      "command": "旧预测（正式世界）",
+      "deliveryTick": 62,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": -1,
+      "baselineTick": -1,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": 1354,
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "交付 E 结束后的权威落点",
+      "deliveryTick": 62,
+      "generation": 1,
+      "admission": "AppliedFullBaseline",
+      "validation": "AcceptedFullBaseline",
+      "reconciliation": "InvalidTerminalProof",
+      "sequence": 1,
+      "appliedTick": 60,
+      "baselineTick": 60,
+      "publishedRevision": 1,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 1,
+      "publishedPosition": -2000,
+      "authority": -2000,
+      "prediction": null,
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    }
+  ]
+}

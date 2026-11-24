@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 3, "caseId": "jinx-e-miss", "displayName": "Jinx E - Three traps expire without contact",
+  "tags": ["skill-presentation", "jinx"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 6300},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3002, "attributeTemplateId": 3002, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 3, "position": {"x": 7, "y": 0, "z": 1}, "direction": {"x": 0, "y": 0, "z": 1}}
+    ],
+    "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30020301, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42020302, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaEnter", "configId": 42020302},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42020305},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaExpire", "configId": 42020305},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaExpire", "configId": 42020302, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42020301, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaEnter", "configId": 42020301},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42020304},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaExpire", "configId": 42020304},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaExpire", "configId": 42020301, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42020303, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaEnter", "configId": 42020303},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42020306},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaExpire", "configId": 42020306},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaExpire", "configId": 42020303, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30020301},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "BuffApply", "configId": 32020301}
+    ]
+  }
+}

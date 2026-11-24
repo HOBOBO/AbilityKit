@@ -5054,7 +5054,7 @@
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 0,
+                "integerValue": 30010008,
                 "numberValue": 0.0,
                 "booleanValue": false,
                 "integerListValue": [],
@@ -5109,7 +5109,7 @@
       },
       {
         "id": 30010006,
-        "name": "Jhin reload presentation 30010006",
+        "name": "Jhin - Start reload",
         "groupPath": "trigger_30010006",
         "tags": [
           "moba",
@@ -5121,7 +5121,7 @@
         "phase": "immediate",
         "priority": 50,
         "interruptPriority": 0,
-        "scope": "owner",
+        "scope": "global",
         "allowExternal": false,
         "schedule": {
           "mode": "transient",
@@ -5138,82 +5138,38 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_l0000000001c9ea96",
+          "nodeId": "node_l0000000001c9ea01",
           "enabled": true,
           "kind": "Action",
-          "type": "seq",
-          "arguments": [],
-          "children": [
+          "type": "start_auxiliary_skill",
+          "arguments": [
             {
-              "nodeId": "node_l0000000001c9ea97",
-              "enabled": true,
-              "kind": "Action",
-              "type": "play_presentation",
-              "arguments": [
-                {
-                  "name": "template_id",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 90013015,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
+              "name": "skill_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 30010605,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
                 },
-                {
-                  "name": "target_mode",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 4,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
-                  "name": "duration_ms",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 2500,
-                    "numberValue": 0.0,
-                    "booleanValue": false,
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                }
-              ],
-              "children": [],
-              "elseChildren": []
+                "fields": []
+              }
             }
           ],
+          "children": [],
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Jhin authoritative trigger 30010006."
+        "note": "Callable HFSM entry: start the independently timed reload cast."
       },
       {
         "id": 30010007,
-        "name": "Jhin reload state reset 30010007",
+        "name": "Jhin - Reload complete",
         "groupPath": "trigger_30010007",
         "tags": [
           "moba",
@@ -5242,37 +5198,187 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_l0000000001c9eaa0",
+          "nodeId": "node_l0000000001c9ea03",
           "enabled": true,
           "kind": "Action",
-          "type": "set_hfsm_parameter",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "nodeId": "node_l0000000001c9ea04",
+              "enabled": true,
+              "kind": "Action",
+              "type": "remove_buff",
+              "arguments": [
+                {
+                  "name": "buff_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 32010624,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_l0000000001c9eaa0",
+              "enabled": true,
+              "kind": "Action",
+              "type": "set_hfsm_parameter",
+              "arguments": [
+                {
+                  "name": "parameter_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 10,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "value",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "priority",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "source_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30010004,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Normal reload completion removes the source-specific lock and clears AttackSlot."
+      },
+      {
+        "id": 30010008,
+        "name": "Jhin - Empty magazine",
+        "groupPath": "trigger_30010008",
+        "tags": [
+          "moba",
+          "passives"
+        ],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_l0000000001c9ea02",
+          "enabled": true,
+          "kind": "Action",
+          "type": "add_buff",
           "arguments": [
             {
-              "name": "parameter_id",
+              "name": "buff_ids",
               "value": {
                 "source": "Constant",
-                "type": "Integer",
-                "integerValue": 10,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "value",
-              "value": {
-                "source": "Constant",
-                "type": "Number",
+                "type": "IntegerList",
                 "integerValue": 0,
                 "numberValue": 0.0,
                 "booleanValue": false,
-                "integerListValue": [],
+                "integerListValue": [
+                  32010624
+                ],
                 "vector3Value": {
                   "x": 0.0,
                   "y": 0.0,
@@ -5282,28 +5388,11 @@
               }
             },
             {
-              "name": "priority",
+              "name": "target_mode",
               "value": {
                 "source": "Constant",
                 "type": "Integer",
-                "integerValue": 0,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
-              }
-            },
-            {
-              "name": "source_id",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 30010004,
+                "integerValue": 1,
                 "numberValue": 0.0,
                 "booleanValue": false,
                 "integerListValue": [],
@@ -5320,7 +5409,7 @@
           "elseChildren": []
         },
         "blackboard": [],
-        "note": "Jhin authoritative trigger 30010007. Clears the source-owned AttackSlot contribution when reload exits."
+        "note": "Called only when the fourth basic projectile launches successfully."
       },
       {
         "id": 30010014,
@@ -6507,51 +6596,159 @@
           "stopPropagationOnFailure": false
         },
         "actions": {
-          "nodeId": "node_1ad31cd63161b2e0a8f391141573dda1",
+          "nodeId": "node_036c0f30f24055cba4d38e932225a380",
           "enabled": true,
           "kind": "Action",
-          "type": "add_buff",
-          "arguments": [
+          "type": "seq",
+          "arguments": [],
+          "children": [
             {
-              "name": "buff_ids",
-              "value": {
-                "source": "Constant",
-                "type": "IntegerList",
-                "integerValue": 0,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "stringValue": "",
-                "integerListValue": [
-                  30030211
-                ],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
+              "nodeId": "node_1ad31cd63161b2e0a8f391141573dda1",
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [
+                      30030211
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
                 },
-                "fields": []
-              }
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
             },
             {
-              "name": "target_max_count",
-              "value": {
-                "source": "Constant",
-                "type": "Integer",
-                "integerValue": 1,
-                "numberValue": 0.0,
-                "booleanValue": false,
-                "stringValue": "",
-                "integerListValue": [],
-                "vector3Value": {
-                  "x": 0.0,
-                  "y": 0.0,
-                  "z": 0.0
-                },
-                "fields": []
+              "nodeId": "node_5e8a418c78a65349961af40cd4f4c4c6",
+              "enabled": true,
+              "kind": "Action",
+              "type": "conditional",
+              "arguments": [],
+              "children": [
+                {
+                  "nodeId": "node_cdfd7866da5c5329a89ef43ee373ac8a",
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "play_presentation",
+                  "arguments": [
+                    {
+                      "name": "template_id",
+                      "value": {
+                        "source": "Constant",
+                        "type": "Integer",
+                        "integerValue": 90033003
+                      }
+                    },
+                    {
+                      "name": "target_mode",
+                      "value": {
+                        "source": "Constant",
+                        "type": "Integer",
+                        "integerValue": 6
+                      }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
+                }
+              ],
+              "elseChildren": [],
+              "condition": {
+                "nodeId": "node_57cb35053ea75e528a3da6b1816dc993",
+                "enabled": true,
+                "kind": "Condition",
+                "type": "any",
+                "arguments": [],
+                "children": [
+                  {
+                    "nodeId": "node_cbff7b14141b55d3a1b9613b8f1e1c1d",
+                    "enabled": true,
+                    "kind": "Condition",
+                    "type": "arg_eq",
+                    "arguments": [
+                      {
+                        "name": "left",
+                        "value": {
+                          "source": "Payload",
+                          "type": "Integer",
+                          "path": "reason_param"
+                        }
+                      },
+                      {
+                        "name": "right",
+                        "value": {
+                          "source": "Constant",
+                          "type": "Integer",
+                          "integerValue": 30030301
+                        }
+                      }
+                    ],
+                    "children": [],
+                    "elseChildren": []
+                  },
+                  {
+                    "nodeId": "node_b307fec6b62a5343b9d3a8019519acf1",
+                    "enabled": true,
+                    "kind": "Condition",
+                    "type": "arg_eq",
+                    "arguments": [
+                      {
+                        "name": "left",
+                        "value": {
+                          "source": "Payload",
+                          "type": "Integer",
+                          "path": "reason_param"
+                        }
+                      },
+                      {
+                        "name": "right",
+                        "value": {
+                          "source": "Constant",
+                          "type": "Integer",
+                          "integerValue": 30030501
+                        }
+                      }
+                    ],
+                    "children": [],
+                    "elseChildren": []
+                  }
+                ],
+                "elseChildren": []
               }
             }
           ],
-          "children": [],
           "elseChildren": []
         },
         "blackboard": [],

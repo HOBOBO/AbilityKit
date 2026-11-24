@@ -486,9 +486,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 var areaService = harness.World.Services.Resolve<MobaAreaRuntimeService>();
                 var areas = new List<MobaAreaRuntimeInfo>();
-                Assert.IsTrue(areaService.TryGetAreas(areas, ownerActorId: casterActorId, templateId: 42020301));
+                Assert.IsTrue(areaService.TryGetAreas(areas, ownerActorId: casterActorId));
                 Assert.AreEqual(3, areas.Count, "E must deploy all three trap areas in the same cast.");
                 var expectedOffsets = new[] { -2f, 0f, 2f };
+                var expectedTemplates = new[] { 42020302, 42020301, 42020303 };
                 for (var i = 0; i < expectedOffsets.Length; i++)
                 {
                     var found = false;
@@ -496,6 +497,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     {
                         var expected = aimPosition + right * expectedOffsets[i];
                         if ((areas[j].Center - expected).SqrMagnitude > 0.0025f) continue;
+                        Assert.AreEqual(expectedTemplates[i], areas[j].TemplateId);
                         Assert.AreEqual(1, areas[j].GroupKey,
                             "The three traps share the configured group key so each target is claimed once.");
                         Assert.IsTrue(areas[j].ClaimTargetsWithinGroup);
@@ -538,7 +540,9 @@ namespace AbilityKit.Game.Test.UnitTest
                     new[] { "damage", "flightBonusPerSecond", "missingHpRatioCoefficient", "secondaryDamageScale" },
                     levels.ParamNames);
                 Assert.AreEqual(3, levels.Levels.Count);
-                CollectionAssert.AreEqual(new[] { 100f, 10f, 0.1f, 0.5f }, levels.Levels[0].Params);
+                CollectionAssert.AreEqual(new[] { 100f, 10f, 0.25f, 0.8f }, levels.Levels[0].Params);
+                CollectionAssert.AreEqual(new[] { 200f, 10f, 0.30f, 0.8f }, levels.Levels[1].Params);
+                CollectionAssert.AreEqual(new[] { 300f, 10f, 0.35f, 0.8f }, levels.Levels[2].Params);
 
                 harness.AssertSkillUsesCastFlow(RSkillId, RSkillId);
                 harness.AssertCastFlowContainsTimelineEffect(RSkillId, RLaunchTriggerId);
@@ -1386,22 +1390,36 @@ namespace AbilityKit.Game.Test.UnitTest
                 hud.PointerUp(eCenter + new Vector2(-60f, 100f));
                 yield return TickUntil(flow, () =>
                 {
-                    var count = 0;
+                    var trapVfxIds = new List<int>(3);
                     foreach (var tag in UnityEngine.Object.FindObjectsOfType<BattleVfxPoolableTag>())
-                        if (tag.VfxId == 90032007 && tag.gameObject.activeInHierarchy &&
-                            tag.GetComponentInChildren<ParticleSystem>() != null) count++;
-                    return count == 3;
+                        if ((tag.VfxId == 90032007 || tag.VfxId == 90032008 || tag.VfxId == 90032009) &&
+                            tag.gameObject.activeInHierarchy && tag.GetComponentInChildren<ParticleSystem>() != null)
+                            trapVfxIds.Add(tag.VfxId);
+                    return trapVfxIds.Count == 3 && trapVfxIds.Contains(90032007) &&
+                           trapVfxIds.Contains(90032008) && trapVfxIds.Contains(90032009);
                 }, 90, "E must create three independent formal trap visuals through the real HUD.");
                 Assert.AreEqual(hpBeforeE, enemy.GetMobaAttrs().Hp, 0.001f,
                     "E must not apply contact damage before the configured arm delay.");
                 var eVisiblePixels = 0;
+                System.Func<bool> captureTrapPixels = () =>
+                {
+                    foreach (var vfxId in new[] { 90032007, 90032008, 90032009 })
+                        eVisiblePixels = Mathf.Max(eVisiblePixels, CaptureLiveVfx(vfxId, "e-traps-" + vfxId));
+                    return eVisiblePixels > 20;
+                };
                 yield return TickUntil(flow, () =>
                 {
-                    eVisiblePixels = Mathf.Max(eVisiblePixels, CaptureLiveVfx(90032007, "e-traps"));
+                    captureTrapPixels();
                     return enemy.GetMobaAttrs().Hp < hpBeforeE;
                 }, 90, "The armed E trap must damage the enemy at the released indicator landing.");
-                Assert.Greater(eVisiblePixels, 20, "E's real area visuals must render in the gameplay camera.");
                 Assert.IsTrue(HasLiveBuff(enemy, 32020301), "E must apply its root Buff to the same damaged victim.");
+                /*
+                 * 中心陷阱命中后正常退场，左右实例仍按各自资源播放。
+                 * 继续观察存活实例，避免把中心刚生成或已消耗的单帧当作整组表现结果。
+                 */
+                yield return TickUntil(flow, captureTrapPixels, 90,
+                    "E's real area visuals must render in the gameplay camera.");
+                Assert.Greater(eVisiblePixels, 20, "E's real area visuals must render in the gameplay camera.");
                 hud.Dispose();
                 hud = null;
                 yield return TickUntil(flow,

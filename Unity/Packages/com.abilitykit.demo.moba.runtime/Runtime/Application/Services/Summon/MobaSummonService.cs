@@ -18,6 +18,8 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services.Observability;
 using AbilityKit.Demo.Moba.Services.Triggering;
+using AbilityKit.Demo.Moba.Services.Triggering.Cue;
+using AbilityKit.Demo.Moba.Triggering;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -109,6 +111,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject] private MobaExecutionContextRegistry _executionContexts = null;
         [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn = null;
         [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots = null;
+        [WorldInject(required: false)] private MobaPresentationCueSnapshotService _presentationCues = null;
         [WorldInject(required: false)] private MobaActorDespawnSnapshotService _despawnSnapshots = null;
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
@@ -400,6 +403,21 @@ namespace AbilityKit.Demo.Moba.Services
                     rootOwner,
                     in spawnSourceContext);
                 CollectSummonSpawned(actorId, summonId, in spawnSourceContext);
+
+                if (summon.SpawnVfxId > 0 && _presentationCues != null)
+                {
+                    MobaPresentationRequestReporter.ReportPlay(_presentationCues, _config, new PresentationEventArgs
+                    {
+                        EventId = MobaPresentationTriggering.Events.Play,
+                        TemplateId = summon.SpawnVfxId,
+                        SourceActorId = casterActorId,
+                        TargetActorId = actorId,
+                        SourceContextId = spawnSourceContext.SourceContextId,
+                        RootContextId = spawnSourceContext.RootContextId,
+                        OwnerContextId = spawnSourceContext.OwnerContextId,
+                        Positions = new[] { entity.transform.Value.Position },
+                    });
+                }
 
                 summonActorId = actorId;
                 return true;

@@ -11,6 +11,8 @@
     <ProjectReference Include="..\AbilityKit.BattleScenario\AbilityKit.BattleScenario.csproj" />
     <ProjectReference Include="..\AbilityKit.World.StateSync\AbilityKit.World.StateSync.csproj" />
     <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.battlescenario/Editor/LocalStateSyncReplay.cs"
+             Link="Samples/LocalStateSyncReplay.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.world.statesync/Samples~/LocalCheckpoints/LocalCheckpointExample.cs"
              Link="Samples/LocalCheckpointExample.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.world.statesync/Samples~/LocalSnapshotHistory/LocalSnapshotHistoryExample.cs"
@@ -18,6 +20,8 @@
     <Compile Include="../../Unity/Packages/com.abilitykit.world.statesync/Samples~/LocalStateCommit/LocalStateCommitExample.cs"
              Link="Samples/LocalStateCommitExample.cs" />
     <None Update="Samples/Scenarios/*.battlescenario" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../Unity/Packages/com.abilitykit.battlescenario/Editor/ReplaySamples/*.statesync-replay.json"
+          Link="Samples/ReplaySamples/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

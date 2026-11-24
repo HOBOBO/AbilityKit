@@ -17,14 +17,18 @@
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Server\BattleHost\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Client\FrameSync\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\FrameSync\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\FrameSync\CatchUp\WorldCatchUpDriver.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\FrameSync\Input\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Rollback\*.cs" />
-    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Session\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Time\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\WorldStart\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.FrameSync\AbilityKit.World.FrameSync.csproj" />
     <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.World.NetworkFragments\AbilityKit.World.NetworkFragments.csproj" />
     <ProjectReference Include="..\AbilityKit.World.Snapshot\AbilityKit.World.Snapshot.csproj" />

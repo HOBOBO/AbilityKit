@@ -770,14 +770,14 @@
     "LevelTableId": 0,
     "Name": "普通攻击（第1击）",
     "PreCastFlowId": 0,
-    "Range": 550,
+    "Range": 6,
     "SkillButtonTemplateId": 31,
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
     "Uninterruptible": false,
-    "ExecutionBlockedResultMask": 0
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 30010602,
@@ -788,14 +788,14 @@
     "LevelTableId": 0,
     "Name": "普通攻击（第2击）",
     "PreCastFlowId": 0,
-    "Range": 550,
+    "Range": 6,
     "SkillButtonTemplateId": 31,
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
     "Uninterruptible": false,
-    "ExecutionBlockedResultMask": 0
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 30010603,
@@ -806,14 +806,14 @@
     "LevelTableId": 0,
     "Name": "普通攻击（第3击）",
     "PreCastFlowId": 0,
-    "Range": 550,
+    "Range": 6,
     "SkillButtonTemplateId": 31,
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
     "Uninterruptible": false,
-    "ExecutionBlockedResultMask": 0
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 30010604,
@@ -824,14 +824,14 @@
     "LevelTableId": 0,
     "Name": "普通攻击（第4击）",
     "PreCastFlowId": 0,
-    "Range": 550,
+    "Range": 6,
     "SkillButtonTemplateId": 31,
     "SkillType": 1,
     "Tags": [],
     "PreviewVfxId": 0,
     "AllowCastWithoutTarget": true,
     "Uninterruptible": false,
-    "ExecutionBlockedResultMask": 0
+    "ExecutionBlockedResultMask": 128
   },
   {
     "Id": 30030101,
@@ -842,7 +842,7 @@
     "LevelTableId": 0,
     "Name": "普通攻击",
     "PreCastFlowId": 0,
-    "Range": 8,
+    "Range": 6,
     "SkillButtonTemplateId": 31,
     "SkillType": 1,
     "Tags": [],
@@ -1637,5 +1637,42 @@
     "AllowCastWithoutTarget": true,
     "Uninterruptible": true,
     "ExecutionBlockedResultMask": 4
+  },
+  {
+    "Id": 30030102,
+    "CastFlowId": 30030102,
+    "Category": 10,
+    "CooldownMs": 800,
+    "IconId": 1001,
+    "LevelTableId": 0,
+    "Name": "Tibbers Basic Attack",
+    "PreCastFlowId": 0,
+    "Range": 2,
+    "SkillButtonTemplateId": 31,
+    "SkillType": 1,
+    "Tags": [],
+    "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 128
+  },
+  {
+    "Id": 30010605,
+    "CastFlowId": 30010605,
+    "Category": 9,
+    "CooldownMs": 0,
+    "IconId": 0,
+    "LevelTableId": 0,
+    "Name": "低语·换弹",
+    "PreCastFlowId": 0,
+    "Range": 0,
+    "RequiredTargetQueryId": 0,
+    "SkillButtonTemplateId": 2,
+    "SkillType": 5,
+    "Tags": [],
+    "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": true,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 0
   }
 ]

@@ -3,6 +3,10 @@
 将 `com.abilitykit.network.host` 的服务端 Session 接入 `com.abilitykit.host` 权威世界运行时。
 该包不创建固定协议，也不要求 TCP。
 
+`Runtime/Connections` 管理 Host 身份映射与连接生命周期；`Runtime/Transports` 提供 TCP 和进程内装配；`Runtime/Abstractions` 定义 codec、请求处理及身份映射端口。底层监听、帧编解码、会话队列由 `network.host` / `network.runtime` 负责，认证和房间策略由项目负责。
+
+纯 C#，Unity 安装需满足依赖（`host` 要求 2022.3）；.NET 10 直接编译同一份包源码。直接依赖见 [package.json](package.json)。
+
 ## 扩展点
 
 - `IHostMessageCodec`：把 `ServerMessage` 编码为通用网络包。
@@ -83,6 +87,8 @@ await connections.StopAsync(TimeSpan.FromSeconds(5), cancellationToken);
 管理器会先排空已进入队列的 Host handler，再从 `HostRuntime` 移除连接。停止后的
 `GetDiagnostics()` 仍保留最后一次终态快照；活动会话明细可在运行期间通过
 `GetSessionSnapshots()` 获取。`InProcessHostNetwork` 提供相同的 `StopAsync` 和快照 API。
+
+从宿主控制流串行调用生命周期入口。开始排空后，等待原 `StopAsync` 完成，再重启、解绑或释放；不要用第二次停止调用代替等待。启动检查通过前不会调用监听器工厂；工厂返回的监听器由管理器接管。运行中的桥不能切换到另一个 `HostRuntime`。
 
 若配置由外部 address/port 提供，也可以使用 `TcpHostNetwork.Create(...)` 后调用
 `StartListen(address, port)`。

@@ -1,0 +1,21 @@
+{
+  "caseId": "local-statesync-partial-commit-failure",
+  "sections": {
+    "settings": [
+      {
+        "$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario",
+        "tickRate": 100,
+        "maxDurationMs": 60,
+        "settleDurationMs": 0
+      }
+    ],
+    "timeline": [
+      { "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario", "atMs": 30, "name": "local.statesync.initial" },
+      { "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario", "atMs": 30, "name": "local.statesync.fail-baseline-commit" },
+      { "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario", "atMs": 40, "name": "local.statesync.retry-partial-full" },
+      { "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario", "atMs": 40, "name": "local.statesync.delta-while-waiting" },
+      { "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario", "atMs": 50, "name": "local.statesync.new-full-without-proof" },
+      { "$type": "AbilityKit.BattleScenario.CommandBlock, AbilityKit.BattleScenario", "atMs": 60, "name": "local.statesync.new-delta-with-proof" }
+    ]
+  }
+}

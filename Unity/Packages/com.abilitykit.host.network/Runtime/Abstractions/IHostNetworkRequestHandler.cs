@@ -5,9 +5,14 @@ using AbilityKit.Network.Protocol;
 
 namespace AbilityKit.Ability.Host.Network
 {
-    /// <summary>Application-owned bridge from a wire request into host/world commands.</summary>
+    /// <summary>
+    /// 由应用将网络请求转换为 Host 或 World 命令。
+    /// </summary>
     public interface IHostNetworkRequestHandler
     {
+        /// <summary>
+        /// 同步消费当前会话已解帧的请求；返回后不应保留借用的负载缓冲。
+        /// </summary>
         void Handle(
             HostRuntime runtime,
             ServerClientId clientId,

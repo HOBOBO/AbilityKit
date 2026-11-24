@@ -728,7 +728,7 @@ MonoBehaviour:
     ChildChannelId: 0
     RecastChannelId: 0
     QueueRecastInFlight: 0
-    ContinueThroughControl: 0
+    ContinueThroughControl: 1
     PreserveCharacterCastContext: 0
     UseCommitCooldownFactor: 0
     BasicAttack:
@@ -737,6 +737,20 @@ MonoBehaviour:
     Phases:
     - rid: 277261807049244789
     - rid: 277261807049244790
+  - Id: 30010605
+    Name: Jhin - Reload
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    QueueRecastInFlight: 0
+    ContinueThroughControl: 1
+    PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 277261807049246005
   - Id: 30030101
     Name: Annie - Basic Attack
     PipelineContinuousTagTemplateId: 0
@@ -753,6 +767,22 @@ MonoBehaviour:
     - rid: 277261807169044490
     - rid: 277261807169044491
     - rid: 277261807049244791
+  - Id: 30030102
+    Name: Tibbers - Basic Attack
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    QueueRecastInFlight: 0
+    ContinueThroughControl: 0
+    PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
+    RequiredBuffQualificationId: 0
+    Phases:
+    - rid: 300301020000000001
+    - rid: 300301020000000002
+    - rid: 300301020000000003
   - Id: 30030201
     Name: Annie - Disintegrate
     PipelineContinuousTagTemplateId: 0
@@ -1441,6 +1471,49 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 300301020000000001
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: tibbers_basic_attack_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: ''
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 0
+        FailReason: skill_economy_reserve_failed
+    - rid: 300301020000000002
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: tibbers_basic_attack_commit
+        CommitId: attack
+        RequireEconomyReservation: 0
+    - rid: 300301020000000003
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: tibbers_basic_attack
+        Timeline:
+          DurationMs: 1875
+          RecoveryStartMs: -1
+          Events:
+          - AtMs: 0
+            EffectId: 30030102
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: tibbers_basic_attack
+        MobaLogicTimeline: {fileID: 4900000, guid: 9d419c03fe24119438826467b909d31b, type: 3}
     - rid: -2
       type: {class: , ns: , asm: }
     - rid: 914110140001
@@ -2559,6 +2632,25 @@ MonoBehaviour:
             AbortOnFailure: 1
             EventTag: jhin_basic_attack_4
         MobaLogicTimeline: {fileID: 4900000, guid: fbbee0f826c64e9da48a11e12ed23d12, type: 3}
+    - rid: 277261807049246005
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010605_reload
+        Timeline:
+          DurationMs: 2500
+          RecoveryStartMs: -1
+          Events:
+          - AtMs: 0
+            EffectId: 30010014
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: jhin_reload_start
+          - AtMs: 2500
+            EffectId: 30010007
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: jhin_reload_complete
+        MobaLogicTimeline: {fileID: 0}
     - rid: 277261807049244791
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:

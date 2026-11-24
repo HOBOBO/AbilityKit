@@ -18,7 +18,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Directory.CreateDirectory(Destination);
             Adapt("AA_Minigun_Projectile", "AA_Minigun_Projectile", particleSizeScale: 2f);
             Adapt("AA_Rocket_Projectile", "AA_Rocket_Projectile");
-            Adapt("E_Activation_center", "E_Trap");
+            PublishETrapResources();
             PublishWProjectileResource();
             Adapt("R_Projectile", "R_Projectile", particleSizeScale: 3f);
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
@@ -50,6 +50,20 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Adapt("R_Projectile", "R_Projectile", particleSizeScale: 3f);
             AssetDatabase.SaveAssets();
             Debug.Log("[JinxLivePresentationSync] R projectile resource published.");
+        }
+
+        /// <summary>
+        /// 从原展示导出各陷阱的落地、驻留与爆炸粒子，由战斗区域提供世界落点。
+        /// </summary>
+        public static void PublishETrapResources()
+        {
+            Directory.CreateDirectory(Destination);
+            Adapt("E_Activation_center", "E_Trap");
+            Adapt("E_Activation_left", "E_Trap_left");
+            Adapt("E_Activation_right", "E_Trap_right");
+            foreach (var side in new[] { "center", "left", "right" })
+                Adapt("E_Hit_" + side, "E_Hit_" + side);
+            AssetDatabase.SaveAssets();
         }
 
         /// <summary>

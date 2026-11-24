@@ -359,9 +359,24 @@ public sealed class LiveSimSetupActionExecutor : IAcceptanceObservationSource
         if (entity.hasActorBrain) entity.RemoveActorBrain();
     }
 
+    internal Action<LiveSimSetupActionExecutor, int>? AfterTick { get; set; }
+
+    internal ActorEntity GetLocalMovementActor(string alias)
+        => TryGetActorId(alias, out var actorId)
+            ? AssertActorEntity(actorId)
+            : throw new InvalidOperationException($"Local fixture actor not found: {alias}");
+
+    internal bool CanMove(int actorId) => Services.Resolve<MobaCombatRulesService>().CanMove(actorId);
+
+    internal int GetActorLifetime(int actorId) => Services.Resolve<MobaActorRegistry>().GetEntityVersion(actorId);
+
     public void Tick(int ticks)
     {
-        for (var i = 0; i < ticks; i++) _bootstrapper.Tick(FixedDelta);
+        for (var index = 0; index < ticks; index++)
+        {
+            _bootstrapper.Tick(FixedDelta);
+            AfterTick?.Invoke(this, _bootstrapper.Context.LastFrame);
+        }
     }
 
     /// <summary>Advances by whole fixed steps and returns the actual simulated milliseconds.</summary>

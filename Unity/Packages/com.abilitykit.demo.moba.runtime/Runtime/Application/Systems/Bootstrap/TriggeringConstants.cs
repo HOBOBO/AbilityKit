@@ -37,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string SourceBuff = "source_buff";
             public const string RemoveBuff = "remove_buff";
             public const string CancelSkill = "cancel_skill";
+            public const string StartAuxiliarySkill = "start_auxiliary_skill";
             public const string AddShield = "add_shield";
             public const string RemoveShield = "remove_shield";
             public const string JoinSharedShield = "join_shared_shield";

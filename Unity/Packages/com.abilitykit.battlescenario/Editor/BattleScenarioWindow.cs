@@ -75,6 +75,7 @@ namespace AbilityKit.BattleScenario.Editor
             HandleUndoShortcut();
             DrawToolbar();
             DrawExecutionToolbar();
+            DrawStateSyncSamplesToolbar();
             DrawSettings();
             var internalWorkspace = _developerMode && _authoring.Count == 0;
             using (new EditorGUILayout.HorizontalScope())
@@ -449,6 +450,9 @@ namespace AbilityKit.BattleScenario.Editor
                     execution.EndCondition = EndConditions[endIndex];
                     if (execution.EndCondition == TestEndConditionKinds.Duration)
                         execution.DurationMs = EditorGUILayout.IntField("DurationMs", execution.DurationMs);
+                    return;
+                case CommandBlock command when command.Name == LocalCorrectionPreview.Move || command.Name == LocalCorrectionPreview.Correct:
+                    DrawCorrectionCommand(command);
                     return;
                 case DuelSetupBlock duel:
                     duel.EnvironmentProfileId = EditorGUILayout.TextField("Environment", duel.EnvironmentProfileId);

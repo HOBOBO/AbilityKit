@@ -178,24 +178,24 @@ coordinator 的 session 引擎已移除（它 moba/local 形状、不适配 stat
 ```
 范本：`com.abilitykit.demo.shooter.view.runtime/Runtime/Client/`（`ShooterClientNetworkLauncher`/`GatewayLauncher`/`Session` + `ShooterBattleDriverHost`）。
 
-### 配方 B：framesync（客户端预测 + 权威对账，moba 范式）
-适用：帧同步，客户端预测世界 + 服务端权威世界双世界并行。
+### 配方 B：framesync（通用帧包装配）
+适用：以 `FramePacket` 输送帧输入和快照的装配，客户端预测世界与远端驱动世界分工。下例不是 MOBA Orleans 结算协议：后者由 `ResolveSettledFrames` 消费已提交的结算帧，不能拿 `FramePacket.Inputs` 替代。三种路径的身份、消息语义及恢复来源见 [Host Extension 战斗流程与协议边界](17-HostExtensionBattleProtocolBoundaries.md)。
 ```
 房间流:   RoomGatewaySessionFlow(房间连接，entry module 持有) → create/join/ready/loading/start/subscribe
 战斗面:   NetworkTransport(独立战斗连接，typed / fire-and-forget 形态)
    输入上行: void SendInput(req)（fire-and-forget）
    下行:     订阅 FramePushed(FramePacket) + StateSyncSnapshotPushed/ReliableEventsPushed(typed)
-双世界:   FramePacketNetAdapter(FramePacket → RemoteDriven jitter-buffer + Confirmed jitter-buffer)
+双世界:   MOBA 客户端会话的 FramePacketNetAdapter(FramePacket → RemoteDriven jitter-buffer + Confirmed jitter-buffer)
 同步策略: host.extension 的 FrameSyncDriverModule(服务端权威帧驱动) + ClientPredictionDriverModule(客户端预测+回滚+对账)
 驱动桥:   实现 ILogicWorldDriverBridge + ILogicWorldDriveGate
 生命周期: BattleSessionFeature tick + dispose(镜像 moba DisposeRemoteInterpolation：退订事件、清游标)
 ```
-范本：`com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/`（`MultiplayerGatewayEntryModule`/`BattleSessionFeature`）+ `host.extension` framesync 模块。
+装配参考：`host.extension` framesync 模块与 MOBA 客户端的 `BattleSessionNetAdapter`；MOBA 通用帧包适配与 Orleans 结算源是不同输入路径。
 
 ### 选哪条 + 何时再抽模板
 - 玩法需客户端预测+回滚（快节奏、低延迟手感）→ framesync（B）。
 - 服务端权威即可（实现简单、防作弊）→ statesync（A）。
-- 两者共用同一套 连接/房间/战斗数据面，差别只在 `NetworkTransport` 契约形态（typed vs raw）+ 同步策略 + 是否双世界。
+- 两者可以复用连接、房间与战斗数据面的通用组件；输入应答、下行权威记录及恢复语义以各自协议为准，不是切换 typed/raw 就能互换。
 - **现在只有 2 个 demo**。等第三个 demo 落地、会话胶水重复明显时，再把这两条配方提炼成可继承的「会话模板」（`statesync-session-template` / `framesync-session-template`）—— 从真实用法提取，而非凭空设计（coordinator 当初凭空设计才被废弃）。
 
 ## 逻辑层 sync-agnostic 的边界（换 sync 模型时，逻辑层改什么 / 不改什么）
@@ -217,7 +217,7 @@ coordinator 当初的设想是"逻辑层不关心帧同步/状态同步，宿主
 |---|---|
 | **不改** | `ILogicWorldDriverBridge` 实现（同一端口：推进 + 报告） |
 | **改（逻辑层）** | 逻辑世界的**确定性**：上帧同步必须确定（定点 / 无堆分配 / 确定迭代序）；状态同步可松 |
-| **改（宿主组合）** | 同步机器：帧同步配方（`host.extension` 的 `FrameSyncDriverModule`/`ClientPredictionDriverModule` + `FramePacketNetAdapter` 双世界）↔ 状态同步配方（自写 / 复用 `ShooterClientSyncController` 类的预测/插值） |
+| **改（宿主组合）** | 同步机器：帧同步配方（`host.extension` 驱动 + 项目会话适配；MOBA 示例采用双世界）↔ 状态同步配方（自写 / 复用 `ShooterClientSyncController` 类的预测/插值） |
 | **改（数据面）** | `NetworkTransport` 契约形态：帧同步用 typed / fire-and-forget（`SendInput` + `FramePushed`）；状态同步用 raw / awaitable（`SendInputAsync` + `RawServerPushReceived`）—— **同一引擎，两种形态** |
 
 ### 结论

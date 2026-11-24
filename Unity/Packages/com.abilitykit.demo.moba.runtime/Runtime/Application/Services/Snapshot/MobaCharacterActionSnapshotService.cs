@@ -4,6 +4,8 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -14,6 +16,10 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaActorRegistry _actors;
         [WorldInject(required: false)]
         private MobaSkillCastRuntimeService _casts = null;
+        [WorldInject(required: false)]
+        private SkillCastCoordinator _coordinator = null;
+        [WorldInject(required: false)]
+        private MobaConfigDatabase _configs = null;
         private CharacterActionData[] _lastPublished = Array.Empty<CharacterActionData>();
         private int _lastFrame = -1;
         private int _lastPublishedFrame = -1;
@@ -40,10 +46,21 @@ namespace AbilityKit.Demo.Moba.Services
                 var action = runtime.Action;
                 var castFrame = default(CastPresentationFrame);
                 _casts?.TryGetPresentationFrame(action.CastInstanceId, id, out castFrame);
+                var castStartFrame = -1;
+                var castDurationMs = 0;
+                if (runtime.IsAuxiliaryPresentationCast && _coordinator != null &&
+                    _coordinator.TryGetRunningByInstanceId(id, action.CastInstanceId, out var running) &&
+                    _configs != null && _configs.TryGetSkill(action.SkillId, out var skill) &&
+                    _configs.TryGetSkillFlow(skill.CastFlowId, out var flow) && flow.Phases.Count == 1 &&
+                    flow.Phases[0].Type == (int)SkillPhaseType.Timeline && flow.Phases[0].Timeline.DurationMs > 0)
+                {
+                    castStartFrame = running.StartFrame;
+                    castDurationMs = flow.Phases[0].Timeline.DurationMs;
+                }
                 current.Add(new CharacterActionData(id, _actors.GetEntityVersion(id), runtime.Frame,
                     action.Path, action.InstanceId, action.StartFrame, action.LocalFrame,
                     action.CastInstanceId, action.SkillId, action.ModeId, action.ModeInstanceId,
-                    action.ModeStartFrame, action.ModeLocalFrame, castFrame));
+                    action.ModeStartFrame, action.ModeLocalFrame, castFrame, castStartFrame, castDurationMs));
             }
 
             var entries = current.ToArray();
@@ -68,7 +85,8 @@ namespace AbilityKit.Demo.Moba.Services
                 if (a.ActorId != b.ActorId || a.EntityVersion != b.EntityVersion ||
                     a.Path != b.Path || a.InstanceId != b.InstanceId ||
                     a.StartFrame != b.StartFrame || a.CastInstanceId != b.CastInstanceId ||
-                    a.SkillId != b.SkillId || a.ModeId != b.ModeId ||
+                    a.SkillId != b.SkillId || a.CastStartFrame != b.CastStartFrame ||
+                    a.CastDurationMs != b.CastDurationMs || a.ModeId != b.ModeId ||
                     a.ModeInstanceId != b.ModeInstanceId ||
                     a.ModeStartFrame != b.ModeStartFrame ||
                     a.ModeLocalFrame != b.ModeLocalFrame || !a.CastFrame.Equals(b.CastFrame)) return false;

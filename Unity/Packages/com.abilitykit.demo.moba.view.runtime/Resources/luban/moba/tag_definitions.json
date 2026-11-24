@@ -285,7 +285,7 @@
     "DisplayName": "攻击强化状态",
     "ParentId": 1000,
     "Kind": 0,
-    "Status": 1
+    "Status": 0
   },
   {
     "Id": 1181,
@@ -599,6 +599,15 @@
     "Namespace": 1,
     "DisplayName": "施法中不可转向",
     "ParentId": 1100,
+    "Kind": 1,
+    "Status": 0
+  },
+  {
+    "Id": 1183,
+    "Name": "State.Attack.Locked",
+    "Namespace": 1,
+    "DisplayName": "普攻资源未就绪",
+    "ParentId": 1180,
     "Kind": 1,
     "Status": 0
   }

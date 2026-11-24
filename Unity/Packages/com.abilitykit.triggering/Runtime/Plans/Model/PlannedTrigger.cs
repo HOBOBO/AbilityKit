@@ -17,6 +17,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
     /// </summary>
     public sealed class PlannedTrigger<TArgs, TCtx> : ITrigger<TArgs, TCtx>, ITriggerWithId
     {
+        /// <summary>
+        /// 执行计划根并返回节点结果；经此触发器派发时不读取该结果。
+        /// </summary>
         public delegate TriggerPlanExecutionResult ExecutionRootDelegate(
             in TArgs args,
             in ExecCtx<TCtx> ctx);
@@ -60,6 +63,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         /// <summary>
         /// 执行计划的有效分支；执行根优先于扁平动作列表。
+        /// 执行根一旦调用即记一次执行资格尝试；正常返回时不按返回状态区分自动优先级中断。
         /// </summary>
         /// <exception cref="InvalidOperationException">扁平动作需要调度而上下文未提供管理器；不会执行部分动作。</exception>
         public void Execute(in TArgs args, in ExecCtx<TCtx> ctx)
@@ -184,7 +188,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 执行成功后，根据当前触发器优先级中断更低优先级的触发链路。
+        /// 按计划阈值拦截更低优先级的后续规则；是否调用由当前执行分支决定。
         /// </summary>
         private void ApplyInterruptControl(ExecutionControl control)
         {

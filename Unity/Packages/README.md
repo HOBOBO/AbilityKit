@@ -60,7 +60,7 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 ## 模块文档列表
 
-### 1. [Host 模块](./com.abilitykit.host.extension/Document/)
+### 1. [Host 扩展包](./com.abilitykit.host.extension/README.md)
 
 | 文档 | 定位 |
 |------|------|

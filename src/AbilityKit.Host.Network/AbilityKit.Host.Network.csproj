@@ -15,5 +15,6 @@
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Host/AbilityKit.Host.csproj" />
     <ProjectReference Include="../AbilityKit.Network.Host/AbilityKit.Network.Host.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
   </ItemGroup>
 </Project>

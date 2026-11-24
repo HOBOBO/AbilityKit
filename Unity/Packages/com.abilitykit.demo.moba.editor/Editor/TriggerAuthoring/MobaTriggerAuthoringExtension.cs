@@ -557,6 +557,8 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Reference("template_id", AreaSemanticId, false, "area_identity"),
                 OneOf("area_identity", "owner_actor_id", TriggerValueType.Integer),
                 Optional("remove_all", TriggerValueType.Boolean))));
+            context.RegisterAction(Action("start_auxiliary_skill", "启动辅助技能", "Action/Skill",
+                Reference("skill_id", SkillSemanticId)));
             context.RegisterAction(Action("cancel_skill", "取消技能", "Action/Skill", WithTargets(
                 Choice("mode", false, Option(0, "自动"), Option(1, "全部"),
                     Option(2, "技能槽位"), Option(3, "技能 ID")),

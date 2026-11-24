@@ -20,8 +20,29 @@ public static class Program
             System.Console.Error.WriteLine(
                 "Usage: <scenario.json|case.battlescenario> [result.txt] | " +
                 "--determinism <scenario.json|case.battlescenario> [result.txt] | " +
-                "--batch <battlescenario-directory> [result.txt]");
+                "--batch <battlescenario-directory> [result.txt] | --statesync-gragas <output-directory>");
             return 1;
+        }
+
+        if (args[0] == "--statesync-gragas")
+        {
+            if (args.Length != 2)
+            {
+                System.Console.Error.WriteLine("--statesync-gragas requires an output directory.");
+                return 1;
+            }
+
+            try
+            {
+                GragasStateSyncReplay.Export(args[1]);
+                System.Console.WriteLine("PASS: four local state-sync variants and repeatability.");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                System.Console.Error.WriteLine("Local state-sync replay failed: " + ex);
+                return 2;
+            }
         }
 
         if (args[0] == "--batch")

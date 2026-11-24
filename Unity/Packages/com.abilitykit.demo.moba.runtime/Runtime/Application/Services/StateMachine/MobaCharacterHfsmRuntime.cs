@@ -183,7 +183,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             StateMachineDefinition definition, MobaCharacterHfsmParameterService parameters = null)
         {
             var result = new RuntimeBindings<MobaCharacterHfsmFacts>();
-            var builtinConditions = new List<string> { "dead", "alive", "controlled", "casting", "active.skill.cast",
+            var builtinConditions = new List<string> { "dead", "alive", "controlled", "casting", "active.skill.cast", "auxiliary.skill.cast",
                 "moving", "idle", "free.cast", "free.move", "free.idle" };
             for (var slot = 1; slot <= 5; slot++)
                 builtinConditions.Add("generic.attack.cast.slot." + slot);
@@ -232,6 +232,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                 case "casting": return IsCasting(f);
                 case "basic.attack.cast": return IsCasting(f) && IsBasicAttackCast(f);
                 case "active.skill.cast": return IsActiveSkillCast(f);
+                case "auxiliary.skill.cast": return IsCasting(f) && f.Bindings?.Cast(f.SkillId)?.CastKind == "Auxiliary";
                 case "moving": return IsMoving(f);
                 case "idle": return IsIdle(f);
                 case "free.cast": return !IsControlled(f) && IsCasting(f);
@@ -327,7 +328,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             switch (key)
             {
                 case "dead": case "alive": case "controlled": case "casting": case "moving": case "idle":
-                case "active.skill.cast": case "free.cast": case "free.move": case "free.idle": return true;
+                case "active.skill.cast": case "auxiliary.skill.cast": case "free.cast": case "free.move": case "free.idle": return true;
                 default: return TryParseParameterCondition(key, out _, out _, out _);
             }
         }
@@ -353,14 +354,14 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
 
         private static bool IsActiveSkillCast(MobaCharacterHfsmFacts f)
         {
-            return IsCasting(f) && !IsBasicAttackCast(f);
+            return IsCasting(f) && !IsBasicAttackCast(f) && f.Bindings?.Cast(f.SkillId)?.CastKind != "Auxiliary";
         }
 
         private static bool IsBasicAttackCast(MobaCharacterHfsmFacts f)
         {
             var kind = f.Bindings?.Cast(f.SkillId)?.CastKind ?? "LoadoutSlot";
             if (kind == "BasicAttack") return true;
-            if (kind == "Active") return false;
+            if (kind == "Active" || kind == "Auxiliary") return false;
             return f.SkillSlot > 0 && f.BasicAttackSlot > 0 && f.SkillSlot == f.BasicAttackSlot;
         }
 
@@ -587,6 +588,8 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         public MobaCharacterModeState Mode => _mode.Current;
         public float ResolveParameter(int parameterId) => _facts.Parameters?.Resolve(_actorId, parameterId) ?? 0f;
         public long FactCastInstanceId => _facts.CastInstanceId;
+        public bool IsAuxiliaryPresentationCast => _action.CastInstanceId > 0 &&
+            _bindings.Cast(_action.SkillId)?.CastKind == "Auxiliary";
         public int FactSkillId => _facts.SkillId;
         public bool FactIsCasting => _facts.CastInstanceId > 0 ||
             _facts.Parameters?.ResolveBool(_actorId, MobaCharacterHfsmParameterService.Casting) == true;
@@ -894,7 +897,8 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             var policy = state?.CastContext ?? "None";
             var kindMatches = state == null || state.CastKind == "Any" ||
                 (state.CastKind == "BasicAttack" && MobaCharacterHfsmProfile.EvaluateFact(_facts, "basic.attack.cast")) ||
-                (state.CastKind == "Active" && MobaCharacterHfsmProfile.EvaluateFact(_facts, "active.skill.cast"));
+                (state.CastKind == "Active" && MobaCharacterHfsmProfile.EvaluateFact(_facts, "active.skill.cast")) ||
+                (state.CastKind == "Auxiliary" && MobaCharacterHfsmProfile.EvaluateFact(_facts, "auxiliary.skill.cast"));
             var cast = policy != "None" && kindMatches ? _facts.CastInstanceId : 0L;
             var skill = cast > 0 ? _facts.SkillId : 0;
             if (policy == "RetainCommitted" && cast <= 0 &&

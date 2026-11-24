@@ -506,7 +506,7 @@ public sealed class MobaLubanConfigPipelineTests
             new[] { "damage", "physicalAttackRatio", "range", "speed", "maxHits", "bounceRadius", "arcHeight", "arcDurationSeconds", "arcHeightPerUnit" },
             levelTable.ParamNames);
         Assert.True(levelTable.TryGetParameter(1, "damage", out var damage));
-        Assert.Equal(200f, damage);
+        Assert.Equal(45f, damage);
         Assert.True(levelTable.TryGetParameter(1, "maxHits", out var maxHits));
         Assert.Equal(4f, maxHits);
 
@@ -560,8 +560,14 @@ public sealed class MobaLubanConfigPipelineTests
         var damageAction = hitTrigger["Actions"]!.Children()
             .Single(action => action.Value<int>("ActionId") == 176148626);
         Assert.Equal(30010101, damageAction["Args"]!["reason_param"]!["ConstValue"]!.Value<int>());
-        Assert.Equal(500f, damageAction["Args"]!["damage_value"]!["ConstValue"]!.Value<float>());
-        Assert.Equal(0.8f, damageAction["Args"]!["source_attack_ratio"]!["ConstValue"]!.Value<float>());
+        Assert.Null(damageAction["Args"]!["damage_value"]);
+        Assert.Null(damageAction["Args"]!["source_attack_ratio"]);
+        Assert.Equal(6, damageAction["Args"]!["magnitude_type"]!["ConstValue"]!.Value<int>());
+        Assert.Equal(4, damageAction["Args"]!["magnitude_secondary_attribute"]!["ConstValue"]!.Value<int>());
+        Assert.Equal("damage", triggerJson["Strings"]![damageAction["Args"]!["magnitude_parameter"]!["ConstValue"]!.Value<int>().ToString()]!.Value<string>());
+        Assert.Equal("physicalAttackRatio", triggerJson["Strings"]![damageAction["Args"]!["magnitude_secondary_coefficient_parameter"]!["ConstValue"]!.Value<int>().ToString()]!.Value<string>());
+        Assert.True(levelTable.TryGetParameter(1, "physicalAttackRatio", out var ratio));
+        Assert.Equal(.44f, ratio);
     }
 
     [Fact]
@@ -582,7 +588,7 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.True(database.TryGetSkillLevelTable(30010201, out var levelTable));
         Assert.Equal(new[] { "damage", "physicalAttackRatio", "range", "speed" }, levelTable.ParamNames);
         Assert.True(levelTable.TryGetParameter(1, "damage", out var damage));
-        Assert.Equal(80f, damage);
+        Assert.Equal(60f, damage);
         Assert.True(database.TryGetProjectile(32010201, out var projectile));
         Assert.Equal(ProjectileHitPolicyKind.ExitOnHit, projectile.HitPolicyKind);
         Assert.Equal(1, projectile.HitsRemaining);
@@ -613,8 +619,13 @@ public sealed class MobaLubanConfigPipelineTests
         var damageAction = hitTrigger["Actions"]!.Children()
             .Single(action => action.Value<int>("ActionId") == 176148626);
         Assert.Equal(30010201, damageAction["Args"]!["reason_param"]!["ConstValue"]!.Value<int>());
-        Assert.Equal(80f, damageAction["Args"]!["damage_value"]!["ConstValue"]!.Value<float>());
-        Assert.Equal(0.5f, damageAction["Args"]!["source_attack_ratio"]!["ConstValue"]!.Value<float>());
+        Assert.Null(damageAction["Args"]!["damage_value"]);
+        Assert.Null(damageAction["Args"]!["source_attack_ratio"]);
+        Assert.Equal(6, damageAction["Args"]!["magnitude_type"]!["ConstValue"]!.Value<int>());
+        Assert.Equal(4, damageAction["Args"]!["magnitude_secondary_attribute"]!["ConstValue"]!.Value<int>());
+        Assert.Equal("damage", triggerJson["Strings"]![damageAction["Args"]!["magnitude_parameter"]!["ConstValue"]!.Value<int>().ToString()]!.Value<string>());
+        Assert.True(levelTable.TryGetParameter(1, "physicalAttackRatio", out var ratio));
+        Assert.Equal(.5f, ratio);
     }
 
     [Fact]

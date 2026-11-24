@@ -99,7 +99,7 @@ namespace AbilityKit.Game.Flow
             if (intent.Layer >= _animator.layerCount || !_animator.HasState(intent.Layer, hash)) return;
             _animator.speed = _presentationRateResolver.ResolveRate(PresentationRateChannel.Action);
             var localFrame = intent.LocalFrame;
-            if (intent.FrameCount > 0)
+            if (intent.FrameCount > 0 && _state.CastDurationMs <= 0)
                 localFrame = intent.Loop ? localFrame % intent.FrameCount :
                     Mathf.Min(localFrame, intent.FrameCount - 1);
             _animator.Play(hash, intent.Layer, 0f);
@@ -107,7 +107,8 @@ namespace AbilityKit.Game.Flow
             // The resolved model action owns its authored duration. Unity's
             // state-info length may still be the default/stale value after a
             // zero-delta seek; it must not shorten a known animation clip.
-            var length = intent.DurationSeconds > 0f ? intent.DurationSeconds :
+            var length = _state.CastDurationMs > 0 ? _state.CastDurationMs / 1000f :
+                intent.DurationSeconds > 0f ? intent.DurationSeconds :
                 _animator.GetCurrentAnimatorStateInfo(intent.Layer).length;
             var normalized = length > Mathf.Epsilon && duration > 0f
                 ? Mathf.Max(0, localFrame) * duration / length
@@ -147,7 +148,8 @@ namespace AbilityKit.Game.Flow
                 var asset = Resources.Load<TextAsset>(resource);
                 if (asset == null)
                 {
-                    Debug.LogError("Missing MOBA presentation timeline: " + resource);
+                    if (_state.CastDurationMs <= 0)
+                        Debug.LogError("Missing MOBA presentation timeline: " + resource);
                     return;
                 }
                 _presentationTemplateResolver ??= new MobaPresentationTemplateResolver();
@@ -156,7 +158,8 @@ namespace AbilityKit.Game.Flow
             }
             if (_presentation == null) return;
             _presentationTemplateResolver.SetCastFrame(action.CastInstanceId, _state.CastFrame);
-            var elapsed = Mathf.Max(0, frame - action.StartFrame) * secondsPerFrame;
+            var castStart = _state.CastStartFrame;
+            var elapsed = Mathf.Max(0, frame - (castStart >= 0 ? castStart : action.StartFrame)) * secondsPerFrame;
             _presentation.SeekWithRate(action.CastInstanceId, elapsed);
         }
 

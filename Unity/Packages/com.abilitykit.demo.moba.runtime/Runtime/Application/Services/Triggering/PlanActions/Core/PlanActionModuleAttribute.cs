@@ -37,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int DamageStructureFromMinion = 0;
 
         public const int CancelSkill = 9;
+        public const int StartAuxiliarySkill = 9;
         public const int ConsumeResource = 10;
         public const int ModifyResource = 10;
         public const int ConvertResourceToHeal = 10;

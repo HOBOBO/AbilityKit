@@ -12,11 +12,13 @@
     ],
     "timeline": [
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 2},
-      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 2100, "action": "cast_skill", "actorAlias": "caster", "slot": 5, "targetAlias": "target", "position": {"x": 7, "y": 0, "z": -3}, "direction": {"x": 0, "y": 0, "z": 1}}
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 2100, "action": "cast_skill", "actorAlias": "caster", "slot": 5, "targetAlias": "target", "position": {"x": 7, "y": 0, "z": -3}, "direction": {"x": 0, "y": 0, "z": 1}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 4400, "action": "cast_skill", "actorAlias": "caster", "slot": 5, "targetAlias": "target", "position": {"x": 7, "y": 0, "z": -3}, "direction": {"x": 0, "y": 0, "z": 1}}
     ],
     "assertions": [
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050301},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050701}
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050701, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050101, "maxCount": 1}
     ]
   }
 }

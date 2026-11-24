@@ -5,7 +5,7 @@ using StateSample = AbilityKit.Ability.StateSync.Samples.LocalStateCommitExample
 
 namespace AbilityKit.World.StateSync.Tests;
 
-public sealed class LocalCommittedStateResultTests
+public sealed partial class LocalCommittedStateResultTests
 {
     [Theory]
     [InlineData(true)]
@@ -166,7 +166,8 @@ public sealed class LocalCommittedStateResultTests
         internal readonly LocalMovementReconciler<int, int> Reconciler;
         internal readonly List<Stage> Attempted = new();
         internal readonly List<CommittedMovement<int>> Published = new();
-        internal readonly List<int> SteppedTicks = new();
+        internal readonly List<CommitReplayStep> ReplaySteps = new();
+        internal IEnumerable<int> SteppedTicks => ReplaySteps.Select(step => step.Tick);
         internal SessionState Session { get; private set; } = new(generation: 1);
         internal ReconciliationScope Scope => Session.Scope;
         internal LocalStateCommitExample Admission => Session.Admission;
@@ -178,7 +179,7 @@ public sealed class LocalCommittedStateResultTests
             Seed(initialValue: 7);
             Attempted.Clear();
             Published.Clear();
-            SteppedTicks.Clear();
+            ReplaySteps.Clear();
         }
 
         internal void SwitchSession(long generation, int initialValue)
@@ -201,10 +202,10 @@ public sealed class LocalCommittedStateResultTests
         }
 
         internal ReconciliationResult? Deliver(StateSample candidate, InputTerminalProof? proof, bool full,
-            Stage? failingStage = null) => Deliver(Scope, candidate, proof, full, failingStage);
+            Stage? failingStage = null, int targetTick = 3) => Deliver(Scope, candidate, proof, full, failingStage, targetTick: targetTick);
 
         internal ReconciliationResult? Deliver(ReconciliationScope source, StateSample candidate, InputTerminalProof? proof,
-            bool full, Stage? failingStage = null, Action? beforeBaselineCompletes = null)
+            bool full, Stage? failingStage = null, Action? beforeBaselineCompletes = null, int targetTick = 3)
         {
             var session = Session;
             if (!session.Scope.Matches(source) || (Reconciler.WaitingForFullBaseline && !full))
@@ -234,12 +235,14 @@ public sealed class LocalCommittedStateResultTests
             var result = new CommittedMovement<int>(source, admitted.Revision, admitted.Frame, materialized.Value, full);
             Attempted.Add(Stage.Publish);
             Published.Add(result);
-            return Reconciler.Reconcile(result, proof, targetTick: 3);
+            return Reconciler.Reconcile(result, proof, targetTick);
 
             bool ImportAndCommitAdmission(int value, out int importedValue)
             {
                 Attempted.Add(Stage.Import);
                 importedValue = value + 3;
+                if (failingStage == Stage.Import)
+                    return false;
                 imported = true;
                 Attempted.Add(Stage.CommitAdmission);
                 return failingStage != Stage.CommitAdmission;
@@ -251,9 +254,10 @@ public sealed class LocalCommittedStateResultTests
 
         private bool Step(int tick, ReadOnlySpan<int> inputs, ref int state)
         {
-            SteppedTicks.Add(tick);
+            var before = state;
             foreach (var input in inputs)
                 state += input;
+            ReplaySteps.Add(new CommitReplayStep(tick, before, state));
             return true;
         }
     }

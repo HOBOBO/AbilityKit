@@ -6,6 +6,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
     /// <summary>
     /// 管理扁平计划的动作绑定，供立即执行和调度回调按原计划索引复用。
     /// </summary>
+    /// <remarks>
+    /// 首次成功绑定后不跟踪注册表代次，也不跟踪动作描述的原地变更；调用方负责装配生命周期。
+    /// </remarks>
     internal sealed class PlannedTriggerActionExecutor<TArgs, TCtx>
     {
         private readonly TriggerPlan<TArgs> _plan;

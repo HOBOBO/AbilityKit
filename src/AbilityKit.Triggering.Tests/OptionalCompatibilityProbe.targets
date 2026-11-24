@@ -1,0 +1,15 @@
+<Project>
+  <Target Name="RequireIsolatedTriggeringProbeOutput" BeforeTargets="PrepareForBuild"
+          Condition="'$(MSBuildProjectName)' == 'AbilityKit.Triggering' and '$(UseArtifactsOutput)' != 'true'">
+    <Error Text="请为 Triggering 源码裁剪探针指定独立的 --artifacts-path，避免覆盖默认构建输出。" />
+  </Target>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'AbilityKit.Triggering'">
+    <Compile Remove="../../Unity/Packages/com.abilitykit.triggering/Runtime/LegacyCompatibility/Optional/**/*.cs" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'AbilityKit.Triggering.Tests'">
+    <DefineConstants>$(DefineConstants);TRIGGERING_OPTIONAL_SOURCE_PROBE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'AbilityKit.Triggering.Tests'">
+    <Compile Remove="LegacyPlanRegistrationTests.cs" />
+  </ItemGroup>
+</Project>

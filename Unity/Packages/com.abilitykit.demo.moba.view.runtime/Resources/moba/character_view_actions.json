@@ -643,9 +643,36 @@
       "action": {
         "id": "attack.slot.1.play",
         "type": "play",
+        "animatorState": "Idle",
+        "frameCount": 238,
+        "loop": true,
+        "layer": 0
+      }
+    },
+    {
+      "entityCode": 3001,
+      "path": "life/alive/action/attack.slot.1",
+      "actionId": "attack.slot.1.play",
+      "action": {
+        "id": "attack.slot.1.play",
+        "type": "play",
         "animatorState": "AutoAttack_1",
         "frameCount": 78,
         "loop": false,
+        "layer": 0
+      },
+      "skillId": 30010601
+    },
+    {
+      "entityCode": 3001,
+      "path": "life/alive/action/attack.slot.2",
+      "actionId": "attack.slot.2.play",
+      "action": {
+        "id": "attack.slot.2.play",
+        "type": "play",
+        "animatorState": "Idle",
+        "frameCount": 238,
+        "loop": true,
         "layer": 0
       }
     },
@@ -660,6 +687,20 @@
         "frameCount": 78,
         "loop": false,
         "layer": 0
+      },
+      "skillId": 30010602
+    },
+    {
+      "entityCode": 3001,
+      "path": "life/alive/action/attack.slot.3",
+      "actionId": "attack.slot.3.play",
+      "action": {
+        "id": "attack.slot.3.play",
+        "type": "play",
+        "animatorState": "Idle",
+        "frameCount": 238,
+        "loop": true,
+        "layer": 0
       }
     },
     {
@@ -672,6 +713,20 @@
         "animatorState": "AutoAttack_3",
         "frameCount": 87,
         "loop": false,
+        "layer": 0
+      },
+      "skillId": 30010603
+    },
+    {
+      "entityCode": 3001,
+      "path": "life/alive/action/attack.slot.4",
+      "actionId": "attack.slot.4.play",
+      "action": {
+        "id": "attack.slot.4.play",
+        "type": "play",
+        "animatorState": "Idle",
+        "frameCount": 238,
+        "loop": true,
         "layer": 0
       }
     },
@@ -686,7 +741,8 @@
         "frameCount": 87,
         "loop": false,
         "layer": 0
-      }
+      },
+      "skillId": 30010604
     },
     {
       "entityCode": 3001,

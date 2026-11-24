@@ -2,6 +2,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.Host.Extensions.Rollback;
 using AbilityKit.Ability.Host.Extensions.Time;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Host.Transport;
@@ -14,6 +15,85 @@ namespace AbilityKit.Host.Extension.Tests;
 
 public sealed class FrameCompletionGuardTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TwoWorlds_GuardedFailureDoesNotCommit_WhileHealthyWorldContinues(bool failingWorldFirst)
+    {
+        using var scenario = new DualWorldCommitScenario();
+        var first = scenario.Create("first");
+        var second = scenario.Create("second");
+        var failed = failingWorldFirst ? first : second;
+        var healthy = failingWorldFirst ? second : first;
+        scenario.Tick();
+
+        failed.Fail = true;
+        Assert.True(scenario.Driver.SubmitInput(scenario.Connection.ClientId, failed.Id,
+            new PlayerInputCommand(new FrameIndex(2), new PlayerId("player"), 101, new byte[] { 1 })));
+        scenario.Tick();
+        scenario.Tick();
+
+        Assert.Equal(new[] { 1, 2, 3 }, scenario.HostSteps);
+        Assert.Equal(3, scenario.Driver.Frame.Value);
+        Assert.Equal(new[] { 1, 2 }, scenario.InputsFlushed.Where(entry => entry.World == failed.Id).Select(entry => entry.Frame));
+        var failedInput = Assert.Single(scenario.InputsFlushed.Single(entry => entry.World == failed.Id && entry.Frame == 2).Inputs);
+        Assert.Equal(101, failedInput.OpCode);
+        Assert.Equal(new[] { 1, 2, 3 }, scenario.InputsFlushed.Where(entry => entry.World == healthy.Id).Select(entry => entry.Frame));
+
+        Assert.Equal(new[] { 1 }, scenario.PacketFrames(failed));
+        Assert.Equal(new[] { 1, 2, 3 }, scenario.PacketFrames(healthy));
+        Assert.Equal(1, failed.SnapshotReads);
+        Assert.Equal(3, healthy.SnapshotReads);
+        Assert.Equal(new[] { (1, 1) }, scenario.Probes[failed.Id].CapturedFrames);
+        Assert.Equal(new[] { (1, 1), (2, 2), (3, 3) }, scenario.Probes[healthy.Id].CapturedFrames);
+        Assert.Equal((1, DualWorldCommitScenario.Delta), scenario.Clock(failed));
+        Assert.Equal((3, 3 * DualWorldCommitScenario.Delta), scenario.Clock(healthy));
+        Assert.False(scenario.TryRestoreAt(failed, 2));
+    }
+
+    [Fact]
+    public void TwoWorlds_CharacterizesFailureOutputWhenWorldDoesNotExposeGuard()
+    {
+        using var scenario = new DualWorldCommitScenario();
+        var failed = scenario.Create("unguarded");
+        failed.ExposeGuard = false;
+        var healthy = scenario.Create("healthy");
+        scenario.Tick();
+
+        failed.Fail = true;
+        scenario.Tick();
+
+        Assert.False(failed.Guard.CanCommit);
+        Assert.Equal(new[] { 1, 2 }, scenario.HostSteps);
+        Assert.Equal(new[] { 1, 2 }, scenario.PacketFrames(healthy));
+        Assert.Equal(new[] { 1, 2 }, scenario.PacketFrames(failed));
+        Assert.Equal(2, failed.SnapshotReads);
+        Assert.Equal((2, 2 * DualWorldCommitScenario.Delta), scenario.Clock(failed));
+        Assert.Equal(new[] { (1, 1), (2, 2) }, scenario.Probes[failed.Id].CapturedFrames);
+    }
+
+    [Fact]
+    public void TwoWorlds_CharacterizesPublicationWhenRollbackCaptureFails()
+    {
+        using var scenario = new DualWorldCommitScenario();
+        var captureFails = scenario.Create("capture-fails");
+        var healthy = scenario.Create("healthy");
+        scenario.Tick();
+
+        scenario.Probes[captureFails.Id].RejectCapture = true;
+        scenario.Tick();
+
+        Assert.True(captureFails.Guard.CanCommit);
+        Assert.Equal(new[] { 1, 2 }, scenario.HostSteps);
+        Assert.Equal(new[] { 1, 2 }, scenario.PacketFrames(captureFails));
+        Assert.Equal((2, 2 * DualWorldCommitScenario.Delta), scenario.Clock(captureFails));
+        Assert.Equal(1, scenario.Probes[captureFails.Id].RejectedCaptures);
+        Assert.Equal(new[] { (1, 1) }, scenario.Probes[captureFails.Id].CapturedFrames);
+        Assert.False(scenario.TryRestoreAt(captureFails, 2));
+        Assert.Equal(new[] { 1, 2 }, scenario.PacketFrames(healthy));
+        Assert.Equal(new[] { (1, 1), (2, 2) }, scenario.Probes[healthy.Id].CapturedFrames);
+    }
+
     [Fact]
     public void Authority_does_not_broadcast_or_commit_failed_frame_after_world_exception_isolation()
     {
@@ -166,6 +246,123 @@ public sealed class FrameCompletionGuardTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Server_frame_time_uninstall_detaches_driver_and_drops_old_world_times(bool frameSync)
+    {
+        var worldId = new WorldId("reused-id");
+        var module = new ServerFrameTimeModule();
+        var firstOptions = new HostRuntimeOptions();
+        var first = new HostRuntime(new GuardedWorldManager(), firstOptions);
+        var frames = new FrameSyncDriverModule();
+        if (frameSync) frames.Install(first, firstOptions);
+        module.Install(first, firstOptions);
+        first.CreateWorld(new WorldCreateOptions(worldId, "test"));
+        Assert.True(module.TryGet(worldId, out var oldTime));
+        first.Tick(0.125f);
+        Assert.Equal(1, oldTime.Frame.Value);
+
+        module.Uninstall(first, firstOptions);
+        Assert.False(module.TryGet(worldId, out _));
+
+        var secondOptions = new HostRuntimeOptions();
+        var second = new HostRuntime(new GuardedWorldManager(), secondOptions);
+        module.Install(second, secondOptions);
+        second.CreateWorld(new WorldCreateOptions(worldId, "test"));
+        Assert.True(module.TryGet(worldId, out var newTime));
+        Assert.NotSame(oldTime, newTime);
+        first.Tick(0.125f);
+        Assert.Equal(1, oldTime.Frame.Value);
+        Assert.Equal(0, newTime.Frame.Value);
+        second.Tick(0.125f);
+        Assert.Equal(1, newTime.Frame.Value);
+        module.Uninstall(second, secondOptions);
+    }
+
+    private sealed class DualWorldCommitScenario : IDisposable
+    {
+        public const float Delta = 0.125f;
+        private readonly WorldManager worlds = new(new GuardedWorldFactory());
+        private readonly HostRuntimeOptions options = new();
+        private readonly HostRuntime runtime;
+        private readonly ServerFrameTimeModule time = new(Delta);
+        private readonly ServerRollbackModule rollback;
+        public FrameSyncDriverModule Driver { get; } = new();
+        public RecordingConnection Connection { get; } = new();
+        public Dictionary<WorldId, CaptureProbe> Probes { get; } = new();
+        public List<int> HostSteps { get; } = new();
+        public List<(WorldId World, int Frame, PlayerInputCommand[] Inputs)> InputsFlushed { get; } = new();
+
+        public DualWorldCommitScenario()
+        {
+            runtime = new HostRuntime(worlds, options);
+            runtime.Connect(Connection);
+            rollback = new ServerRollbackModule(8, 1, world =>
+            {
+                var probe = new CaptureProbe((GuardedWorld)world);
+                Probes.Add(world.Id, probe);
+                var registry = new RollbackRegistry();
+                registry.Register(probe);
+                return registry;
+            });
+            Driver.Install(runtime, options);
+            time.Install(runtime, options);
+            rollback.Install(runtime, options);
+            Driver.AddInputsFlushed((world, frame, inputs) => InputsFlushed.Add((world, frame.Value, inputs)));
+            Driver.AddPostStep((frame, _) => HostSteps.Add(frame.Value));
+        }
+
+        public GuardedWorld Create(string id) => Assert.IsType<GuardedWorld>(runtime.CreateWorld(new WorldCreateOptions(new WorldId(id), "test")));
+        public void Tick() => runtime.Tick(Delta);
+        public IEnumerable<int> PacketFrames(GuardedWorld world) => Connection.Messages.OfType<FrameMessage>()
+            .Where(message => message.Packet.WorldId == world.Id).Select(message => message.Packet.Frame.Value);
+
+        public (int Frame, float Time) Clock(GuardedWorld world)
+        {
+            Assert.True(time.TryGet(world.Id, out var clock));
+            return (clock.Frame.Value, clock.Time);
+        }
+
+        public bool TryRestoreAt(GuardedWorld world, int frame) =>
+            rollback.TryRollbackAndReplay(world.Id, new FrameIndex(frame), new FrameIndex(frame), Delta);
+
+        public void Dispose()
+        {
+            rollback.Uninstall(runtime, options);
+            time.Uninstall(runtime, options);
+            Driver.Uninstall(runtime, options);
+            worlds.DisposeAll();
+        }
+    }
+
+    private sealed class CaptureProbe(GuardedWorld world) : IRollbackStateProvider
+    {
+        public int Key => 1;
+        public List<(int Frame, int Clock)> CapturedFrames { get; } = new();
+        public bool RejectCapture { get; set; }
+        public int RejectedCaptures { get; private set; }
+
+        public byte[] Export(FrameIndex frame)
+        {
+            if (RejectCapture)
+            {
+                RejectedCaptures++;
+                throw new InvalidOperationException("injected capture failure");
+            }
+
+            CapturedFrames.Add((frame.Value, world.Resolve<IFrameTime>().Frame.Value));
+            return BitConverter.GetBytes(world.Attempts);
+        }
+
+        public void Import(FrameIndex frame, byte[] payload) { }
+    }
+
+    private sealed class GuardedWorldFactory : IWorldFactory
+    {
+        public IWorld Create(WorldCreateOptions options) => new GuardedWorld(options.Id, options.ServiceBuilder?.Build());
+    }
+
     private sealed class RecordingConnection : IServerConnection
     {
         public ServerClientId ClientId => new("guard-client");
@@ -191,12 +388,17 @@ public sealed class FrameCompletionGuardTests
         public IReadOnlyDictionary<WorldId, IWorld> Worlds => worlds;
         public IWorld Create(WorldCreateOptions options)
         {
-            var world = new GuardedWorld(options.Id);
+            var world = new GuardedWorld(options.Id, options.ServiceBuilder?.Build());
             worlds.Add(world.Id, world);
             return world;
         }
         public bool TryGet(WorldId id, out IWorld world) => worlds.TryGetValue(id, out world!);
-        public bool Destroy(WorldId id) => worlds.Remove(id);
+        public bool Destroy(WorldId id)
+        {
+            if (!worlds.Remove(id, out var world)) return false;
+            world.Dispose();
+            return true;
+        }
         public void Tick(float deltaTime)
         {
             foreach (var world in worlds.Values)
@@ -208,13 +410,18 @@ public sealed class FrameCompletionGuardTests
                 catch (InvalidOperationException) { }
             }
         }
-        public void DisposeAll() => worlds.Clear();
+        public void DisposeAll()
+        {
+            foreach (var world in worlds.Values) world.Dispose();
+            worlds.Clear();
+        }
     }
 
-    private sealed class GuardedWorld(WorldId id) : IWorld, IWorldResolver, IWorldInputSink, IWorldStateSnapshotProvider
+    private sealed class GuardedWorld(WorldId id, WorldContainer? container) : IWorld, IWorldResolver, IWorldInputSink, IWorldStateSnapshotProvider
     {
         private readonly FrameTime time = new();
         public TestGuard Guard { get; } = new();
+        public bool ExposeGuard { get; set; } = true;
         public bool Fail { get; set; }
         public int Attempts { get; private set; }
         public int Inputs { get; private set; }
@@ -223,7 +430,7 @@ public sealed class FrameCompletionGuardTests
         public string WorldType => "test";
         public IWorldResolver Services => this;
         public void Initialize() { }
-        public void Dispose() { }
+        public void Dispose() => container?.Dispose();
         public void Tick(float deltaTime)
         {
             Guard.BeginFrame();
@@ -247,7 +454,8 @@ public sealed class FrameCompletionGuardTests
         public T Resolve<T>() => (T)Resolve(typeof(T));
         public bool TryResolve(Type type, out object result)
         {
-            result = type == typeof(IWorldFrameGuard) ? Guard : type == typeof(IFrameTime) ? time :
+            if (container != null && container.TryResolve(type, out result)) return true;
+            result = type == typeof(IWorldFrameGuard) && ExposeGuard ? Guard : type == typeof(IFrameTime) ? time :
                 type == typeof(IWorldInputSink) || type == typeof(IWorldStateSnapshotProvider) ? this : null!;
             return result != null;
         }

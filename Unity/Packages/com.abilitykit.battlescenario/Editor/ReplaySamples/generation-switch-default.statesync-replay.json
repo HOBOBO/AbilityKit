@@ -1,0 +1,212 @@
+{
+  "format": "abilitykit.local-statesync-replay",
+  "version": 2,
+  "caseId": "local-statesync-generation-switch",
+  "variant": "default",
+  "tickRate": 100,
+  "checkpoints": [
+    {
+      "command": "old-full",
+      "deliveryTick": 10,
+      "generation": 1,
+      "admission": "AppliedFullBaseline",
+      "validation": "AcceptedFullBaseline",
+      "reconciliation": "AuthoritativeOnly",
+      "sequence": 1,
+      "appliedTick": 10,
+      "baselineTick": 10,
+      "publishedRevision": 1,
+      "reconciledRevision": 1,
+      "terminalSequence": 1,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 1,
+      "publishedPosition": 110,
+      "authority": 110,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "old-delta",
+      "deliveryTick": 12,
+      "generation": 1,
+      "admission": "AppliedDelta",
+      "validation": "AcceptedDelta",
+      "reconciliation": null,
+      "sequence": 8,
+      "appliedTick": 12,
+      "baselineTick": 10,
+      "publishedRevision": 8,
+      "reconciledRevision": 1,
+      "terminalSequence": 1,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 2,
+      "publishedPosition": 118,
+      "authority": 110,
+      "prediction": null,
+      "pending": [
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "switch-generation",
+      "deliveryTick": 13,
+      "generation": 2,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 2,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "new-full",
+      "deliveryTick": 14,
+      "generation": 2,
+      "admission": "AppliedFullBaseline",
+      "validation": "AcceptedFullBaseline",
+      "reconciliation": "Predicted",
+      "sequence": 1,
+      "appliedTick": 12,
+      "baselineTick": 12,
+      "publishedRevision": 1,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 3,
+      "publishedPosition": 210,
+      "authority": 210,
+      "prediction": 217,
+      "pending": [
+        1
+      ],
+      "replayTicks": [
+        13,
+        14
+      ],
+      "replaySteps": [
+        {
+          "tick": 13,
+          "before": 210,
+          "after": 217
+        },
+        {
+          "tick": 14,
+          "before": 217,
+          "after": 217
+        }
+      ]
+    },
+    {
+      "command": "late-old-commit",
+      "deliveryTick": 15,
+      "generation": 2,
+      "admission": null,
+      "validation": null,
+      "reconciliation": "Ignored",
+      "sequence": 1,
+      "appliedTick": 12,
+      "baselineTick": 12,
+      "publishedRevision": 1,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 3,
+      "publishedPosition": 210,
+      "authority": 210,
+      "prediction": 217,
+      "pending": [
+        1
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "late-old-snapshot",
+      "deliveryTick": 15,
+      "generation": 2,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 1,
+      "appliedTick": 12,
+      "baselineTick": 12,
+      "publishedRevision": 1,
+      "reconciledRevision": 1,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 3,
+      "publishedPosition": 210,
+      "authority": 210,
+      "prediction": 217,
+      "pending": [
+        1
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "new-delta",
+      "deliveryTick": 16,
+      "generation": 2,
+      "admission": "AppliedDelta",
+      "validation": "AcceptedDelta",
+      "reconciliation": "Predicted",
+      "sequence": 2,
+      "appliedTick": 13,
+      "baselineTick": 12,
+      "publishedRevision": 2,
+      "reconciledRevision": 2,
+      "terminalSequence": 1,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 4,
+      "publishedPosition": 214,
+      "authority": 214,
+      "prediction": 214,
+      "pending": [],
+      "replayTicks": [
+        14,
+        15,
+        16
+      ],
+      "replaySteps": [
+        {
+          "tick": 14,
+          "before": 214,
+          "after": 214
+        },
+        {
+          "tick": 15,
+          "before": 214,
+          "after": 214
+        },
+        {
+          "tick": 16,
+          "before": 214,
+          "after": 214
+        }
+      ]
+    }
+  ]
+}

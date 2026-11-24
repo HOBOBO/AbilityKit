@@ -1,0 +1,40 @@
+{
+  "Id": 30010605,
+  "Name": "Jhin - Reload",
+  "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": true,
+  "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": false,
+  "RequiredBuffQualificationId": 0,
+  "Phases": [
+    {
+      "Type": 2,
+      "PhaseId": "skill_30010605_reload",
+      "Timeline": {
+        "DurationMs": 2500,
+        "RecoveryStartMs": -1,
+        "CastGateTagTemplateId": 0,
+        "CastGateEndMs": 0,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30010014,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "jhin_reload_start"
+          },
+          {
+            "AtMs": 2500,
+            "EffectId": 30010007,
+            "ExecuteMode": 0,
+            "AbortOnFailure": true,
+            "EventTag": "jhin_reload_complete"
+          }
+        ]
+      }
+    }
+  ]
+}

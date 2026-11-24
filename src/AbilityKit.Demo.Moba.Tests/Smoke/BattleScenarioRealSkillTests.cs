@@ -717,7 +717,7 @@ public sealed class BattleScenarioRealSkillTests
                 HeroId = 1002,
                 AttributeTemplateId = 1002,
                 TeamId = 2,
-                Position = new TestVector3(2, 0, 5),
+                Position = new TestVector3(1, 0, 5),
             },
             new DirectionTimelineStepBlock("jinx", 3, new TestVector3(0, 0, 1)),
         });
@@ -727,13 +727,16 @@ public sealed class BattleScenarioRealSkillTests
         Assert.True(outcome.Result.Passed, outcome.Result.Summary);
         Assert.True(outcome.TraceNodes.Any(node => node.Kind == "SkillCast" && node.ConfigId == 30020301),
             string.Join(",", outcome.TraceNodes.Select(node => $"{node.Kind}:{node.ConfigId}")));
-        Assert.Equal(3, outcome.TraceNodes.Count(node => node.Kind == "AreaSpawn" && node.ConfigId == 42020301));
-        Assert.True(outcome.TraceNodes.Any(node => node.Kind == "AreaEnter" && node.ConfigId == 42020301),
-            string.Join(",", outcome.TraceNodes.Select(node => $"{node.Kind}:{node.ConfigId}")));
-        Assert.True(outcome.TraceNodes.Any(node => node.Kind == "BuffApply" && node.ConfigId == 32020301),
-            string.Join(",", outcome.TraceNodes.Select(node => $"{node.Kind}:{node.ConfigId}")));
-        Assert.True(outcome.TraceNodes.Any(node => node.Kind == "DamageApply"));
-        Assert.Equal(3, outcome.TraceNodes.Count(node => node.Kind == "AreaExpire" && node.ConfigId == 42020301));
+        var trapTemplates = new[] { 42020301, 42020302, 42020303 };
+        foreach (var template in trapTemplates)
+        {
+            Assert.Single(outcome.TraceNodes.Where(node => node.Kind == "AreaSpawn" && node.ConfigId == template));
+            Assert.Single(outcome.TraceNodes.Where(node => node.Kind == "AreaExpire" && node.ConfigId == template));
+        }
+        Assert.Equal(2, outcome.TraceNodes.Count(node => node.Kind == "BuffApply" && node.ConfigId == 32020301));
+        Assert.Equal(2, outcome.TraceNodes.Count(node => node.Kind == "DamageApply" && node.ConfigId == 30020301));
+        var enters = outcome.TraceNodes.Where(node => node.Kind == "AreaEnter" && trapTemplates.Contains(node.ConfigId)).ToArray();
+        Assert.Equal(2, enters.Length);
     }
 
     [Theory]

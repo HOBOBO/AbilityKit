@@ -89,7 +89,7 @@ flowchart TD
 |--------|--------------|--------------|
 | 基础设施 | `com.abilitykit.core`、`timer`、`threading`、`trace`、`diagnostics` | `Runtime/Eventing/EventDispatcher.cs`、`Runtime/Identifiers/StableStringIdRegistry.cs` |
 | 世界与服务 | `com.abilitykit.world.di`、`world.ecs`、`world.entitas`、`world.svelto` | `WorldContainer.cs`、`WorldScope.cs`、`EntityWorld.cs` |
-| Host 与协议 | `com.abilitykit.host`、`host.extension`、`protocol.*` | `HostRuntime.cs`、`FramePacketNetAdapter.cs`、协议 DTO |
+| Host 与协议 | `com.abilitykit.host`、`host.extension`、`protocol.*` | `HostRuntime.cs`、`FrameSyncDriverModule.cs`、协议 DTO |
 | 同步与记录 | `world.framesync`、`world.networkfragments`、`world.snapshot`、`world.statesync`、`record` | `FramePacket.cs`、`RemoteFrameAggregator.cs`、`FrameSnapshotDispatcher.cs` |
 | 玩法表达 | `triggering`、`pipeline`、`attributes`、`ability`、`modifiers`、`context` | `TriggerRunner.cs`、`EffectContainer.cs`、属性/修饰器运行时 |
 | 战斗原语 | `combat.targeting`、`combat.projectile`、`combat.damage`、`combat.motion`、`combat.entitymanager` | `SearchTarget`、`Projectile`、`Damage` 相关目录 |

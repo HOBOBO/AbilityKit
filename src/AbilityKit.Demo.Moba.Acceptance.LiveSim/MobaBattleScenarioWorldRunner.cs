@@ -30,7 +30,10 @@ public sealed class MobaBattleScenarioWorldRunner
 {
     public static BattleScenarioRunResult Run(TestScenario scenario) => RunDetailed(scenario).Result;
 
-    public static MobaBattleScenarioRunOutcome RunDetailed(TestScenario scenario)
+    public static MobaBattleScenarioRunOutcome RunDetailed(TestScenario scenario) => RunDetailed(scenario, null);
+
+    internal static MobaBattleScenarioRunOutcome RunDetailed(TestScenario scenario,
+        Action<LiveSimSetupActionExecutor, int>? observeTick)
     {
         if (scenario == null) throw new ArgumentNullException(nameof(scenario));
         TestScenarioValidator.ThrowIfInvalid(scenario);
@@ -40,6 +43,7 @@ public sealed class MobaBattleScenarioWorldRunner
         using var bootstrapper = Boot();
         var expectation = ToExpectation(scenario);
         var executor = new LiveSimSetupActionExecutor(bootstrapper);
+        executor.AfterTick = observeTick;
         executor.FixedDelta = 1f / execution.TickRate;
 
         var envEntities = BindEnvironment(scenario, bootstrapper.RuntimeServices!);

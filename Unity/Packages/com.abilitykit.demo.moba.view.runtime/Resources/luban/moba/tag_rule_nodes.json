@@ -398,5 +398,15 @@
     "TagId": 1104,
     "Exact": false,
     "RefGroupId": 0
+  },
+  {
+    "Id": 200805,
+    "GroupId": 2008,
+    "ParentId": 200801,
+    "Order": 6,
+    "Operator": 1,
+    "TagId": 1183,
+    "Exact": false,
+    "RefGroupId": 0
   }
 ]

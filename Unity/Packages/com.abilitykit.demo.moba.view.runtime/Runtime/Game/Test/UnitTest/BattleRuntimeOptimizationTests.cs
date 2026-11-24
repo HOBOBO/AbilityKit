@@ -9,7 +9,10 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.Host.Extensions.Time;
+using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.View.Settings;
 using AbilityKit.Core.Logging;
@@ -1325,25 +1328,51 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             const float fixedDelta = 1f / 30f;
             var worldId = new WorldId("rollback-clock");
-            var frameTime = new FrameTime();
-            frameTime.Reset(new FrameIndex(178), time: 5.933333f, fixedDelta);
-            var provider = new FrameTimeRollbackStateProvider(frameTime);
-            var snapshot = provider.Export(new FrameIndex(179));
+            var manager = new WorldManager(new FrameTimeTestWorldFactory());
+            var hostOptions = new HostRuntimeOptions();
+            var host = new HostRuntime(manager, hostOptions);
             var module = new ServerFrameTimeModule(fixedDelta);
-            var timesField = typeof(ServerFrameTimeModule).GetField(
-                "_times",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            Assert.IsNotNull(timesField);
-            var times = (Dictionary<WorldId, FrameTime>)timesField.GetValue(module);
-            times.Add(worldId, frameTime);
+            module.Install(host, hostOptions);
+            try
+            {
+                var world = host.CreateWorld(new WorldCreateOptions(worldId, "test"));
+                var frameTime = (FrameTime)world.Services.Resolve<IFrameTime>();
+                frameTime.Reset(new FrameIndex(178), time: 5.933333f, fixedDelta);
+                var provider = new FrameTimeRollbackStateProvider(frameTime);
+                var snapshot = provider.Export(new FrameIndex(179));
 
-            InvokePrivate(module, "OnPostTick", fixedDelta);
-            frameTime.StepTo(new FrameIndex(209), fixedDelta);
-            provider.Import(new FrameIndex(179), snapshot);
-            InvokePrivate(module, "OnPostTick", fixedDelta);
+                host.Tick(fixedDelta);
+                frameTime.StepTo(new FrameIndex(209), fixedDelta);
+                provider.Import(new FrameIndex(179), snapshot);
+                host.Tick(fixedDelta);
 
-            Assert.AreEqual(179, frameTime.Frame.Value);
-            Assert.AreEqual(5.966666f, frameTime.Time, 0.00001f);
+                Assert.AreEqual(179, frameTime.Frame.Value);
+                Assert.AreEqual(5.966666f, frameTime.Time, 0.00001f);
+            }
+            finally
+            {
+                module.Uninstall(host, hostOptions);
+                manager.DisposeAll();
+            }
+        }
+
+        private sealed class FrameTimeTestWorldFactory : IWorldFactory
+        {
+            public IWorld Create(WorldCreateOptions options) => new FrameTimeTestWorld(options);
+        }
+
+        private sealed class FrameTimeTestWorld : IWorld
+        {
+            private readonly WorldCreateOptions _options;
+            private WorldContainer _container;
+
+            public FrameTimeTestWorld(WorldCreateOptions options) => _options = options;
+            public WorldId Id => _options.Id;
+            public string WorldType => _options.WorldType;
+            public IWorldResolver Services => _container;
+            public void Initialize() => _container = _options.ServiceBuilder.Build();
+            public void Tick(float deltaTime) { }
+            public void Dispose() => _container?.Dispose();
         }
 
         [Test]

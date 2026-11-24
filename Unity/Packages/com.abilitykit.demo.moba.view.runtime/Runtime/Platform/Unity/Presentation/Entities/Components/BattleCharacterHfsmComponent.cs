@@ -30,6 +30,8 @@ namespace AbilityKit.Game.Battle.Component
 
         public MobaCharacterActionState Action { get; private set; }
         public CastPresentationFrame CastFrame { get; private set; }
+        public int CastStartFrame { get; private set; } = -1;
+        public int CastDurationMs { get; private set; }
         public int SnapshotFrame => _snapshotFrame;
         public long DefinitionHash => _machine.DefinitionHash;
         public int EntityCode { get; private set; }
@@ -57,6 +59,8 @@ namespace AbilityKit.Game.Battle.Component
             _snapshotFrame = snapshot.Machine.Frame;
             Action = snapshot.Action;
             CastFrame = default;
+            CastStartFrame = -1;
+            CastDurationMs = 0;
         }
 
         public void ApplyPresentation(in CharacterActionData data)
@@ -64,6 +68,8 @@ namespace AbilityKit.Game.Battle.Component
             if (data.SnapshotFrame < _snapshotFrame) return;
             _snapshotFrame = data.SnapshotFrame;
             CastFrame = data.CastFrame;
+            CastStartFrame = data.CastStartFrame;
+            CastDurationMs = data.CastDurationMs;
             Action = new MobaCharacterActionState(data.Path, data.InstanceId,
                 data.StartFrame, data.LocalFrame, data.CastInstanceId, data.SkillId,
                 data.ModeId, data.ModeInstanceId, data.ModeStartFrame, data.ModeLocalFrame);
@@ -73,7 +79,7 @@ namespace AbilityKit.Game.Battle.Component
             ICharacterPresentationSink sink = null)
         {
             if (frame < SnapshotFrame || string.IsNullOrEmpty(Action.Path)) return null;
-            var localFrame = checked(Action.LocalFrame + frame - SnapshotFrame);
+            var localFrame = checked(frame - (CastStartFrame >= 0 ? CastStartFrame : Action.StartFrame));
             return _actions.Evaluate(Action.Path, Action.InstanceId, localFrame, frame, tickRate, sink, Action.SkillId);
         }
     }
