@@ -1,0 +1,176 @@
+[
+  {
+    "Id": 1,
+    "Name": "生命",
+    "Semantic": 1,
+    "SourceKind": 1,
+    "SourceKey": 1,
+    "MissingAsZero": false,
+    "AggregateMax": false,
+    "Scale": 1,
+    "Offset": 0,
+    "Max": 0,
+    "ReadyValue": -1,
+    "ReadyAtLeast": false,
+    "Mappings": [],
+    "Overrides": [],
+    "VisibilityBuffId": 0,
+    "VisibilityBuffPresent": false
+  },
+  {
+    "Id": 2,
+    "Name": "法力",
+    "Semantic": 2,
+    "SourceKind": 1,
+    "SourceKey": 2,
+    "MissingAsZero": false,
+    "AggregateMax": false,
+    "Scale": 1,
+    "Offset": 0,
+    "Max": 0,
+    "ReadyValue": -1,
+    "ReadyAtLeast": false,
+    "Mappings": [],
+    "Overrides": [],
+    "VisibilityBuffId": 0,
+    "VisibilityBuffPresent": false
+  },
+  {
+    "Id": 10,
+    "Name": "普攻弹药",
+    "Semantic": 5,
+    "SourceKind": 3,
+    "SourceKey": 10,
+    "MissingAsZero": false,
+    "AggregateMax": false,
+    "Scale": 1,
+    "Offset": 0,
+    "Max": 4,
+    "ReadyValue": 1,
+    "ReadyAtLeast": false,
+    "Mappings": [
+      {
+        "Input": 0,
+        "Output": 4
+      },
+      {
+        "Input": 1,
+        "Output": 4
+      },
+      {
+        "Input": 2,
+        "Output": 3
+      },
+      {
+        "Input": 3,
+        "Output": 2
+      },
+      {
+        "Input": 4,
+        "Output": 1
+      },
+      {
+        "Input": 5,
+        "Output": 0
+      }
+    ],
+    "Overrides": [],
+    "VisibilityBuffId": 32010404,
+    "VisibilityBuffPresent": false
+  },
+  {
+    "Id": 11,
+    "Name": "大招弹药",
+    "Semantic": 5,
+    "SourceKind": 2,
+    "SourceKey": 30010401,
+    "MissingAsZero": true,
+    "AggregateMax": false,
+    "Scale": -1,
+    "Offset": 4,
+    "Max": 4,
+    "ReadyValue": 1,
+    "ReadyAtLeast": false,
+    "Mappings": [
+      {
+        "Input": 4,
+        "Output": 4
+      },
+      {
+        "Input": 3,
+        "Output": 3
+      },
+      {
+        "Input": 2,
+        "Output": 2
+      }
+    ],
+    "Overrides": [
+      {
+        "SourceKind": 5,
+        "SourceKey": 32010405,
+        "Expected": 1,
+        "Value": 1
+      }
+    ],
+    "VisibilityBuffId": 32010404,
+    "VisibilityBuffPresent": true
+  },
+  {
+    "Id": 12,
+    "Name": "嗜火",
+    "Semantic": 6,
+    "SourceKind": 2,
+    "SourceKey": 30030002,
+    "MissingAsZero": true,
+    "AggregateMax": false,
+    "Scale": 1,
+    "Offset": 0,
+    "Max": 4,
+    "ReadyValue": 4,
+    "ReadyAtLeast": true,
+    "Mappings": [
+      {
+        "Input": 0,
+        "Output": 0
+      },
+      {
+        "Input": 1,
+        "Output": 1
+      },
+      {
+        "Input": 2,
+        "Output": 2
+      },
+      {
+        "Input": 3,
+        "Output": 3
+      },
+      {
+        "Input": 4,
+        "Output": 4
+      }
+    ],
+    "Overrides": [],
+    "VisibilityBuffId": 0,
+    "VisibilityBuffPresent": false
+  },
+  {
+    "Id": 13,
+    "Name": "超凡邪力",
+    "Semantic": 6,
+    "SourceKind": 4,
+    "SourceKey": 30040000,
+    "MissingAsZero": true,
+    "AggregateMax": false,
+    "Scale": 1,
+    "Offset": 0,
+    "Max": -1,
+    "ReadyValue": -1,
+    "ReadyAtLeast": false,
+    "Mappings": [],
+    "Overrides": [],
+    "VisibilityBuffId": 0,
+    "VisibilityBuffPresent": false
+  }
+]

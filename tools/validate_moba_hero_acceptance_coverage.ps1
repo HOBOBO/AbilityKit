@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$ManifestPath = 'tools\moba-hero-acceptance-coverage.json',
     [string]$GateConfigPath = 'tools\test-gates.json',
@@ -39,8 +39,8 @@ function Read-JsonFile {
 function Get-TestMethodNames {
     param([string]$Source)
 
-    # This is a source-reference check, not C# compilation or test discovery.
-    # Keep string literals intact while removing comments so commented tests cannot count.
+    # 此处仅检查源码引用，不执行 C# 编译或测试发现。
+    # 移除注释时保留字符串字面量，防止已注释测试被计入覆盖。
     $sourceWithoutComments = [regex]::Replace($Source, '(?s)@"(?:""|[^"])*"|"(?:\\.|[^"\\])*"|''(?:\\.|[^''\\])*''|/\*.*?\*/|//[^\r\n]*', {
         param($Match)
         if ($Match.Value.StartsWith('/*') -or $Match.Value.StartsWith('//')) { return ' ' }
@@ -277,5 +277,5 @@ if (-not [string]::IsNullOrWhiteSpace($ReportPath)) {
     [System.IO.File]::WriteAllText($resolvedReportPath, ($report | ConvertTo-Json -Depth 12), (New-Object System.Text.UTF8Encoding($false)))
 }
 
-Write-Host "MOBA hero acceptance coverage manifest passed for $($heroes.Count) heroes." -ForegroundColor Green
+Write-Host "MOBA 英雄验收覆盖清单检查通过，英雄数量：$($heroes.Count)。" -ForegroundColor Green
 Write-Host "Coverage evidence: $linkedCount/$coveredCount covered capabilities have source-linked tests; $($coveredCount - $linkedCount) need references. This does not certify test execution."

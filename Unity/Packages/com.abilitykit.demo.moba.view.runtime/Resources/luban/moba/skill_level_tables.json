@@ -1591,7 +1591,8 @@
           6,
           1,
           0,
-          0.1
+          0.1,
+          0.6
         ]
       },
       {
@@ -1606,7 +1607,8 @@
           6,
           1,
           0,
-          0.1
+          0.1,
+          0.6
         ]
       },
       {
@@ -1621,7 +1623,8 @@
           6,
           1,
           0,
-          0.1
+          0.1,
+          0.6
         ]
       },
       {
@@ -1636,7 +1639,8 @@
           6,
           1,
           0,
-          0.1
+          0.1,
+          0.6
         ]
       },
       {
@@ -1651,7 +1655,8 @@
           6,
           1,
           0,
-          0.1
+          0.1,
+          0.6
         ]
       }
     ],
@@ -1664,7 +1669,8 @@
       "bounceRadius",
       "arcHeight",
       "arcDurationSeconds",
-      "arcHeightPerUnit"
+      "arcHeightPerUnit",
+      "magicAttackRatio"
     ]
   },
   {
@@ -1732,55 +1738,61 @@
     "Id": 30010301,
     "Levels": [
       {
-        "CooldownMs": 18000,
+        "CooldownMs": 2000,
         "Cost": 30,
         "Params": [
           80,
           1500,
-          1.2
+          1.2,
+          1
         ]
       },
       {
-        "CooldownMs": 17000,
+        "CooldownMs": 2000,
         "Cost": 30,
         "Params": [
           135,
           1500,
-          1.2
+          1.2,
+          1
         ]
       },
       {
-        "CooldownMs": 16000,
+        "CooldownMs": 2000,
         "Cost": 30,
         "Params": [
           190,
           1500,
-          1.2
+          1.2,
+          1
         ]
       },
       {
-        "CooldownMs": 15000,
+        "CooldownMs": 2000,
         "Cost": 30,
         "Params": [
           245,
           1500,
-          1.2
+          1.2,
+          1
         ]
       },
       {
-        "CooldownMs": 14000,
+        "CooldownMs": 2000,
         "Cost": 30,
         "Params": [
           300,
           1500,
-          1.2
+          1.2,
+          1
         ]
       }
     ],
     "ParamNames": [
       "damage",
       "slowDurationMs",
-      "physicalAttackRatio"
+      "physicalAttackRatio",
+      "magicAttackRatio"
     ]
   },
   {
@@ -1841,6 +1853,28 @@
           30,
           100
         ]
+      },
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          125,
+          0.25,
+          30,
+          30,
+          250
+        ]
+      },
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          200,
+          0.25,
+          30,
+          30,
+          400
+        ]
       }
     ],
     "ParamNames": [
@@ -1863,6 +1897,28 @@
           30,
           30,
           100
+        ]
+      },
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          125,
+          0.5,
+          30,
+          30,
+          250
+        ]
+      },
+      {
+        "CooldownMs": 0,
+        "Cost": 0,
+        "Params": [
+          200,
+          0.5,
+          30,
+          30,
+          400
         ]
       }
     ],

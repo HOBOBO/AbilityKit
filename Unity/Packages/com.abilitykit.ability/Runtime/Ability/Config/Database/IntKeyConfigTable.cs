@@ -3,11 +3,6 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Ability.Config
 {
-    internal interface IConfigTableContentReplacer
-    {
-        void ReplaceContentsFrom(object source);
-    }
-
     /// <summary>
     /// int 主键的配置表实现
     /// </summary>

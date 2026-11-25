@@ -50,6 +50,18 @@ namespace AbilityKit.Demo.Moba.Services
                     CreateContext(MobaInputExecutionKind.Authority), before, after));
         }
 
+        /// <summary>
+        /// 观察正常权威派发的逐命令结果，不消费动作回执或改变原提交结果。
+        /// 调用方只能在同一世界 Tick 完成后使用这些观察值。
+        /// </summary>
+        internal LogicWorldInputSubmitResult TrySubmitWithAuthorityObservation(FrameIndex frame,
+            IReadOnlyList<PlayerInputCommand> inputs, Action<int, MobaFrameInputDisposition> observe)
+        {
+            if (_clientBound || _replayActive || observe == null) return TrySubmit(frame, inputs);
+            return TrySubmitWithContext(frame, inputs, null, afterCommand: (ordinal, result) =>
+                observe(ordinal, result.ClassifyAuthorityDisposition()));
+        }
+
         public MobaInputCoordinator(MobaLogicWorldRunGateService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, MobaInputCommandContractRegistry contracts)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));

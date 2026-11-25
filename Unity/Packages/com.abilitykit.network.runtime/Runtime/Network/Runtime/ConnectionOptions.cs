@@ -7,7 +7,9 @@ using AbilityKit.Network.Runtime.Observability;
 
 namespace AbilityKit.Network.Runtime
 {
-    /// <summary>Inputs supplied when a connection manager creates a transport session.</summary>
+    /// <summary>
+    /// 连接管理器创建传输会话时提供的输入。
+    /// </summary>
     public readonly struct NetworkRuntimeSessionFactoryContext
     {
         internal NetworkRuntimeSessionFactoryContext(
@@ -31,7 +33,9 @@ namespace AbilityKit.Network.Runtime
         public ProtocolPacketBoundaryValidator? PacketBoundaryValidator { get; }
     }
 
-    /// <summary>Inputs supplied when a connection manager creates its reconnect scheduler.</summary>
+    /// <summary>
+    /// 连接管理器创建重连调度器时提供的输入。
+    /// </summary>
     public readonly struct ReconnectAttemptSchedulerFactoryContext
     {
         internal ReconnectAttemptSchedulerFactoryContext(
@@ -74,26 +78,27 @@ namespace AbilityKit.Network.Runtime
         public uint HeartbeatOpCode = 0;
 
         /// <summary>
-        /// Optional transport-session factory. The connection manager owns and disposes the
-        /// returned session; the session owns the transport supplied in the factory context.
+        /// 可选传输会话工厂。连接管理器拥有并释放返回的会话；会话拥有工厂上下文提供的传输。
         /// </summary>
         public NetworkRuntimeSessionFactory? SessionFactory;
 
-        /// <summary>Optional heartbeat middleware factory.</summary>
+        /// <summary>
+        /// 可选心跳中间件工厂。
+        /// </summary>
         public NetworkHeartbeatMiddlewareFactory? HeartbeatFactory;
 
-        /// <summary>Optional reconnect cadence factory.</summary>
+        /// <summary>
+        /// 可选重连节奏工厂。
+        /// </summary>
         public ReconnectAttemptSchedulerFactory? ReconnectSchedulerFactory;
 
         /// <summary>
-        /// Optional packet observation settings. A new observer is resolved for every physical
-        /// session, including reconnects; the connection generation identifies that session.
+        /// 可选数据包观测设置。包括重连在内的每次物理会话均解析新观察者，通过连接代际标识该会话。
         /// </summary>
         public NetworkTrafficCaptureOptions? TrafficCapture;
 
         /// <summary>
-        /// Optional catalog-backed inbound guard installed on the default network session. It is
-        /// recreated for every reconnect session and runs before packet route handlers.
+        /// 安装在默认网络会话上的可选目录驱动入站保护。每次重连会话重新创建，在数据包路由处理器前执行。
         /// </summary>
         public ProtocolPacketBoundaryValidator? PacketBoundaryValidator;
 

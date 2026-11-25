@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     协议 catalog 治理统一入口：编译 Protocols/Catalogs/*.protocol.yaml 生成
     Protocols/Generated/protocol-manifest.json 与 Unity 运行时 BuiltInProtocolCatalogs.g.cs。
@@ -53,7 +53,7 @@ if ($LASTEXITCODE -ne 0) {
 
 if (-not [string]::IsNullOrWhiteSpace($ApiOutput)) {
     if ([string]::IsNullOrWhiteSpace($ApiCatalog)) {
-        throw '-ApiCatalog is required when -ApiOutput is specified so generated APIs stay scoped to one consumer.'
+        throw '指定 -ApiOutput 时必须同时指定 -ApiCatalog，使生成 API 的范围限定到单个消费方。'
     }
     $apiArguments = @(
         'run', '--project', $compilerProject, '--',

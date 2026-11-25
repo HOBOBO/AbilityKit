@@ -5,6 +5,7 @@ using AbilityKit.Demo.Moba.EnvironmentModel;
 using AbilityKit.Scenario;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Game.Battle.Testing;
+using AbilityKit.Demo.Moba.Components;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -12,6 +13,94 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 /// <summary>验证 MOBA 世界执行核心：TestScenario → boot → 生成 actors → 施放 → 采 trace → 断言判定 → 中性结果。</summary>
 public sealed class MobaBattleScenarioWorldRunnerTests
 {
+    [Theory, Trait("Gate", "BattleScenario")]
+    [InlineData("veigar-q-two-targets")]
+    [InlineData("veigar-r-track-displaced-target")]
+    [InlineData("lux-e")]
+    [InlineData("lux-e-natural-expiry")]
+    [InlineData("lux-q-two-targets")]
+    public void SkillPresentationScenarios_PassAuthoritativeAssertions(string caseId)
+    {
+        var relativeCase = $"src/AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/SkillPresentation/{caseId}.battlescenario";
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory != null && !File.Exists(Path.Combine(directory.FullName, relativeCase))) directory = directory.Parent;
+        Assert.NotNull(directory);
+        var scenario = BattleScenarioCompiler.CompileFile(Path.Combine(directory.FullName, relativeCase));
+        var result = MobaBattleScenarioWorldRunner.Run(scenario);
+        Assert.True(result.Passed, result.Summary);
+    }
+
+    [Fact, Trait("Gate", "BattleScenario")]
+    public void JhinMagazineDoesNotOwnMovementBetweenRealAttacks()
+    {
+        const string relativeCase = "src/AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/SkillPresentation/jhin-basic-attack-locomotion.battlescenario";
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory != null && !File.Exists(Path.Combine(directory.FullName, relativeCase))) directory = directory.Parent;
+        Assert.NotNull(directory);
+        var scenario = BattleScenarioCompiler.CompileFile(Path.Combine(directory.FullName, relativeCase));
+        var walked = new bool[4];
+        var stopped = new bool[4];
+        var movePhase = -1;
+        var before = 0f;
+        var reloadId = 0L;
+        var movedDuringReload = false;
+        var result = MobaBattleScenarioWorldRunner.RunDetailed(scenario, (world, _) =>
+        {
+            var actor = world.GetLocalMovementActor("caster");
+            if (actor == null || !actor.hasCharacterHfsm) return;
+            var machine = actor.characterHfsm.Runtime;
+            var action = machine.Action;
+            var next = (int)machine.ResolveParameter(10);
+            var current = actor.transform.Value.Position.X;
+            if (action.SkillId == 30010605 && action.CastInstanceId > 0)
+            {
+                if (reloadId == 0)
+                {
+                    reloadId = action.CastInstanceId;
+                    before = current;
+                    actor.ReplaceMoveInput(-1f, 0f);
+                }
+                else
+                {
+                    Assert.Equal(reloadId, action.CastInstanceId);
+                    if (Math.Abs(current - before) > .2f)
+                    {
+                        movedDuringReload = true;
+                        actor.ReplaceMoveInput(0f, 0f);
+                    }
+                }
+                return;
+            }
+            if (machine.FactIsCasting) return;
+            var phase = next is >= 2 and <= 4 ? next - 2 : reloadId != 0 && next == 0 ? 3 : -1;
+            if (phase < 0 || stopped[phase]) return;
+            if (movePhase != phase)
+            {
+                Assert.EndsWith("/idle", action.Path);
+                movePhase = phase;
+                before = current;
+                actor.ReplaceMoveInput(phase % 2 == 0 ? 1f : -1f, 0f);
+            }
+            else if (!walked[phase])
+            {
+                Assert.EndsWith("/moving", action.Path);
+                Assert.Equal(0, action.CastInstanceId);
+                if (Math.Abs(current - before) <= .2f) return;
+                walked[phase] = true;
+                actor.ReplaceMoveInput(0f, 0f);
+            }
+            else
+            {
+                Assert.EndsWith("/idle", action.Path);
+                stopped[phase] = true;
+            }
+        });
+        Assert.True(result.Result.Passed, result.Result.Summary);
+        Assert.All(walked, value => Assert.True(value));
+        Assert.All(stopped, value => Assert.True(value));
+        Assert.True(movedDuringReload);
+    }
+
     [Fact]
     public void Run_ExecutesSetupActionsBeforeAssertions()
     {

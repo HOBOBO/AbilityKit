@@ -1,13 +1,16 @@
 # AbilityKit Flow（com.abilitykit.flow）
 
+> 文档类型：包入口与使用导航
+> 核校状态：2026-11-25 对照 Runner、Session、Context、节点实现和随包样例；.NET Flow 单步 236 项通过，未运行 Unity Player。
+
 `AbilityKit Flow` 是一套轻量、可组合的流程（workflow）运行时，用于在游戏业务中组织 **可中断、可取消、可超时、可并行** 的“任务流程”。
 
 它的外形看起来像 tick 行为树（Behavior Tree），但定位更偏向 **异步流程编排 / 任务树（Task Tree）**：
 
 - 支持 `Tick(deltaTime)`：与 Unity `Update` 对齐的推进方式。
 - 支持 `Wake/Pump`：事件回调触发的立即推进（避免每帧空轮询）。
-- 通过 `FlowContext` 提供运行时上下文与注入能力，并支持 `Scope`（作用域）隔离与自动回收。
-- `FlowRunner` 内置异常捕获与可插拔上报（事件/委托），并保证异常时可靠收尾。
+- 通过 `FlowContext` 提供运行时上下文与作用域槽位隔离；释放 Scope 清理槽位，不会自动 Dispose 槽内对象。
+- `FlowRunner` 对 Enter/Tick 异常尝试 Interrupt 并结束本次运行；清理回调仍可能失败，不能据此承诺所有副作用可靠回滚。
 
 ## 1. 核心概念
 
@@ -20,7 +23,7 @@
 - `Exit(ctx)`：节点正常完成时的清理。
 - `Interrupt(ctx)`：节点被取消/中断时的清理。
 
-> 约定：`Exit/Interrupt` 应该是幂等/可重复调用安全（至少不应导致二次异常）。
+> 使用约定：实现 Exit/Interrupt 时应保持幂等。异常路径会尝试中断根节点，但不能保证每个子节点的清理动作成功。
 
 ### 1.2 FlowStatus：节点/流程的状态
 
@@ -54,7 +57,7 @@
 
 **关键约束（非常重要）：**
 
-- 回调触发 `Wake()` 必须在与 `FlowRunner` 相同线程执行（通常是 Unity 主线程）。
+- `Wake()` 没有跨线程同步保证；可能在调用线程同步推进节点树。Unity 调用方应切回主线程，避免从后台线程直接唤醒。
 - 节点作者需假设：同一帧内可能出现多次 `Tick(0)`（因为 Pump）。
 
 ### 1.5 FlowContext：运行时上下文（带 Scope）
@@ -67,18 +70,18 @@
 - scope 内 `Set<T>()` 只写入当前 scope；`TryGet<T>()` 优先查 scope 再查全局
 - scope 释放后，局部注入自动回收
 
-`FlowRunner.Start()` 会创建一个根 scope，并将 `FlowWakeUp` 注入到 scope 中；流程结束/Stop/异常都会自动释放根 scope。
+`FlowRunner.Start()` 会创建根 scope，并注入 `FlowWakeUp` 和诊断对象；正常完成、Stop 或捕获执行异常后会尝试释放根 scope。Dispose 也会清空 Context 槽位。
 
 ## 2. 快速上手
 
 ### 2.1 最小示例：启动一个 FlowSession
 
-建议从 `FlowSession` 开始使用：
+建议从 `FlowSession` 开始使用，并在启动前注册默认对象池配置：
 
 - 管理 runner 生命周期
 - 暴露 `Started/StatusChanged/Finished/UnhandledException` 事件
 
-示例见：`Samples~/FlowExamples`。
+示例见：[Flow Examples](Samples~/FlowExamples/README.md)。
 
 ### 2.2 处理异常（不依赖任何 Log facade）
 
@@ -89,8 +92,7 @@
 
 ### 2.3 配置 Pump 防死循环
 
-当节点在回调里反复 `Wake()`，可能触发短时间内大量推进；
-`FlowRunner.MaxPumpIterationsPerWake` 用于防止无限循环。
+默认 Pump 上限为 128 次推进；超过上限会将运行标为失败并尝试中断根节点。节点清理或通知回调仍可能抛出异常。
 
 > 建议：线上保持默认值或根据业务调整；调试时可适当调小以尽早暴露死循环。
 
@@ -106,14 +108,14 @@
 - `UsingResourceNode<T>(create, dispose, body)`：进入时创建资源并注入到 context，离开/中断时自动移除并释放
 - `AwaitCallbackNode(subscribe)`：订阅某个回调，回调完成后 `Wake` 推进并返回成功/失败
 
+资源释放由节点回调实现。若 `dispose` 抛出异常，后续节点清理可能无法完成；Scope 只回收槽和池化字典，不会自动释放槽内对象。
+
 ## 4. 设计理念与边界
 
-- 本模块更偏向 **workflow / 任务树**：强调流程编排、组合结构、异常与收尾一致性。
+- 本模块更偏向 **workflow / 任务树**：强调流程编排、组合结构与显式生命周期；异常清理是 best-effort，不提供事务回滚。
 - 它与通用行为树在结构层高度相似，但运行时语义更偏业务流程（超时、资源、回调唤醒、上下文注入）。
 - 如果未来要做 AI 决策树，建议单独建立 `BehaviorTree` 模块或拆分出“纯树执行内核”，避免语义漂移。
 
 ## 5. Samples（示例）
 
-在 Unity Package Manager 中选中 `com.abilitykit.flow`，点击 `Samples` 里的 `Flow Examples` 导入。
-
-导入后可在 `Samples/FlowExamples` 查看示例代码。
+在 Unity Package Manager 中选中 `com.abilitykit.flow`，点击 `Samples` 里的 `Flow Examples` 导入。Flow Session、Wake/Pump、资源释放和异常限制见[使用契约](Documentation~/Usage.md)。

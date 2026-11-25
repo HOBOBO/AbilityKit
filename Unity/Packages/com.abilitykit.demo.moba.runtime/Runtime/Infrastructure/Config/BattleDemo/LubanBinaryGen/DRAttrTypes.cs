@@ -33,7 +33,7 @@ public sealed partial class DRAttrTypes : Luban.BeanBase
     }
 
     /// <summary>
-    /// 属性 ID；1-23 与 BattleAttributeType 枚举一一对应，发布后不可改动。
+    /// 属性稳定 ID；与 BattleAttributeType 一一对应，发布后不可改动。
     /// </summary>
     public readonly int Id;
     /// <summary>

@@ -189,6 +189,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var contextId = runtimeContexts.EnsureBuffContext(runtime,
                 MobaBuffRuntimeContextData.FromRuntime(runtime, ActorId, 10, MobaRuntimeContextLifecycleState.Active));
             runtime.RuntimeContextVersion = 3L;
+            Assert.That(runtimeContexts.TryGetBuffReference(runtime, out var reference), Is.True);
             var list = new List<BuffRuntime> { runtime };
             _target.AddBuffs(list);
             _target.AddEffectListeners(new List<EffectListenerRuntime>
@@ -205,7 +206,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Assert.That(runtime.RuntimeContextId, Is.EqualTo(contextId));
                 Assert.That(runtime.RuntimeContextVersion, Is.EqualTo(3L));
                 Assert.That(runtimeContexts.Registry.Exists(contextId), Is.False);
-                var result = runtimeContexts.Resolver.GetValue<int, MobaBuffContextProperty>(contextId, MobaRuntimeContextKeys.StackCount);
+                var result = reference.ReadFinalBuffContextValue<int>(runtimeContexts, MobaRuntimeContextKeys.StackCount);
                 Assert.That(result.Source, Is.EqualTo(ContextValueSource.Snapshot));
                 Assert.That(result.Value, Is.EqualTo(runtime.StackCount));
             }));
@@ -260,9 +261,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var restored = _target.buffs.Active[0];
             Assert.That(restored.RuntimeContextId, Is.EqualTo(contextId));
             Assert.That(restored.RuntimeContextVersion, Is.EqualTo(5L));
-            Assert.That(runtimeContexts.TryGetBuffContext(contextId, out var property), Is.True);
-            Assert.That(property.Version, Is.EqualTo(5L));
-            Assert.That(property.RemainingSeconds, Is.EqualTo(8f));
+            Assert.That(runtimeContexts.TryGetBuffReference(restored, out var reference), Is.True);
+            var property = runtimeContexts.Resolver.ReadRealtimeProperty<MobaBuffContextProperty>(reference.Identity);
+            Assert.That(property.Found, Is.True);
+            Assert.That(property.Value.Version, Is.EqualTo(5L));
+            Assert.That(property.Value.RemainingSeconds, Is.EqualTo(8f));
             Assert.That(runtimeContexts.Snapshots.TryGetRecord(contextId, out _), Is.False);
         }
 

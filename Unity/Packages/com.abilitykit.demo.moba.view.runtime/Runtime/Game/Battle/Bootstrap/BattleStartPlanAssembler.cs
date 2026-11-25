@@ -117,6 +117,7 @@ namespace AbilityKit.Game.Flow
                     idealFrameSafetyMinMarginFrames: gateway != null ? gateway.IdealFrameSafetyMinMarginFrames : 0,
                     idealFrameSafetyMaxMarginFrames: gateway != null ? gateway.IdealFrameSafetyMaxMarginFrames : 30)
                 .WithLaunchSpec(in launchSpec)
+                .WithTraceDiagnostics(config.EnableTraceDiagnostics)
                 .ToOptions();
         }
 

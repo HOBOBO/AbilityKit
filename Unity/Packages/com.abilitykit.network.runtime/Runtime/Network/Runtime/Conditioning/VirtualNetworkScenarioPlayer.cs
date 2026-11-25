@@ -6,7 +6,9 @@ using System.Collections.ObjectModel;
 
 namespace AbilityKit.Network.Runtime.Conditioning
 {
-    /// <summary>A runtime-neutral command consumed by deterministic virtual-network playback.</summary>
+    /// <summary>
+    /// 供确定性虚拟网络播放消费的运行时无关命令。
+    /// </summary>
     public sealed class VirtualNetworkCommand
     {
         public VirtualNetworkCommand(long atMs, string name,
@@ -44,8 +46,7 @@ namespace AbilityKit.Network.Runtime.Conditioning
     }
 
     /// <summary>
-    /// Plays timestamped network commands against a socket-free link. Commands with the same
-    /// timestamp retain authoring order, and due packets are delivered before that timestamp's commands.
+    /// 在无套接字链路上播放带时间戳的网络命令。同时间戳命令保留编排顺序；执行该时间戳命令前先投递到期数据包。
     /// </summary>
     public sealed class VirtualNetworkScenarioPlayer
     {

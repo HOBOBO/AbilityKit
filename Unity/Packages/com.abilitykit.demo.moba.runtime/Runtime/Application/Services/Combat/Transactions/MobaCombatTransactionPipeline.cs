@@ -125,8 +125,9 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Transactions
                 if (!commit(transaction)) return false;
                 succeeded = true;
 
-                // Complete is a post-commit notification. Once Commit succeeds the transaction
-                // cannot be cancelled retroactively; compensation belongs in the commit body.
+                /*
+                 * Complete 是提交后通知。Commit 成功后不能追溯取消事务，补偿应位于提交主体内。
+                 */
                 Invoke(transaction, MobaCombatTransactionStage.Complete, in context);
                 return true;
             }

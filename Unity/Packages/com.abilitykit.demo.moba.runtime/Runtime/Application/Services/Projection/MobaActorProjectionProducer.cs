@@ -78,10 +78,10 @@ namespace AbilityKit.Demo.Moba.Services.Projection
                 var group = e.attributeGroup.Group;
                 hpMax = group.GetValue(MobaAttributeIds.MAX_HP);
                 // 真实血量在 ResourceContainer（伤害/治疗落地处）；无容器时回退 HP attribute 初始基线。
-                if (e.hasResourceContainer && e.resourceContainer.Value?.Map != null &&
-                    e.resourceContainer.Value.Map.TryGetValue(ResourceType.Hp, out var hpState) && hpState != null)
+                if (MobaActorResourceReader.TryRead(e, ResourceType.Hp, 0, out var resourceHp, out var resourceMax))
                 {
-                    hp = MobaResourceFixedConvert.ToSingle(hpState.Current);
+                    hp = resourceHp;
+                    hpMax = resourceMax;
                 }
                 else
                 {

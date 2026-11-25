@@ -1,129 +1,101 @@
-# Shooter PureState Adaptive Playback
+# Shooter PureState 自适应播放
 
-## Goal
+## 目标
 
-The thousand-entity profiles intentionally reduce the authoritative push rate.
-For example, a 30 Hz battle with `DeltaIntervalFrames = 3` delivers a near-LOD
-state block at roughly 10 Hz. Rendering each block immediately makes normal
-gateway scheduling jitter visible as a stop-and-jump motion even when the
-simulation and transport are otherwise healthy.
+千实体配置有意降低权威推送频率。例如，30 Hz 对局配置 `DeltaIntervalFrames = 3` 时，
+近处 LOD 状态块约以 10 Hz 到达。即使模拟和传输健康，立即渲染每个状态块也会将正常网关调度抖动表现为停顿和跳跃。
 
-This stage improves presentation continuity without changing the wire format.
-The controlled player continues to use immediate local prediction. Only remote
-PureState transforms are delayed and interpolated.
+本阶段在保持线协议格式的基础上改善表现连续性。本地受控玩家继续即时预测，
+仅延迟并插值远端 PureState 变换。
 
-## Previous limitation
+## 既有局限
 
-`ShooterClientAuthoritativeInterpolationSyncController` previously clamped the
-playback delay to at most one delta interval:
+`ShooterClientAuthoritativeInterpolationSyncController` 此前将播放延迟限制为最多一个增量间隔：
 
 ```text
-effective delay <= DeltaIntervalFrames
+有效延迟 <= DeltaIntervalFrames
 ```
 
-At 30 Hz with a three-frame delta interval this left about 100 ms of buffered
-playback. One delayed push, gateway queue spike, or long Unity frame exhausted
-the buffer and exposed the latest authoritative pose directly.
+在 30 Hz、三帧增量间隔下，播放缓冲仅约 100 ms。
+一次推送延迟、网关队列突增或 Unity 长帧即可耗尽缓冲，直接暴露最新权威姿态。
 
-## Current policy
+## 当前策略
 
-The PureState playback policy now uses block depth rather than a single push
-interval:
+PureState 播放策略改用状态块深度，而非单次推送间隔：
 
 ```text
-base delay = max(server interpolation delay, 2 * delta interval)
-starvation delay = max(base delay, 3 * delta interval)
+基础延迟 = max(服务器插值延迟, 2 * 增量间隔)
+断供延迟 = max(基础延迟, 3 * 增量间隔)
 ```
 
-For the thousand-entity profile (`30 Hz`, `DeltaIntervalFrames = 3`) this means:
+千实体配置（`30 Hz`、`DeltaIntervalFrames = 3`）对应：
 
-| State | Delay | Time |
+| 状态 | 延迟 | 时间 |
 |---|---:|---:|
-| Normal target | 6 frames | 200 ms |
-| Starvation target | 9 frames | 300 ms |
+| 正常目标 | 6 帧 | 200 ms |
+| 断供目标 | 9 帧 | 300 ms |
 
-The first state is displayed immediately. Playback then prebuffers until the
-configured span is available. This avoids inventing samples before the first
-authoritative frame while still establishing the two-block steady-state lead.
+首个状态立即显示，随后预缓冲，直至具备配置要求的跨度。
+这样既不会虚构首个权威帧之前的采样，也能建立稳态所需的两个状态块缓冲余量。
 
-When playback catches the newest buffered frame, the target expands to three
-blocks immediately. The active delay converges at 12.5% of normal playback
-progress, so increasing delay slightly slows remote playback instead of moving
-the clock backwards. After two continuous non-starved seconds, the target
-returns to two blocks and playback catches up with the same bounded rate.
+播放追上最新缓冲帧时，目标立即扩展为三个状态块。
+实际延迟按正常播放进度的 12.5% 收敛，使延迟增加表现为远端播放略微减速，而非时钟倒退。
+连续两秒未断供后，目标恢复为两个状态块，播放按相同的有界速率追赶。
 
-The playback clock is capped at the newest buffered frame. A long packet gap
-therefore holds the last pose instead of advancing far beyond the server data
-and remaining stuck after delivery resumes.
+播放时钟最多推进到最新缓冲帧。较长收包间隔会保持最后姿态，
+避免远超服务器数据后，在恢复收包时持续卡住。
 
-## Diagnostics
+## 诊断
 
-`ShooterPureStatePlaybackDiagnostics` is available from the authoritative
-controller, `ShooterClientSession.TryGetPureStatePlaybackDiagnostics`, and
-`ShooterRemoteStateSyncPlayModeHost.PureStatePlaybackDiagnostics`.
-The multiplayer headless client also writes these fields into its JSON state
-artifact so performance-matrix runs retain the playback evidence.
+可通过权威控制器、`ShooterClientSession.TryGetPureStatePlaybackDiagnostics` 和
+`ShooterRemoteStateSyncPlayModeHost.PureStatePlaybackDiagnostics` 获取
+`ShooterPureStatePlaybackDiagnostics`。
+多人无界面客户端也将这些字段写入 JSON 状态产物，以便性能矩阵运行保留播放证据。
 
-The snapshot reports:
+快照报告：
 
-- received snapshot count and render tick count;
-- buffered snapshot count and oldest-to-newest frame span;
-- current playback frame and lead behind the newest frame;
-- current, target, base, and maximum delay frames;
-- starvation and held-playback counts plus their ratios.
+- 已接收快照数和渲染步进数；
+- 缓冲快照数及最旧到最新帧跨度；
+- 当前播放帧及其落后最新帧的距离；
+- 当前、目标、基础和最大延迟帧数；
+- 断供和播放保持的次数及占比。
 
-These values should be captured beside `LauncherTick`, `SessionTick`,
-`PresentationBuild`, `ViewRender`, hitch count, and GC bytes. A rising
-starvation ratio points to delivery cadence or main-thread scheduling. Low
-starvation with high hitch or GC metrics points to local simulation,
-presentation, or rendering cost instead.
+采集时应同时记录 `LauncherTick`、`SessionTick`、`PresentationBuild`、`ViewRender`、
+卡顿次数和 GC 字节数。断供占比上升指向交付节奏或主线程调度问题；
+断供较低而卡顿或 GC 指标较高，则指向本地模拟、表现或渲染开销。
 
-## Verification
+## 验证
 
-The automated tests cover:
+自动化测试覆盖：
 
-- two-block minimum delay when the server advertises only one block;
-- startup prebuffering without a false starvation event;
-- promotion from six to nine frames after starvation;
-- two-second recovery hysteresis and gradual return to six frames;
-- monotonically increasing playback while either delay converges;
-- diagnostics reset when leaving PureState mode;
-- local controlled-player prediction remaining on the immediate path;
-- bounded steady-state allocation after warmup.
+- 服务器仅通告一个状态块时，仍保持两个状态块的最小延迟；
+- 启动预缓冲不误报断供；
+- 断供后从六帧提升到九帧；
+- 两秒恢复滞回及逐步回到六帧；
+- 两种延迟收敛期间播放均单调递增；
+- 离开 PureState 模式时重置诊断；
+- 本地受控玩家预测保持即时路径；
+- 预热后的稳态分配有界。
 
-Shooter Runtime result after this stage: `549/549` passing.
+本阶段完成后，Shooter 运行时结果：`549/549` 通过。
 
-## Latency trade-off
+## 延迟取舍
 
-This policy exchanges 200-300 ms of remote-state latency for continuous motion.
-It does not add input delay to the locally controlled player. Combat authority,
-hit confirmation, and remote entity state still arrive from the server, so UI
-that communicates authoritative results must use server events rather than the
-interpolated visual frame.
+此策略以远端状态 200–300 ms 的延迟换取连续运动，不增加本地受控玩家的输入延迟。
+战斗权威、命中确认和远端实体状态仍由服务器提供，因此展示权威结果的 UI 必须使用服务器事件，
+不能使用插值后的视觉帧作为依据。
 
-The extra delay masks short jitter but cannot reconstruct motion that was never
-sampled. At 10 Hz, curved or rapidly changing movement is still described by
-widely spaced endpoints.
+额外延迟可以掩盖短时抖动，但无法重建未被采样的运动。
+在 10 Hz 下，曲线或快速变向仍只能由间隔较大的端点描述。
 
-## Next comparison stages
+## 后续对比阶段
 
-The recommended order remains:
+建议顺序仍为：
 
-1. The first multi-sample state block implementation is complete; see
-   [18-PureState Multi-Sample Blocks](18-PureStateMultiSampleBlocks.md). The next
-   bandwidth pass can vary sample density by near/mid/far LOD after collecting
-   comparable payload and starvation evidence.
-2. Expose a Shooter deterministic frame-sync profile beside PureState. Reuse the
-   existing input history and `BattleFrameSyncGrain`, then close deterministic
-   gaps in RVO/jobs and floating-point gameplay before treating it as a valid
-   comparison.
-3. Add server checkpoints plus an input write-ahead log. Client snapshots may be
-   accepted only as validated witnesses, never as untrusted authority.
-4. Define zero-client room policy: continue authoritative simulation, enter a
-   bounded grace/hibernate state, or terminate at battle completion/TTL. A
-   reconnect rebuilds from the latest checkpoint and subsequent inputs.
+1. 首版多采样状态块已完成，见[18-PureState 多采样状态块](18-PureStateMultiSampleBlocks.md)。下一轮带宽优化可在取得可比较的载荷和断供证据后，按近、中、远 LOD 调整采样密度。
+2. 在 PureState 之外提供 Shooter 确定性帧同步配置。复用既有输入历史和 `BattleFrameSyncGrain`，补齐 RVO、作业及浮点玩法的确定性缺口后，才可作为有效对照。
+3. 添加服务器检查点和输入预写日志。客户端快照只能作为经验证的旁证，不能直接充当权威。
+4. 定义无客户端房间策略：继续权威模拟、进入有界宽限或休眠状态，或在战斗完成及 TTL 到期时终止。重连从最新检查点和后续输入重建。
 
-The acceptance matrix should compare at least immediate state blocks, adaptive
-state playback, multi-sample state blocks, and deterministic frame sync under
-the same entity count, RTT, jitter, packet loss, Unity frame spikes, and GC
-injection profile.
+验收矩阵至少应在相同实体数、RTT、抖动、丢包、Unity 帧尖峰和 GC 注入配置下，
+比较即时状态块、自适应状态播放、多采样状态块和确定性帧同步。

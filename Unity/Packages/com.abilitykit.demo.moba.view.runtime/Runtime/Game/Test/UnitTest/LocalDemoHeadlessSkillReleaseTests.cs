@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using System.Reflection;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Mathematics;
@@ -22,6 +23,149 @@ namespace AbilityKit.Game.Test.UnitTest
     public sealed class LocalDemoHeadlessSkillReleaseTests
     {
         private const float FixedDeltaTime = 1f / 30f;
+
+        /// <summary>
+        /// 使用正式本地会话、地图圆柱和 HUD 移动输入，验证贴柱及重叠后可通过普通移动脱离。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator UnifiedGameplayScene_LocalBattle_HudMovementEscapesPublishedPillar()
+        {
+            DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            var entry = Object.FindObjectOfType<GameEntry>();
+            Assert.IsNotNull(entry);
+            InvokePrivate(entry, "Awake");
+            var flow = entry.Get<GameFlowDomain>();
+            flow.StartWithPersistentSettingsSync();
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch,
+                18000, "本地战斗未进入 InMatch。");
+            Assert.IsTrue(entry.TryGet(out BattleContext ctx));
+            yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
+            Assert.IsTrue(ctx.Session.TryGetWorld(out var world));
+            var maps = world.Services.Resolve<AbilityKit.Demo.Moba.Services.Map.IMobaMapRuntimeService>();
+            var pillar = maps.CurrentMap.CollisionObjects.Single(item =>
+                item.ShapeType == AbilityKit.Demo.Moba.Config.BattleDemo.MO.MapCollisionShapeType.Capsule);
+            Assert.IsTrue(maps.TryGetColliderId(pillar.Id, out _));
+            var center = new Vector3(pillar.Position.X, 0f, pillar.Position.Z);
+            var actors = world.Services.Resolve<MobaActorRegistry>();
+            Assert.IsTrue(actors.TryGet(ctx.LocalActorId, out var actor));
+            foreach (var pair in actors.Entries)
+                if (pair.Value.hasActorBrain) pair.Value.RemoveActorBrain();
+
+            var directions = new[] { Vector3.right, Vector3.left, Vector3.forward, Vector3.back,
+                new Vector3(1, 0, 1).normalized, new Vector3(-1, 0, 1).normalized,
+                new Vector3(1, 0, -1).normalized, new Vector3(-1, 0, -1).normalized };
+            ctx.BeginHudMove();
+            foreach (var direction in directions)
+            {
+                Place(center - direction * 3f);
+                ctx.SetHudMove(direction.x, direction.z);
+                for (var tick = 0; tick < 45; tick++) { FlowTick(flow, 1); yield return null; }
+                var contact = Position();
+                Assert.Greater(Vector3.Dot(contact - (center - direction * 3f), direction), .5f,
+                    $"HUD 输入必须实际推动英雄走向圆柱，dir={direction}, pos={contact}");
+                Assert.AreEqual(direction.x, actor.moveInput.Dx, .0001f);
+                Assert.AreEqual(direction.z, actor.moveInput.Dz, .0001f);
+                Assert.Less(Vector3.Dot(contact - center, direction), -.5f,
+                    $"普通移动应被圆柱挡住，dir={direction}, pos={contact}");
+
+                ctx.SetHudMove(-direction.x, -direction.z);
+                yield return TickUntil(flow, () => Vector3.Dot(Position() - contact, -direction) > .6f,
+                    60, $"撞柱后反向普通移动无法脱离，dir={direction}");
+
+                Place(contact);
+                var tangent = new Vector3(-direction.z, 0, direction.x);
+                ctx.SetHudMove(tangent.x, tangent.z);
+                yield return TickUntil(flow, () => Vector3.Dot(Position() - contact, tangent) > .6f,
+                    60, $"贴柱后侧向普通移动无法脱离，dir={direction}");
+
+                foreach (var offset in new[] { 0f, .5f, 1f })
+                {
+                    Place(center + direction * offset);
+                    ctx.SetHudMove(direction.x, direction.z);
+                    yield return TickUntil(flow, () => Vector3.Dot(Position() - center, direction) > 2f,
+                        90, $"圆柱重叠后普通移动无法脱离，dir={direction}, offset={offset}");
+                }
+            }
+            ctx.SetHudMove(0, 0);
+            ctx.EndHudMove();
+
+            Vector3 Position()
+            {
+                var position = actor.transform.Value.Position;
+                return new Vector3(position.X, position.Y, position.Z);
+            }
+
+            void Place(Vector3 position)
+            {
+                ctx.SetHudMove(0, 0);
+                FlowTick(flow, 4);
+                actor.ReplaceMoveInput(0, 0);
+                Assert.IsTrue(TrySetActorPosition(ctx, ctx.LocalActorId, position));
+            }
+        }
+
+        /// <summary>
+        /// 验证左侧按钮的正式回调经过本地会话创建两种阵营的逻辑英雄和场景表现，切主控后相对阵营仍正确。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator UnifiedGameplayScene_LocalBattle_DebugSpawnCreatesVisibleHeroesForCurrentControlTeam()
+        {
+            DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            var entry = Object.FindObjectOfType<GameEntry>();
+            Assert.IsNotNull(entry);
+            InvokePrivate(entry, "Awake");
+            var flow = entry.Get<GameFlowDomain>();
+            flow.StartWithPersistentSettingsSync();
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch,
+                18000, "本地战斗未进入 InMatch。");
+            Assert.IsTrue(entry.TryGet(out BattleContext ctx));
+            yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
+            Assert.IsTrue(ctx.Session.TryGetWorld(out var world));
+            var actors = world.Services.Resolve<MobaActorRegistry>();
+            var players = world.Services.Resolve<MobaPlayerActorMapService>();
+            var debug = new BattleLocalDebugController(() => ctx, () => BattleFlowDebugProvider.CurrentHud);
+            Assert.IsTrue(debug.TryReplaceHero(3007, out var message), message);
+            yield return TickUntil(flow, () => actors.TryGet(ctx.LocalActorId, out var a) &&
+                a.hasSkillLoadout && a.skillLoadout.HeroId == 3007, 240, "英雄替换未完成。");
+
+            for (var control = 0; control < 2; control++)
+            {
+                var sourceId = ctx.LocalActorId;
+                Assert.IsTrue(actors.TryGet(sourceId, out var source));
+                for (var enemy = 0; enemy < 2; enemy++)
+                {
+                    var before = actors.Entries.Select(pair => pair.Key).ToArray();
+                    var accepted = enemy == 0 ? debug.TrySpawnAlly(out message) : debug.TrySpawnEnemy(out message);
+                    Assert.IsTrue(accepted, message);
+                    yield return TickUntil(flow, () => actors.Entries.Any(pair => !before.Contains(pair.Key)),
+                        120, "按钮命令未创建逻辑实体。");
+                    var created = actors.Entries.Single(pair => !before.Contains(pair.Key));
+                    Assert.AreEqual(UnitSubType.Hero, created.Value.unitSubType.Value);
+                    Assert.AreEqual(enemy == 0, created.Value.team.Value == source.team.Value);
+                    if (enemy == 0) Assert.AreEqual(source.skillLoadout.HeroId, created.Value.skillLoadout.HeroId);
+                    Assert.Greater(created.Value.GetMobaAttrs().Hp, 0);
+                    Assert.IsTrue(created.Value.hasResourceContainer);
+                    Assert.IsTrue(created.Value.hasCollisionId);
+                    Assert.IsFalse(created.Value.hasActorBrain);
+                    Assert.AreEqual(sourceId, ctx.LocalActorId);
+                    Assert.IsTrue(players.TryGetActorId(new PlayerId(ctx.ResolveLocalControlPlayerId()), out var mapped));
+                    Assert.AreEqual(sourceId, mapped);
+                    yield return TickUntil(flow, () => ctx.EntityQuery.TryGetTransform(new BattleNetId(created.Key), out var t) && t != null &&
+                        Object.FindObjectsOfType<MonoViewHandle>().Any(view => view.ActorId == created.Key &&
+                            view.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length > 0),
+                        240, "逻辑出生未创建场景表现。");
+                    Assert.IsTrue(world.Services.Resolve<MobaActorIndicatorSnapshotService>().TryGetActiveBaseline(out var baseline));
+                    var indicators = AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotCodec.Deserialize(baseline.Payload);
+                    Assert.IsTrue(indicators.Any(row => row.ActorId == created.Key && row.IndicatorId == 1 && row.Current > 0));
+                    Assert.IsTrue(indicators.Any(row => row.ActorId == created.Key && row.IndicatorId == 2 && row.Max > 0));
+                }
+                Assert.IsTrue(debug.TrySwitchControl(out message), message);
+            }
+
+            ctx.SetGameplayInputBlocked(BattleGameplayInputBlockReason.PauseRecovery, true);
+            Assert.IsFalse(debug.TrySpawnAlly(out message));
+            StringAssert.Contains("提交失败", message);
+        }
 
         [TearDown]
         public void TearDown()

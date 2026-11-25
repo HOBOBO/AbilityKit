@@ -31,6 +31,9 @@ namespace AbilityKit.Protocol.Room
         public const uint SubmitFrameInput = 121;
         public const uint SubscribeFrameSync = 122;
         public const uint SubscribeFixedBaselineStateSync = 123;
+        public const uint SubscribeScopedStateSync = 124;
+        public const uint SubmitScopedStateSyncInput = 125;
+        public const uint SubscribeStateSyncMovementProof = 126;
 
         public const uint SessionKicked = 9000;
         public const uint SnapshotPushed = 9002;

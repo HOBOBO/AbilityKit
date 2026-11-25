@@ -7,8 +7,7 @@ using AbilityKit.Protocol.CatalogCompiler.Lowering;
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
 /// <summary>
-/// Stable JSON projection shared by the command line compiler and the Unity editor. The editor
-/// never parses YAML independently, so validation/defaulting stays identical in CLI, CI and Unity.
+/// 命令行编译器与 Unity 编辑器共享的稳定 JSON 投影。编辑器不独立解析 YAML，使 CLI、CI 和 Unity 的验证及默认值处理保持一致。
 /// </summary>
 public sealed class ProtocolWorkspaceDocument
 {

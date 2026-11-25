@@ -4,7 +4,9 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
-/// <summary>Writes canonical YAML documents from the editor workspace contract.</summary>
+/// <summary>
+/// 根据编辑器工作区契约写入规范 YAML 文档。
+/// </summary>
 public static class ProtocolYamlEmitter
 {
     private const string CatalogSchemaHeader =

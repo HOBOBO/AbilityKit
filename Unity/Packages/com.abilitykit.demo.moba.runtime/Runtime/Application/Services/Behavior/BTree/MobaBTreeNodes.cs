@@ -10,6 +10,7 @@ using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Moba.Behavior;
 using ExecutionContext = AbilityKit.BehaviorTree.Execution.ExecutionContext;
 using ValueType = AbilityKit.BehaviorTree.Definition.ValueType;
 
@@ -42,20 +43,22 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     }
 
     /// <summary>
-    /// Thin behavior-tree adapter over the shared target-search pipeline. Query composition remains
-    /// in SearchTargetService; this node only selects a query and commits its first result.
+    /// 通过共享目标查询选择敌人；默认圆形查询可选择保留仍有效的目标。
     /// </summary>
     [NodeType(MobaBTreeNodeTypes.SelectNearestEnemy, "选取最近敌人", "MOBA", NodeKind.Action)]
     public sealed class MobaSelectNearestEnemyNode : ActionNodeBase, NodeDescriptorProvider
     {
         public const string QueryTemplateIdProperty = "queryTemplateId";
         public const string SearchRadiusProperty = "searchRadius";
+        public const string RetainRadiusProperty = "retainRadius";
         public const float DefaultSearchRadius = 1000f;
 
         private readonly List<int> _results = new List<int>(1);
         private MobaBTreeRuntimeContext _runtime = null!;
         private long _queryTemplateId;
-        private Fixed64 _searchRadius = Fixed64.FromInt32(1000);
+        private string _retainedTargetKey;
+        private SearchQueryTemplateMO _acquireQuery;
+        private SearchQueryTemplateMO _retainQuery;
         private SearchTargetService _fallbackSearch;
 
         public NodeDescriptor BuildDescriptor(NodeTypeAttribute attribute) => new(
@@ -67,15 +70,33 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                     PropertyValue.Of(0L), "搜索模板 id；0 = 用 searchRadius 构造默认圆形查询"),
                 new PropertyField(SearchRadiusProperty, ValueType.Fixed64,
                     PropertyValue.Of(Fixed64.FromInt32(1000)), "默认查询半径"),
+                new PropertyField(RetainRadiusProperty, ValueType.Fixed64,
+                    PropertyValue.Of(Fixed64.Zero), "默认圆形查询的目标保留半径；0 禁用，启用时不得小于 searchRadius"),
             });
 
         public override void OnInit(in NodeInitContext context)
         {
-            // Authoring validates node construction without a live world. Resolve the host dependency at execution.
+            /*
+             * 编排阶段在无活动世界时验证节点构造，宿主依赖在执行时解析。
+             */
             context.Context.Services.TryResolve(out _runtime);
             _queryTemplateId = context.Properties.GetInt64(QueryTemplateIdProperty, 0);
-            _searchRadius = context.Properties.GetFixed64(SearchRadiusProperty, Fixed64.FromInt32(1000));
+            var searchRadius = context.Properties.GetFixed64(SearchRadiusProperty, Fixed64.FromInt32(1000));
+            var retainRadius = context.Properties.GetFixed64(RetainRadiusProperty, Fixed64.Zero);
+            if (retainRadius < Fixed64.Zero || (retainRadius > Fixed64.Zero &&
+                (_queryTemplateId != 0 || searchRadius <= Fixed64.Zero || retainRadius < searchRadius)))
+                throw new InvalidOperationException("retainRadius requires a bounded default circle with 0 < searchRadius <= retainRadius.");
+
+            if (_queryTemplateId <= 0)
+                _acquireQuery = CreateDefaultQuery(searchRadius.ToSingle());
+            if (retainRadius > Fixed64.Zero)
+            {
+                _retainedTargetKey = RetainedTargetKey(context.Definition.Id);
+                _retainQuery = CreateDefaultQuery(retainRadius.ToSingle(), retainExplicitTarget: true);
+            }
         }
+
+        internal static string RetainedTargetKey(string nodeId) => $"memory.enemySelection.{nodeId}.actorId";
 
         public override NodeState OnTick(ExecutionContext context)
         {
@@ -96,15 +117,26 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             var ownerPosition = world.GetPosition(behavior.OwnerId);
             _results.Clear();
 
-            var found = _queryTemplateId > 0
-                ? search.TrySearchActorIds((int)_queryTemplateId, ownerId, in ownerPosition, 0, _results)
-                : search.TrySearchActorIds(CreateDefaultQuery(_searchRadius.ToSingle()), ownerId, in ownerPosition, 0, _results);
+            var rememberedId = _retainedTargetKey == null ? 0L : bb.GetInt64(_retainedTargetKey);
+            var found = rememberedId > 0 && rememberedId <= int.MaxValue &&
+                IsEnemy(registry, ownerId, (int)rememberedId) &&
+                world.IsAlive(new AbilityKit.Ability.Behavior.BehaviorEntityId(rememberedId)) &&
+                search.TrySearchActorIds(_retainQuery, ownerId, in ownerPosition, (int)rememberedId, _results);
+            if (!found)
+            {
+                found = _queryTemplateId > 0
+                    ? search.TrySearchActorIds((int)_queryTemplateId, ownerId, in ownerPosition, 0, _results)
+                    : search.TrySearchActorIds(_acquireQuery, ownerId, in ownerPosition, 0, _results);
+            }
 
-            if (!found || _results.Count == 0) return NodeState.Success;
-            var targetId = _results[0];
+            var targetId = found && _results.Count > 0 ? _results[0] : 0;
             if (!registry.TryGet(targetId, out var target) || target == null || !target.hasTransform)
+            {
+                if (_retainedTargetKey != null) bb.SetInt64(_retainedTargetKey, 0);
                 return NodeState.Success;
+            }
 
+            if (_retainedTargetKey != null) bb.SetInt64(_retainedTargetKey, targetId);
             var targetPosition = target.transform.Value.Position;
             bb.SetInt64(MobaBTreeKeys.TargetId, targetId);
             bb.SetFixed64(MobaBTreeKeys.TargetX, Fixed64.FromSingle(targetPosition.X));
@@ -117,7 +149,12 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             return NodeState.Success;
         }
 
-        private static SearchQueryTemplateMO CreateDefaultQuery(float radius)
+        private static bool IsEnemy(MobaActorRegistry registry, int ownerId, int targetId)
+            => registry.TryGet(ownerId, out var owner) && owner != null && owner.hasTeam &&
+               registry.TryGet(targetId, out var target) && target != null && target.hasTeam &&
+               target.team.Value != Team.None && target.team.Value != owner.team.Value;
+
+        private static SearchQueryTemplateMO CreateDefaultQuery(float radius, bool retainExplicitTarget = false)
         {
             var rules = radius > 0f
                 ? new[]
@@ -134,7 +171,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 id: 0,
                 name: "moba.ai.nearest-enemy",
                 maxCount: 1,
-                explicitTargetPolicy: (int)SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget,
+                explicitTargetPolicy: (int)(retainExplicitTarget
+                    ? SearchQueryExplicitTargetPolicy.PreferExplicitTarget
+                    : SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget),
                 provider: new SearchTargetProviderConfig(0, (int)SearchTargetProviderKind.EnemyTeam),
                 rules: rules,
                 scorers: new[]
@@ -149,8 +188,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     }
 
     /// <summary>
-    /// Selects a cooldown-ready skill candidate. Range and cast-state checks are intentionally
-    /// separate conditions so the same candidate can drive cast, approach, or hold branches.
+    /// 选择冷却就绪的技能候选。范围及施法状态检查分别作为独立条件，让同一候选可驱动施法、接近或保持分支。
     /// </summary>
     [NodeType(MobaBTreeNodeTypes.SelectReadySkill, "选取就绪技能", "MOBA", NodeKind.Action)]
     public sealed class MobaSelectReadySkillNode : ActionNodeBase, NodeDescriptorProvider
@@ -180,7 +218,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
         public override void OnInit(in NodeInitContext context)
         {
-            // Authoring validates node construction without a live world. Resolve the host dependency at execution.
+            /*
+             * 编排阶段在无活动世界时验证节点构造，宿主依赖在执行时解析。
+             */
             context.Context.Services.TryResolve(out _runtime);
             _requiredSkillId = context.Properties.GetInt64(SkillIdProperty, 0);
             _requiredTag = context.Properties.GetInt64(RequiredTagProperty, 0);
@@ -374,7 +414,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         }
     }
 
-    /// <summary>Resolves the direct owner relationship into reusable blackboard facts.</summary>
+    /// <summary>
+    /// 将直接所有者关系解析为可复用黑板事实。
+    /// </summary>
     [NodeType(MobaBTreeNodeTypes.SelectOwner, "选择主人", "MOBA", NodeKind.Action)]
     public sealed class MobaSelectOwnerNode : ActionNodeBase
     {
@@ -408,7 +450,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         }
     }
 
-    /// <summary>Publishes movement toward the resolved owner until the configured stop range.</summary>
+    /// <summary>
+    /// 发布朝已解析所有者的移动，直到达到配置的停止范围。
+    /// </summary>
     [NodeType(MobaBTreeNodeTypes.MoveToOwner, "移动至主人", "MOBA", NodeKind.Action)]
     public sealed class MobaMoveToOwnerNode : ActionNodeBase, NodeDescriptorProvider
     {
@@ -480,8 +524,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     }
 
     /// <summary>
-    /// The only node allowed to publish out.*. Candidate branches can be combined or run in
-    /// parallel without relying on their execution order to resolve conflicts.
+    /// 唯一允许发布 out.* 的节点。候选分支可组合或并行运行，无需依赖执行顺序解决冲突。
     /// </summary>
     [NodeType(MobaBTreeNodeTypes.ArbitrateCombatIntent, "仲裁战斗意图", "MOBA", NodeKind.Action)]
     public sealed class MobaArbitrateCombatIntentNode : ActionNodeBase, NodeDescriptorProvider

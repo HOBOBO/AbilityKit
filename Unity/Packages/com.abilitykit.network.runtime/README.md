@@ -5,7 +5,11 @@
 
 - **版本**：0.1.0
 - **命名空间**：`AbilityKit.Network.Runtime`（核心）+ `AbilityKit.Network.Abstractions`（接口）
-- **依赖**：`AbilityKit.Core`（日志）
+- **依赖**：`AbilityKit.Core` 与 `AbilityKit.Protocol`
+
+## 安装与首次使用
+
+安装条件、版本和直接依赖以 [package.json](package.json) 为准。从[文档索引](Documentation~/README.md)进入；[首次使用](Documentation~/Usage.md)包含本地生成数据的完整成帧例子与连接选择说明。下方条件模拟代码是装配片段，`clockMs`、`inputOpCode` 与 pipeline 均须由宿主提供。
 
 ## 目录结构
 
@@ -47,6 +51,18 @@ Runtime/Network/
 - **`SyncHealthEvent` / `SyncHealthEventBuffer`**：同步健康事件（Info/Warning/Error）。
 - **`NetworkDiagnosticsSnapshot`**：统一诊断快照（RTT/帧差/resync/快照/输入计数 + `IsHealthy`）。
 - **`NetworkConditioningMiddleware`**：模拟延迟/抖动/丢包（用于测试）。
+
+### 请求会话生命周期
+
+- `RequestClient` 和 `NetworkProtocolSession` 借用底层 `IConnection`。释放只终止自身请求和订阅；连接由创建者关闭或释放。如果连接的主动关闭不发 `Disconnected`（例如 `ConnectionManager.Close()`），关闭方应先释放自己持有的请求会话。
+- 收到 `Disconnected` 或 `Error` 时，只终结当时还在等待的请求，不自动重发。未释放的会话可随底层连接恢复后发起新请求；旧请求的迟到响应不会完成新请求。
+- 响应、失败、取消、超时和释放中，先取走请求的一方决定结果。释放不等待已经在执行的发送、解码或推送回调；回调内释放时，尚未获准进入的后续推送处理器跳过。释放后会话不再报告已连接，不再接收新订阅。
+- 推送事件的 `ArraySegment<byte>` 只在回调期间有效。按操作码注册的处理器接收传输载荷副本；非路由回退路径的同批处理器共享副本，请按只读载荷使用。
+
+### 主动关闭与调度队列
+
+- `NetworkSession.Start()` 启动新接收周期。`Stop()` 先撤销周期再解绑传输；已排队的旧 I/O 与通知执行时丢弃，半帧不带入下一次启动。已进入中间件的工作不强行中断，但结束时不会向新周期分发或发送旧包。
+- `ConnectionManager.Close()` / `Dispose()` 使主动关闭前尚未执行的连接通知和重连通知失效。主动关闭仍不合成 `Disconnected`，不改变远端断线的重连策略。宿主应串行调用生命周期方法；关闭不是等待在途回调结束的屏障。
 
 ## 可复现场景
 

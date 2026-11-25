@@ -13,8 +13,9 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private static readonly Dictionary<int, SharedShieldPool> EmptySharedPools = new Dictionary<int, SharedShieldPool>();
         private Dictionary<int, ShieldContainer> _containers = new Dictionary<int, ShieldContainer>();
-        // Shared state is kept outside actor containers. A binding in a container only
-        // identifies the pool/member; the pool owns the authoritative balance.
+        /*
+         * 共享状态保存在角色容器外。容器绑定仅标识池和成员，权威余额归池所有。
+         */
         private Dictionary<int, SharedShieldPool> _sharedPools;
         private Dictionary<int, List<int>> _actorPoolIds;
         private int _nextPoolId;
@@ -25,7 +26,9 @@ namespace AbilityKit.Demo.Moba.Services
         private long _changeRevision;
         private readonly IFrameTime _frameTime;
 
-        /// <summary>Raised only after a shield mutation is authoritative and finalized.</summary>
+        /// <summary>
+        /// 仅在护盾变更成为权威且最终确定后触发。
+        /// </summary>
         public event ShieldChangedHandler Changed;
 
         private Dictionary<int, SharedShieldPool> SharedPools =>
@@ -118,8 +121,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// Creates one shared pool and binds every target to it. This is the only API
-        /// that creates shared balance; actor bindings never own a second balance.
+        /// 创建一个共享池并绑定全部目标。这是创建共享余额的唯一 API；角色绑定绝不拥有第二份余额。
         /// </summary>
         public int AddSharedShield(IReadOnlyList<int> targetActorIds, ShieldLayer template)
         {
@@ -418,7 +420,9 @@ namespace AbilityKit.Demo.Moba.Services
             }
             catch
             {
-                // Presentation and diagnostics must not change the committed result.
+                /*
+                 * 表现和诊断不得改变已提交结果。
+                 */
             }
         }
 
@@ -433,9 +437,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// Returns a value-only projection for presentation and diagnostics. The projection
-        /// reads shared balances from their pools and never exposes the mutable container.
-        /// Callers must treat an absent container as an empty snapshot.
+        /// 返回仅含值的投影，供表现和诊断使用。投影从池读取共享余额，绝不暴露可变容器。调用方必须将缺失容器视为空快照。
         /// </summary>
         public ShieldPresentationSnapshot GetPresentationSnapshot(int targetActorId)
         {
@@ -594,7 +596,9 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
-        /// <summary>Rebinds a personal or shared binding to another actor with an explicit transfer policy.</summary>
+        /// <summary>
+        /// 按显式转移策略，将个人或共享绑定重新绑定到另一角色。
+        /// </summary>
         public bool TransferShield(int sourceActorId, int instanceId, int targetActorId, int frame,
             ShieldTransferPolicy policy = ShieldTransferPolicy.MoveRemaining, Fixed64 ratio = default)
         {
@@ -754,9 +758,9 @@ namespace AbilityKit.Demo.Moba.Services
                     var member = pool.Members[i];
                     if (member != null && member.Active) TrackPoolActor(member.ActorId, pool.PoolId);
                 }
-                // Containers are restored before pools. Rebind the cached layer
-                // values from the authoritative pool before any presentation or
-                // damage query observes the restored state.
+                /*
+                 * 容器在池之前恢复。表现或伤害查询观察恢复状态前，先根据权威池重新绑定缓存层数值。
+                 */
                 RefreshPoolBindings(pool);
             }
         }
@@ -1322,8 +1326,9 @@ namespace AbilityKit.Demo.Moba.Services
         private void Recalculate(ShieldContainer container)
         {
             if (container == null) return;
-            // Maintain canonical order when state changes so PreviewAbsorb can remain read-only
-            // and allocation-free with respect to candidate ordering.
+            /*
+             * 状态变化时维护规范顺序，使 PreviewAbsorb 无需为候选排序写入或分配内存。
+             */
             if (container.Layers != null && container.Layers.Count > 1)
                 SortLayers(container.Layers);
             var total = Fixed64.Zero;

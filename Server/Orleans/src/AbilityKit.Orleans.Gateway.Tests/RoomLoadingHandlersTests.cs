@@ -244,7 +244,9 @@ public sealed class RoomLoadingHandlersTests
         Assert.Equal(10L, wire.RoomRevision);
     }
 
-    // ===== Mapper：wire req -> Grain req =====
+    /*
+     * ===== 映射器：传输请求 -> Grain 请求 =====
+     */
 
     [Fact]
     public void ToBeginLoadingReq_maps_account_revision_command()

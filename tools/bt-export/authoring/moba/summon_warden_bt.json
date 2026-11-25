@@ -34,6 +34,10 @@
           "searchRadius": {
             "type": "Fixed64",
             "value": 51539607552
+          },
+          "retainRadius": {
+            "type": "Fixed64",
+            "value": 60129542144
           }
         },
         "childIds": []

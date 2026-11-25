@@ -9,7 +9,7 @@ ATTRIBUTE_KEYS = (
     "MAGIC_DEFENSE", "MANA", "MAX_MANA", "CRITICAL_R", "ATTACK_SPEED_R",
     "COOLDOWN_REDUCE_R", "PHYSICS_PENETRATION_R", "MAGIC_PENETRATION_R",
     "MOVE_SPEED", "PHYSICS_BLOODSUCKING_R", "MAGIC_BLOODSUCKING_R",
-    "ATTACK_RANGE", "PER_SECOND_BLOOD_R", "PER_SECOND_MANA_R", "RESILIENCE_R",
+    "ATTACK_RANGE", "PER_SECOND_BLOOD_R", "PER_SECOND_MANA_R", "RESILIENCE_R", "MANA_REGEN_PER_SECOND",
 )
 
 
@@ -19,7 +19,7 @@ def validate_attribute_types(rows):
     if len(definitions) != len(rows):
         raise ValueError("attr_types: duplicate ID")
     if set(definitions) != set(range(1, len(ATTRIBUTE_KEYS) + 1)):
-        raise ValueError("attr_types: IDs must match BattleAttributeType 1-23")
+        raise ValueError(f"attr_types: IDs must match BattleAttributeType 1-{len(ATTRIBUTE_KEYS)}")
     for identity, key in enumerate(ATTRIBUTE_KEYS, 1):
         row = definitions[identity]
         if row["Key"] != key:

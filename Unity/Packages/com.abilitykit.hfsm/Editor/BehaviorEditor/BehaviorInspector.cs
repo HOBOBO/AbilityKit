@@ -20,13 +20,17 @@ namespace AbilityKit.HFSM.Editor
         private const float ITEM_HEIGHT = 22f;
         private const float DRAG_HANDLE_WIDTH = 12f;
 
-        // Drag and drop state
+        /*
+         * 拖放状态。
+         */
         private string draggedItemId;
         private string dropTargetId;
         private bool isDraggingOverChild;
         private Vector2 lastMousePosition;
 
-        // Scroll position for behavior list
+        /*
+         * 行为列表的滚动位置。
+         */
         private Vector2 scrollPosition;
 
         public BehaviorInspector(StateNode state, Action onDirty, Action onBeforeChange = null)
@@ -44,7 +48,9 @@ namespace AbilityKit.HFSM.Editor
             EditorGUILayout.LabelField("行为", EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
 
-            // Help button
+            /*
+             * 帮助按钮。
+             */
             if (GUILayout.Button("?", GUILayout.Width(20)))
             {
                 ShowHelpMenu();
@@ -56,7 +62,9 @@ namespace AbilityKit.HFSM.Editor
                 targetState.InitializeBehaviorItems(new List<BehaviorItem>());
             }
 
-            // Draw behavior list with scroll view
+            /*
+             * 在滚动视图中绘制行为列表。
+             */
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.Height(Mathf.Min(targetState.BehaviorItems.Count * 25 + 60, 300)));
 
             DrawBehaviorList();
@@ -65,10 +73,14 @@ namespace AbilityKit.HFSM.Editor
 
             EditorGUILayout.Space(5);
 
-            // Add button
+            /*
+             * 添加按钮。
+             */
             DrawAddButton();
 
-            // Handle drag and drop
+            /*
+             * 处理拖放。
+             */
             HandleDragAndDrop();
         }
 
@@ -82,7 +94,9 @@ namespace AbilityKit.HFSM.Editor
 
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
-            // Find root behavior items (items without a parent)
+            /*
+             * 查找没有父节点的根行为项。
+             */
             var rootItems = GetRootItems();
 
             for (int i = 0; i < rootItems.Count; i++)
@@ -111,7 +125,9 @@ namespace AbilityKit.HFSM.Editor
             bool isDragTarget = dropTargetId == item.id;
             bool isDragged = draggedItemId == item.id;
 
-            // Highlight drop target
+            /*
+             * 高亮拖放目标。
+             */
             if (isDragTarget && !isDraggingOverChild)
             {
                 GUI.backgroundColor = new Color(0.3f, 0.8f, 0.3f, 0.3f);
@@ -129,13 +145,17 @@ namespace AbilityKit.HFSM.Editor
                 EditorGUILayout.BeginHorizontal();
             }
 
-            // Draw drag handle
+            /*
+             * 绘制拖动手柄。
+             */
             DrawDragHandle(item);
 
             // Indent
             GUILayout.Space(depth * INDENT_WIDTH + 5);
 
-            // Expand/collapse button
+            /*
+             * 展开或折叠按钮。
+             */
             if (item.IsComposite || item.IsDecorator)
             {
                 GUI.enabled = true;
@@ -152,10 +172,14 @@ namespace AbilityKit.HFSM.Editor
                 GUILayout.Space(15);
             }
 
-            // Behavior type icon
+            /*
+             * 行为类型图标。
+             */
             DrawBehaviorIcon(item.TypeName);
 
-            // Display name
+            /*
+             * 显示名称。
+             */
             EditorGUI.BeginChangeCheck();
             string newName = EditorGUILayout.TextField(GetVisibleDisplayName(item), GUILayout.Width(80));
             if (EditorGUI.EndChangeCheck())
@@ -174,7 +198,9 @@ namespace AbilityKit.HFSM.Editor
 
             GUILayout.FlexibleSpace();
 
-            // Drag indicator when this is a drop target
+            /*
+             * 当前项是拖放目标时显示拖动指示。
+             */
             if (isDragTarget && !isDraggingOverChild)
             {
                 GUI.color = new Color(0.3f, 0.8f, 0.3f);
@@ -182,11 +208,15 @@ namespace AbilityKit.HFSM.Editor
                 GUI.color = Color.white;
             }
 
-            // Delete button
+            /*
+             * 删除按钮。
+             */
             GUI.backgroundColor = new Color(1f, 0.5f, 0.5f);
             if (GUILayout.Button(new GUIContent("X", "删除行为"), EditorStyles.miniButton, GUILayout.Width(20)))
             {
-                // Recorded at the call site because DeleteBehaviorItem recurses over children.
+                /*
+                 * 在调用处记录撤销，因为 DeleteBehaviorItem 会递归处理子项。
+                 */
                 onBeforeChange?.Invoke();
                 DeleteBehaviorItem(item);
                 EditorGUILayout.EndHorizontal();
@@ -196,7 +226,9 @@ namespace AbilityKit.HFSM.Editor
 
             EditorGUILayout.EndHorizontal();
 
-            // Draw parameters
+            /*
+             * 绘制参数。
+             */
             if (item.isExpanded && !item.IsComposite && !item.IsDecorator)
             {
                 GUILayout.Space(2);
@@ -206,7 +238,9 @@ namespace AbilityKit.HFSM.Editor
                 GUILayout.Space(2);
             }
 
-            // Draw children
+            /*
+             * 绘制子项。
+             */
             if ((item.IsComposite || item.IsDecorator) && item.isExpanded)
             {
                 EditorGUI.indentLevel++;
@@ -217,7 +251,9 @@ namespace AbilityKit.HFSM.Editor
                 }
                 EditorGUI.indentLevel--;
 
-                // Add child button
+                /*
+                 * 添加子项按钮。
+                 */
                 GUILayout.Space(2);
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Space((depth + 2) * INDENT_WIDTH);
@@ -233,7 +269,9 @@ namespace AbilityKit.HFSM.Editor
         {
             Rect handleRect = GUILayoutUtility.GetRect(DRAG_HANDLE_WIDTH, ITEM_HEIGHT, GUILayout.Width(DRAG_HANDLE_WIDTH));
 
-            // Draw grip lines
+            /*
+             * 绘制手柄线。
+             */
             GUI.color = new Color(0.5f, 0.5f, 0.5f);
             float y = handleRect.y + 6;
             for (int i = 0; i < 3; i++)
@@ -243,7 +281,9 @@ namespace AbilityKit.HFSM.Editor
             }
             GUI.color = Color.white;
 
-            // Handle drag detection
+            /*
+             * 检测拖动。
+             */
             if (Event.current.type == EventType.MouseDown && handleRect.Contains(Event.current.mousePosition))
             {
                 draggedItemId = item.id;
@@ -268,7 +308,9 @@ namespace AbilityKit.HFSM.Editor
             {
                 if (!string.IsNullOrEmpty(draggedItemId) && !string.IsNullOrEmpty(dropTargetId))
                 {
-                    // Perform the drop
+                    /*
+                     * 执行放置。
+                     */
                     PerformDrop(draggedItemId, dropTargetId, isDraggingOverChild);
                 }
 
@@ -282,10 +324,14 @@ namespace AbilityKit.HFSM.Editor
             {
                 if (!string.IsNullOrEmpty(draggedItemId))
                 {
-                    // Check if we're over any behavior item
+                    /*
+                     * 检查当前位置是否位于某个行为项上。
+                     */
                     dropTargetId = null;
                     isDraggingOverChild = false;
-                    // This is simplified - in a real implementation, you'd raycast to find the target
+                    /*
+                     * 此处采用简化判断；完整实现可通过射线检测定位目标。
+                     */
                 }
             }
         }
@@ -296,7 +342,9 @@ namespace AbilityKit.HFSM.Editor
             if (draggedItem == null)
                 return;
 
-            // Don't drop on self or own child
+            /*
+             * 禁止放到自身或自己的子项上。
+             */
             if (draggedId == targetId || IsChildOf(draggedId, targetId))
                 return;
 
@@ -304,10 +352,14 @@ namespace AbilityKit.HFSM.Editor
             if (targetItem == null)
                 return;
 
-            // Undo must be recorded before this drop's first mutation.
+            /*
+             * 必须在本次拖放的首次修改前记录撤销。
+             */
             onBeforeChange?.Invoke();
 
-            // Remove from old parent
+            /*
+             * 从原父项移除。
+             */
             if (!string.IsNullOrEmpty(draggedItem.parentId))
             {
                 var oldParent = targetState.GetBehaviorItem(draggedItem.parentId);
@@ -316,14 +368,18 @@ namespace AbilityKit.HFSM.Editor
 
             if (asChild && (targetItem.IsComposite || targetItem.IsDecorator))
             {
-                // Add as child
+                /*
+                 * 作为子项添加。
+                 */
                 draggedItem.parentId = targetId;
                 targetItem.childIds.Add(draggedId);
                 targetItem.isExpanded = true;
             }
             else
             {
-                // Add as sibling (insert before target)
+                /*
+                 * 作为同级项添加，插入目标之前。
+                 */
                 draggedItem.parentId = targetItem.parentId;
 
                 var parent = string.IsNullOrEmpty(targetItem.parentId) ? null :
@@ -369,7 +425,9 @@ namespace AbilityKit.HFSM.Editor
             Rect iconRect = GUILayoutUtility.GetRect(16, 16, GUILayout.Width(16), GUILayout.Height(16));
             EditorGUI.DrawRect(iconRect, iconColor);
 
-            // Draw icon text
+            /*
+             * 绘制图标文字。
+             */
             string iconChar = GetBehaviorIconChar(typeName);
             if (!string.IsNullOrEmpty(iconChar))
             {
@@ -848,34 +906,42 @@ namespace AbilityKit.HFSM.Editor
 
         private void DeleteBehaviorItem(BehaviorItem item)
         {
-            // Recursively delete children
+            /*
+             * 递归删除子项。
+             */
             var children = GetChildren(item);
             foreach (var child in children)
             {
                 DeleteBehaviorItem(child);
             }
 
-            // Remove from parent
+            /*
+             * 从父项移除。
+             */
             if (!string.IsNullOrEmpty(item.parentId))
             {
                 var parent = targetState.GetBehaviorItem(item.parentId);
                 parent?.childIds.Remove(item.id);
             }
 
-            // Remove from list
+            /*
+             * 从列表移除。
+             */
             targetState.BehaviorItemsInternal.Remove(item);
             onDirty?.Invoke();
         }
 
         /// <summary>
-        /// Handle context click
+        /// 处理上下文菜单点击。
         /// </summary>
         public void HandleContextClick()
         {
             var e = Event.current;
             if (e.type == EventType.ContextClick)
             {
-                // Can be extended for additional context menu options
+                /*
+                 * 可在此扩展其他上下文菜单选项。
+                 */
             }
         }
     }

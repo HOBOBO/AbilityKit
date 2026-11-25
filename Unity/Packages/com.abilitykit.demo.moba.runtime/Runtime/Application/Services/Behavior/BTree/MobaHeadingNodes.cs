@@ -59,7 +59,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             var length = DeterministicMath.Sqrt(x * x + z * z);
             if (length <= Fixed64.Zero) return NodeState.Failure;
             x /= length; z /= length;
-            // Scan targets do not become cast locks; directional targeting consumes this same resolved ray.
+            /*
+             * 扫描目标不会成为施法锁定；方向瞄准消费同一条已解析射线。
+             */
             bb.SetInt64(MobaBTreeKeys.AimTargetActorId, 0);
             bb.SetFixed64(MobaBTreeKeys.AimX, bb.GetFixed64(MobaBTreeKeys.OwnerX) + x * _distance);
             bb.SetFixed64(MobaBTreeKeys.AimY, bb.GetFixed64(MobaBTreeKeys.OwnerY));

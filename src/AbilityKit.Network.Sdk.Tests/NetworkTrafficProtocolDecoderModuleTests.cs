@@ -102,6 +102,45 @@ public sealed class NetworkTrafficProtocolDecoderModuleTests
     }
 
     [Fact]
+    public void MobaModule_DecodesGeneratedStateSyncPushesAndKeepsRawMetricsRequest()
+    {
+        var registry = new ProtocolPayloadDecoderRegistry();
+        MobaProtocolDecoderModule.Register(registry);
+        MobaProtocolDecoderModule.Register(registry);
+
+        var shields = Decode("shield-state.push", new MobaShieldStateSnapshotPayload
+        {
+            Entries = new MobaShieldStateSnapshotEntry[1]
+        });
+        Assert.Single(shields.Entries);
+        var indicators = Decode("actor-indicator-state.push", new MobaActorIndicatorSnapshotPayload
+        {
+            Entries = new MobaActorIndicatorSnapshotEntry[1]
+        });
+        Assert.Single(indicators.Entries);
+        var overhead = Decode("state-sync-overhead.push", new MobaStateSyncOverheadPayload
+        {
+            ProjectionOpCode = 13, ProjectionSchemaVersion = 2,
+            Projection = new byte[] { 1 }, Indicators = new byte[] { 2 }, Shields = new byte[] { 3 }
+        });
+        Assert.Equal(13, overhead.ProjectionOpCode);
+        Assert.Equal(new byte[] { 3 }, overhead.Shields);
+
+        var rawMetrics = new byte[] { 4, 5 };
+        var metrics = registry.Decode(MobaProtocolDecoderModule.CatalogId, "frame-sync-metrics.request",
+            new ArraySegment<byte>(rawMetrics));
+        Assert.True(metrics.Success, metrics.Error);
+        Assert.Equal(rawMetrics, Assert.IsType<byte[]>(metrics.Value));
+        TPayload Decode<TPayload>(string messageId, TPayload value)
+        {
+            var bytes = MemoryPack.MemoryPackSerializer.Serialize(value);
+            var result = registry.Decode(MobaProtocolDecoderModule.CatalogId, messageId, new ArraySegment<byte>(bytes));
+            Assert.True(result.Success, result.Error);
+            return Assert.IsType<TPayload>(result.Value);
+        }
+    }
+
+    [Fact]
     public void MobaMovePayload_GeneratedContract_PreservesGoldenBytes()
     {
         var payload = MobaMoveCodec.Serialize(1.5f, -2.25f);

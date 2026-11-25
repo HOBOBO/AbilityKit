@@ -47,7 +47,9 @@ public sealed class GatewayBackgroundTaskQueue : BackgroundService
         }
         catch (OperationCanceledException)
         {
-            // Channel completed or host shutting down — normal termination.
+            /*
+             * 通道已完成或宿主正在关闭，属于正常终止。
+             */
         }
     }
 }

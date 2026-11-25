@@ -11,7 +11,12 @@ internal static class StateSyncSnapshotWireCodec
     /// <summary>
     /// 返回临时编码缓冲区；调用者应立即读长度或复制，不跨后续编码保存。
     /// </summary>
-    internal static ArraySegment<byte> Serialize(StateSyncPush push)
+    internal static ArraySegment<byte> Serialize(StateSyncPush push) => Serialize(push, null);
+
+    /// <summary>
+    /// 仅重建当前接收者的投递信封，不改写共享投影或已发布的固定基线。
+    /// </summary>
+    internal static ArraySegment<byte> Serialize(StateSyncPush push, WireStateSyncMovementProof? movementProof)
     {
         var source = push.Actors;
         List<WireStateSyncActorSnapshot>? actors = null;
@@ -54,6 +59,12 @@ internal static class StateSyncSnapshotWireCodec
             RemovedActorIds = push.RemovedActorIds is { Count: > 0 } ? new List<int>(push.RemovedActorIds) : null,
             EventEpoch = push.EventEpoch ?? string.Empty
         };
+        if (movementProof is { } proof)
+        {
+            var scoped = new WireStateSyncMovementPayload { FixedBaselinePayload = wire.Payload, Proof = proof };
+            wire.Payload = WireRoomGatewayBinary.Serialize(in scoped).ToArray();
+            wire.SchemaVersion = WireStateSyncMovementPayload.SchemaVersion;
+        }
         return WireRoomGatewayBinary.Serialize(in wire);
     }
 }

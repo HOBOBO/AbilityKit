@@ -1,11 +1,14 @@
 # Attributes 使用契约与限制
 
+> 文档类型：包使用契约
+> 核校状态：2026-11-25 核对 `AttrRegistry`、`AttributeRegistry`、`AttributeContext` 与 silent evaluation 源码；.NET 相关测试 13 项通过，未验证 Unity Player。
+
 从[包入口](../README.md)查看安装条件与最小用法。本文只说明使用本包时必须掌握的行为。
 
 ## 注册与对象上下文
 
 - 在应用启动期用 `AttrRegistry.Register` 注册属性。使用默认注册表时，在定义注册完毕后由应用统一调用 `AttrRegistry.Freeze()`，构建依赖图并检查循环。库或插件不应擅自冻结进程共享的默认注册表。
-- `AttributeContext` 默认使用 `AttributeRegistry.DefaultRegistry`。使用自定义 `IAttributeRegistry` 时，在创建组或读写属性前设置 `AttributeContext.Registry`，并由实现负责属性定义和依赖查询；不要在已有属性实例的上下文中切换注册表。
+- `AttributeContext` 未设置注册表时使用 `AttributeRegistry.DefaultRegistry`。使用自定义 `IAttributeRegistry` 时，在创建组或读写属性前设置 `AttributeContext.Registry`，并由实现负责属性定义和依赖查询；不要在已有属性实例的上下文中切换注册表。
 - `AttributeId` 的数值部分不作为跨进程或跨注册表的稳定标识。对外保存项目约定的稳定名称或 ID，并在目标注册表重新解析。
 
 ## 修改器与读取

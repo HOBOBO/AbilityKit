@@ -8,6 +8,14 @@ using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Game.Test.UnitTest;
+using AbilityKit.Core.Eventing;
+using AbilityKit.Triggering.Eventing;
+using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Attributes.Core;
+using AbilityKit.Demo.Moba.Services.Projection;
+using AbilityKit.Demo.Moba.Services.StateImport;
+using AbilityKit.Deterministic;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -18,6 +26,97 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 /// </summary>
 public sealed class SevenHeroNumericBaselineTests
 {
+    [Theory]
+    [InlineData(1, false, 149)]
+    [InlineData(1, true, 149)]
+    [InlineData(3, false, 300)]
+    [InlineData(3, true, 300)]
+    public void Composite_hit_commits_one_damage_transaction_with_shield_and_lethal_targets(int slot, bool lethal, float expected)
+    {
+        using var battle = new Battle(3001);
+        battle.Set(battle.Caster, "physics_attack", 100);
+        battle.Set(battle.Caster, "magic_attack", 100);
+        if (lethal) battle.Set(battle.Target, "hp", 50);
+        var shields = battle.Services.Resolve<MobaShieldService>();
+        shields.AddShield(battle.Target, new ShieldLayer
+        {
+            ShieldId = 900001, SourceActorId = battle.Caster, OwnerActorId = battle.Caster,
+            TargetActorId = battle.Target, CurrentValue = Fixed64.FromInt32(25),
+            MaxValue = Fixed64.FromInt32(25), InitialValue = Fixed64.FromInt32(25),
+            AbsorbRatio = Fixed64.One, DamageTypeMask = (int)(DamageType.Physical | DamageType.Magic),
+            ExpireFrame = int.MaxValue, RemoveWhenDepleted = true,
+            StackingPolicy = ShieldStackingPolicy.Independent, ConsumePolicy = ShieldConsumePolicy.PriorityThenOldest
+        });
+        var results = new List<DamageResult>();
+        using var subscription = battle.Services.Resolve<IEventBus>().Subscribe(
+            new EventKey<DamageResult>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply)),
+            result => { if (result.TargetActorId == battle.Target) results.Add(result); });
+        var before = battle.Setup.GetActorHp(battle.Target);
+        var cast = battle.Skills.TryCastBySlot(battle.Caster, slot, new Vec3(0, 0, 3), Vec3.Forward, battle.Target);
+        Assert.True(cast.Success, cast.FailReason);
+        battle.Setup.TickMilliseconds(6500);
+        var result = Assert.Single(results);
+        Assert.Equal(25, result.ShieldAbsorb, .05f);
+        Assert.Equal(lethal, result.TargetBecameDead);
+        Assert.Equal(lethal ? 0 : before - expected + 25, result.TargetHp, .1f);
+        if (!lethal) AssertAuthoritativeProjectionAndImportBoundary(battle, battle.Target, result.TargetHp, 10000);
+    }
+
+    [Fact]
+    public void Activation_rank_source_rejects_missing_ambiguous_and_revoked_origins_and_roundtrips_commit_marker()
+    {
+        using var battle = new Battle(3001, 6);
+        var actor = battle.Actor(battle.Caster);
+        Assert.False(SkillCastPreparationService.TryResolveLevelSource(battle.Services, actor, 30010501, 5, out _, out _));
+        actor.skillLoadout.ActiveSkills[3].Level = 2;
+        var entry = battle.Skills.TryCastBySlot(battle.Caster, 4, default, Vec3.Forward);
+        Assert.True(entry.Success, entry.FailReason);
+        battle.Setup.TickMilliseconds(1500);
+        Assert.True(SkillCastPreparationService.TryResolveLevelSource(battle.Services, actor, 30010501, 5, out var rank, out var root));
+        Assert.Equal(2, rank);
+        Assert.Equal(entry.RuntimeHandle.RootContextId, root);
+        var mode = Assert.Single(actor.buffs.Active.Where(buff => buff.BuffId == 32010404));
+        actor.buffs.Active.Add(mode);
+        Assert.False(SkillCastPreparationService.TryResolveLevelSource(battle.Services, actor, 30010501, 5, out _, out _));
+        actor.buffs.Active.Remove(mode);
+
+        var request = new SkillCastRequest(30010501, 5, battle.Caster, battle.Target, Vec3.Zero, Vec3.Forward,
+            battle.Services, null, null, null);
+        var trigger = new SkillCastContext { SkillLevel = 2, LevelSourceRootContextId = root };
+        var context = new SkillPipelineContext();
+        context.Initialize(new object(), request, trigger);
+        Assert.True(context.CanCommitPreparedParameters());
+        var checkpoint = context.CaptureRollbackState();
+        var restored = new SkillPipelineContext();
+        restored.Initialize(new object(), request, trigger);
+        restored.RestoreRollbackState(checkpoint);
+        Assert.Equal(root, Assert.IsType<long>(restored.SharedData["cast.level.source.root"]));
+        actor.skillLoadout.ActiveSkills[3].Level = 3;
+        Assert.True(restored.CanCommitPreparedParameters());
+        var remaining = mode.Remaining;
+        mode.Remaining = 0;
+        Assert.False(restored.CanCommitPreparedParameters());
+        mode.Remaining = remaining;
+        Assert.True(restored.CanCommitPreparedParameters());
+    }
+
+    [Theory]
+    [InlineData(-1f)]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    public void Invalid_summon_birth_override_rejects_before_allocating_an_actor(float invalid)
+    {
+        using var battle = new Battle(3003);
+        var actors = battle.Services.Resolve<MobaActorRegistry>();
+        var before = actors.Entries.Select(pair => pair.Key).Order().ToArray();
+        var summon = battle.Services.Resolve<MobaSummonService>();
+        var attributes = new[] { new KeyValuePair<BattleAttributeType, float>(BattleAttributeType.HP, invalid) };
+        Assert.False(summon.TrySummon(default(MobaSummonRequestTicket), battle.Caster, 30030502, Vec3.Zero,
+            Vec3.Forward, default(SummonSourceContext), out var id, 14000, attributes));
+        Assert.Equal(0, id);
+        Assert.Equal(before, actors.Entries.Select(pair => pair.Key).Order().ToArray());
+    }
+
     [Theory]
     [InlineData(3001, 655, 107, 61, 4, 300, 50)]
     [InlineData(3002, 610, 105, 59, 3, 260, 50)]
@@ -69,8 +168,8 @@ public sealed class SevenHeroNumericBaselineTests
     [InlineData(3001, 1, 5, 60, 5000)]
     [InlineData(3001, 2, 1, 50, 12000)]
     [InlineData(3001, 2, 5, 70, 12000)]
-    [InlineData(3001, 3, 1, 30, 18000)]
-    [InlineData(3001, 3, 5, 30, 14000)]
+    [InlineData(3001, 3, 1, 30, 2000)]
+    [InlineData(3001, 3, 5, 30, 2000)]
     [InlineData(3001, 4, 1, 100, 120000)]
     [InlineData(3001, 4, 3, 100, 90000)]
     [InlineData(3002, 3, 1, 90, 24000)]
@@ -84,6 +183,7 @@ public sealed class SevenHeroNumericBaselineTests
     {
         using var battle = new Battle(hero);
         var runtime = battle.Actor(battle.Caster).skillLoadout.ActiveSkills[slot - 1];
+        battle.Set(battle.Caster, "MANA_REGEN_PER_SECOND", 0);
         runtime.Level = rank;
         var before = battle.Setup.GetActorMana(battle.Caster);
         var cast = battle.Skills.TryCastBySlot(battle.Caster, slot, new Vec3(0, 0, 3), Vec3.Forward, battle.Target);
@@ -91,18 +191,26 @@ public sealed class SevenHeroNumericBaselineTests
         battle.Setup.TickMilliseconds(2000);
         Assert.Equal(mana, before - battle.Setup.GetActorMana(battle.Caster), .05f);
         Assert.Equal(cooldownMs, runtime.CooldownDurationMs);
+        // 既有烬 E Flow 使用固定 18 秒逐个充能，和等级表的 2 秒施法间隔分开断言。
+        if (runtime.MaxCharges > 1) Assert.Equal(18000, runtime.ChargeRecoveryMs);
     }
 
     [Theory]
     [InlineData(3001, 1, 1, 0, 0, 45)]
     [InlineData(3001, 1, 3, 100, 0, 154)]
     [InlineData(3001, 1, 5, 200, 0, 293)]
+    [InlineData(3001, 1, 1, 100, 100, 149)]
+    [InlineData(3001, 1, 3, 100, 200, 274)]
+    [InlineData(3001, 1, 5, 200, 300, 473)]
     [InlineData(3001, 2, 1, 0, 0, 60)]
     [InlineData(3001, 2, 3, 100, 0, 180)]
     [InlineData(3001, 2, 5, 200, 0, 300)]
     [InlineData(3001, 3, 1, 0, 0, 80)]
     [InlineData(3001, 3, 3, 100, 0, 310)]
     [InlineData(3001, 3, 5, 200, 0, 540)]
+    [InlineData(3001, 3, 1, 100, 100, 300)]
+    [InlineData(3001, 3, 3, 100, 200, 510)]
+    [InlineData(3001, 3, 5, 200, 300, 840)]
     [InlineData(3002, 3, 1, 0, 0, 70)]
     [InlineData(3002, 3, 3, 0, 100, 270)]
     [InlineData(3002, 3, 5, 0, 200, 470)]
@@ -151,6 +259,145 @@ public sealed class SevenHeroNumericBaselineTests
         Assert.True(cast.Success, cast.FailReason);
         battle.Setup.TickMilliseconds(2000);
         Assert.Equal(expected, battle.Setup.GetActorHp(battle.Caster), .05f);
+    }
+
+    [Theory]
+    [InlineData(1, 1200, 50)]
+    [InlineData(2, 1400, 60)]
+    [InlineData(3, 1600, 70)]
+    public void Tibbers_birth_uses_original_cast_rank_and_preserves_owner_ap(int rank, float hp, float ad)
+    {
+        using var battle = new Battle(3003, 8);
+        battle.Actor(battle.Caster).skillLoadout.ActiveSkills[3].Level = rank;
+        battle.Set(battle.Caster, "magic_attack", 123);
+        var cast = battle.Skills.TryCastBySlot(battle.Caster, 4, new Vec3(0, 0, 3), Vec3.Forward);
+        Assert.True(cast.Success, cast.FailReason);
+        battle.Actor(battle.Caster).skillLoadout.ActiveSkills[3].Level = rank == 3 ? 1 : 3;
+        battle.Setup.TickMilliseconds(1500);
+        var registry = battle.Services.Resolve<MobaActorRegistry>();
+        var tibbers = Assert.Single(registry.Entries.Where(p => p.Value.hasSummonMeta && p.Value.summonMeta.SummonId == 30030502)).Value;
+        Assert.Equal(hp, tibbers.GetMobaAttrs().MaxHp);
+        Assert.Equal(hp, tibbers.GetMobaAttrs().Hp);
+        Assert.Equal(ad, tibbers.GetMobaAttrs().PhysicsAttack);
+        Assert.Equal(123, tibbers.GetMobaAttrs().MagicAttack);
+        Assert.Equal(hp, tibbers.resourceContainer.Value.Map[AbilityKit.Demo.Moba.Components.ResourceType.Hp].Current.ToSingle());
+        AssertAuthoritativeProjectionAndImportBoundary(battle, tibbers.actorId.Value, hp, hp, importSupported: false);
+        battle.Actor(battle.Caster).skillLoadout.ActiveSkills[3].Level = 2;
+        Assert.Equal(hp, tibbers.GetMobaAttrs().MaxHp);
+        battle.Setup.TickMilliseconds(14000);
+        Assert.Equal(0, battle.Services.Resolve<MobaSummonService>().GetAliveCount(battle.Caster, 30030502));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Jhin_child_shots_use_activation_rank_despite_different_input_rank_and_mid_mode_upgrade(int rank)
+    {
+        using var battle = new Battle(3001, 6);
+        var actor = battle.Actor(battle.Caster);
+        actor.skillLoadout.ActiveSkills[3].Level = rank;
+        actor.skillLoadout.ActiveSkills[4].Level = 1;
+        battle.Set(battle.Caster, "physics_attack", 100);
+        battle.Set(battle.Caster, "magic_attack", 0);
+        var hits = new List<DamageResult>();
+        using var subscription = battle.Services.Resolve<IEventBus>().Subscribe(
+            new EventKey<DamageResult>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply)),
+            result => { if (result.TargetActorId == battle.Target) hits.Add(result); });
+        var entry = battle.Skills.TryCastBySlot(battle.Caster, 4, default, Vec3.Forward);
+        Assert.True(entry.Success, entry.FailReason);
+        battle.Setup.TickMilliseconds(1500);
+        actor.skillLoadout.ActiveSkills[3].Level = rank == 3 ? 1 : 3;
+        var runtimes = battle.Services.Resolve<MobaSkillCastRuntimeService>();
+        for (var shot = 0; shot < 4; shot++)
+        {
+            var hp = battle.Setup.GetActorHp(battle.Target);
+            var cast = battle.Skills.TryCastBySlot(battle.Caster, 5, default, Vec3.Forward, battle.Target);
+            Assert.True(cast.Success, cast.FailReason);
+            var handle = cast.RuntimeHandle;
+            Assert.True(runtimes.TryGet(handle, out var runtime));
+            Assert.Equal(rank, runtime.SkillLevel);
+            Assert.True(runtime.LevelParameters.TryGetValue(shot == 3 ? "finalDamage" : "damage", out var damage));
+            Assert.Equal((shot == 3 ? 2 : 1) * (50 + 75 * (rank - 1)), damage);
+            battle.Setup.TickMilliseconds(1600);
+            Assert.Equal(shot + 1, hits.Count);
+            var expected = (damage + (shot == 3 ? 50 : 25)) * (1 + 3 * (1 - hp / 10000));
+            Assert.Equal(expected, hits[shot].Value, .1f);
+            AssertAuthoritativeProjectionAndImportBoundary(battle, battle.Target, hits[shot].TargetHp, 10000);
+        }
+        battle.Setup.TickMilliseconds(2000);
+        Assert.False(SkillCastPreparationService.TryResolveLevelSource(battle.Services, actor, 30010501, 5, out _, out _));
+        actor.skillLoadout.ActiveSkills[3].CooldownEndTimeMs = 0;
+        var next = battle.Skills.TryCastBySlot(battle.Caster, 4, default, Vec3.Forward);
+        Assert.True(next.Success, next.FailReason);
+        battle.Setup.TickMilliseconds(1500);
+        Assert.True(SkillCastPreparationService.TryResolveLevelSource(battle.Services, actor, 30010501, 5, out var nextRank, out var nextRoot));
+        Assert.Equal(rank == 3 ? 1 : 3, nextRank);
+        Assert.Equal(next.RuntimeHandle.RootContextId, nextRoot);
+        Assert.NotEqual(entry.RuntimeHandle.RootContextId, nextRoot);
+        var lethal = new AttackInfo
+        {
+            AttackerActorId = battle.Target, TargetActorId = battle.Caster, DamageType = DamageType.True,
+            CritType = CritType.None, ReasonKind = DamageReasonKind.Skill
+        };
+        lethal.BaseDamage.BaseValue = 50000;
+        battle.Services.Resolve<DamagePipelineService>().Execute(lethal);
+        battle.Setup.TickMilliseconds(100);
+        Assert.False(SkillCastPreparationService.TryResolveLevelSource(battle.Services, actor, 30010501, 5, out _, out _));
+    }
+
+    // Exercise the actual authority projection and state baseline import into an
+    // independent replica. The current state schema carries HP/MaxHP, pose and
+    // team; it does not carry combat runtimes, summon AD or cast rank snapshots.
+    private static void AssertAuthoritativeProjectionAndImportBoundary(Battle battle, int actorId, float hp, float maxHp,
+        bool importSupported = true)
+    {
+        using var producer = new MobaActorProjectionProducer(battle.Services.Resolve<MobaActorRegistry>());
+        var projection = producer.ExtractFull(actorId);
+        Assert.Equal(hp, projection.Hp, .1f);
+        Assert.Equal(maxHp, projection.HpMax, .1f);
+
+        var context = new ActorContext();
+        var replica = context.CreateEntity();
+        replica.AddActorId(actorId);
+        replica.AddTransform(new Transform3(Vec3.Zero, Quat.Identity, Vec3.One));
+        var attributes = new AttributeContext();
+        attributes.SetBase(MobaAttributeIds.MAX_HP, 20);
+        attributes.SetBase(MobaAttributeIds.HP, 7);
+        replica.AddAttributeGroup(attributes.GetGroupFor(MobaAttributeIds.MAX_HP), attributes);
+        replica.AddResourceContainer(new ResourceContainer
+        {
+            Map = new() { [ResourceType.Hp] = new ResourceState { Current = Fixed64.FromInt32(7) } }
+        }, true);
+        var registry = new MobaActorRegistry();
+        registry.Register(actorId, replica);
+        var importer = new MobaLogicWorldStateImporter(registry, null!, null!);
+        var yaw = MathF.Atan2(2f * (projection.RotW * projection.RotY + projection.RotX * projection.RotZ),
+            1f - 2f * (projection.RotY * projection.RotY + projection.RotZ * projection.RotZ));
+        var snapshot = new MobaActorStateImport(actorId, projection.PosX, projection.PosY, projection.PosZ,
+            yaw, projection.Hp, projection.HpMax, projection.TeamId, projection.Kind, projection.Code, projection.OwnerNetId);
+        var result = importer.ImportScopedFullSnapshot([snapshot], 1, [actorId]);
+        if (!importSupported)
+        {
+            // Summons currently project as Kind=4 (summon), which this state
+            // importer rejects. Record that boundary without inventing a new
+            // summon reconstruction or snapshot protocol in a numeric change.
+            Assert.Equal(4, projection.Kind);
+            Assert.Equal(1, result.Failed);
+            Assert.Equal(0, result.Updated);
+            Assert.Equal(7, replica.GetMobaAttrs().Hp);
+            Assert.Equal(20, replica.GetMobaAttrs().MaxHp);
+            context.DestroyAllEntities();
+            return;
+        }
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(1, result.Updated);
+        Assert.Equal(0, result.Spawned);
+        Assert.Equal(hp, replica.GetMobaAttrs().Hp, .1f);
+        Assert.Equal(maxHp, replica.GetMobaAttrs().MaxHp, .1f);
+        Assert.Equal(hp, replica.resourceContainer.Value.Map[ResourceType.Hp].Current.ToSingle(), .1f);
+        Assert.Equal(new Vec3(projection.PosX, projection.PosY, projection.PosZ), replica.transform.Value.Position);
+        context.DestroyAllEntities();
     }
 
     private sealed class Battle : IDisposable

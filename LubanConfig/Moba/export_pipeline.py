@@ -367,7 +367,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--apply-prerequisites", action="store_true",
-                        help="publish generated Luban tables only so editor-authored flows/triggers can resolve current config IDs")
+                        help="仅发布生成的 Luban 表，使编辑器编排的流程和触发器能够解析当前配置 ID")
     parser.add_argument("--check-baseline", action="store_true")
     parser.add_argument("--check-published", action="store_true")
     parser.add_argument("--preview-rule", type=int, metavar="GROUP_ID")

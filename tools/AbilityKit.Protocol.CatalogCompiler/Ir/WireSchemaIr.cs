@@ -1,6 +1,8 @@
 namespace AbilityKit.Protocol.CatalogCompiler.Ir;
 
-/// <summary>Codec-neutral scalar names accepted by the minimal wire schema.</summary>
+/// <summary>
+/// 最小线协议结构接受的编解码无关标量名。
+/// </summary>
 public static class WireScalarTypes
 {
     public static readonly IReadOnlySet<string> Known = new HashSet<string>(StringComparer.Ordinal)
@@ -32,7 +34,9 @@ public static class WireSchemaFormatVersions
     public const int Current = 2;
 }
 
-/// <summary>Field-level schema independent of any business DTO or serialization library.</summary>
+/// <summary>
+/// 不依赖业务 DTO 或序列化库的字段级结构。
+/// </summary>
 public sealed class WireFieldIr
 {
     public WireFieldIr(
@@ -58,14 +62,18 @@ public sealed class WireFieldIr
     public string ScalarType { get; }
     public string TypeName { get; }
     public bool IsCustomType => TypeName.Length > 0;
-    /// <summary>True when the referenced type is owned and compiled outside this wire export.</summary>
+    /// <summary>
+    /// 引用类型由本次线协议导出之外的模块拥有并编译时为 true。
+    /// </summary>
     public bool IsExternalReference { get; }
     public bool IsArray { get; }
     public bool IsOptional { get; }
     public bool IsRequired => !IsOptional;
 }
 
-/// <summary>Minimal field-level wire schema IR produced by a source parser.</summary>
+/// <summary>
+/// 源解析器生成的最小字段级线协议中间表示。
+/// </summary>
 public sealed class WireSchemaIr
 {
     public WireSchemaIr(
@@ -104,7 +112,9 @@ public sealed class WireSchemaIr
     public IReadOnlyList<uint> ReservedIds { get; }
 }
 
-/// <summary>A wire source document and the independently exported types it contains.</summary>
+/// <summary>
+/// 线协议源文档及其包含的独立导出类型。
+/// </summary>
 public sealed class WireSchemaDocumentIr
 {
     public WireSchemaDocumentIr(

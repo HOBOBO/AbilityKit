@@ -197,7 +197,9 @@ public sealed class RoomMultiplayerE2EFlowTests
         Assert.True(afterPlayer2Ready.Applied);
         Assert.All(afterPlayer2Ready.State.Members, member => Assert.True(member.State.LobbyReady));
 
-        // owner BeginLoading -> phase=Loading, generation=1。
+        /*
+         * 房主 BeginLoading -> phase=Loading，generation=1。
+         */
         var beginLoading = RoomStateMachine.BeginLoading(
             afterPlayer2Ready.State,
             accountId: "owner",
@@ -316,7 +318,9 @@ public sealed class RoomMultiplayerE2EFlowTests
         var afterP2 = RoomStateMachine.Join(afterOwner.State, "player2", false, NowTicks + 1, NowUnixMs + 1);
         Assert.Equal("owner", afterP2.State.Summary.OwnerAccountId);
 
-        // owner Leave。
+        /*
+         * 房主离开。
+         */
         var ownerLeft = RoomStateMachine.Leave(afterP2.State, "owner", NowUnixMs + 2);
         Assert.True(ownerLeft.Applied);
         Assert.Equal(RoomPhase.Lobby, ownerLeft.State.Phase);

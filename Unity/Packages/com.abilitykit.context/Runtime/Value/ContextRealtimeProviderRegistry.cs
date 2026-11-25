@@ -54,37 +54,6 @@ namespace AbilityKit.Context
             return false;
         }
 
-        public bool TryGetValue<T>(in ContextValueRequest request, out T value)
-        {
-            value = default;
-            return TryGetProvider(request.PropertyTypeId, out var provider) && provider.TryGetValue(request.ContextId, request.Key, out value);
-        }
-
-        /// <summary>Captures one provider instance for a multi-field compatibility read; does not create context data.</summary>
-        public bool TryGetValueReader<TProperty>(long contextId, out IContextValueProvider reader)
-            where TProperty : IProperty
-        {
-            reader = null;
-            var type = PropertyTypeRegistry.Instance.Get<TProperty>();
-            if (type == null || !TryGetProvider(type.Id, out var provider)) return false;
-            reader = new RealtimeValueReader(provider, contextId);
-            return true;
-        }
-
-        private sealed class RealtimeValueReader : IContextValueProvider
-        {
-            private readonly IContextRealtimeValueProvider _provider;
-            private readonly long _contextId;
-
-            internal RealtimeValueReader(IContextRealtimeValueProvider provider, long contextId)
-            {
-                _provider = provider;
-                _contextId = contextId;
-            }
-
-            public bool TryGetValue<T>(string key, out T value) => _provider.TryGetValue(_contextId, key, out value);
-        }
-
         public void Clear()
         {
             lock (_lock)
@@ -98,9 +67,14 @@ namespace AbilityKit.Context
         }
     }
 
+    /// <summary>
+    /// 为实时读取提供一个可读取的属性对象；引用校验由解析器负责。
+    /// </summary>
     public interface IContextRealtimeValueProvider
     {
+        /// <summary>
+        /// 查找当前绑定的属性，不创建上下文实体。
+        /// </summary>
         bool TryGetProperty(long contextId, out IProperty property);
-        bool TryGetValue<T>(long contextId, string key, out T value);
     }
 }

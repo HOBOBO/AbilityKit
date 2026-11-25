@@ -177,7 +177,7 @@ public sealed class MobaLubanConfigPipelineTests
         var assets = new ConsoleTextAssetLoader();
         Assert.True(assets.TryLoadBytes("luban/moba_bytes/attr_types.bytes", out var bytes));
         var definitions = new moba_luban.AttrTypes(Luban.ByteBuf.Wrap(bytes)).DataList;
-        Assert.Equal(23, definitions.Count);
+        Assert.Equal(24, definitions.Count);
         foreach (var definition in definitions)
         {
             Assert.True(Enum.IsDefined(typeof(AbilityKit.Demo.Moba.BattleAttributeType), definition.Id));
@@ -189,6 +189,8 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.Equal("MOVE_SPEED", database.GetAttrType(17).Key);
         Assert.Equal(0, database.GetAttrType(17).ValueKind);
         Assert.Equal(1, database.GetAttrType(12).ValueKind);
+        Assert.Equal("MANA_REGEN_PER_SECOND", database.GetAttrType(24).Key);
+        Assert.Equal(0, database.GetAttrType(24).ValueKind);
     }
 
     [Fact]
@@ -503,10 +505,12 @@ public sealed class MobaLubanConfigPipelineTests
 
         Assert.True(database.TryGetSkillLevelTable(30010101, out var levelTable));
         Assert.Equal(
-            new[] { "damage", "physicalAttackRatio", "range", "speed", "maxHits", "bounceRadius", "arcHeight", "arcDurationSeconds", "arcHeightPerUnit" },
+            new[] { "damage", "physicalAttackRatio", "range", "speed", "maxHits", "bounceRadius", "arcHeight", "arcDurationSeconds", "arcHeightPerUnit", "magicAttackRatio" },
             levelTable.ParamNames);
         Assert.True(levelTable.TryGetParameter(1, "damage", out var damage));
         Assert.Equal(45f, damage);
+        Assert.True(levelTable.TryGetParameter(1, "magicAttackRatio", out var magicAttackRatio));
+        Assert.Equal(.6f, magicAttackRatio);
         Assert.True(levelTable.TryGetParameter(1, "maxHits", out var maxHits));
         Assert.Equal(4f, maxHits);
 
@@ -562,10 +566,14 @@ public sealed class MobaLubanConfigPipelineTests
         Assert.Equal(30010101, damageAction["Args"]!["reason_param"]!["ConstValue"]!.Value<int>());
         Assert.Null(damageAction["Args"]!["damage_value"]);
         Assert.Null(damageAction["Args"]!["source_attack_ratio"]);
-        Assert.Equal(6, damageAction["Args"]!["magnitude_type"]!["ConstValue"]!.Value<int>());
-        Assert.Equal(4, damageAction["Args"]!["magnitude_secondary_attribute"]!["ConstValue"]!.Value<int>());
-        Assert.Equal("damage", triggerJson["Strings"]![damageAction["Args"]!["magnitude_parameter"]!["ConstValue"]!.Value<int>().ToString()]!.Value<string>());
-        Assert.Equal("physicalAttackRatio", triggerJson["Strings"]![damageAction["Args"]!["magnitude_secondary_coefficient_parameter"]!["ConstValue"]!.Value<int>().ToString()]!.Value<string>());
+        var magnitudeKey = damageAction["Args"]!["magnitude_terms"]!["ConstValue"]!.Value<int>().ToString();
+        var magnitudeTerms = JArray.Parse(triggerJson["Strings"]![magnitudeKey]!.Value<string>()!);
+        Assert.Equal(3, magnitudeTerms.Count);
+        Assert.Equal("damage", magnitudeTerms[0].Value<string>("parameter"));
+        Assert.Equal(4, magnitudeTerms[1].Value<int>("attribute"));
+        Assert.Equal("physicalAttackRatio", magnitudeTerms[1].Value<string>("coefficient_parameter"));
+        Assert.Equal(5, magnitudeTerms[2].Value<int>("attribute"));
+        Assert.Equal("magicAttackRatio", magnitudeTerms[2].Value<string>("coefficient_parameter"));
         Assert.True(levelTable.TryGetParameter(1, "physicalAttackRatio", out var ratio));
         Assert.Equal(.44f, ratio);
     }
@@ -666,6 +674,14 @@ public sealed class MobaLubanConfigPipelineTests
         var unityResources = Path.Combine(repoRoot, "Unity", "Packages",
             "com.abilitykit.demo.moba.view.runtime", "Resources");
         var consoleResources = Path.Combine(repoRoot, "src", "AbilityKit.Demo.Moba.Console", "Configs", "luban");
+
+        Assert.Equal(2000, skill.CooldownMs);
+        Assert.Equal(5, levelTable.Levels.Count);
+        Assert.All(levelTable.Levels, level =>
+        {
+            Assert.Equal(2000, level.CooldownMs);
+            Assert.Equal(30, level.Cost);
+        });
 
         var aoes = JArray.Parse(File.ReadAllText(Path.Combine(unityResources, "luban", "moba", "aoes.json")));
         var area = aoes.Single(row => row!.Value<int>("Id") == areaId);

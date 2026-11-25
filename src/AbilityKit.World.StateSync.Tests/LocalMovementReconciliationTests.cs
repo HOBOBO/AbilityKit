@@ -43,6 +43,23 @@ public sealed class LocalMovementReconciliationTests
     }
 
     [Fact]
+    public void MatchingAnchorStillReplaysWhenTerminalPrefixChangesFutureSchedule()
+    {
+        var reconciler = Create();
+        Assert.True(reconciler.TryRecordInput(Scope, 1, 12, 10));
+        Assert.True(reconciler.SealTick(Scope, 11));
+        Assert.True(reconciler.SealTick(Scope, 12));
+        Assert.Equal(ReconciliationStatus.Predicted, reconciler.Reconcile(Sample(1, 10, 0), Proof(1, 10, 0), 12).Status);
+
+        var result = reconciler.Reconcile(Sample(2, 11, 1), Proof(2, 11, 1), 12, sameTickStateMatches: true);
+
+        Assert.Equal(ReconciliationStatus.Predicted, result.Status);
+        Assert.Equal(1, result.AttemptedTicks);
+        Assert.True(reconciler.TryGetPrediction(out var prediction));
+        Assert.Equal(2, prediction);
+    }
+
+    [Fact]
     public void MissingOrMismatchedProofDoesNotTreatEnqueuedInputAsTerminal()
     {
         var reconciler = Create();

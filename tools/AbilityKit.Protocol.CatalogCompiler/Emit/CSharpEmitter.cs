@@ -5,9 +5,7 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
 /// <summary>
-/// Emits the <c>BuiltInProtocolCatalogs</c> C# source from the codec-neutral IR. The emitted
-/// class materializes the runtime <c>ProtocolCatalogDefinition</c> array, so the codec name stays
-/// an opaque string here rather than binding to a concrete codec backend.
+/// 从编解码无关中间表示生成 <c>BuiltInProtocolCatalogs</c> C# 源码。生成类构造运行时 <c>ProtocolCatalogDefinition</c> 数组，因此此处编解码器名称保持为不透明字符串，不绑定具体后端。
 /// </summary>
 public static class CSharpEmitter
 {

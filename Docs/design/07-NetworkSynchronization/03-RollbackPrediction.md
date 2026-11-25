@@ -69,7 +69,7 @@ AbilityKit 的回滚预测不是单一算法，而是一组围绕“保存过去
 | [ServerRollbackModule.cs](../../../Unity/Packages/com.abilitykit.host.extension/Runtime/Rollback/ServerRollbackModule.cs) | 服务端回滚重演模块，监听帧同步事件并保存输入/快照 |
 | [ShooterPackedSnapshotRollbackProvider.cs](../../../Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Rollback/ShooterPackedSnapshotRollbackProvider.cs) | Shooter 使用 packed snapshot 作为回滚状态 payload |
 | [ShooterClientFrameSyncController.cs](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientFrameSyncController.cs) | Shooter 客户端侧创建 RollbackCoordinator 并支持恢复预测快照 |
-| [RemoteDrivenRuntimeModuleFactory.cs](../../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenRuntimeModuleFactory.cs) | MOBA 远端驱动模式创建 `ClientPredictionDriverModule` |
+| [RemoteDrivenRuntimeModuleFactory.cs](../../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/FrameSync/RemoteDrivenRuntimeModuleFactory.cs) | MOBA 远端驱动模式创建 `ClientPredictionDriverModule` |
 
 ---
 

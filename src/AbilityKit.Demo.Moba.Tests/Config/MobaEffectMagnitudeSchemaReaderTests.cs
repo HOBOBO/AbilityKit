@@ -11,6 +11,68 @@ namespace AbilityKit.Demo.Moba.Tests.Config;
 
 public sealed class MobaEffectMagnitudeSchemaReaderTests
 {
+    [Theory]
+    [InlineData("duration_skill_level_parameter", " ")]
+    [InlineData("birth_attributes", "[{\"attribute\":0,\"magnitude_terms\":[{\"value\":1}]}]")]
+    [InlineData("birth_attributes", "[{\"attribute\":1,\"magnitude_terms\":[{\"type\":6,\"parameter\":\"\"}]}]")]
+    [InlineData("birth_attributes", "[{\"attribute\":1,\"magnitude_terms\":[{\"value\":1}]},{\"attribute\":1,\"magnitude_terms\":[{\"value\":2}]}]")]
+    public void Invalid_summon_parameterization_fails_schema_validation(string key, string json)
+    {
+        var args = new[]
+        {
+            new KeyValuePair<string, ActionArgValue>("summon_id", ActionArgValue.OfConst(1, "summon_id")),
+            new KeyValuePair<string, ActionArgValue>(key, ActionArgValue.OfString(json, key))
+        };
+        Assert.False(SpawnSummonSchema.Instance.TryValidateArgs(args, out var error));
+        Assert.False(string.IsNullOrEmpty(error));
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("[{\"type\":99}]")]
+    [InlineData("[{\"type\":256}]")]
+    [InlineData("[{\"type\":2.5,\"attribute\":4}]")]
+    [InlineData("[{\"type\":2,\"attribute\":99999}]")]
+    [InlineData("[{\"type\":2,\"attribute\":4,\"source_role\":256}]")]
+    [InlineData("[{\"type\":6,\"parameter\":\"\"}]")]
+    [InlineData("[{\"type\":2,\"attribute\":0}]")]
+    [InlineData("[{\"value\":1,\"unexpected\":2}]")]
+    public void Invalid_terms_fail_schema_validation_before_execution(string json)
+    {
+        var args = new[] { new KeyValuePair<string, ActionArgValue>("magnitude_terms", ActionArgValue.OfString(json, "magnitude_terms")) };
+        Assert.False(GiveDamageSchema.Instance.TryValidateArgs(args, out var error));
+        Assert.False(string.IsNullOrEmpty(error));
+    }
+
+    [Fact]
+    public void Ordered_terms_cannot_silently_mix_with_legacy_sources()
+    {
+        var args = new Dictionary<string, ActionArgValue>
+        {
+            ["magnitude_terms"] = ActionArgValue.OfString("[{\"type\":0,\"value\":10}]", "magnitude_terms"),
+            ["magnitude_value"] = ActionArgValue.OfConst(99, "magnitude_value")
+        };
+        Assert.Throws<InvalidOperationException>(() => MobaEffectMagnitudeSchemaReader.Read(args, default, 0));
+    }
+
+    [Fact]
+    public void Ordered_terms_sum_before_returning_one_magnitude_and_preserve_snapshot_capture()
+    {
+        var args = new Dictionary<string, ActionArgValue>
+        {
+            ["magnitude_terms"] = ActionArgValue.OfString("[{\"type\":0,\"value\":20,\"coefficient\":2},{\"type\":0,\"value\":60},{\"type\":0,\"value\":25}]", "magnitude_terms"),
+            ["magnitude_evaluation"] = ActionArgValue.OfConst(1, "magnitude_evaluation")
+        };
+        var spec = MobaEffectMagnitudeSchemaReader.Read(args, default, 0);
+        Assert.True(AbilityKit.Demo.Moba.Services.Combat.Magnitude.MobaEffectMagnitudeResolver.TryEvaluate(
+            spec, default, default, 0, 0, 0, default, out var value, out var capture, out var failure), failure);
+        Assert.Equal(125, value);
+        Assert.True(capture.IsValid);
+        Assert.True(AbilityKit.Demo.Moba.Services.Combat.Magnitude.MobaEffectMagnitudeResolver.TryEvaluate(
+            spec, default, default, 0, 0, 0, capture, out var frozen, out _, out failure), failure);
+        Assert.Equal(value, frozen);
+    }
+
     [Fact]
     public void Skill_parameter_action_args_map_to_typed_magnitude_spec()
     {

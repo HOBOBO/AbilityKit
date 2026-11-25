@@ -8,17 +8,11 @@
     <AssemblyName>AbilityKit.Protocol</AssemblyName>
     <LangVersion>latest</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <DefineConstants>USE_NEWTONSOFT_JSON</DefineConstants>
   </PropertyGroup>
 
   <!-- 引用 Packages 目录下的源码 -->
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.protocol/Runtime/**/*.cs" />
-  </ItemGroup>
-
-  <!-- 项目引用 -->
-  <ItemGroup>
-    <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
   </ItemGroup>
 
   <!-- NuGet 依赖 -->

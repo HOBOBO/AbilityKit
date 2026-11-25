@@ -3,12 +3,12 @@ using UnityEngine;
 namespace AbilityKit.HFSM.Editor
 {
     /// <summary>
-    /// Utility methods for IMGUI drawing operations.
+    /// 提供 IMGUI 绘制辅助方法。
     /// </summary>
     public static class DrawingUtility
     {
         /// <summary>
-        /// Converts screen position to content position based on pan and zoom.
+        /// 根据平移和缩放，将屏幕坐标转换为内容坐标。
         /// </summary>
         public static Vector2 ScreenToContent(Vector2 screenPosition, Vector2 panOffset, float zoomFactor)
         {
@@ -16,7 +16,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Converts content position to screen position based on pan and zoom.
+        /// 根据平移和缩放，将内容坐标转换为屏幕坐标。
         /// </summary>
         public static Vector2 ContentToScreen(Vector2 contentPosition, Vector2 panOffset, float zoomFactor)
         {
@@ -24,7 +24,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Gets the center point of a node in content coordinates.
+        /// 获取节点中心的内容坐标。
         /// </summary>
         public static Vector2 GetNodeCenter(Graph.NodeBase node)
         {
@@ -32,7 +32,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Calculates transition line offset to avoid overlapping.
+        /// 计算转换线偏移，避免重叠。
         /// </summary>
         public static Vector2 CalculateTransitionOffset(Vector2 from, Vector2 to, float offsetAmount = 15f)
         {

@@ -722,7 +722,7 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 13. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomNetworkSyncCapabilityResolver.cs`：服务端能力声明来源。
 14. `Unity/Packages/com.abilitykit.network.sdk/Runtime/NetworkSyncSessionBuilder.cs`：恢复 coordinator、action router 与 runtime 的统一实现。
 15. `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Entry/MultiplayerGatewayEntryModule.cs`：MOBA Automatic Room 恢复消费者。
-16. `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Net/AuthoritativeStateRecoveryRuntime.cs`：MOBA 权威状态恢复消费者。
+16. `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/StateSync/AuthoritativeStateRecoveryRuntime.cs`：MOBA 权威状态恢复消费者。
 
 Batch W 的 Network SDK E3 为 `96/96`；Network Room `36/36` 来自 Batch V，Gateway `162/162`、Grains `232/232`、Shooter Smoke Harness `33/33` 来自 Batch U，覆盖断线标记、rebound 防护、遗弃清理、Room metadata 和脚本契约。这些结果都没有运行 Batch W 的真实双连接抢订阅、长期持久化故障或多进程 Smoke，不能合并成新的 E4。
 

@@ -1,5 +1,8 @@
 # AbilityKit Attributes
 
+> 文档类型：包入口与首次使用
+> 核校状态：2026-11-25 核对包依赖、注册、上下文、修改器和静默求值契约；.NET 相关测试 13 项通过，未验证 Unity Player。
+
 `com.abilitykit.attributes` 提供属性定义、基础值、修饰器、公式与约束。它不负责玩法 Buff 生命周期、实体绑定或状态恢复编排。
 
 ## 安装与接入
@@ -30,7 +33,10 @@ public static class AttributeQuickStart
 
 `ReadAttack` 返回 `120`。
 
+注册表生命周期、修改器句柄和静默实时读取边界见[包内使用契约](Documentation~/Usage.md)。
+
 ## 文档
 
 - [使用契约与限制](Documentation~/Usage.md)：注册表、修改器和静默实时求值。
-- [变更记录](CHANGELOG.md)；[历史设计入口](Document/README.md)。
+- [历史文档索引](Document/README.md)：保留旧路径；设计背景不替代现行契约。
+- [变更记录](CHANGELOG.md)。

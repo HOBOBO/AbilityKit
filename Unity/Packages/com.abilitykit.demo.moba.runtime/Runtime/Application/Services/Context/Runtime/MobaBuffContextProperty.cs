@@ -204,7 +204,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
-    public sealed class MobaBuffContextSnapshot : IImmutableContextSnapshot, ISnapshotAccessor, ISourceContext, IOwnerContext
+    public sealed class MobaBuffContextSnapshot : IImmutableContextSnapshot, ISourceContext, IOwnerContext
     {
         private readonly MobaBuffRuntimeContextData _data;
 
@@ -255,14 +255,8 @@ namespace AbilityKit.Demo.Moba.Services
         public int Frame { get; }
         public long SourceEntityId => _data.SourceContextId;
         public long OwnerEntityId => _data.OwnerContextId;
-        public bool IsRealtimeAvailable => false;
         public bool IsDestroyed => _data.LifecycleState == MobaRuntimeContextLifecycleState.Ended ||
             _data.LifecycleState == MobaRuntimeContextLifecycleState.Destroyed;
-
-        public T GetValue<T>(string key, T snapshotDefault = default)
-        {
-            return TryGetValue(key, out T value) ? value : snapshotDefault;
-        }
 
         public bool TryGetValue<T>(string key, out T value)
         {

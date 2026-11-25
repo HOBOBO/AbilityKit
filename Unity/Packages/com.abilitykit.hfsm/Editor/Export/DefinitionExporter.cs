@@ -9,7 +9,9 @@ using AbilityKit.HFSM.Graph;
 namespace AbilityKit.HFSM.Editor.Export
 {
 
-    /// <summary>Graph -> validated Next Definition -> canonical JSON export pipeline.</summary>
+    /// <summary>
+    /// 将图转换为已验证的 Next 定义，再导出规范 JSON。
+    /// </summary>
     public static class DefinitionExporter
     {
         public static DefinitionExportResult Export(

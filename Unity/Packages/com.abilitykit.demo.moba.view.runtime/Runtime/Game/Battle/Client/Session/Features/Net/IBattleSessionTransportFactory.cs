@@ -42,6 +42,7 @@ namespace AbilityKit.Game.Flow
             var useFrameSyncInput = SessionSimRuntimeTuning.ShouldUseFrameSyncInput(plan.Sync.SyncMode);
             if (useFrameSyncInput && settledFrames == null)
                 throw new System.InvalidOperationException("A MOBA Gateway lockstep battle requires the settled frame capability.");
+            var useScopedInput = plan.UsesStateSyncAuthority && gateway.UseScopedStateSyncInput;
             var gatewayOptions = NetworkTransportOptionsFactory.Create(new NetworkTransportOptionsFactoryOptions
             {
                 Host = gateway.Host,
@@ -54,7 +55,10 @@ namespace AbilityKit.Game.Flow
                 PublicRoomId = gateway.JoinRoomId,
                 UseFrameSyncInput = useFrameSyncInput,
                 UseFixedBaselineStateSync = !useFrameSyncInput &&
-                    plan.RemoteSyncCapabilities?.Capabilities.MaximumSchemaVersion >= FixedBaselineStateSyncProtocol.SchemaVersion
+                    plan.RemoteSyncCapabilities?.Capabilities.MaximumSchemaVersion >= FixedBaselineStateSyncProtocol.SchemaVersion,
+                UseScopedStateSyncInput = useScopedInput,
+                ScopedInputPlayerId = localPlayerId,
+                ScopedInputWorldId = useScopedInput ? NetworkIdCodec.Numeric.Encode(new WorldId(plan.World.WorldId)) : 0
             });
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

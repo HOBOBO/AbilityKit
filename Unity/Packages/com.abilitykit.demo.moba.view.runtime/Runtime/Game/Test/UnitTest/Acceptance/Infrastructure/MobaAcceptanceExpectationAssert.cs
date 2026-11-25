@@ -7,7 +7,8 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public static class MobaAcceptanceExpectationAssert
     {
-        public static void AssertMatches(MobaAcceptanceExpectation expectation, MobaAcceptanceTraceRecord[] records, MobaSkillConfigTestHarness harness = null)
+        public static void AssertMatches(MobaAcceptanceExpectation expectation, MobaAcceptanceTraceRecord[] records,
+            MobaSkillConfigTestHarness harness = null, MobaAcceptanceTraceEvidence evidence = null)
         {
             if (expectation == null) throw new ArgumentNullException(nameof(expectation));
             if (records == null) throw new ArgumentNullException(nameof(records));
@@ -19,7 +20,10 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             AssertContainsAll(records, expectation.mustContain, effectRootId);
-            AssertContainsNone(records, expectation.mustNotContain, effectRootId);
+            AssertContainsNone(records, expectation.mustNotContain);
+            if (expectation.mustNotContain != null && expectation.mustNotContain.Length > 0)
+                Assert.IsTrue(MobaAcceptanceTraceEvidence.CanProveAbsence(evidence, records.Length),
+                    $"mustNotContain requires complete trace evidence: {evidence?.reason ?? "capture not verified"}.");
             AssertConfigActions(records, expectation, effectRootId);
             AssertRelationships(records, expectation.relationships);
         }
@@ -143,19 +147,22 @@ namespace AbilityKit.Game.Test.UnitTest
             return $"{record.kind}({record.configId})#node={record.nodeId},root={record.rootId},parent={record.parentId},src={record.sourceActorId},dst={record.targetActorId}";
         }
 
-        private static void AssertContainsNone(MobaAcceptanceTraceRecord[] records, MobaAcceptanceTraceExpectation[] expectations, long effectRootId)
+        private static void AssertContainsNone(MobaAcceptanceTraceRecord[] records, MobaAcceptanceTraceExpectation[] expectations)
         {
             if (expectations == null) return;
 
+            var missingScope = 0;
             for (var i = 0; i < expectations.Length; i++)
             {
                 var expectation = expectations[i];
-                var count = Count(records, expectation.kind, expectation.configId, expectation.underEffectId > 0 ? effectRootId : 0);
+                var count = MobaAcceptanceForbiddenTrace.Count(records, expectation, out var scopeFound);
+                if (!scopeFound) missingScope = expectation.underEffectId;
                 Assert.AreEqual(
                     0,
                     count,
                     $"Unexpected trace node present: kind={expectation.kind}, configId={expectation.configId}, underEffectId={expectation.underEffectId}, actualCount={count}.");
             }
+            Assert.AreEqual(0, missingScope, $"mustNotContain requires an observed effect scope: underEffectId={missingScope}.");
         }
 
         private static void AssertConfigActions(MobaAcceptanceTraceRecord[] records, MobaAcceptanceExpectation expectation, long effectRootId)

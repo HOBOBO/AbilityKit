@@ -1,94 +1,94 @@
-# MOBA Battle Integration Guide
+# MOBA 战斗集成指南
 
-## Purpose
+## 目的
 
-This document defines the formal integration boundary for MOBA battle hosts. A runtime environment such as ET, Orleans, a local test host, or a future network gateway should not rebuild the battle lifecycle from scratch. It should provide only environment-specific adapters and use the shared host extension contracts for battle startup, input submission, and snapshot mapping.
+本文定义 MOBA 战斗宿主的正式集成边界。ET、Orleans、本地测试宿主或未来网络网关等运行环境应复用共享宿主扩展契约，完成战斗启动、输入提交和快照映射，仅提供环境专用适配器，避免重新实现整个战斗生命周期。
 
-## Package Responsibilities
+## 包职责
 
-`moba.runtime` owns battle execution after the game has started.
+`moba.runtime` 负责游戏开始后的战斗执行。
 
-It is responsible for:
+它负责：
 
-- creating runtime actors from a validated game-start spec
-- accepting normalized `PlayerInputCommand` batches
-- driving logic systems through the world tick
-- emitting runtime `WorldStateSnapshot` values
-- exposing the unified runtime port `IMobaBattleRuntimePort`
+- 根据已验证的游戏启动规格创建运行时角色
+- 接收已归一化的 `PlayerInputCommand` 批次
+- 通过世界步进驱动逻辑系统
+- 生成运行时 `WorldStateSnapshot`
+- 提供统一运行时端口 `IMobaBattleRuntimePort`
 
-It should not own:
+它不负责：
 
-- room or matchmaking state
-- ET or Orleans transport models
-- remote call protocol details
-- business decisions about local, remote, frame-sync, or state-sync modes
+- 房间或匹配状态
+- ET 或 Orleans 的传输模型
+- 远程调用协议细节
+- 本地、远程、帧同步或状态同步模式的业务决策
 
-`host.extension` owns reusable host-side orchestration primitives.
+`host.extension` 负责可复用的宿主侧编排基础能力。
 
-It is responsible for:
+它负责：
 
-- generic server BattleHost workflow modules under `Runtime/Server/BattleHost`
-- room game-start specs and player loadouts
-- `MobaBattleLaunchProfile` and launch spec construction
-- conversion from launch spec to runtime start spec
-- reusable snapshot mapper registry and snapshot mapping context
-- Moba-specific host adapters under `Runtime/Moba`
-- common integration contracts that do not depend on one runtime environment
+- `Runtime/Server/BattleHost` 下的通用服务端 BattleHost 工作流模块
+- 房间游戏启动规格和玩家配置
+- `MobaBattleLaunchProfile` 及启动规格构造
+- 将启动规格转换为运行时启动规格
+- 可复用的快照映射器注册表及快照映射上下文
+- `Runtime/Moba` 下的 MOBA 专用宿主适配器
+- 不依赖单一运行环境的公共集成契约
 
-It should not depend on ET, Orleans, or concrete presentation models.
+它不应依赖 ET、Orleans 或具体表现模型。
 
-ET owns client-side integration.
+ET 负责客户端集成。
 
-It is responsible for:
+它负责：
 
-- converting ET battle start DTOs into `MobaPlayerLoadout` and `MobaBattleLaunchProfile`
-- submitting local/client input through `IMobaBattleRuntimePort`
-- converting runtime snapshots into ET view snapshots
-- dispatching view snapshots to ET presentation handlers
+- 将 ET 战斗启动 DTO 转换为 `MobaPlayerLoadout` 和 `MobaBattleLaunchProfile`
+- 通过 `IMobaBattleRuntimePort` 提交本地或客户端输入
+- 将运行时快照转换为 ET 视图快照
+- 将视图快照分发给 ET 表现处理器
 
-Orleans owns server-side integration.
+Orleans 负责服务端集成。
 
-It is responsible for:
+它负责：
 
-- keeping room/match membership, ready, hero pick, and battle-start RPC boundaries inside Orleans grains
-- converting Orleans room DTOs into host.extension `MobaRoomState` and `MobaRoomGameStartSpec`
-- converting room/server start specs into battle init parameters for `BattleLogicHostGrain`
-- buffering remote input and submitting runtime commands
-- driving the server battle world tick
-- publishing state-sync and frame-sync data through Orleans contracts
-- keeping server lifecycle and observer management inside grains or grain-owned services
+- 在 Orleans Grain 内维护房间或匹配成员、准备状态、英雄选择及战斗启动 RPC 边界
+- 将 Orleans 房间 DTO 转换为 host.extension 的 `MobaRoomState` 和 `MobaRoomGameStartSpec`
+- 将房间或服务端启动规格转换为 `BattleLogicHostGrain` 的战斗初始化参数
+- 缓冲远程输入并提交运行时命令
+- 驱动服务端战斗世界步进
+- 通过 Orleans 契约发布状态同步和帧同步数据
+- 在 Grain 或其拥有的服务内管理服务端生命周期及观察者
 
-## Formal Integration Surface
+## 正式集成接口
 
-A new battle environment should implement only the following pieces:
+新战斗环境只需实现以下部分：
 
-1. Startup adapter
+1. 启动适配器
 
-   Build `MobaPlayerLoadout[]` from the environment's room or match DTOs, then create a `MobaBattleLaunchProfile`. Use `MobaBattleLaunchSpecBuilder.FromLoadouts(...)` to produce the formal launch spec, then call `ToGameStartSpec()` for the runtime.
+   从环境的房间或匹配 DTO 构建 `MobaPlayerLoadout[]`，再创建 `MobaBattleLaunchProfile`。使用 `MobaBattleLaunchSpecBuilder.FromLoadouts(...)` 生成正式启动规格，再调用 `ToGameStartSpec()` 供运行时使用。
 
-2. Runtime port access
+2. 运行时端口访问
 
-   Resolve `IMobaBattleRuntimePort` from the battle world service container. All game start, input, snapshot, and read-model access should go through this port unless there is a clearly documented lower-level runtime reason.
+   从战斗世界服务容器解析 `IMobaBattleRuntimePort`。游戏启动、输入、快照和读模型访问均应通过此端口；需要直接访问更底层运行时时，必须明确记录原因。
 
-3. Input adapter
+3. 输入适配器
 
-   Convert environment input DTOs into `PlayerInputCommand`. Preserve the runtime protocol opCode and payload shape so local mode and remote network mode can reuse the same protocol definitions.
+   将环境输入 DTO 转换为 `PlayerInputCommand`。保留运行时协议的 opCode 和载荷结构，让本地模式和远程网络模式复用同一套协议定义。
 
-4. Snapshot adapter
+4. 快照适配器
 
-   Register environment-specific snapshot mappers with `MobaRuntimeSnapshotMapperRegistry<TOutput>`. The mapper target type belongs to the environment, for example ET `FrameSnapshotData` or Orleans `ActorSnapshot` lists. The registry and context belong to host.extension.
+   通过 `MobaRuntimeSnapshotMapperRegistry<TOutput>` 注册环境专用快照映射器。映射目标类型归环境所有，例如 ET `FrameSnapshotData` 或 Orleans `ActorSnapshot` 列表。注册表与上下文归 host.extension 所有。
 
-5. Tick and lifecycle host
+5. 步进及生命周期宿主
 
-   Compose the reusable BattleHost modules from host.extension where possible. Generic host workflow belongs under `Runtime/Server/BattleHost`, including host state, lifecycle runner, structured lifecycle result codes, input buffering, tick-driving, observer registry, snapshot publish loop, and sync policy. The environment provides lifecycle delegates for world creation, runtime resolution, runtime start, snapshot provider resolution, initial snapshot push, timer scheduling, and cleanup. Battle execution itself stays inside `moba.runtime` and is accessed through `IMobaBattleRuntimePort`.
+   尽量组合 host.extension 中可复用的 BattleHost 模块。通用宿主工作流位于 `Runtime/Server/BattleHost`，包括宿主状态、生命周期运行器、结构化生命周期结果码、输入缓冲、步进驱动、观察者注册表、快照发布循环及同步策略。环境提供世界创建、运行时解析、运行时启动、快照提供者解析、初始快照推送、定时器调度及清理委托。战斗执行仍位于 `moba.runtime`，通过 `IMobaBattleRuntimePort` 访问。
 
-## Snapshot Mapping Rule
+## 快照映射规则
 
-Runtime snapshots are protocol outputs, not direct presentation objects. Each environment should map them at its boundary.
+运行时快照是协议输出，不能直接充当表现对象。各环境应在自身边界完成映射。
 
-Use `MobaRuntimeSnapshotContext` to carry frame and timestamp data. Use `WorldStateSnapshot.OpCode` as the dispatch key. Do not put ET view types, Orleans contract types, or runtime read-model fallback types into host.extension shared contracts.
+使用 `MobaRuntimeSnapshotContext` 携带帧号和时间戳，以 `WorldStateSnapshot.OpCode` 作为分发键。不得将 ET 视图类型、Orleans 契约类型或运行时读模型回退类型放入 host.extension 共享契约。
 
-Expected pattern:
+预期用法：
 
 ```csharp
 var context = new MobaRuntimeSnapshotContext(frame, timestamp);
@@ -98,71 +98,71 @@ if (registry.TryMap(in runtimeSnapshot, in context, out var output))
 }
 ```
 
-Environment-specific fallback is allowed. For example, Orleans can fall back from a missing transform snapshot to `LogicWorldEntityState` read-model data because that fallback belongs to the server output policy, not the shared host contract.
+允许环境专用回退。例如，缺少变换快照时，Orleans 可回退到 `LogicWorldEntityState` 读模型数据，因为该回退属于服务端输出策略。
 
-## Current Formal Paths
+## 当前正式调用路径
 
-ET path:
+ET 路径：
 
-- `ETBattleEnterGameSpecBuilder` builds launch specs through host.extension.
-- `ProcessETInputPhase` submits normalized commands through `IMobaBattleRuntimePort`.
-- `CollectSnapshotPhase` collects runtime snapshots and maps them through `ETBattleWorldSnapshotAdapter` and the shared snapshot registry.
+- `ETBattleEnterGameSpecBuilder` 通过 host.extension 构建启动规格。
+- `ProcessETInputPhase` 通过 `IMobaBattleRuntimePort` 提交归一化命令。
+- `CollectSnapshotPhase` 收集运行时快照，通过 `ETBattleWorldSnapshotAdapter` 及共享快照注册表映射。
 
-Orleans path:
+Orleans 路径：
 
-- `RoomGrain` owns room membership, ready state, hero selection, and the owner-only battle-start boundary.
-- `RoomGrain` mirrors Orleans room members into host.extension `MobaRoomState` and uses `DefaultMobaRoomGameStartSpecBuilder` before starting a battle.
-- `OrleansRoomBattleStartMapper` converts `MobaRoomGameStartSpec` into Orleans `BattleInitParams` without pushing Orleans DTOs into host.extension.
-- `DefaultOrleansBattleProtocolMapper` builds runtime start specs through host.extension.
-- `BattleLogicHostGrain` owns Orleans lifecycle and delegates protocol conversion to `IOrleansBattleProtocolMapper`.
-- `DefaultOrleansBattleProtocolMapper` maps actor transform runtime snapshots through the shared snapshot registry and keeps server read-model fallback locally.
+- `RoomGrain` 负责房间成员、准备状态、英雄选择及仅房主可启动战斗的边界。
+- `RoomGrain` 将 Orleans 房间成员镜像到 host.extension 的 `MobaRoomState`，启动战斗前使用 `DefaultMobaRoomGameStartSpecBuilder`。
+- `OrleansRoomBattleStartMapper` 将 `MobaRoomGameStartSpec` 转换为 Orleans `BattleInitParams`，不将 Orleans DTO 引入 host.extension。
+- `DefaultOrleansBattleProtocolMapper` 通过 host.extension 构建运行时启动规格。
+- `BattleLogicHostGrain` 负责 Orleans 生命周期，将协议转换委托给 `IOrleansBattleProtocolMapper`。
+- `DefaultOrleansBattleProtocolMapper` 通过共享快照注册表映射角色变换运行时快照，将服务端读模型回退保留在本地。
 
-## Rules For Future Work
+## 后续开发规则
 
-- Do not construct full `MobaBattleLaunchSpec` manually in ET or Orleans entry flows.
-- Do not call internal runtime services directly from environment code when `IMobaBattleRuntimePort` covers the operation.
-- Do not add snapshot opCode switch logic directly into grains or ET frame phases when it can live in a mapper.
-- Do not make host.extension depend on ET, Orleans, or concrete view models.
-- Keep protocol payloads reusable between local/direct mode and remote/network mode.
-- Preserve both Orleans frame-sync and state-sync server options.
+- 不在 ET 或 Orleans 入口流程手工构造完整 `MobaBattleLaunchSpec`。
+- `IMobaBattleRuntimePort` 已覆盖的操作，不从环境代码直接调用内部运行时服务。
+- 可放在映射器中的快照 opCode 分支，不直接放入 Grain 或 ET 帧阶段。
+- 不让 host.extension 依赖 ET、Orleans 或具体视图模型。
+- 本地直连模式和远程网络模式复用协议载荷。
+- 保留 Orleans 帧同步和状态同步两种服务端选项。
 
-## BattleHost Extension Direction
+## BattleHost 扩展方向
 
-Reusable battle-host workflow should be implemented in host.extension first, then composed by ET, Orleans, local test hosts, or future server projects. Generic workflow belongs under `Runtime/Server/BattleHost`, not under the Moba-specific directory. Orleans should remain an environment adapter and RPC boundary, not the owner of the reusable host framework.
+可复用战斗宿主工作流应先在 host.extension 实现，再由 ET、Orleans、本地测试宿主或未来服务端项目组合。通用工作流位于 `Runtime/Server/BattleHost`。Orleans 承担环境适配和 RPC 边界职责，可复用宿主框架由 host.extension 维护。
 
-The current generic host.extension BattleHost direction is:
+当前 host.extension 通用 BattleHost 的职责方向如下：
 
-- `BattleHostState` owns reusable host lifecycle state such as battle id, world id, frame, and tick rate.
-- `BattleHostLifecycleResult` and `BattleHostLifecycleErrorCode` define a small structured result model for host startup, cleanup, and failure reporting.
-- `BattleHostStartContext` carries environment-neutral startup data: world id, battle id, tick rate, and tick interval.
-- `BattleHostLifecycleRunner` owns the formal start/stop sequence and rollback path through environment-provided delegates.
-- `BattleInputBuffer<TInput>` owns frame-indexed input buffering without depending on Orleans DTOs or Moba protocol DTOs.
-- `BattleTickDriver<TInput>` owns the generic drain-submit-tick-advance workflow through environment-provided delegates.
-- `BattleObserverRegistry<TObserver>` owns observer registration and snapshot-safe enumeration.
-- `BattleSnapshotSyncPolicy` owns common publish/full-snapshot policy decisions.
-- `BattleSnapshotPublisher<TObserver, TSnapshot>` owns the generic snapshot creation and exception-isolated observer push loop.
+- `BattleHostState` 管理可复用宿主生命周期状态，包括战斗 ID、世界 ID、帧号及步进频率。
+- `BattleHostLifecycleResult` 和 `BattleHostLifecycleErrorCode` 为宿主启动、清理和失败报告定义精简的结构化结果模型。
+- `BattleHostStartContext` 携带环境无关的启动数据：世界 ID、战斗 ID、步进频率和步进间隔。
+- `BattleHostLifecycleRunner` 通过环境提供的委托管理正式启停顺序及回滚路径。
+- `BattleInputBuffer<TInput>` 负责按帧索引的输入缓冲，不依赖 Orleans DTO 或 MOBA 协议 DTO。
+- `BattleTickDriver<TInput>` 通过环境提供的委托管理通用的排空、提交、步进及帧推进工作流。
+- `BattleObserverRegistry<TObserver>` 负责观察者注册及基于快照的安全枚举。
+- `BattleSnapshotSyncPolicy` 负责公共发布策略和完整快照策略决策。
+- `BattleSnapshotPublisher<TObserver, TSnapshot>` 负责通用快照创建及异常隔离的观察者推送循环。
 
-Moba-specific host.extension modules should remain under `Runtime/Moba` only when they depend on Moba launch specs, player loadouts, room rules, or Moba snapshot mapping. The Orleans grain should remain the Orleans activation and RPC boundary. It should compose generic host.extension modules and provide Orleans-specific mapping, runtime submission, world ticking, observer push, timer scheduling, and lifecycle delegates.
+仅当模块依赖 MOBA 启动规格、玩家配置、房间规则或 MOBA 快照映射时，才放在 host.extension 的 `Runtime/Moba` 下。Orleans Grain 保持为 Orleans 激活和 RPC 边界，组合通用 host.extension 模块，并提供 Orleans 专用映射、运行时提交、世界步进、观察者推送、定时器调度及生命周期委托。
 
-## Server Room To Battle Direction
+## 服务端房间到战斗的方向
 
-Server room flow should be formalized as `Room/Match -> MobaRoomState -> MobaRoomGameStartSpec -> BattleInitParams -> BattleHost`.
+服务端房间流程应规范为 `Room/Match -> MobaRoomState -> MobaRoomGameStartSpec -> BattleInitParams -> BattleHost`。
 
-The current server-side rule is:
+当前服务端规则如下：
 
-- Orleans `RoomGrain` owns account membership, ownership checks, room closure, and RPC-facing DTOs.
-- host.extension `MobaRoomState` owns MOBA room readiness rules, hero/loadout selection state, team assignment, min/max player validation, and `CanStart`.
-- host.extension `DefaultMobaRoomGameStartSpecBuilder` owns conversion from room state to `MobaRoomGameStartSpec`.
-- Orleans mapping code owns conversion from `MobaRoomGameStartSpec` to Orleans `BattleInitParams`.
-- `BattleLogicHostGrain` receives only battle init data and starts the single battle through the generic BattleHost lifecycle runner.
+- Orleans `RoomGrain` 负责账号成员关系、所有权检查、房间关闭及面向 RPC 的 DTO。
+- host.extension 的 `MobaRoomState` 负责 MOBA 房间准备规则、英雄及玩家配置选择、队伍分配、最少及最多玩家数验证和 `CanStart`。
+- host.extension 的 `DefaultMobaRoomGameStartSpecBuilder` 负责将房间状态转换为 `MobaRoomGameStartSpec`。
+- Orleans 映射代码负责将 `MobaRoomGameStartSpec` 转换为 Orleans `BattleInitParams`。
+- `BattleLogicHostGrain` 仅接收战斗初始化数据，通过通用 BattleHost 生命周期运行器启动单场战斗。
 
-Future gameplay modes should add room/start-profile adapters around this flow instead of bypassing `MobaRoomState` or manually constructing runtime start specs inside grains or gateway handlers.
+未来玩法模式应围绕该流程增加房间或启动配置适配器，不应绕过 `MobaRoomState`，或在 Grain、网关处理器中手工构造运行时启动规格。
 
-## Orleans Gateway Room Entry
+## Orleans Gateway 房间入口
 
-Orleans Gateway exposes the room flow as transport entrypoints, not as a second room implementation. TCP gateway handlers deserialize shared MemoryPack wire DTOs from `AbilityKit.Protocol.Moba.Room`, validate the session token, map the request to Orleans room DTOs, call `IRoomGrain`, and return shared wire responses. HTTP endpoints are debug-friendly wrappers around the same grain calls and validate the session token before deriving the account id.
+Orleans Gateway 将房间流程公开为传输入口。TCP 网关处理器从 `AbilityKit.Protocol.Moba.Room` 反序列化共享 MemoryPack 传输 DTO，验证会话令牌，将请求映射为 Orleans 房间 DTO，调用 `IRoomGrain` 并返回共享传输响应。HTTP 端点是相同 Grain 调用的便于调试的包装，在推导账号 ID 前验证会话令牌。
 
-Room gateway opcodes are centralized in `RoomGatewayOpCodes`:
+房间网关操作码集中定义于 `RoomGatewayOpCodes`：
 
 - `CreateRoom = 101`
 - `JoinRoom = 102`
@@ -170,32 +170,32 @@ Room gateway opcodes are centralized in `RoomGatewayOpCodes`:
 - `PickHero = 105`
 - `StartBattle = 106`
 
-The expected remote client flow is login, create or join room, pick hero, set ready, owner starts battle, then subscribe to state sync or enter frame-sync flow using the returned battle id/world id. `GatewayRoomClient` should use `WireRoomGatewayBinary` for TCP payloads; it should not send JSON or deserialize Orleans DTOs. Gateway handlers should not rebuild room rules or battle launch specs; they should only validate the transport payload, resolve the current room/account context, map wire DTOs to Orleans DTOs, and delegate to `RoomGrain`.
+预期远程客户端流程为登录、创建或加入房间、选择英雄、准备、房主启动战斗，随后用返回的战斗 ID 和世界 ID 订阅状态同步或进入帧同步流程。`GatewayRoomClient` 的 TCP 载荷应使用 `WireRoomGatewayBinary`，不得发送 JSON 或反序列化 Orleans DTO。网关处理器只验证传输载荷、解析当前房间及账号上下文、将传输 DTO 映射为 Orleans DTO，再委托给 `RoomGrain`，不重建房间规则或战斗启动规格。
 
-`NumericRoomId` is derived by `RoomGatewayIds.CreateNumericRoomId(roomId)`. The same rule is used by Gateway room responses and Orleans room-to-battle mapping so the client room id, battle `WorldId`, and state/frame-sync routing remain consistent.
+`NumericRoomId` 由 `RoomGatewayIds.CreateNumericRoomId(roomId)` 推导。Gateway 房间响应和 Orleans 房间到战斗映射使用同一规则，确保客户端房间 ID、战斗 `WorldId` 及状态同步和帧同步路由一致。
 
-Orleans Gateway owns server-side listening, accepted sessions, connection ids, session registry, token validation, and dispatch into Orleans grains. It should not depend on GameFramework `INetworkChannel`, because that abstraction is a Unity/client outbound channel lifecycle model. Server-side TCP, KCP, WebSocket, or HTTP transports should keep their own listener/session adapters and publish requests through Gateway transport events.
+Orleans Gateway 负责服务端监听、已接受的会话、连接 ID、会话注册表、令牌验证及向 Orleans Grain 分发请求。它不应依赖 GameFramework `INetworkChannel`，因为该抽象描述 Unity 客户端出站通道生命周期。服务端 TCP、KCP、WebSocket 或 HTTP 传输应保留各自的监听器及会话适配器，通过 Gateway 传输事件发布请求。
 
-Gateway transports should reuse the shared AbilityKit wire protocol instead of defining local frame/header types. The current TCP Gateway references `AbilityKit.Network.Runtime` and uses `AbilityKit.Network.Protocol.NetworkFrameCodec`, `NetworkPacketHeader`, and `NetworkPacketFlags` for length-prefixed frames, flags, opcode, sequence id, and payload length. Room payloads continue to use `AbilityKit.Protocol.Moba.RoomGatewayOpCodes` and MemoryPack DTOs, so Unity local/direct mode, GameFramework-backed TCP, fallback TCP, and Orleans remote Gateway mode share the same packet semantics.
+Gateway 传输应复用共享 AbilityKit 传输协议，不定义本地帧或包头类型。当前 TCP Gateway 引用 `AbilityKit.Network.Runtime`，使用 `AbilityKit.Network.Protocol.NetworkFrameCodec`、`NetworkPacketHeader` 和 `NetworkPacketFlags` 处理长度前缀帧、标志、操作码、序列 ID 及载荷长度。房间载荷继续使用 `AbilityKit.Protocol.Moba.RoomGatewayOpCodes` 和 MemoryPack DTO，使 Unity 本地直连模式、基于 GameFramework 的 TCP、回退 TCP 及 Orleans 远程 Gateway 模式共享数据包语义。
 
-## Unity Client Network Direction
+## Unity 客户端网络方向
 
-Unity client networking should use a two-layer boundary:
+Unity 客户端网络采用两层边界：
 
-- GameFramework owns Unity-side network channel lifecycle, channel naming, service type selection, heartbeat integration, and project-level network management.
-- AbilityKit.Network owns AbilityKit protocol semantics: length-prefixed frames, `NetworkPacketHeader`, opcode, sequence id, request/response flags, server push flags, and `IConnection`.
+- GameFramework 负责 Unity 侧网络通道生命周期、通道命名、服务类型选择、心跳集成及项目级网络管理。
+- AbilityKit.Network 负责 AbilityKit 协议语义：长度前缀帧、`NetworkPacketHeader`、操作码、序列 ID、请求及响应标志、服务端推送标志和 `IConnection`。
 
-The bridge package is `com.abilitykit.gameframework.network`. It adapts GameFramework `INetworkChannel` into AbilityKit `IConnection` through `GameFrameworkNetworkChannelConnection`, and uses `AbilityKitGatewayNetworkChannelHelper` to serialize and deserialize AbilityKit Gateway frames inside GameFramework's packet pipeline.
+桥接包为 `com.abilitykit.gameframework.network`。它通过 `GameFrameworkNetworkChannelConnection` 将 GameFramework `INetworkChannel` 适配为 AbilityKit `IConnection`，使用 `AbilityKitGatewayNetworkChannelHelper` 在 GameFramework 数据包管线内序列化和反序列化 AbilityKit Gateway 帧。
 
-`moba.view` should not depend on GameFramework packet/header classes directly. `BattleSessionFeature` stores the room connection as `IConnection`; `GatewayRoomClient` continues to consume only `IConnection` and shared MemoryPack room DTOs. If no factory is supplied, the demo-compatible TCP `ConnectionManager` path remains available as a fallback. A project that uses GameFramework should create or resolve its `INetworkManager` at the Unity composition layer and pass a factory that returns `GameFrameworkGatewayConnectionFactory.Create(networkManager, channelName)`.
+`moba.view` 不应直接依赖 GameFramework 数据包或包头类。`BattleSessionFeature` 将房间连接保存为 `IConnection`；`GatewayRoomClient` 继续仅消费 `IConnection` 和共享 MemoryPack 房间 DTO。未提供工厂时，仍可回退到兼容演示项目的 TCP `ConnectionManager` 路径。使用 GameFramework 的项目应在 Unity 组合层创建或解析 `INetworkManager`，传入返回 `GameFrameworkGatewayConnectionFactory.Create(networkManager, channelName)` 的工厂。
 
-Unity battle features should resolve network channels through `IAbilityKitConnectionRegistry` using logical roles instead of transport-specific fields:
+Unity 战斗功能应通过 `IAbilityKitConnectionRegistry` 按逻辑角色解析网络通道：
 
-- `AbilityKitConnectionRole.GatewayReliable` is the reliable gateway/room/login connection. In the current demo it can be backed by GameFramework TCP or the fallback `ConnectionManager` TCP path.
-- `AbilityKitConnectionRole.BattleRealtime` is reserved for future high-frequency battle traffic such as KCP input, frame, or state-sync data.
-- `AbilityKitConnectionRole.BattleReliable` is reserved for reliable low-frequency battle RPCs when the battle flow needs a separate TCP channel.
+- `AbilityKitConnectionRole.GatewayReliable` 是可靠的网关、房间及登录连接。当前演示项目可使用 GameFramework TCP 或回退的 `ConnectionManager` TCP 路径。
+- `AbilityKitConnectionRole.BattleRealtime` 为未来高频战斗流量预留，如 KCP 输入、帧或状态同步数据。
+- `AbilityKitConnectionRole.BattleReliable` 为需要独立 TCP 通道的战斗流程预留，承载可靠低频战斗 RPC。
 
-This keeps the demo business flow reusable while allowing production Unity projects to standardize channel creation and lifetime around GameFramework. It also leaves room for TCP and KCP to coexist: the composition layer registers providers or concrete `IConnection` instances by role, and battle code asks for the role it needs without knowing whether the underlying transport is GameFramework TCP, fallback TCP, or a future KCP channel.
+这样既可复用演示项目业务流程，也允许生产 Unity 项目围绕 GameFramework 统一通道创建和生命周期。TCP 与 KCP 可以共存：组合层按角色注册提供者或具体 `IConnection` 实例，战斗代码按需请求角色，无需了解底层是 GameFramework TCP、回退 TCP 还是未来的 KCP 通道。
 
 ## 正式多人模式启动流程
 

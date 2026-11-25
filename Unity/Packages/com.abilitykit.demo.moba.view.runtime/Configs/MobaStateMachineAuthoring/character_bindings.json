@@ -7,27 +7,11 @@
         "Expression": {
           "All": [
             {
-              "Fact": "casting"
+              "Fact": "basic.attack.cast"
             },
             {
               "ParameterId": 12,
               "Value": 1
-            }
-          ]
-        }
-      },
-      {
-        "Key": "attack.slot.1.ready",
-        "Expression": {
-          "All": [
-            {
-              "ParameterId": 10,
-              "Value": 1
-            },
-            {
-              "Not": {
-                "Fact": "casting"
-              }
             }
           ]
         }
@@ -37,27 +21,11 @@
         "Expression": {
           "All": [
             {
-              "Fact": "casting"
+              "Fact": "basic.attack.cast"
             },
             {
               "ParameterId": 12,
               "Value": 2
-            }
-          ]
-        }
-      },
-      {
-        "Key": "attack.slot.2.ready",
-        "Expression": {
-          "All": [
-            {
-              "ParameterId": 10,
-              "Value": 2
-            },
-            {
-              "Not": {
-                "Fact": "casting"
-              }
             }
           ]
         }
@@ -67,27 +35,11 @@
         "Expression": {
           "All": [
             {
-              "Fact": "casting"
+              "Fact": "basic.attack.cast"
             },
             {
               "ParameterId": 12,
               "Value": 3
-            }
-          ]
-        }
-      },
-      {
-        "Key": "attack.slot.3.ready",
-        "Expression": {
-          "All": [
-            {
-              "ParameterId": 10,
-              "Value": 3
-            },
-            {
-              "Not": {
-                "Fact": "casting"
-              }
             }
           ]
         }
@@ -97,72 +49,11 @@
         "Expression": {
           "All": [
             {
-              "Fact": "casting"
+              "Fact": "basic.attack.cast"
             },
             {
               "ParameterId": 12,
               "Value": 4
-            }
-          ]
-        }
-      },
-      {
-        "Key": "attack.slot.4.ready",
-        "Expression": {
-          "All": [
-            {
-              "ParameterId": 10,
-              "Value": 4
-            },
-            {
-              "Not": {
-                "Fact": "casting"
-              }
-            }
-          ]
-        }
-      },
-      {
-        "Key": "attack.cast.slot.5",
-        "Expression": {
-          "All": [
-            {
-              "Fact": "casting"
-            },
-            {
-              "ParameterId": 12,
-              "Value": 5
-            }
-          ]
-        }
-      },
-      {
-        "Key": "attack.slot.5.ready",
-        "Expression": {
-          "All": [
-            {
-              "ParameterId": 10,
-              "Value": 5
-            },
-            {
-              "Any": [
-                {
-                  "Not": {
-                    "Fact": "casting"
-                  }
-                },
-                {
-                  "All": [
-                    {
-                      "ParameterId": 11,
-                      "Value": 0
-                    },
-                    {
-                      "Fact": "basic.attack.cast"
-                    }
-                  ]
-                }
-              ]
             }
           ]
         }
@@ -199,9 +90,20 @@
         "Key": "attack.slot.5.reload.after.control",
         "Expression": {
           "All": [
-            { "ParameterId": 10, "Value": 5 },
-            { "Not": { "Fact": "controlled" } },
-            { "Not": { "Fact": "active.skill.cast" } }
+            {
+              "ParameterId": 10,
+              "Value": 5
+            },
+            {
+              "Not": {
+                "Fact": "controlled"
+              }
+            },
+            {
+              "Not": {
+                "Fact": "active.skill.cast"
+              }
+            }
           ]
         }
       },
@@ -217,6 +119,36 @@
               "Not": {
                 "Fact": "casting"
               }
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.recovered.move",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "moving"
+            },
+            {
+              "ParameterId": 10,
+              "Comparison": "ne",
+              "Value": 5
+            }
+          ]
+        }
+      },
+      {
+        "Key": "attack.recovered.idle",
+        "Expression": {
+          "All": [
+            {
+              "Fact": "idle"
+            },
+            {
+              "ParameterId": 10,
+              "Comparison": "ne",
+              "Value": 5
             }
           ]
         }
@@ -321,19 +253,25 @@
         "AimSource": "InputWithinStateCone",
         "AimScope": "curtain_call",
         "AimConeHalfAngleDegrees": 30,
-        "CastKind": "Active"
+        "CastKind": "Active",
+        "LevelSource": "ActivationBuff",
+        "LevelSourceBuffId": 32010404
       },
       {
         "SkillId": 30010502,
         "AimSource": "InputWithinStateCone",
         "AimScope": "curtain_call",
         "AimConeHalfAngleDegrees": 30,
-        "CastKind": "Active"
+        "CastKind": "Active",
+        "LevelSource": "ActivationBuff",
+        "LevelSourceBuffId": 32010404
       },
       {
         "SkillId": 30010605,
         "RespectActionControl": true,
-        "CastKind": "Auxiliary"
+        "CastKind": "Auxiliary",
+        "LevelSource": "Slot",
+        "LevelSourceSlot": 5
       }
     ]
   },

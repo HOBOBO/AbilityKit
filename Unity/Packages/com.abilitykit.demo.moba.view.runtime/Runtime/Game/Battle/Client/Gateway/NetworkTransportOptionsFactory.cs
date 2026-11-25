@@ -12,6 +12,7 @@ using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Room;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using AbilityKit.Protocol.Room;
 
@@ -29,6 +30,12 @@ namespace AbilityKit.Game.Battle
         public string PublicRoomId { get; set; } = string.Empty;
         public bool UseFrameSyncInput { get; set; }
         public bool UseFixedBaselineStateSync { get; set; }
+        /// <summary>
+        /// 仅在固定基线状态同步且双方已部署时启用，其余模式保留原入口。
+        /// </summary>
+        public bool UseScopedStateSyncInput { get; set; }
+        public ulong ScopedInputWorldId { get; set; }
+        public uint ScopedInputPlayerId { get; set; }
         public Func<string>? GetReliableEventEpoch { get; set; }
         public Func<long>? GetReliableEventLastAcknowledgedSequence { get; set; }
     }
@@ -57,6 +64,9 @@ namespace AbilityKit.Game.Battle
             var publicRoomId = options.PublicRoomId;
             var useFrameSyncInput = options.UseFrameSyncInput;
             var useFixedBaseline = !useFrameSyncInput && options.UseFixedBaselineStateSync;
+            var scopedGeneration = useFixedBaseline && options.UseScopedStateSyncInput ? Guid.NewGuid() : Guid.Empty;
+            var scopedWorldId = options.ScopedInputWorldId;
+            var scopedPlayerId = options.ScopedInputPlayerId;
             var getReliableEventEpoch = options.GetReliableEventEpoch;
             var getReliableEventLastAcknowledgedSequence = options.GetReliableEventLastAcknowledgedSequence;
             if (string.IsNullOrWhiteSpace(host)) throw new ArgumentException("Host is required.", nameof(host));
@@ -118,12 +128,23 @@ namespace AbilityKit.Game.Battle
                             s.BattleId,
                             idCodec.Encode,
                             idCodec.Encode);
+                        if (scopedGeneration != Guid.Empty)
+                            config.UseScopedStateSyncInput(scopedWorldId, scopedPlayerId, scopedGeneration,
+                                receivesMovementProof: true);
                     }
 
                     config
                         .WithSnapshotDeserializer(payload =>
                         {
                             var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
+                            if (wire.SchemaVersion == WireStateSyncMovementPayload.SchemaVersion)
+                            {
+                                if (scopedGeneration == Guid.Empty || wire.Payload == null || wire.Payload.Length == 0)
+                                    return null;
+                                var scoped = WireRoomGatewayBinary.Deserialize<WireStateSyncMovementPayload>(wire.Payload.AsSpan());
+                                return GatewayStateSyncSnapshotMapper.MapScoped(in wire, in scoped, scopedGeneration,
+                                    scopedWorldId, scopedPlayerId);
+                            }
                             if ((wire.SchemaVersion == FixedBaselineStateSyncProtocol.SchemaVersion) != useFixedBaseline)
                                 return null;
                             return GatewayRoomClient.ToGatewaySnapshot(in wire);

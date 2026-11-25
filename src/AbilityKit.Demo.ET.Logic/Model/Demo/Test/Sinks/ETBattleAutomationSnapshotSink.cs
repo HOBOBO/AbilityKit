@@ -8,6 +8,7 @@ namespace ET.Logic
     /// </summary>
     public sealed class ETBattleAutomationSnapshotSink : IBattleViewEventSink
     {
+        public void OnActorIndicatorSnapshot(in FrameSnapshotData snapshot) { }
         public void OnShieldStateSnapshot(in FrameSnapshotData snapshot) { }
         private readonly Scene _scene;
         private readonly ETBattleComponent _battleComponent;

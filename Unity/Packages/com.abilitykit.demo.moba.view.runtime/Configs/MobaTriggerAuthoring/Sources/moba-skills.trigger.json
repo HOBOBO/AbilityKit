@@ -22591,51 +22591,11 @@
                   }
                 },
                 {
-                  "name": "magnitude_type",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 6
-                  }
-                },
-                {
-                  "name": "magnitude_parameter",
+                  "name": "magnitude_terms",
                   "value": {
                     "source": "Constant",
                     "type": "String",
-                    "stringValue": "damage"
-                  }
-                },
-                {
-                  "name": "magnitude_secondary_type",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 2
-                  }
-                },
-                {
-                  "name": "magnitude_secondary_attribute",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 4
-                  }
-                },
-                {
-                  "name": "magnitude_secondary_coefficient",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "numberValue": 1.0
-                  }
-                },
-                {
-                  "name": "magnitude_secondary_coefficient_parameter",
-                  "value": {
-                    "source": "Constant",
-                    "type": "String",
-                    "stringValue": "physicalAttackRatio"
+                    "stringValue": "[{\"type\":6,\"parameter\":\"damage\"},{\"type\":2,\"attribute\":4,\"coefficient_parameter\":\"physicalAttackRatio\",\"source_role\":1},{\"type\":2,\"attribute\":5,\"coefficient_parameter\":\"magicAttackRatio\",\"source_role\":1}]"
                   }
                 }
               ],
@@ -24063,51 +24023,11 @@
                   }
                 },
                 {
-                  "name": "magnitude_type",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 6
-                  }
-                },
-                {
-                  "name": "magnitude_parameter",
+                  "name": "magnitude_terms",
                   "value": {
                     "source": "Constant",
                     "type": "String",
-                    "stringValue": "damage"
-                  }
-                },
-                {
-                  "name": "magnitude_secondary_type",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 2
-                  }
-                },
-                {
-                  "name": "magnitude_secondary_attribute",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Integer",
-                    "integerValue": 4
-                  }
-                },
-                {
-                  "name": "magnitude_secondary_coefficient",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "numberValue": 1.0
-                  }
-                },
-                {
-                  "name": "magnitude_secondary_coefficient_parameter",
-                  "value": {
-                    "source": "Constant",
-                    "type": "String",
-                    "stringValue": "physicalAttackRatio"
+                    "stringValue": "[{\"type\":6,\"parameter\":\"damage\"},{\"type\":2,\"attribute\":4,\"coefficient_parameter\":\"physicalAttackRatio\",\"source_role\":1},{\"type\":2,\"attribute\":5,\"coefficient_parameter\":\"magicAttackRatio\",\"source_role\":1}]"
                   }
                 }
               ],
@@ -24754,6 +24674,32 @@
               "elseChildren": []
             },
             {
+              "nodeId": "node_3c13412123f757e6b4d8ad9d6cda93a1",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90013004
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
               "nodeId": "node_97c44d8242704c91aa907d09d8e12203",
               "enabled": true,
               "kind": "Action",
@@ -25261,6 +25207,32 @@
                     "source": "Constant",
                     "type": "Boolean",
                     "booleanValue": false
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_4754fe9d53495edd9f3bc592f0fbc478",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90031010
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
                   }
                 }
               ],
@@ -30074,24 +30046,6 @@
                   }
                 },
                 {
-                  "name": "duration_ms",
-                  "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "integerValue": 0,
-                    "numberValue": 14000.0,
-                    "booleanValue": false,
-                    "stringValue": "",
-                    "integerListValue": [],
-                    "vector3Value": {
-                      "x": 0.0,
-                      "y": 0.0,
-                      "z": 0.0
-                    },
-                    "fields": []
-                  }
-                },
-                {
                   "name": "total_count",
                   "value": {
                     "source": "Constant",
@@ -30107,6 +30061,22 @@
                       "z": 0.0
                     },
                     "fields": []
+                  }
+                },
+                {
+                  "name": "duration_skill_level_parameter",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "summonDurationMs"
+                  }
+                },
+                {
+                  "name": "birth_attributes",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "[{\"attribute\":1,\"magnitude_terms\":[{\"type\":6,\"parameter\":\"summonHealth\"}]},{\"attribute\":2,\"magnitude_terms\":[{\"type\":6,\"parameter\":\"summonHealth\"}]},{\"attribute\":4,\"magnitude_terms\":[{\"type\":6,\"parameter\":\"summonDamage\"}]}]"
                   }
                 }
               ],
@@ -30177,6 +30147,32 @@
                     "source": "Constant",
                     "type": "Integer",
                     "integerValue": 32020201
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_3970b0f78f00529cb296c82f4b49d71d",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90032001
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
                   }
                 }
               ],
@@ -30287,6 +30283,32 @@
                     "source": "Context",
                     "type": "Number",
                     "path": "skill_runtime:cast.base_magnitude"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_4ec876441d36567fa5efdf40f851a278",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90032003
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 4
                   }
                 }
               ],

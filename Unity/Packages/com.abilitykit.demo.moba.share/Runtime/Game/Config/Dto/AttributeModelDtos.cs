@@ -32,6 +32,14 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int PerSecondBloodR;
         public int PerSecondManaR;
         public int ResilienceR;
+        /// <summary>
+        /// 每秒固定回复的法力点数，允许小数；不使用旧回复率单位。
+        /// </summary>
+        public float ManaRegenPerSecond;
+        /// <summary>
+        /// 每个出生等级增加的每秒固定回蓝量。
+        /// </summary>
+        public float ManaRegenPerSecondGrowth;
         public int HpGrowth;
         public int MaxHpGrowth;
         public int ExtraHpGrowth;

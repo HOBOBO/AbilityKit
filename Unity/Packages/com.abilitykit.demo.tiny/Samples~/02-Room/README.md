@@ -1,11 +1,11 @@
-# 02 Room
+# 02 房间
 
-`TinyRoomExample` uses the public `IRoomGatewaySessionClient` API to create a Tiny room, let each authenticated player join and ready, complete Loading, and enter battle. The caller owns the Gateway connection, login, and cancellation token. Snapshot subscription and battle sync begin in later chapters.
+`TinyRoomExample` 使用公开的 `IRoomGatewaySessionClient` API 创建 Tiny 房间，让每位已认证玩家加入并准备，完成加载后进入战斗。调用方负责 Gateway 连接、登录和取消令牌。快照订阅及战斗同步从后续章节开始。
 
-The caller also owns the create command ID. Pass the same ID when retrying one uncertain create result, and use a new ID for a new room. The independent Room sample replays a create request with the same ID and checks that the room ID remains unchanged.
+创建命令 ID 也由调用方管理。重试同一次结果不确定的创建操作时应使用相同 ID；创建新房间时使用新 ID。独立房间示例会以相同 ID 重放创建请求，并检查房间 ID 保持不变。
 
-In the Unity session, a room command response is accepted only while its connection generation and observed room snapshot are still current. After reconnecting, the restored room snapshot is authoritative: a late create response does not automatically join its room, and late join, ready, Loading, or leave responses cannot overwrite the restored state. Create, Loading, and leave use stable command IDs while retrying the same operation. If create times out and restore finds no active room, retry with the same sync mode so the pending create ID is reused. Once a room is closed or its creator leaves, that create ID cannot reopen or rebind the old room; start a new create attempt with a new ID. Back can leave the scene during a disconnection; it cannot confirm a server-side leave until the connection is available.
+Unity 会话仅在连接代际和已观察的房间快照仍有效时接受房间命令响应。重连后，以恢复的房间快照为权威：迟到的创建响应不会自动加入其房间，迟到的加入、准备、加载或离开响应也不能覆盖恢复后的状态。重试同一次创建、加载或离开操作时使用稳定的命令 ID。若创建超时且恢复未找到活动房间，使用原同步模式重试，以复用待处理的创建 ID。房间关闭或创建者离开后，该创建 ID 不能重新打开或绑定旧房间；应以新 ID 发起新的创建尝试。断线期间可以返回并离开场景，但连接恢复前无法确认服务器端的离房结果。
 
-The sample keeps pending command IDs in the Unity session and uses the server's in-memory room store. To retain this retry guarantee across client or server restarts, persist pending IDs on the client and use a shared, durable `IRoomStateStore` across server silos.
+示例在 Unity 会话中保留待处理命令 ID，并使用服务器的内存房间存储。若要在客户端或服务器重启后仍保证上述重试语义，需要在客户端持久化待处理 ID，并在服务器 silo 间使用共享、持久化的 `IRoomStateStore`。
 
-From the repository root, run `./tools/verify-tiny-starter.ps1 -SkipUnity` to execute this source in the independent `src/AbilityKit.Demo.Tiny.RoomSample` two-client test against an isolated Host and Gateway. Its result is saved in `room-sample.log`.
+从仓库根运行 `./tools/verify-tiny-starter.ps1 -SkipUnity`，可在独立的 `src/AbilityKit.Demo.Tiny.RoomSample` 双客户端测试中，针对隔离的 Host 和 Gateway 执行本示例源码。结果保存于 `room-sample.log`。

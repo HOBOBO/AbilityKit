@@ -167,7 +167,9 @@ internal static class GatewaySkillDiagnostics
         string battleId,
         BattleDiagnosticEventsResult result)
     {
-        // Runtime fields are authoritative. Zero correlation IDs mean unknown, not an inferred edge.
+        /*
+         * 运行时字段为权威来源。关联 ID 为零表示未知，不推断关系边。
+         */
         return new AdminSkillEventHttpResponse(
             item.Frame,
             checked((int)item.SourceActorId),

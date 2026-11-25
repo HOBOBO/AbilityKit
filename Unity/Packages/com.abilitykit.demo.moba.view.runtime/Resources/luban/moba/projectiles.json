@@ -26,7 +26,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 2,
@@ -55,7 +56,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30020101,
@@ -84,7 +86,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30040201,
@@ -119,7 +122,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30050101,
@@ -151,7 +155,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30050201,
@@ -180,7 +185,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30050301,
@@ -209,7 +215,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30060301,
@@ -245,7 +252,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30020001,
@@ -274,7 +282,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30040011,
@@ -303,7 +312,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30050001,
@@ -332,7 +342,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30060001,
@@ -361,7 +372,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30070001,
@@ -390,7 +402,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30070301,
@@ -423,7 +436,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30070201,
@@ -458,7 +472,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30070202,
@@ -493,7 +508,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30070302,
@@ -532,7 +548,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30080001,
@@ -561,7 +578,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30080101,
@@ -596,7 +614,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30080201,
@@ -633,7 +652,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30080301,
@@ -670,7 +690,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 30080401,
@@ -707,7 +728,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32010101,
@@ -744,7 +766,13 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": [
+      90013016,
+      90013022,
+      90013023,
+      90013024
+    ]
   },
   {
     "Id": 32010201,
@@ -815,7 +843,8 @@
       }
     ],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32010401,
@@ -886,7 +915,8 @@
       }
     ],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32010402,
@@ -959,7 +989,8 @@
       }
     ],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32010601,
@@ -996,7 +1027,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32010602,
@@ -1033,7 +1065,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32010301,
@@ -1072,7 +1105,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32030101,
@@ -1107,7 +1141,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32020201,
@@ -1144,7 +1179,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32020202,
@@ -1181,7 +1217,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32020203,
@@ -1213,7 +1250,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32020403,
@@ -1245,7 +1283,8 @@
     "HitIdentityPolicy": 0,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32040101,
@@ -1277,7 +1316,8 @@
     "HitIdentityPolicy": 1,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32040501,
@@ -1318,7 +1358,8 @@
       }
     ],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32050201,
@@ -1366,7 +1407,8 @@
     "MaxDistanceResponse": 1,
     "OnArrivalTriggerIds": [
       30050211
-    ]
+    ],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32050501,
@@ -1414,7 +1456,8 @@
       }
     ],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32060101,
@@ -1451,7 +1494,8 @@
     "HitIdentityPolicy": 1,
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32070101,
@@ -1493,7 +1537,8 @@
       }
     ],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32070201,
@@ -1535,7 +1580,8 @@
       }
     ],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32070301,
@@ -1590,7 +1636,8 @@
       }
     ],
     "MaxDistanceResponse": 2,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32070401,
@@ -1638,7 +1685,8 @@
       }
     ],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   },
   {
     "Id": 32040011,
@@ -1679,6 +1727,7 @@
       }
     ],
     "MaxDistanceResponse": 0,
-    "OnArrivalTriggerIds": []
+    "OnArrivalTriggerIds": [],
+    "HitOrdinalVfxIds": []
   }
 ]

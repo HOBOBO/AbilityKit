@@ -4,11 +4,7 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
 /// <summary>
-/// Emits the MemoryPack backend surface for a single project export: a codec facade that wraps
-/// <c>MemoryPackSerializer</c> behind typed helpers, plus decoder-registration glue that wires each
-/// memorypack catalog message owning a generated wire schema into
-/// <c>ProtocolPayloadDecoderRegistry</c>. The emitted file references <c>MemoryPack</c> and therefore
-/// lives in the opt-in project export folder, never in the always-compiled built-in catalog.
+/// 生成单项目导出的 MemoryPack 后端接口：通过强类型辅助方法包装 <c>MemoryPackSerializer</c>，并将拥有生成线协议结构的各 MemoryPack 目录消息接入 <c>ProtocolPayloadDecoderRegistry</c>。生成文件引用 <c>MemoryPack</c>，因此仅放入显式启用的项目导出目录，不放入始终编译的内置目录。
 /// </summary>
 public static class MemoryPackBackendEmitter
 {
@@ -89,9 +85,7 @@ public static class MemoryPackBackendEmitter
     }
 
     /// <summary>
-    /// Resolves the unique memorypack catalog message whose payload element type equals a schema's
-    /// qualified type. Returns <c>null</c> when no message references the type or when more than one
-    /// does, since a single <c>ProtocolOpCode</c> cannot represent an ambiguous opcode mapping.
+    /// 解析载荷元素类型与结构完整类型名相同的唯一 MemoryPack 目录消息。无引用或存在多个引用时返回 <c>null</c>，因为单个 <c>ProtocolOpCode</c> 无法表示有歧义的操作码映射。
     /// </summary>
     public static ProtocolMessageIr? ResolveProtocolMessage(
         WireSchemaIr schema,

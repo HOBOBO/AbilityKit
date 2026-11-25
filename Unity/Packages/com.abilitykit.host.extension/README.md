@@ -17,6 +17,8 @@ MOBA 的房间、开局和宿主适配归 `com.abilitykit.demo.moba.host`，协�
 
 ## 接入与限制
 
+安装条件以包声明为准。首次接入从[使用指南](Documentation~/Usage.md)的固定步长完整示例开始；[文档索引](Documentation~/README.md)统一导航当前契约。
+
 模块使用同一组 `HostRuntime` 和 `HostRuntimeOptions` 安装与卸载；宿主负责装配顺序和关闭，暂不支持模块并发驱动或在活动世界中热替换时钟。具体顺序、时间来源和失败边界见[时间与世界启动契约](Documentation~/TimeAndWorldStart.md)。
 
 其余旧设计资料保留在 `Document/`，示例保留在 `Example/`。MOBA 专属房间与开局设计已随对应包归档。先以包内契约和实现确定当前行为；版本记录见 [CHANGELOG](CHANGELOG.md)。

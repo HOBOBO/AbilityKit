@@ -195,6 +195,17 @@ namespace AbilityKit.Core.Mathematics
                     : -direction;
             }
 
+            /*
+             * 胶囊包围盒的保守回退可能在实际胶囊之外返回零距离命中。
+             * 此时沿分离法向离开或作切向移动不构成阻挡；否则角色到达包围盒
+             * 边界后，反向输入也会被同一个零距离命中锁住。
+             */
+            if (distance <= MathUtil.Epsilon && Vec3.Dot(direction, n) >= 0f)
+            {
+                worldNormal = Vec3.Zero;
+                return false;
+            }
+
             worldNormal = n;
             return true;
         }

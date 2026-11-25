@@ -86,6 +86,28 @@ namespace AbilityKit.Combat.Collision.Abstractions.Tests
         }
 
         /// <summary>
+        /// 胶囊包围盒边界的零距离近似命中，只阻挡朝内移动，允许反向和切向离开。
+        /// </summary>
+        [Theory]
+        [InlineData(-1f, 0f, false)]
+        [InlineData(0f, 1f, false)]
+        [InlineData(1f, 0f, true)]
+        public void SweepVsCapsule_ConservativeBoundaryAllowsSeparation(float x, float z, bool blocked)
+        {
+            var capsule = ColliderShape.CreateCapsule(new Vec3(0f, 1f, 0f), new Vec3(0f, 2f, 0f), 1f);
+            var start = new Vec3(-1.5f, 0f, 0f);
+            var direction = new Vec3(x, 0f, z);
+
+            Assert.Equal(blocked, SphereSweepQueries.SweepVsShape(start, direction, 1f, .5f,
+                capsule, out var distance, out var normal));
+            if (blocked)
+            {
+                Assert.InRange(distance, 0f, 1f);
+                Assert.True(normal.X < 0f);
+            }
+        }
+
+        /// <summary>
         /// 用与查询内核相同的定点公式独立复算命中距离（t = -b - sqrt(disc) / 2a），
         /// 锁定“内核与参考公式逐位一致”的契约。
         /// </summary>

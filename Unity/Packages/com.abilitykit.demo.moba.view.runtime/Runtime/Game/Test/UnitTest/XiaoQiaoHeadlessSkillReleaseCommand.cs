@@ -9,6 +9,7 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.Testing;
 using AbilityKit.Game.Flow;
 using UnityEditor;
 using UnityEngine;
@@ -131,6 +132,7 @@ namespace AbilityKit.Game.Test.UnitTest
             try
             {
                 DemoGameplayTestLauncher.OpenMobaLocalForPlay();
+                SessionState.SetBool(MobaBattleScenarioPlayback.PendingTraceDiagnosticsKey, true);
 
                 EditorApplication.EnterPlaymode();
             }
@@ -674,6 +676,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private static void Finish(bool success, string message)
         {
+            SessionState.EraseBool(MobaBattleScenarioPlayback.PendingTraceDiagnosticsKey);
             var resultPath = SessionState.GetString(ResultPathKey, Path.GetFullPath("../UnityXiaoQiaoHeadlessSkillReleaseCommand.xml"));
             SessionState.EraseBool(RunningKey);
             SessionState.EraseString(ResultPathKey);

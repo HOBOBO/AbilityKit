@@ -417,19 +417,19 @@ namespace AbilityKit.Triggering.Runtime
         }
 
         /// <summary>
-        /// 只读校验游标、进度和原地定义是否存在，不调用可执行对象。
+        /// 在帧边界只读校验游标、进度和原地定义是否存在，不调用可执行对象。
         /// 调用方必须保证目标来自同一有效历史，ID 命中不证明定义没有跨分支复用。
         /// </summary>
-        public void ValidateProgress(in TriggerExecutionProgress progress) => ValidateProgressEntries(in progress);
+        public void ValidateProgress(in TriggerExecutionProgress progress) => PreflightProgress(in progress);
 
         /// <summary>
-        /// 在帧边界按已验证的值静默恢复。保留项不改变现有相对调度顺序，未列出的项被移除。
+        /// 在帧边界重新校验后静默恢复。保留项不改变现有相对调度顺序，未列出的项被移除。
         /// 校验失败时不写入；不重建缺失定义，不重放历史执行，也不改变终态留存选项。
         /// 调用方不得使用已失效分支的快照，也不得从执行回调调用。
         /// </summary>
         public void RestoreProgress(in TriggerExecutionProgress progress)
         {
-            var retained = ValidateProgressEntries(in progress);
+            var retained = PreflightProgress(in progress);
             foreach (var item in progress.Entries)
                 AssignProgress(_definitions[item.Id], in item);
 
@@ -454,22 +454,10 @@ namespace AbilityKit.Triggering.Runtime
             ActiveCount = activeCount;
         }
 
-        private HashSet<long> ValidateProgressEntries(in TriggerExecutionProgress progress)
+        private HashSet<long> PreflightProgress(in TriggerExecutionProgress progress)
         {
             RequireFrameBoundary();
-            if (progress.NextExecutionId <= 0 || progress.Entries == null)
-                throw new InvalidOperationException("Invalid scheduled execution progress or ID cursor.");
-
-            var ids = new HashSet<long>();
-            foreach (var item in progress.Entries)
-            {
-                if (item.Id <= 0 || item.Id >= progress.NextExecutionId || !ids.Add(item.Id) ||
-                    !_definitions.ContainsKey(item.Id) || !IsValidProgress(in item))
-                    throw new InvalidOperationException(
-                        $"Scheduled execution {item.Id} cannot be restored without valid progress and its in-process definition.");
-            }
-
-            return ids;
+            return TriggerExecutionProgressValidator.ValidateSnapshot(in progress, _definitions);
         }
 
         private void RequireFrameBoundary()
@@ -486,7 +474,7 @@ namespace AbilityKit.Triggering.Runtime
         {
             if (!_definitions.TryGetValue(progress.Id, out var entry))
                 throw new ArgumentOutOfRangeException(nameof(progress));
-            if (!IsValidProgress(in progress))
+            if (!TriggerExecutionProgressValidator.IsValidEntry(in progress))
                 throw new ArgumentOutOfRangeException(nameof(progress));
             AssignProgress(entry, in progress);
             RecountActive();
@@ -494,13 +482,6 @@ namespace AbilityKit.Triggering.Runtime
                 progress.State != TriggerScheduledExecutionState.Waiting)
                 Remove(progress.Id);
         }
-
-        private static bool IsValidProgress(in TriggerScheduledExecutionInfo progress) =>
-            progress.State >= TriggerScheduledExecutionState.Waiting &&
-            progress.State <= TriggerScheduledExecutionState.Failed &&
-            progress.ElapsedMs >= 0 && !double.IsInfinity(progress.ElapsedMs) &&
-            progress.LastExecutionMs >= 0 && !double.IsInfinity(progress.LastExecutionMs) &&
-            progress.ExecutionCount >= 0;
 
         private static void AssignProgress(Entry entry, in TriggerScheduledExecutionInfo progress)
         {

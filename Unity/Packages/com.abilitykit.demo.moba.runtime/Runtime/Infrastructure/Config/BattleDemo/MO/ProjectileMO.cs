@@ -42,6 +42,22 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int[] OnExitTriggerIds { get; }
         public int OnSpawnVfxId { get; }
         public int OnHitVfxId { get; }
+        private readonly int[] _hitOrdinalVfxIds;
+
+        /// <summary>
+        /// 配置分段命中特效时由权威 Cue 播放，旧命中事件不再补播。
+        /// </summary>
+        public bool UsesHitOrdinalCue => _hitOrdinalVfxIds.Length > 0;
+
+        /// <summary>
+        /// 按当前投射物从一开始的累计命中序号选取特效，超出列表则使用默认特效。
+        /// </summary>
+        public int ResolveHitVfxId(int hitOrdinal)
+        {
+            return hitOrdinal > 0 && hitOrdinal <= _hitOrdinalVfxIds.Length
+                ? _hitOrdinalVfxIds[hitOrdinal - 1]
+                : OnHitVfxId;
+        }
         public int OnExpireVfxId { get; }
 
         public int ReturnAfterMs { get; }
@@ -202,6 +218,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             OnExitTriggerIds = dto.OnExitTriggerIds ?? Array.Empty<int>();
             OnSpawnVfxId = dto.OnSpawnVfxId;
             OnHitVfxId = dto.OnHitVfxId;
+            _hitOrdinalVfxIds = dto.HitOrdinalVfxIds == null
+                ? Array.Empty<int>()
+                : (int[])dto.HitOrdinalVfxIds.Clone();
             OnExpireVfxId = dto.OnExpireVfxId;
 
             ReturnAfterMs = dto.ReturnAfterMs;

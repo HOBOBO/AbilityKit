@@ -2,13 +2,17 @@ using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Network.Abstractions
 {
-    /// <summary>Optional connection capability exposing the framework packet router.</summary>
+    /// <summary>
+    /// 公开框架数据包路由器的可选连接能力。
+    /// </summary>
     public interface IProtocolRoutedConnection
     {
         NetworkPacketRouter PacketRouter { get; }
     }
 
-    /// <summary>Optional connection capability exposing a read-only diagnostics snapshot.</summary>
+    /// <summary>
+    /// 公开只读诊断快照的可选连接能力。
+    /// </summary>
     public interface INetworkConnectionDiagnosticsSource
     {
         NetworkConnectionDiagnosticsSnapshot GetDiagnosticsSnapshot();

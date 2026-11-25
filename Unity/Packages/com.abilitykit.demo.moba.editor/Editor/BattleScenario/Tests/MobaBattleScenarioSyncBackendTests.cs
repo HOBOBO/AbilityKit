@@ -15,6 +15,33 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
     public sealed class MobaBattleScenarioSyncBackendTests
     {
         [Test]
+        public void FormalStateSyncClientReplay_UsesSameTickComparisonAndReplaysEveryTickBeforePublishing()
+        {
+            var capture = BattleScenarioEditorIntegration.CaptureStateSyncClientReplay;
+            Assert.That(capture, Is.Not.Null);
+            var replay = LocalStateSyncReplay.Parse(capture().Serialize());
+            Assert.That(capture().Serialize(), Is.EqualTo(replay.Serialize()), "Repeated runs must produce the same preview.");
+
+            var timeline = replay.BuildTimeline();
+            var compare = timeline.Frames.Single(frame => frame.Phase == LocalStateSyncReplay.FramePhase.Compare);
+            var anchor = timeline.Frames.Single(frame => frame.Phase == LocalStateSyncReplay.FramePhase.Anchor);
+            var steps = timeline.Frames.Where(frame => frame.Phase == LocalStateSyncReplay.FramePhase.ReplayTick).ToArray();
+            var final = timeline.Frames[timeline.Frames.Count - 1];
+            Assert.That(compare.Point.DeliveryTick, Is.EqualTo(14));
+            Assert.That(compare.Point.ComparisonTick, Is.EqualTo(11));
+            Assert.That(compare.PredictionPose.Z, Is.EqualTo(1f).Within(.001f));
+            Assert.That(compare.AuthorityProjectionPose.Z, Is.EqualTo(-2f).Within(.001f));
+            Assert.That(anchor.PredictionPose.Z, Is.EqualTo(-2f).Within(.001f));
+            Assert.That(anchor.SharesAnchorPose, Is.True);
+            Assert.That(steps.Select(frame => frame.Step.Tick), Is.EqualTo(new[] { 12, 13, 14 }));
+            Assert.That(steps.Select(frame => frame.Position), Is.EqualTo(new[] { -1000, 0, 1000 }));
+            Assert.That(steps.Select(frame => frame.AuthorityProjectionPose.Z), Is.EqualTo(new[] { -2f, -2f, -2f }));
+            Assert.That(final.Point.AppliedTick, Is.EqualTo(11), "prediction must not step the authoritative world");
+            Assert.That(final.Point.DeliveryTick, Is.EqualTo(15));
+            Assert.That(final.PredictionPose.Z, Is.EqualTo(2f).Within(.001f));
+        }
+
+        [Test]
         public void EditorRunner_UsesUnityBackendAndReportsAssertionFailure()
         {
             var scenario = BattleScenarioCompiler.Compile("editor-sync", MobaBattleScenarioDslParser.Parse(@"

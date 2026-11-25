@@ -48,7 +48,7 @@ public sealed class MultiplayerRoomSessionCreateTests
     {
         using var gateway = new MiniGateway { LoginSucceeds = false };
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             MultiplayerRoomSession.CreateAsync(
                 Host, Port, Account, Spec,
                 transportFactory: () => gateway.ClientTransport,
@@ -56,15 +56,14 @@ public sealed class MultiplayerRoomSessionCreateTests
 
         // Failure inside CreateAsync must dispose the SDK client (and with it the transport) —
         // InMemoryTransport.Dispose closes the pair, observable as !IsConnected.
+        Assert.Equal("Guest login failed: login rejected", error.Message);
         Assert.False(gateway.ClientTransport.IsConnected, "client transport should be closed after login failure");
         Assert.Equal(1, gateway.GuestLogins);
     }
 
     /// <summary>
-    /// In-process room gateway: wraps the server half of an InMemory pair in a real
-    /// <see cref="NetworkSession"/> (same frame codec as the client) and answers the
-    /// guest-login + room-flow wire opcodes. Requests carry seq; responses echo it with a
-    /// [int32 LE status=0][body] frame, exactly what RequestClient/TcpGatewayResponseCodec expect.
+    /// 内存网关使用真实 <see cref="NetworkSession"/> 应答房间请求。
+    /// 响应保留请求操作码与关联序号，负载按 SDK 默认策略直接发送，不附加状态头。
     /// </summary>
     private sealed class MiniGateway : IDisposable
     {
@@ -90,17 +89,17 @@ public sealed class MultiplayerRoomSessionCreateTests
             {
                 case RoomGatewayOpCodes.GuestLogin:
                     GuestLogins++;
-                    Reply(seq, WireRoomGatewayBinary.Serialize(new WireRoomGuestLoginRes
+                    Reply(opCode, seq, WireRoomGatewayBinary.Serialize(new WireRoomGuestLoginRes
                     {
                         Success = LoginSucceeds,
                         SessionToken = "wire-token",
                         AccountId = Account,
-                        Message = string.Empty,
+                        Message = LoginSucceeds ? string.Empty : "login rejected",
                     }));
                     break;
 
                 case RoomGatewayOpCodes.CreateRoom:
-                    Reply(seq, WireRoomGatewayBinary.Serialize(new WireCreateRoomRes
+                    Reply(opCode, seq, WireRoomGatewayBinary.Serialize(new WireCreateRoomRes
                     {
                         Success = true,
                         RoomId = "room-1",
@@ -110,7 +109,7 @@ public sealed class MultiplayerRoomSessionCreateTests
                     break;
 
                 case RoomGatewayOpCodes.JoinRoom:
-                    Reply(seq, WireRoomGatewayBinary.Serialize(new WireJoinRoomRes
+                    Reply(opCode, seq, WireRoomGatewayBinary.Serialize(new WireJoinRoomRes
                     {
                         Success = true,
                         RoomId = "room-1",
@@ -125,7 +124,7 @@ public sealed class MultiplayerRoomSessionCreateTests
                     break;
 
                 case RoomGatewayOpCodes.SetReady:
-                    Reply(seq, WireRoomGatewayBinary.Serialize(new WireRoomSnapshotRes
+                    Reply(opCode, seq, WireRoomGatewayBinary.Serialize(new WireRoomSnapshotRes
                     {
                         Success = true,
                         RoomId = "room-1",
@@ -136,7 +135,7 @@ public sealed class MultiplayerRoomSessionCreateTests
                     break;
 
                 case RoomGatewayOpCodes.SubscribeStateSync:
-                    Reply(seq, WireRoomGatewayBinary.Serialize(new WireSubscribeStateSyncRes
+                    Reply(opCode, seq, WireRoomGatewayBinary.Serialize(new WireSubscribeStateSyncRes
                     {
                         Success = true,
                         Message = string.Empty,
@@ -156,12 +155,9 @@ public sealed class MultiplayerRoomSessionCreateTests
             WorldId = 1,
         };
 
-        private void Reply(uint seq, ArraySegment<byte> body)
+        private void Reply(uint opCode, uint seq, ArraySegment<byte> body)
         {
-            var frame = new byte[4 + body.Count];
-            // first 4 bytes: TcpGatewayStatusCode.Ok (little-endian int32, already zero-initialized)
-            body.CopyTo(frame, 4);
-            _server.Send(seq, new ArraySegment<byte>(frame), 0, seq);
+            _server.Send(opCode, body, 0, seq);
         }
 
         public void Dispose()

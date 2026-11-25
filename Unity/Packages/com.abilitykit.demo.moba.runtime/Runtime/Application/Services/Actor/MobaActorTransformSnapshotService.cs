@@ -7,9 +7,9 @@ using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    // One-time actor attachments consume the projected pose when their cue arrives.
-    // Publish this frame's transform before presentation cues (priority 65), so a
-    // cast that turns and starts a visual together cannot freeze the previous facing.
+    /*
+     * 一次性角色附着在提示到达时消费投影姿态。在表现提示（优先级 65）前发布本帧变换，避免同时转向和启动视觉效果的施法冻结在上一朝向。
+     */
     [MobaSnapshotEmitter(64)]
     [WorldService(typeof(MobaActorTransformSnapshotService))]
     public sealed class MobaActorTransformSnapshotService : LogicWorldSnapshotBufferEmitterBase<MobaActorTransformSnapshotService, MobaActorTransformSnapshotEntry>

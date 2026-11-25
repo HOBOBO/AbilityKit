@@ -1,7 +1,7 @@
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Stable runtime kind names shared by execution contexts, events, and optional observers.
+    /// 执行上下文、事件及可选观察者共享的稳定运行时种类名称。
     /// </summary>
     public static class MobaRuntimeKindNames
     {

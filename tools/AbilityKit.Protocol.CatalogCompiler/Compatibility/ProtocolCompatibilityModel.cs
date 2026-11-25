@@ -3,9 +3,7 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 namespace AbilityKit.Protocol.CatalogCompiler.Compatibility;
 
 /// <summary>
-/// Canonical, codec-neutral string forms used by the compatibility baseline artifact. The
-/// baseline stores enums as these strings so the artifact is stable across serializer and
-/// runtime enum renames, and the diff can compare with plain ordinal string equality.
+/// 兼容性基线采用的规范、编解码无关字符串形式。枚举按这些字符串保存，使序列化器或运行时枚举重命名不影响产物，并允许差异检查使用序数字符串相等比较。
 /// </summary>
 public static class ProtocolCompatibilityNames
 {
@@ -27,29 +25,37 @@ public static class ProtocolCompatibilityNames
     public static string MemberStyle(WireMemberStyle value) => value.ToString().ToLowerInvariant();
 }
 
-/// <summary>Severity of a detected protocol compatibility change.</summary>
+/// <summary>
+/// 已检测协议兼容性变化的严重程度。
+/// </summary>
 public enum ProtocolCompatibilitySeverity
 {
-    /// <summary>Backwards-compatible: peers built against the baseline keep interoperating.</summary>
+    /// <summary>
+    /// 向后兼容，基于基线构建的对端仍可互操作。
+    /// </summary>
     Compatible,
 
     /// <summary>
-    /// Breaking: peers built against the baseline cannot interoperate. Every breaking change
-    /// must be accompanied by a revision bump of the owning catalog (see
-    /// <see cref="ProtocolRevisionPolicy"/>).
+    /// 破坏性变化，基于基线构建的对端无法互操作。每项变化必须递增所属目录修订号，见 <see cref="ProtocolRevisionPolicy"/>。
     /// </summary>
     Breaking
 }
 
-/// <summary>Classified kinds of protocol changes the compatibility diff can detect.</summary>
+/// <summary>
+/// 兼容性差异检查可检测的协议变化类别。
+/// </summary>
 public enum ProtocolCompatibilityChangeKind
 {
-    // Catalog scope
+    /*
+     * 目录范围。
+     */
     CatalogAdded,
     CatalogRemoved,
     CatalogDefaultCodecChanged,
 
-    // Message scope (identity: catalog id + message id)
+    /*
+     * 消息范围，身份为目录 ID 与消息 ID。
+     */
     MessageAdded,
     MessageRemoved,
     MessageOpCodeChanged,
@@ -63,7 +69,9 @@ public enum ProtocolCompatibilityChangeKind
     MessageSchemaWindowChanged,
     MessageBudgetChanged,
 
-    // Wire schema scope (identity: qualified type)
+    /*
+     * 线协议结构范围，身份为完整类型名。
+     */
     WireSchemaAdded,
     WireSchemaRemoved,
     WireFieldAdded,
@@ -78,7 +86,9 @@ public enum ProtocolCompatibilityChangeKind
     WireDeclarationShapeChanged
 }
 
-/// <summary>One classified difference between a baseline and the current protocol sources.</summary>
+/// <summary>
+/// 基线与当前协议源之间的一项已分类差异。
+/// </summary>
 public sealed record ProtocolCompatibilityChange(
     string CatalogId,
     string? MessageId,
@@ -87,7 +97,9 @@ public sealed record ProtocolCompatibilityChange(
     ProtocolCompatibilitySeverity Severity,
     string Detail);
 
-/// <summary>The full classified result of comparing current sources against a baseline.</summary>
+/// <summary>
+/// 当前源与基线比较后的完整分类结果。
+/// </summary>
 public sealed class ProtocolCompatibilityReport
 {
     public ProtocolCompatibilityReport(IReadOnlyList<ProtocolCompatibilityChange> changes)
@@ -102,14 +114,20 @@ public sealed class ProtocolCompatibilityReport
 
     public IReadOnlyList<ProtocolCompatibilityChange> BreakingChanges { get; }
 
-    /// <summary>True when no change breaks peers built against the baseline.</summary>
+    /// <summary>
+    /// 不存在破坏基线对端互操作能力的变化时为 true。
+    /// </summary>
     public bool IsCompatible => BreakingChanges.Count == 0;
 }
 
-/// <summary>A single revision-policy violation (breaking change without the required bump, or a regression).</summary>
+/// <summary>
+/// 一项修订策略违规：破坏性变化未按要求递增，或修订号倒退。
+/// </summary>
 public sealed record ProtocolRevisionPolicyViolation(string CatalogId, string Rule, string Detail);
 
-/// <summary>Outcome of evaluating the catalog revision policy over a compatibility report.</summary>
+/// <summary>
+/// 对兼容性报告应用目录修订策略的结果。
+/// </summary>
 public sealed record ProtocolRevisionPolicyResult(IReadOnlyList<ProtocolRevisionPolicyViolation> Violations)
 {
     public ProtocolRevisionPolicyResult() : this(Array.Empty<ProtocolRevisionPolicyViolation>())
@@ -120,8 +138,7 @@ public sealed record ProtocolRevisionPolicyResult(IReadOnlyList<ProtocolRevision
 }
 
 /// <summary>
-/// Combined compatibility verdict: the classified diff plus the revision policy evaluation over
-/// that diff. A protocol change is clean only when both parts pass.
+/// 合并兼容性结论，包括已分类差异及其修订策略结果。两部分均通过时协议变化才通过。
 /// </summary>
 public sealed record ProtocolCompatibilityCheckResult(
     ProtocolCompatibilityReport Report,

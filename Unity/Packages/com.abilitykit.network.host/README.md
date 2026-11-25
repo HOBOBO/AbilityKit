@@ -91,8 +91,11 @@ await host.StopAsync(TimeSpan.FromSeconds(5), cancellationToken);
 ```
 
 `StopAsync` 先停止 Channel 接入和新请求，再等待已经进入各 Session 串行队列的请求完成。
-超过期限后取消剩余请求并断开。`GracefulStops`、`DrainTimeouts` 和 `RequestsCancelled` 可用于
-区分正常退出与强制收尾。
+超过期限或取消排空等待时，仍会取消剩余请求并关闭旧会话。重复调用 `StopAsync` 会等待同一次
+停机并得到相同结果，不会替换首次调用的期限或取消令牌。停机期间不得调用 `Start()`、`Stop()`
+或 `Dispose()`；等停机任务结束后再操作。不要在参与排空的请求处理器内等待本次停机。
+
+`GracefulStops`、`DrainTimeouts` 和 `RequestsCancelled` 可用于区分正常退出与强制收尾。
 
 `host.GetDiagnostics()` 提供连接、超时、监听/Session 错误和请求队列计数。单个 Session
 还提供收发字节/包计数，以及用于认证、房间绑定等应用元数据的 `session.Context`。

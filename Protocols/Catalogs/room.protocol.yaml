@@ -197,6 +197,18 @@ messages:
     direction: s2c
     kind: response
     payloadType: AbilityKit.Protocol.Room.WireRequestFullStateSyncRes
+  - id: subscribe-state-sync-movement-proof.request
+    opCode: 126
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireSubscribeScopedStateSyncReq
+    response: subscribe-state-sync-movement-proof.response
+    sensitiveFields: [sessionToken]
+  - id: subscribe-state-sync-movement-proof.response
+    opCode: 126
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireSubscribeStateSyncRes
   - id: state-sync-metrics.request
     opCode: 117
     direction: c2s

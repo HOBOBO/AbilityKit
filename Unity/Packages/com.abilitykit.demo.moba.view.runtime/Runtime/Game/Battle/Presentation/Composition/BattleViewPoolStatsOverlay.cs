@@ -65,18 +65,15 @@ namespace AbilityKit.Game.Battle.Hierarchy
     }
 
     /// <summary>
-    /// MonoBehaviour that overlays pool usage statistics onto the
-    /// <see cref="BattleViewHierarchyRoot"/> GameObject name.
     ///
-    /// When attached under <c>[Battle]</c>, this component collects per-pool
-    /// counts from registered providers (<see cref="IPoolStatsProvider"/>)
-    /// and rewrites the root's GameObject name to:
+    /// 将对象池使用统计叠加到 <see cref="BattleViewHierarchyRoot"/> GameObject 名称上的 MonoBehaviour。
+    ///
+    /// 附加在 <c>[Battle]</c> 下时，组件从已注册的 <see cref="IPoolStatsProvider"/> 收集逐对象池计数，并将根 GameObject 名称改写为：
     /// <c>[Battle] S:active/cached^peak+created-destroyed!failed ...</c>
-    /// so the inspector and editor view show live reuse statistics without
-    /// expanding the tree.
+    /// 使检查器和编辑器视图无需展开树即可显示实时复用统计。
     ///
-    /// This component is intentionally lightweight and <see cref="DisallowMultipleComponent"/>-
-    /// safe: it does not own any pool; it merely observes providers.
+    /// 此组件保持轻量，并兼容 <see cref="DisallowMultipleComponent"/>；它仅观测提供者，不拥有对象池。
+    ///
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("AbilityKit/Battle View Pool Stats Overlay")]
@@ -96,8 +93,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         private BattleViewHierarchyRoot _root;
 
         /// <summary>
-        /// Register a pool statistics provider. Safe to call multiple times for the
-        /// same instance; duplicates are ignored.
+        /// 注册对象池统计提供者。同一实例可安全重复调用，重复项被忽略。
         /// </summary>
         public void RegisterProvider(IPoolStatsProvider provider)
         {
@@ -107,7 +103,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Unregister a previously-registered provider.
+        /// 注销此前注册的提供者。
         /// </summary>
         public void UnregisterProvider(IPoolStatsProvider provider)
         {
@@ -116,9 +112,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Clears all registered providers. Called by feature <c>OnDetach</c>
-        /// before the hierarchy root is released, ensuring no dangling references
-        /// remain when the overlay's parent GameObject is destroyed.
+        /// 清除全部已注册提供者。功能的 <c>OnDetach</c> 在释放层级根节点前调用，确保叠加组件父 GameObject 销毁后不残留悬空引用。
         /// </summary>
         public void ClearAllProviders()
         {
@@ -128,7 +122,9 @@ namespace AbilityKit.Game.Battle.Hierarchy
         private void OnEnable()
         {
             ResolveRoot();
-            // Guard against negative interval values: treat any negative as "refresh once".
+            /*
+             * 防护负数间隔值：所有负值均视为“刷新一次”。
+             */
             if (_refreshInterval < 0f)
             {
                 _refreshInterval = 0f;
@@ -161,8 +157,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Force a stats refresh on the next opportunity. Useful from editor buttons
-        /// or external code that wants immediate feedback.
+        /// 在下次机会强制刷新统计，供需要即时反馈的编辑器按钮或外部代码使用。
         /// </summary>
         public void RefreshNow()
         {
@@ -200,12 +195,12 @@ namespace AbilityKit.Game.Battle.Hierarchy
     }
 
     /// <summary>
-    /// Implemented by pool / spawner types that can report their reuse statistics.
+    /// 由可报告复用统计的对象池或生成器实现。
     /// </summary>
     public interface IPoolStatsProvider
     {
         /// <summary>
-        /// Append one pool family's compact counters to the buffer.
+        /// 向缓冲追加一组对象池的紧凑计数器。
         /// </summary>
         void AppendStats(StringBuilder sb);
     }
@@ -223,8 +218,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
     }
 
     /// <summary>
-    /// Adapter that wraps a <see cref="BattleViewShellPool"/> as an
-    /// <see cref="IPoolStatsProvider"/>.
+    /// 将 <see cref="BattleViewShellPool"/> 包装为 <see cref="IPoolStatsProvider"/> 的适配器。
     /// </summary>
     public sealed class BattleViewShellPoolStatsProvider : IPoolStatsProvider
     {
@@ -238,7 +232,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
     }
 
     /// <summary>
-    /// Adapter for <see cref="BattleVfxGameObjectPool"/>.
+    /// <see cref="BattleVfxGameObjectPool"/> 的适配器。
     /// </summary>
     public sealed class BattleVfxPoolStatsProvider : IPoolStatsProvider
     {
@@ -252,7 +246,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
     }
 
     /// <summary>
-    /// Adapter for <see cref="BattleAreaVfxPool"/>.
+    /// <see cref="BattleAreaVfxPool"/> 的适配器。
     /// </summary>
     public sealed class BattleAreaVfxPoolStatsProvider : IPoolStatsProvider
     {
@@ -266,7 +260,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
     }
 
     /// <summary>
-    /// Adapter for <see cref="BattleProjectileShellPool"/>.
+    /// <see cref="BattleProjectileShellPool"/> 的适配器。
     /// </summary>
     public sealed class BattleProjectilePoolStatsProvider : IPoolStatsProvider
     {

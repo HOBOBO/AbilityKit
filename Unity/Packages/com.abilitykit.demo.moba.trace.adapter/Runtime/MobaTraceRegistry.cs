@@ -23,6 +23,11 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaExecutionContextRegistry _executionContexts;
         private IDisposable _executionContextObservation;
 
+        /// <summary>
+        /// 当前注册表中 Context 投影失败的累计次数，供验收判断证据是否完整。
+        /// </summary>
+        public long ObservationFailureCount { get; private set; }
+
         [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
 
@@ -184,6 +189,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
             catch (Exception ex)
             {
+                ObservationFailureCount++;
                 Log.Exception(
                     ex,
                     $"[MobaTraceRegistry] Execution-context observation failed (event={evt.Kind}, contextId={evt.Node.ContextId}, boundary={evt.PredictionBoundary}).");

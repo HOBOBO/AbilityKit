@@ -5,6 +5,8 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Core.Mathematics;
+using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
 
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -72,14 +74,37 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var forward = input.HasAimDirection ? input.AimDirection : Vec3.Forward;
             var sourceContext = input.CreateSourceContext(casterActorId, summonId);
-            if (float.IsNaN(args.DurationMs) || float.IsInfinity(args.DurationMs) || args.DurationMs < 0f || args.DurationMs > int.MaxValue)
+            var durationMs = args.DurationMs;
+            if (!string.IsNullOrEmpty(args.DurationSkillLevelParameter))
+            {
+                var handle = input.ExecutionContext.SkillRuntimeHandle;
+                if (!ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var runtimes) || runtimes == null ||
+                    !runtimes.TryGetLevelParameter(handle, args.DurationSkillLevelParameter, out durationMs))
+                { RejectRequest(summonSvc, in requestTicket, ctx, "summon duration parameter is unavailable."); return; }
+            }
+            if (float.IsNaN(durationMs) || float.IsInfinity(durationMs) || durationMs < 0f || (double)durationMs > int.MaxValue)
             {
                 RejectRequest(summonSvc, in requestTicket, ctx, "invalid summon duration_ms.");
                 return;
             }
-            var durationOverrideMs = (int)System.Math.Round(args.DurationMs);
+            List<KeyValuePair<BattleAttributeType, float>> birthAttributes = null;
+            if (args.BirthAttributes != null)
+            {
+                birthAttributes = new List<KeyValuePair<BattleAttributeType, float>>(args.BirthAttributes.Length);
+                foreach (var item in args.BirthAttributes)
+                {
+                    var magnitude = item.Magnitude;
+                    var execution = input.ExecutionContext;
+                    if (!MobaEffectMagnitudeResolver.TryEvaluate(in magnitude, in execution, in ctx,
+                            casterActorId, casterActorId, input.TargetActorId, default,
+                            out var value, out _, out var failure))
+                    { RejectRequest(summonSvc, in requestTicket, ctx, failure); return; }
+                    birthAttributes.Add(new KeyValuePair<BattleAttributeType, float>(item.Attribute, value));
+                }
+            }
+            var durationOverrideMs = (int)System.Math.Round(durationMs);
             if (summonSvc.TrySummon(in requestTicket, casterActorId, summonId, in spawnPos, in forward,
-                    in sourceContext, out var summonActorId, durationOverrideMs))
+                    in sourceContext, out var summonActorId, durationOverrideMs, birthAttributes))
             {
                 if (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, summonActorId, out var outputError) ||
                     !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, 1, out outputError))

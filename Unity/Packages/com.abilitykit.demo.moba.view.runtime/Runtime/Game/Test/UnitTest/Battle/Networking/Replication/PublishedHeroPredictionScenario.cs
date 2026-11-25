@@ -93,7 +93,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 Cast();
                 Until(CheckpointIsLive, 100, "live checkpoint");
                 var checkpoint = limit;
-                var baseline = new Dictionary<int, (WorldRollbackSnapshot Snapshot, uint Hash)> { [checkpoint] = Observe(checkpoint) };
+                var baseline = new Dictionary<int, (WorldRollbackSnapshot Snapshot, uint Hash, long Mana)> { [checkpoint] = Observe(checkpoint) };
                 var maxLiveFrames = skill == "KarthusE" ? 30 : 3;
                 for (var step = 1; step <= maxLiveFrames; step++)
                 {
@@ -192,11 +192,17 @@ namespace AbilityKit.Game.Test.UnitTest
                 prediction.Uninstall(host, options);
             }
 
-            (WorldRollbackSnapshot Snapshot, uint Hash) Observe(int frame) => (observations.Capture(new FrameIndex(frame)), BattleHash());
+            (WorldRollbackSnapshot Snapshot, uint Hash, long Mana) Observe(int frame) =>
+                (observations.Capture(new FrameIndex(frame)), BattleHash(), ManaRaw());
 
-            void CompareSnapshots((WorldRollbackSnapshot Snapshot, uint Hash) expected, int frame)
+            long ManaRaw() => actors.TryGet(casterId, out var actor)
+                ? actor.resourceContainer.Value.Map[AbilityKit.Demo.Moba.Components.ResourceType.Mana].Current.RawValue
+                : throw new InvalidOperationException("Prediction caster is missing.");
+
+            void CompareSnapshots((WorldRollbackSnapshot Snapshot, uint Hash, long Mana) expected, int frame)
             {
                 var actual = Observe(frame);
+                Require(expected.Mana == actual.Mana, $"mana raw diverged at frame {frame}");
                 Require(expected.Snapshot.Entries.Select(entry => entry.Key).SequenceEqual(actual.Snapshot.Entries.Select(entry => entry.Key)),
                     $"provider keys diverged at frame {frame}");
                 for (var index = 0; index < actual.Snapshot.Entries.Length; index++)
@@ -268,7 +274,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 var beforeExpiry = limit;
                 CheckLive();
                 var checkpoint = Observe(beforeExpiry);
-                var trajectory = new Dictionary<int, (WorldRollbackSnapshot Snapshot, uint Hash)>
+                var trajectory = new Dictionary<int, (WorldRollbackSnapshot Snapshot, uint Hash, long Mana)>
                 {
                     [beforeExpiry] = checkpoint
                 };

@@ -1089,7 +1089,9 @@ internal static class ShooterSmokeClientProcessRunner
                 }
                 catch (Exception) when (metricsTask.IsFaulted || metricsTask.IsCanceled)
                 {
-                    // Metrics are observational; a slow or unavailable request must not block control ACKs.
+                    /*
+                     * 指标仅用于观测；请求缓慢或不可用不得阻塞控制确认。
+                     */
                 }
 
                 metricsTask = null;

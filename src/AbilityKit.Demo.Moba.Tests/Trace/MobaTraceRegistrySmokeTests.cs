@@ -1,8 +1,10 @@
 using System.Linq;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Game.Test.UnitTest;
 using AbilityKit.Trace;
 using AbilityKit.Pipeline;
 using Xunit;
@@ -11,6 +13,50 @@ namespace AbilityKit.Demo.Moba.Tests.Trace;
 
 public sealed class MobaTraceRegistrySmokeTests
 {
+    [Fact]
+    [Trait("Gate", "BattleScenario")]
+    public void Acceptance_projection_uses_the_world_clock_and_trace_source_fields()
+    {
+        using var registry = new MobaTraceRegistry();
+        var clock = new FrameTime();
+        clock.Reset(new FrameIndex(4), 0.2f, 0.05f);
+        registry.AttachFrameTime(clock);
+        using var capture = new MobaAcceptanceTraceCapture(registry, clock);
+
+        registry.CreateObservationRoot(MobaExecutionKind.EffectExecution, 42, 11, 12,
+            new TraceEndpoint(21, "origin-source"), new TraceEndpoint(22, "origin-target"));
+        clock.StepTo(new FrameIndex(5), 0.05f);
+
+        var record = Assert.Single(capture.Capture("clock", out var evidence));
+        Assert.True(MobaAcceptanceTraceEvidence.CanProveAbsence(evidence, 1));
+        Assert.Equal((4, 5), (evidence.startFrame, evidence.endFrame));
+        Assert.Equal(4, record.frame);
+        Assert.Equal(200, record.timeMs);
+        Assert.Equal((11L, 12L), (record.sourceActorId, record.targetActorId));
+        Assert.Equal((21L, 22L), (record.originSourceId, record.originTargetId));
+        Assert.Equal(("origin-source", "origin-target"), (record.originSource, record.originTarget));
+    }
+
+    [Fact]
+    [Trait("Gate", "BattleScenario")]
+    public void Acceptance_empty_window_is_complete_until_an_observed_root_is_purged()
+    {
+        using var registry = new MobaTraceRegistry();
+        var clock = new FrameTime();
+        registry.AttachFrameTime(clock);
+        using var capture = new MobaAcceptanceTraceCapture(registry, clock);
+        Assert.Empty(capture.Capture("empty", out var complete));
+        Assert.True(MobaAcceptanceTraceEvidence.CanProveAbsence(complete, 0));
+
+        var root = registry.CreateObservationRoot(MobaExecutionKind.EffectExecution, 42);
+        Assert.True(registry.EndContext(root, MobaExecutionEndReason.Completed));
+        Assert.True(registry.TryPurgeReleasedRoot(root));
+
+        Assert.Empty(capture.Capture("purged", out var incomplete));
+        Assert.False(MobaAcceptanceTraceEvidence.CanProveAbsence(incomplete, 0));
+        Assert.Equal("RootPurged", incomplete.reason);
+    }
+
     [Fact]
     public void Skill_phase_location_is_preserved_on_trace_metadata()
     {
@@ -221,8 +267,13 @@ public sealed class MobaTraceRegistrySmokeTests
         Assert.Equal(launchContextId, endedSourceView.SourceContextId);
         Assert.Equal(rootId, endedSourceView.RootContextId);
 
-        registry.PurgeRoot(rootId);
+        Assert.False(registry.TryPurgeReleasedRoot(rootId));
+        Assert.True(registry.TryGetNodeSnapshot(launchContextId, out _));
+        Assert.True(registry.EndContext(rootId, MobaExecutionEndReason.Completed));
+        Assert.True(registry.TryPurgeReleasedRoot(rootId));
         Assert.False(registry.TryGetNodeSnapshot(launchContextId, out _));
+        Assert.True(persistentSource.TryGetLineageContext(out var purgedLineage));
+        Assert.Equal(rootId, purgedLineage.RootContextId);
     }
 
     [Fact]

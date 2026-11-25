@@ -44,6 +44,89 @@ public sealed class PreparedFixedBaselineDeliveryTests
     }
 
     [Fact]
+    public void PreparedRevisionIsSharedWithoutSharingRecipient()
+    {
+        var stream = new FixedBaselineSnapshotStream(tickRate: 30);
+        var full = Prepare(stream, 4);
+        var delta = Prepare(stream, 8);
+        var first = new StateSyncPreparedRecipient("first", Guid.NewGuid(), Guid.NewGuid());
+        var second = new StateSyncPreparedRecipient("second", Guid.NewGuid(), Guid.NewGuid());
+        var delivery = new BattleLogicHostGrain.SnapshotDeliveryPayload(delta);
+        var firstDelivery = Assert.IsType<PreparedFixedBaselineSnapshot>(delivery.ForRecipient(first).Prepared);
+        var secondDelivery = Assert.IsType<PreparedFixedBaselineSnapshot>(delivery.ForRecipient(second).Prepared);
+
+        Assert.Equal(7UL, full.Revision.WorldId);
+        Assert.NotEqual(Guid.Empty, full.Revision.StreamGeneration);
+        Assert.Equal(1, full.Revision.SnapshotId);
+        Assert.Equal(0, full.Revision.BaseSnapshotId);
+        Assert.Equal(full.Revision.StreamGeneration, delta.Revision.StreamGeneration);
+        Assert.Equal(2, delta.Revision.SnapshotId);
+        Assert.Equal(full.Revision.SnapshotId, delta.Revision.BaseSnapshotId);
+        Assert.Equal(8, firstDelivery.Frame);
+        Assert.Equal(delta.Revision, firstDelivery.Revision);
+        Assert.Equal(delta.Revision, secondDelivery.Revision);
+        Assert.True(firstDelivery.Payload.Equals(secondDelivery.Payload));
+        Assert.Null(delta.Recipient);
+        Assert.Equal(first, firstDelivery.Recipient);
+        Assert.Equal(second, secondDelivery.Recipient);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ObserverDropsOldPreparedDeliveryBeforeEnqueueAndSend(bool reconnect)
+    {
+        var stream = new FixedBaselineSnapshotStream(tickRate: 30);
+        var oldRecipient = new StateSyncPreparedRecipient("old", Guid.NewGuid(), Guid.NewGuid());
+        var replacement = reconnect
+            ? new StateSyncPreparedRecipient("new", Guid.NewGuid(), Guid.NewGuid())
+            : oldRecipient with { SubscriptionGeneration = Guid.NewGuid() };
+        var oldGateway = new CountingGatewayObserver();
+        var replacementGateway = new CountingGatewayObserver();
+        var observer = CreateObserver(fixedBaseline: true);
+        await observer.BindGatewayPushObserverAsync(oldRecipient.BindingId, oldGateway, oldRecipient.ConnectionGeneration);
+        SetPreparedRecipient(observer, oldRecipient);
+        var oldSnapshot = Prepare(stream, 4) with { Recipient = oldRecipient };
+        Assert.Equal(StateSyncDeliveryStatus.Accepted,
+            (await observer.OnPreparedFixedBaselineSnapshotPushedAsync(oldSnapshot)).Status);
+
+        if (reconnect)
+        {
+            await observer.BindGatewayPushObserverAsync(replacement.BindingId, replacementGateway, replacement.ConnectionGeneration);
+            Assert.Equal(StateSyncDeliveryStatus.DroppedStale,
+                (await observer.OnPreparedFixedBaselineSnapshotPushedAsync(oldSnapshot)).Status);
+        }
+
+        SetPreparedRecipient(observer, replacement);
+        await DrainAsync(observer);
+        Assert.Equal(0, oldGateway.Count);
+        Assert.Equal(0, replacementGateway.Count);
+        Assert.Equal(StateSyncDeliveryStatus.DroppedStale,
+            (await observer.OnPreparedFixedBaselineSnapshotPushedAsync(oldSnapshot)).Status);
+
+        stream.RequestFull();
+        var currentSnapshot = Prepare(stream, 12) with { Recipient = replacement };
+        Assert.Equal(StateSyncDeliveryStatus.Accepted,
+            (await observer.OnPreparedFixedBaselineSnapshotPushedAsync(currentSnapshot)).Status);
+        await DrainAsync(observer);
+        Assert.Equal(1, reconnect ? replacementGateway.Count : oldGateway.Count);
+    }
+
+    [Fact]
+    public async Task FixedBaselineSubscribeRejectsReplacedBindingAndMissingSubscriptionGeneration()
+    {
+        var observer = CreateObserver(fixedBaseline: true);
+        var currentConnection = Guid.NewGuid();
+        await observer.BindGatewayPushObserverAsync("current", new CountingGatewayObserver(), currentConnection);
+        var cursor = new ReliableBattleEventSubscribeCursor();
+        var previous = new StateSyncPreparedRecipient("previous", Guid.NewGuid(), Guid.NewGuid());
+        var missingGeneration = new StateSyncPreparedRecipient("current", currentConnection);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => observer.SubscribeFixedBaselineAsync("battle", cursor, previous));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => observer.SubscribeFixedBaselineAsync("battle", cursor, missingGeneration));
+    }
+
+    [Fact]
     public void PreparedSnapshotUsesSameReferenceThroughOrleansDeepCopier()
     {
         var stream = new FixedBaselineSnapshotStream(tickRate: 30);
@@ -102,6 +185,7 @@ public sealed class PreparedFixedBaselineDeliveryTests
         Assert.Equal(FixedBaselineFullReason.RefreshRequested, reason);
         Assert.True(stream.TryPrepareDelivery(Projection(16), false, out var next, out _, out reason));
         Assert.True(next.IsFullSnapshot);
+        Assert.Equal(2, next.Revision.SnapshotId);
         Assert.Equal(FixedBaselineFullReason.RefreshRequested, reason);
     }
 
@@ -118,6 +202,21 @@ public sealed class PreparedFixedBaselineDeliveryTests
         typeof(StateSyncObserverGrain).GetField("_usesFixedBaseline", BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(observer, fixedBaseline);
         return observer;
+    }
+
+    private static void SetPreparedRecipient(StateSyncObserverGrain observer, StateSyncPreparedRecipient recipient) =>
+        typeof(StateSyncObserverGrain).GetField("_preparedRecipient", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(observer, recipient);
+
+    private static Task DrainAsync(StateSyncObserverGrain observer) =>
+        (Task)typeof(StateSyncObserverGrain).GetMethod("DrainQueueAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(observer, null)!;
+
+    private sealed class CountingGatewayObserver : IStateSyncGatewayPushObserver
+    {
+        public int Count { get; private set; }
+
+        public void OnPush(uint opCode, byte[] payload) => Count++;
     }
 
     private static StateSyncPush Projection(int frame) => new()

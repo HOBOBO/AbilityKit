@@ -1,33 +1,30 @@
-# Protocol source format
+# 协议源文件格式
 
-Protocol catalogs and wire schemas have separate responsibilities:
+协议目录与线协议结构定义各有职责：
 
-- `Catalogs/*.protocol.yaml` assigns transport identities and runtime policy.
-- `WireSchemas/*.wire.yaml` defines payload fields and serialization compatibility.
+- `Catalogs/*.protocol.yaml` 分配传输标识并定义运行时策略。
+- `WireSchemas/*.wire.yaml` 定义载荷字段和序列化兼容性。
 
-Grouped Wire Schema generation covers catalog-backed `memorypack` transport payloads. Types used
-only by `custom-binary` codecs, legacy decoding, transient buffers, or process-local persistence
-remain owned by those specialized implementations and are not counted as missing Wire Schemas.
+分组线协议结构生成覆盖已登记到协议目录的 `memorypack` 传输载荷。
+仅用于 `custom-binary` 编解码器、旧版解码、临时缓冲区或进程本地持久化的类型，
+仍由相应专用实现负责，不计为缺失的线协议结构。
 
-`Catalogs/system.protocol.yaml` is the formal bootstrap contract for exchanging one or more
-catalog advertisements. Its dynamic payload is deliberately owned by the bounded
-`ProtocolCatalogAdvertisementCodec` custom-binary codec; applications should not duplicate this
-contract in a business catalog or model it as a Wire Schema DTO.
+`Catalogs/system.protocol.yaml` 是交换一个或多个协议目录通告的正式引导契约。
+其动态载荷由有界的 `ProtocolCatalogAdvertisementCodec` 自定义二进制编解码器负责；
+应用不应在业务协议目录中重复定义此契约，也不应将其建模为线协议 DTO。
 
-For room state sync, `subscribe-fixed-baseline-state-sync` (123) opts the observer into
-outer snapshot schema 4. Snapshot opcodes and `WireStateSyncSnapshotPush` layout are unchanged.
-The bounded `FixedBaselineStateSyncProtocol` codec owns its opaque `Payload`: 16-byte .NET GUID,
-little-endian int64 snapshot ID and base ID, int32 inner schema, then the original gameplay
-payload bytes. A zero base ID denotes a full snapshot; a nonzero base ID identifies one full
-snapshot in the same stream generation and world. The event cursor and payload opcode retain
-their existing meanings. Legacy subscribers continue using opcode 103 and the original envelope.
+房间状态同步中，`subscribe-fixed-baseline-state-sync`（123）使观察者采用外层快照结构版本 4。
+快照操作码和 `WireStateSyncSnapshotPush` 布局不变。
+有界的 `FixedBaselineStateSyncProtocol` 编解码器负责不透明的 `Payload`：
+先写入 16 字节 .NET GUID，再写入小端 int64 快照 ID 和基线 ID、int32 内层结构版本，
+最后附上原始玩法载荷字节。基线 ID 为零表示完整快照；非零值指向同一流代际、同一世界中的某个完整快照。
+事件游标与载荷操作码保留既有含义。旧订阅者继续使用操作码 103 和原有包络。
 
-## Grouped wire schema
+## 分组线协议结构
 
-The canonical wire format groups related types that share a project, stable business-domain
-`groupId`, and C# namespace. Document defaults apply to every type unless that type overrides
-them. Each type still has its own field IDs, reserved IDs, compatibility identity, and generated
-source file.
+规范的线协议格式将同一项目、稳定业务域 `groupId` 和 C# 命名空间下的相关类型归为一组。
+文档默认值应用于所有类型，类型可单独覆盖。每个类型仍有自己的字段 ID、
+保留 ID、兼容性标识和生成源文件。
 
 ```yaml
 # yaml-language-server: $schema=../wire-schema.schema.json
@@ -62,29 +59,25 @@ types:
         required: true
 ```
 
-When `defaults` is omitted, the defaults are `version-tolerant`, `class`, and `property`.
-Overrides are allowed on each item in `types`. A grouped document must contain at least one type,
-and type names must be unique within the document.
+省略 `defaults` 时，默认值为 `version-tolerant`、`class` 和 `property`。
+`types` 中的每一项均可覆盖默认值。分组文档至少包含一个类型，且类型名在文档内必须唯一。
 
-`groupId` is unique within a project and uses lower-case letters, digits, dots, and hyphens. Use a
-cohesive business domain such as `battle`, `state-sync`, or `room.auth`. Project-local shared
-types belong to a formal `common` group; genuinely cross-project types belong to a dedicated
-shared project. Split a group when types have different ownership or release cadence. Do not
-combine protocol catalog messages and wire types in the same document.
+`groupId` 在项目内唯一，使用小写字母、数字、点和连字符。应选择职责集中的业务域，
+如 `battle`、`state-sync` 或 `room.auth`。项目内共享类型归入正式的 `common` 组；
+跨项目共享类型归入专门的共享项目。类型的维护归属或发布节奏不同时应拆组。
+不要在同一文档中混放协议目录消息和线协议类型。
 
-Use `scalarType: uint8` for C# `byte` fields. A custom `type` normally joins the generated
-dependency closure. Set `external: true` only when that exact type is already owned and compiled
-by another package (for example a shared value object or enum); the field keeps its declared C#
-type, but the current project does not generate another definition for it. Do not use `external`
-to hide a missing project-local wire type.
+C# `byte` 字段使用 `scalarType: uint8`。自定义 `type` 通常会加入生成依赖闭包。
+仅当该确切类型已由其他包拥有并编译时（例如共享值对象或枚举），才设置 `external: true`；
+字段保留声明的 C# 类型，当前项目不再生成另一份定义。
+不要用 `external` 掩盖缺失的项目内线协议类型。
 
-The Unity Protocol Workspace expands grouped documents into individual types. Saving a type
-updates its entry while preserving sibling types; `Add Type` stages a new type for the selected
-group and appends it on save. The inspector shows effective type settings; document-level
-defaults and `projectId`, `groupId`, and `namespace` are edited directly in YAML. Export manifests record every generated type under its
-owning group.
+Unity 协议工作区将分组文档展开为独立类型。保存类型时只更新对应条目，并保留同组其他类型；
+`添加类型` 为所选组暂存新类型，保存时追加。检查器显示类型的最终有效设置；
+文档级默认值及 `projectId`、`groupId`、`namespace` 直接在 YAML 中编辑。
+导出清单按所属组记录每个生成类型。
 
-After changing a protocol source, regenerate and check the committed outputs:
+修改协议源文件后，重新生成并检查入库产物：
 
 ```powershell
 ./tools/compile-protocol-catalogs.ps1

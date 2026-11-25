@@ -24,16 +24,24 @@ namespace AbilityKit.Network.Runtime
             IsRemotePlaybackStarved = isRemotePlaybackStarved;
         }
 
-        /// <summary>Number of remote authoritative snapshots currently buffered for interpolation.</summary>
+        /// <summary>
+        /// 当前为插值缓冲的远端权威快照数量。
+        /// </summary>
         public int BufferedRemoteSnapshotCount { get; }
 
-        /// <summary>The current delayed remote playback time, in timeline ticks.</summary>
+        /// <summary>
+        /// 当前延迟后的远端播放时间，单位为时间轴刻度。
+        /// </summary>
         public long RemotePlaybackTicks { get; }
 
-        /// <summary>The current local estimate of authoritative server time, in timeline ticks.</summary>
+        /// <summary>
+        /// 当前本地估计的服务端权威时间，单位为时间轴刻度。
+        /// </summary>
         public long EstimatedServerTicks { get; }
 
-        /// <summary>Whether at least one remote interpolation frame has been published to presentation.</summary>
+        /// <summary>
+        /// 是否至少已有一个远端插值帧发布到表现层。
+        /// </summary>
         public bool HasPublishedRemoteFrame { get; }
 
         /// <summary>
@@ -43,7 +51,9 @@ namespace AbilityKit.Network.Runtime
         /// </summary>
         public bool IsRemotePlaybackStarved { get; }
 
-        /// <summary>How far the playback clock trails the estimated server time, in timeline ticks.</summary>
+        /// <summary>
+        /// 播放时钟落后估计服务端时间的距离，单位为时间轴刻度。
+        /// </summary>
         public long PlaybackDelayTicks => EstimatedServerTicks - RemotePlaybackTicks;
     }
 

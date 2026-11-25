@@ -42,6 +42,7 @@ namespace AbilityKit.Game.Flow
 
         void ISessionTickLoopPort.TickPresentation(float deltaTime)
         {
+            _runtime.Recovery?.MovementPrediction?.Tick(deltaTime);
             TickRemoteInterpolation(deltaTime);
             _runtime.Presentation.SyncProjectionViews();
         }

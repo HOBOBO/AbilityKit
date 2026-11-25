@@ -34,12 +34,14 @@ namespace AbilityKit.Ability.Config
         public string GroupName { get; }
 
         /// <summary>
-        /// Optional generated factory for the strongly typed DTO table.
+        /// 可选的强类型 DTO 表工厂；包外自定义表参与已有表的增量重载时，
+        /// 应实现 IConfigTableContentReplacer，并保持每次构建的运行时表类型一致。
         /// </summary>
         public Func<Array, object> DtoTableFactory { get; }
 
         /// <summary>
-        /// Optional generated factory for the strongly typed runtime entry table.
+        /// 可选的强类型运行时表工厂，转换在增量提交前完成。
+        /// 自定义表的原位替换遵循 IConfigTableContentReplacer 的无副作用契约。
         /// </summary>
         public Func<Array, object> EntryTableFactory { get; }
 

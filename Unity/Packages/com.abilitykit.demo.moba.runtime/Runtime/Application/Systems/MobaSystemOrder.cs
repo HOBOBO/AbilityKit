@@ -42,6 +42,10 @@ namespace AbilityKit.Demo.Moba.Systems
         public const int MotionInit = Base + WorldSystemOrder.Early + 10;
 
         // ========== 移动系统 (Execute/Normal) ==========
+        /// <summary>
+        /// 固定量资源回复，在本帧决策与技能费用检查前执行。
+        /// </summary>
+        public const int ResourceRegeneration = Base + WorldSystemOrder.Normal + 6;
         /// <summary>Actor 分层状态机装配与 Tick</summary>
         public const int ActorStateMachineTick = Base + WorldSystemOrder.Normal + 7;
         /// <summary>Actor 脑决策 Tick</summary>
@@ -119,6 +123,8 @@ namespace AbilityKit.Demo.Moba.Systems
             {
                 return Fail(nameof(ActorStateMachineTick), nameof(BrainTick));
             }
+            if (!RunsBefore(ResourceRegeneration, ActorStateMachineTick))
+                return Fail(nameof(ResourceRegeneration), nameof(ActorStateMachineTick));
 
             if (!RunsBefore(BrainTick, MotionLocomotionInput))
             {

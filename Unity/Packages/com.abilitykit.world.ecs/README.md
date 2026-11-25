@@ -15,4 +15,6 @@ world.Destroy(entityId);
 var isAlive = world.IsAlive(entityId);
 ```
 
-销毁后 `isAlive` 为 `false`。包内的身份、资源和线程边界见[使用契约与限制](Documentation~/Usage.md)。
+销毁后 `isAlive` 为 `false`。包内的身份、资源和线程边界见[文档索引](Documentation~/README.md)与[使用契约与限制](Documentation~/Usage.md)。
+
+`EntityWorld` 当前没有整体 `Dispose` 入口；资源组件、事件订阅和世界对象的持有关系由应用管理。本轮按当前源码核校，未执行 Unity Editor/Player 测试。

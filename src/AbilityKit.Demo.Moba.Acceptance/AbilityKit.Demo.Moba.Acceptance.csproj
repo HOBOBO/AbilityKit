@@ -25,6 +25,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Infrastructure/MobaAcceptanceForbiddenTrace.cs" Link="Linked/MobaAcceptanceForbiddenTrace.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Test\UnitTest\Acceptance\Infrastructure\MobaAcceptanceModels.cs">
       <Link>Linked\MobaAcceptanceModels.cs</Link>
     </Compile>

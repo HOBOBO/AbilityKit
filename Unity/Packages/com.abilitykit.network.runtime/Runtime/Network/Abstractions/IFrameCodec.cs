@@ -19,7 +19,9 @@ namespace AbilityKit.Network.Abstractions
         bool TryRead(out NetworkPacketHeader header, out ArraySegment<byte> payload);
     }
 
-    /// <summary>Optional limit configuration supported by built-in stream decoders.</summary>
+    /// <summary>
+    /// 内置流解码器支持的可选限制配置。
+    /// </summary>
     public interface IFrameDecoderLimits
     {
         int MaxFrameLength { get; set; }

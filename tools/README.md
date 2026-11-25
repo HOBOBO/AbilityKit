@@ -4,8 +4,9 @@
 
 - 查门禁：`./tools/run_test_gate.ps1 -List`。职责、步骤和策略以 [test-gates.json](test-gates.json) 为准；正式验收通过 runner 执行，[局部调试或直接运行步骤不等于门禁通过](../Docs/AbilityKit测试门禁与批量回归规范.md#门禁与手工入口)。
 - 查产物：见 [测试门禁与批量回归规范](../Docs/AbilityKit测试门禁与批量回归规范.md)。本地测试报告统一放 `local/Logs/`。
+- 查 Unity 编辑器工具：全局导航从 `Window/AbilityKit/Hub` 进入；新增和整理菜单、上下文操作、批处理前先读[编辑器工具准入规范](../Docs/design/13-FrameworkCore/09-EditorPlatformConvergence.md#52-编辑器工具准入规范)。
 - 查框架设计：从 [设计文档总索引](../Docs/design/00-index.md) 进入，不在工具索引维护架构副本。
-- 查仓库结构：`python -X utf8 tools/check_repo_structure.py --strict`，检查共享文档与计划的 UTF-8、本地链接，并报告散落产物（Python 3.10+、Git，不运行测试、不移动文件）。
+- 查仓库结构：`python -X utf8 tools/check_repo_structure.py --strict`，检查共享文档与计划、包总索引及包维护指引的 UTF-8、本地链接，并报告散落产物（Python 3.10+、Git，不运行测试、不移动文件）。文档分工与模板见[文档体系与维护规范](../Docs/design/10-EngineeringQuality/20-DocumentationSystemStandard.md)。
 - 提交前查本地文件：`python -X utf8 tools/check_repo_structure.py --strict --staged-outputs`，检查新增或修改的暂存运行产物，以及误暂存的 `local/tools/` 文件。运行结果不入库；有消费者的基线放在对应的 `Fixtures/` 或 `TestData/`，保留更新方式。此命令不安装 hook 或接入 CI。
 - 查随包文档：在上述命令后添加 `--package com.abilitykit.attributes --package com.abilitykit.world.di`（按改动选择包，可重复指定），同时检查这些包的 Markdown 和越出包目录的本地链接；不默认阻断其余包的存量问题。
 
@@ -33,7 +34,7 @@
 | [`clone_unity_project_for_multiplayer.ps1`](clone_unity_project_for_multiplayer.ps1) / [`.cmd`](clone_unity_project_for_multiplayer.cmd) | 克隆 Unity 项目为第二实例（多人测试） |
 | [`update_abilitykit_package_versions.ps1`](update_abilitykit_package_versions.ps1) | 批量更新 AbilityKit 包版本 |
 | [`sync_unity_runtime_csproj.ps1`](sync_unity_runtime_csproj.ps1) | 同步 Unity/Runtime csproj |
-| [`audit_unity_package_dependencies.ps1`](audit_unity_package_dependencies.ps1) | 审计 Unity 包依赖 |
+| [`audit_unity_package_dependencies.ps1`](audit_unity_package_dependencies.ps1) | 只读审计选定包的直接程序集依赖；默认运行时，`-IncludeEditor` 纳入随包编辑器，`-StrictInternalReferences` 拒绝未解析的 AbilityKit/GUID 引用；自测：`python -B -X utf8 -m unittest discover -s tools/tests -p test_package_dependencies.py -v`，夹具位于 `local/Logs/` |
 | [框架包发布工具](publish/README.md) | 发布工具、验证方式及版本契约的专题入口 |
 
 ### 协议 Catalog

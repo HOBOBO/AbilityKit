@@ -1,0 +1,119 @@
+using System;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.FrameSync.Rollback;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Demo.Moba.Rollback;
+
+namespace AbilityKit.Game.Flow
+{
+    internal readonly struct RemoteDrivenWorldInstallOptions
+    {
+        public readonly BattleStartPlan Plan;
+        public readonly BattleContext Context;
+        public readonly BattleSessionRemoteDrivenWorldRuntime Handles;
+        public readonly BattleSessionDiagnostics Diagnostics;
+        public readonly float FixedDeltaSeconds;
+        public readonly Func<WorldId, int> ResolveIdealFrameLimit;
+        public readonly Func<bool> ShouldForceHashMismatch;
+        public readonly Action ResetTickState;
+
+        public RemoteDrivenWorldInstallOptions(
+            BattleStartPlan plan,
+            BattleContext context,
+            BattleSessionRemoteDrivenWorldRuntime handles,
+            BattleSessionDiagnostics diagnostics,
+            float fixedDeltaSeconds,
+            Func<WorldId, int> resolveIdealFrameLimit,
+            Func<bool> shouldForceHashMismatch,
+            Action resetTickState)
+        {
+            Plan = plan;
+            Context = context;
+            Handles = handles;
+            Diagnostics = diagnostics;
+            FixedDeltaSeconds = fixedDeltaSeconds;
+            ResolveIdealFrameLimit = resolveIdealFrameLimit;
+            ShouldForceHashMismatch = shouldForceHashMismatch;
+            ResetTickState = resetTickState;
+        }
+    }
+
+    internal static class RemoteDrivenWorldInstaller
+    {
+        /// <summary>
+        /// 安装帧同步输入与预测驱动，仅由帧同步会话调用。
+        /// </summary>
+        public static void EnsureStarted(RemoteDrivenWorldInstallOptions options)
+        {
+            var handles = options.Handles;
+            if (handles.World != null) return;
+
+            var inputDelayFrames = ResolveInputDelay(options.Plan);
+            CreateWorldRuntime(
+                options.Plan,
+                options.Context,
+                handles,
+                options.FixedDeltaSeconds,
+                inputDelayFrames,
+                options.ResolveIdealFrameLimit,
+                options.ShouldForceHashMismatch);
+
+            options.ResetTickState?.Invoke();
+            if (!options.Plan.UsesSettledFrames)
+                CreateInputRuntime(handles, options.Diagnostics, inputDelayFrames);
+        }
+
+        private static void CreateWorldRuntime(
+            BattleStartPlan plan,
+            BattleContext ctx,
+            BattleSessionRemoteDrivenWorldRuntime handles,
+            float fixedDeltaSeconds,
+            int inputDelayFrames,
+            Func<WorldId, int> resolveIdealFrameLimit,
+            Func<bool> shouldForceHashMismatch)
+        {
+            var settled = ctx?.SettledFrames;
+            if (plan.UsesSettledFrames && settled == null)
+                throw new InvalidOperationException("V2 requires a settled battle connection.");
+            var worldRuntime = RemoteDrivenWorldRuntimeFactory.Create(new RemoteDrivenWorldRuntimeFactoryOptions(
+                plan,
+                fixedDeltaSeconds,
+                inputDelayFrames,
+                plan.Authority.EnableClientPrediction,
+                _ => handles.Consumable,
+                _ => ctx != null && (settled == null || ctx.CanSubmitGameplayInput) ? ctx.LocalInputQueue : null,
+                resolveIdealFrameLimit,
+                MobaRollbackRegistryBuilder.CreateForPrediction,
+                world => CreateStateHash(world, shouldForceHashMismatch),
+                resolveSettledFrames: settled != null ? _ => settled.Receiver : null));
+
+            handles.BindWorldRuntime(worldRuntime);
+            RemoteDrivenPredictionContextBinder.Bind(ctx, plan, handles.Runtime);
+            SessionWorldBootstrapValidator.ValidateServices(handles.World, "RemoteDrivenLocalWorld");
+        }
+
+        private static Func<FrameIndex, WorldStateHash> CreateStateHash(
+            IWorld world,
+            Func<bool> shouldForceHashMismatch)
+        {
+            return RemoteDrivenStateHashFactory.Create(
+                world,
+                () => shouldForceHashMismatch != null && shouldForceHashMismatch());
+        }
+
+        private static void CreateInputRuntime(
+            BattleSessionRemoteDrivenWorldRuntime handles,
+            BattleSessionDiagnostics diagnostics,
+            int inputDelayFrames)
+        {
+            var inputRuntime = RemoteDrivenInputRuntime.Create(inputDelayFrames, diagnostics);
+            handles.BindInputRuntime(inputRuntime);
+            inputRuntime?.PublishDebugStats();
+        }
+
+        private static int ResolveInputDelay(BattleStartPlan plan)
+        {
+            return SessionSimRuntimeTuning.NormalizeInputDelayFrames(plan.World.InputDelayFrames);
+        }
+    }
+}

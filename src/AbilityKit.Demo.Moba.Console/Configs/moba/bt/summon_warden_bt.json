@@ -24,6 +24,10 @@
       "id": "30000000-0000-4000-8000-000000000002",
       "type": "moba.selectNearestEnemy",
       "properties": {
+        "retainRadius": {
+          "type": "Fixed64",
+          "value": 60129542144
+        },
         "searchRadius": {
           "type": "Fixed64",
           "value": 51539607552

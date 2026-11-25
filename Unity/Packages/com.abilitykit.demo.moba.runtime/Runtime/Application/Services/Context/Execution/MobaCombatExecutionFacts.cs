@@ -19,8 +19,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Immutable gameplay facts carried by the authoritative combat context.
-    /// Optional observers may inspect these facts, but never own or alter them.
+    /// 权威战斗上下文携带的不可变玩法事实。可选观察者可读取，但不得拥有或修改。
     /// </summary>
     public readonly struct MobaCombatExecutionFacts : IEquatable<MobaCombatExecutionFacts>
     {

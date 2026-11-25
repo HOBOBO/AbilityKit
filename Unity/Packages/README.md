@@ -1,6 +1,23 @@
-# Ability-Kit 模块文档总览
+# AbilityKit 包使用文档索引
 
-> Ability-Kit 框架官方文档索引
+> 本页帮助包消费者选择接入文档。包根 README 负责安装与首次使用，包内文档负责使用契约；跨包架构见[设计索引](../../Docs/design/00-index.md)。
+
+## 从这里开始
+
+| 任务 | 阅读入口 |
+| --- | --- |
+| 选择整个仓库的阅读路径 | [文档门户](../../Docs/README.md) |
+| 查某个包如何使用 | 本页模块列表 → 包根 README → 包内文档索引；缺包根入口的包见[结构盘点](../../plans/2026-11-24-DocumentationSystemInventory.md) |
+| 查包之间的职责、依赖和设计取舍 | [框架能力地图](../../Docs/design/01-OverviewAndGettingStarted/00-AbilityKitCapabilityMap.md)、[设计索引](../../Docs/design/00-index.md) |
+| 新增或整理文档 | [文档体系与维护规范](../../Docs/design/10-EngineeringQuality/20-DocumentationSystemStandard.md) |
+
+本页的模块列表和组合说明为存量导航，尚未逐包核校全部正文。目录中已有文档、已有示例工程及旧验收结论，均不等于当前版本通过独立消费或发布验证；以目标包的适用范围和实际证据为准。
+
+2026-11-24–25 已完成 D1 基础包的入口与关键契约核校：[Core 首次使用](com.abilitykit.core/Documentation~/Usage.md)、[Deterministic 使用索引](com.abilitykit.deterministic/Documentation~/README.md)、[World DI 使用索引](com.abilitykit.world.di/Documentation~/README.md)。具体范围、实测与未覆盖项见[批次记录](../../plans/2026-11-24-DocumentationSystemInventory.md#7-d1-基础包核校记录2026-11-2425)；Core 的全部历史专题不因本次入口整理统一获得新核校日期。
+
+2026-11-25 已完成 D2 技能与流程包的入口及限定契约核校：[Continuous](com.abilitykit.continuous/README.md)、[Triggering](com.abilitykit.triggering/README.md)、[Pipeline](com.abilitykit.pipeline/README.md)、[Attributes](com.abilitykit.attributes/README.md)、[Flow](com.abilitykit.flow/README.md)、[HFSM](com.abilitykit.hfsm/README.md)。范围和验证限制见[批次记录](../../plans/2026-11-24-DocumentationSystemInventory.md#8-d2-技能与流程包核校记录2026-11-25)。
+
+2026-11-25 完成 D3 核心十包的入口和限定契约核校，见下方 D3 导航与[批次记录](../../plans/2026-11-24-DocumentationSystemInventory.md#9-d3-核心世界同步与网络包核校记录2026-11-25)。协议测试有一项既有文档断言失败；网络 SDK、Room/Battle、传输及 ECS 适配器仍待后续，不将 D3 整域标为完成。
 
 ---
 
@@ -39,7 +56,7 @@ AbilityKit 当前按“先基础包收口，再推进 Starter，再扩大到战�
 
 第一版 Starter 只证明基础包可以独立启动；技能核心不重复造新示例，而是收编 `Samples.Logic` 中已有的 Pipeline、Triggering、Modifiers/属性正式示例与 Web 导出能力。
 
-**当前状态**：五个 Starter 已全部落地为纯 C# 控制台工程，覆盖全部推荐组合，可直接运行：
+**源码入口**：以下五个 Starter 工程在当前仓库存在。命令用于定位运行入口；本轮未执行这些工程，不据此声明全部组合已验收。运行前按仓库产物规范将日志写入 `local/Logs/`：
 
 ```bash
 dotnet run --project src/AbilityKit.Samples.Foundation     # core + world.di：日志/事件/对象池/World DI/宿主 Tick
@@ -64,6 +81,7 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 | 文档 | 定位 |
 |------|------|
+| [使用索引](./com.abilitykit.host.extension/Documentation~/README.md) | 当前模块选择、固定步长示例、时间与世界启动契约 |
 | [开发设计文档](./com.abilitykit.host.extension/Document/Host模块开发设计文档.md) | 整体架构、设计理念、数据流程 |
 | [扩展指南](./com.abilitykit.host.extension/Document/Host模块扩展指南.md) | Hook、Feature、Blueprint 扩展机制 |
 
@@ -71,10 +89,12 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 ---
 
-### 2. [Flow 模块](./com.abilitykit.flow/Document/)
+### 2. [Flow 模块](./com.abilitykit.flow/README.md)
 
 | 文档 | 定位 |
 |------|------|
+| [包内使用契约](./com.abilitykit.flow/Documentation~/Usage.md) | Session、Wake、Scope、资源释放及异常边界 |
+| [历史文档索引](./com.abilitykit.flow/Document/README.md) | 保留旧概念材料，当前 API 以 Usage 和 Runtime 为准 |
 | [开发设计文档](./com.abilitykit.flow/Document/Flow模块开发设计文档.md) | 设计理念、核心概念、节点详解 |
 | [扩展指南](./com.abilitykit.flow/Document/Flow模块扩展指南.md) | 自定义节点、组合模式、协作示例 |
 
@@ -93,11 +113,12 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 ---
 
-### 4. [能力管线模块](./com.abilitykit.pipeline/Document/)
+### 4. [能力管线模块](./com.abilitykit.pipeline/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md) | 设计理念、阶段类型、组合模式 |
+| [包内使用契约](./com.abilitykit.pipeline/Documentation~/Usage.md) | Run 推进、Context 所有权、阶段隔离和恢复边界 |
+| [历史设计索引](./com.abilitykit.pipeline/Document/README.md) | 调试器与设计说明，按页面事实基线阅读 |
 
 **核心内容**：技能/Buff 系统，用管线阶段组织复杂的能力逻辑
 
@@ -143,6 +164,14 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 **核心内容**：高性能属性系统，支持 Buff/Debuff 管理、自定义公式、脏标记优化
 
+### D2 其他技能包入口
+
+| 包 | 消费者入口 | 当前核校说明 |
+| --- | --- | --- |
+| [Continuous](./com.abilitykit.continuous/README.md) | [使用契约](./com.abilitykit.continuous/Documentation~/Usage.md) | 管理器生命周期、准入、绑定器和失败补偿；未验证 Unity Player 或项目恢复链 |
+| [Triggering](./com.abilitykit.triggering/README.md) | [文档索引](./com.abilitykit.triggering/Documentation~/README.md) | 即时主线与可选调度分开；正式/兼容 API 以 FormalApiBoundary 为准 |
+| [HFSM](./com.abilitykit.hfsm/README.md) | [使用契约](./com.abilitykit.hfsm/Documentation~/Usage.md) | Definition → RuntimeBindings 主线；旧状态机 API 标为兼容材料 |
+
 ---
 
 ### 10. [目标查找模块](./com.abilitykit.combat.targeting/Documentation~/)
@@ -157,21 +186,24 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 ---
 
-### 11. [Core 模块](./com.abilitykit.core/Documentation~/)
+### 11. [Core 模块](./com.abilitykit.core/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [数值系统开发设计文档](./com.abilitykit.core/Documentation~/数值系统模块开发设计文档.md) | 设计理念、轻量修饰器、伤害计算 |
+| [Core 使用文档索引](./com.abilitykit.core/Documentation~/README.md) | 数学、集合、所有权、日志、事件、对象池和兼容契约 |
+| [首次使用](./com.abilitykit.core/Documentation~/Usage.md) | 完整示例、安装条件、所有权和失败边界 |
+| [独立 Modifiers 包](./com.abilitykit.modifiers/README.md) | 修改器计算、Handler 扩展和使用示例；不属于 Core 数值系统 |
 
-**核心内容**：轻量级数值修饰系统，用于伤害计算和效果加成，与属性系统互补
+**核心内容**：Core 提供基础设施；修改器计算通过独立 Modifiers 包接入。
 
 ---
 
-### 12. [移动系统模块](./com.abilitykit.world.motion/Document/)
+### 12. [移动系统模块](./com.abilitykit.combat.motion/Document/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.world.motion/Document/移动系统模块开发设计文档.md) | 设计理念、来源组合、碰撞求解 |
+| [使用文档](./com.abilitykit.combat.motion/Document/Usage.md) | 实体接入、移动来源、策略、求解与状态使用 |
+| [跨包设计入口](../../Docs/design/08-GameplayModules/10-MotionPipeline.md) | 移动意图组合、约束求解及相关执行链 |
 
 **核心内容**：通用移动系统框架，支持多来源组合、分组优先级、碰撞解耦、确定性设计
 
@@ -213,6 +245,7 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 | 文档 | 定位 |
 |------|------|
 | [包内使用契约](./com.abilitykit.world.di/Documentation~/Usage.md) | 生命周期、所有权与解析 |
+| [使用索引与完整示例](./com.abilitykit.world.di/Documentation~/README.md) | 安装、示例运行预期及历史入口 |
 | [仓库设计](../../Docs/design/02-LogicalWorldDesign/05-ServiceContainer.md) | 服务容器与逻辑世界装配 |
 
 **核心内容**：逻辑世界的服务依赖注入框架，支持 Singleton/Scoped/Transient 三种生命周期，提供模块化服务注册
@@ -223,6 +256,23 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 |------|------|
 | [包内使用契约](./com.abilitykit.world.ecs/Documentation~/Usage.md) | 实体标识、组件和资源边界 |
 | [仓库实体设计](../../Docs/design/02-LogicalWorldDesign/02-EntityDesign.md) | 实体生命周期及 Unity/.NET 实现边界 |
+
+### D3 世界、同步与网络核心入口
+
+| 包 | 包内使用入口 | 重点 |
+| --- | --- | --- |
+| [World ECS](com.abilitykit.world.ecs/README.md) | [索引](com.abilitykit.world.ecs/Documentation~/README.md) | 实体身份、组件、查询与资源边界 |
+| [Host](com.abilitykit.host/README.md) | [索引](com.abilitykit.host/Documentation~/README.md) | 宿主、Builder、blueprint 与模块清理 |
+| [Host Extensions](com.abilitykit.host.extension/README.md) | [索引](com.abilitykit.host.extension/Documentation~/README.md) | 唯一模拟驱动、模块依赖与世界实例绑定 |
+| [FrameSync](com.abilitykit.world.framesync/README.md) | [索引](com.abilitykit.world.framesync/Documentation~/README.md) | 帧就绪、命令历史、Provider 预检及重演 |
+| [StateSync](com.abilitykit.world.statesync/README.md) | [索引](com.abilitykit.world.statesync/Documentation~/README.md) | 本地检查点与在线提交的区别 |
+| [Snapshot](com.abilitykit.world.snapshot/README.md) | [索引](com.abilitykit.world.snapshot/Documentation~/README.md) | 类型化路由、顺序、所有权与异常 |
+| [Network Fragments](com.abilitykit.world.networkfragments/README.md) | [索引](com.abilitykit.world.networkfragments/Documentation~/README.md) | 缓冲、聚合、裁剪与作用域 |
+| [Record](com.abilitykit.record/README.md) | [索引](com.abilitykit.record/Documentation~/README.md) | 轨道初始化、格式选择、加载与载荷所有权 |
+| [Protocol](com.abilitykit.protocol/README.md) | [索引](com.abilitykit.protocol/Documentation~/README.md) | 生成来源、受约束解码与版本协商 |
+| [Network Runtime](com.abilitykit.network.runtime/README.md) | [索引](com.abilitykit.network.runtime/Documentation~/README.md) | 连接、请求、成帧和回调缓冲生命周期 |
+
+跨包交接从[同步能力地图](../../Docs/design/07-NetworkSynchronization/00-SynchronizationCapabilityMap.md#13-核心包消费路径与恢复所有权2026-11-25)进入。以上是本批已核范围；SDK、Room/Battle、服务端监听、可选 transport 和 Entitas/Svelto 适配不在本批结论内。
 
 ---
 
@@ -254,89 +304,36 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 | 为什么用索引 | [战斗索引 - SkillLibrary 主数据与派生索引](../../Docs/design/08-GameplayModules/09-EntityAndSkillIndexing.md#4-skilllibrary主数据与派生索引) |
 | 为什么用 Trigger | [触发器模块设计概览](./com.abilitykit.triggering/Documentation~/Overview.md#一定位) |
 | 为什么用修饰器 | [属性系统 - 系统定位](../../Docs/design/08-GameplayModules/05-AttributeSystem.md#1-系统定位) |
-| 为什么用轻量修饰器 | [数值系统模块开发设计文档 - 设计理念](./com.abilitykit.core/Documentation~/数值系统模块开发设计文档.md#一设计理念为什么要做数值系统) |
+| 为什么用修改器计算 | [Modifiers 包设计原则](./com.abilitykit.modifiers/README.md#设计原则) |
 | 为什么用管线模式 | [目标查找模块开发设计文档 - 设计理念](./com.abilitykit.combat.targeting/Documentation~/Design/目标查找模块开发设计文档.md#一设计理念为什么要做目标查找模块) |
-| 为什么用来源组合 | [移动系统模块开发设计文档 - 设计理念](./com.abilitykit.world.motion/Document/移动系统模块开发设计文档.md#一设计理念为什么要做移动系统模块) |
+| 为什么用来源组合 | [Motion Pipeline 与约束求解](../../Docs/design/08-GameplayModules/10-MotionPipeline.md) |
 | 投射物如何创建和回收 | [投射物系统 - 生命周期主线](../../Docs/design/08-GameplayModules/04-ProjectileSystem.md#5-生命周期主线) |
 | 为什么用阶段化 | [MOBA 技能 Flow 与 Pipeline 配置设计](../../Docs/design/09-ImplementationExamples/MOBA/18-SkillFlowPipelineConfigDesign.md) |
 | 为什么用分层状态机 | [客户端游戏流程运行时架构](../../Docs/design/04-PresentationLayerDesign/04-ClientGameFlowAndPhaseArchitecture.md) |
 
 ---
 
-## 📐 模块关系图
+## 架构与使用文档的关系
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         Ability-Kit 框架架构                            │
-│                                                                         │
-│   ┌─────────────────────────────────────────────────────────────────┐   │
-│   │                      游戏应用层                                   │   │
-│   │                                                                 │   │
-│   │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐      │   │
-│   │  │   技能系统    │  │   房间系统    │  │   战斗系统    │      │   │
-│   │  │  (Pipeline)  │  │    (Host)    │  │  (Pipeline)  │      │   │
-│   │  └───────────────┘  └───────────────┘  └───────────────┘      │   │
-│   │                                                                 │   │
-│   └─────────────────────────────────────────────────────────────────┘   │
-│                               │                                         │
-│                               ▼                                         │
-│   ┌─────────────────────────────────────────────────────────────────┐   │
-│   │                       引擎层                                       │   │
-│   │                                                                 │   │
-│   │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐      │   │
-│   │  │   流程编排    │  │   运行时管理   │  │   录制回放    │      │   │
-│   │  │    (Flow)     │  │    (Host)    │  │  (Record)    │      │   │
-│   │  └───────────────┘  └───────────────┘  └───────────────┘      │   │
-│   │                                                                 │   │
-│   └─────────────────────────────────────────────────────────────────┘   │
-│                               │                                         │
-│                               ▼                                         │
-│   ┌─────────────────────────────────────────────────────────────────┐   │
-│   │                       核心层                                       │   │
-│   │                                                                 │   │
-│   │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐      │   │
-│   │  │   实体系统    │  │   帧同步     │  │   网络通信    │      │   │
-│   │  │   (World)    │  │  (FrameSync) │  │  (Network)   │      │   │
-│   │  └───────────────┘  └───────────────┘  └───────────────┘      │   │
-│   │                                                                 │   │
-│   └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+包内可以解释正确使用 API 所需的局部模型与生命周期。本页“想理解架构设计”中的既有链接按此边界逐项核校；全局分层、跨包装配和执行链以[设计索引](../../Docs/design/00-index.md)中的对应专题为入口。
+
+## 文档贡献与核校
+
+1. 先按[维护规范](../../Docs/design/10-EngineeringQuality/20-DocumentationSystemStandard.md)确定读者和契约所有权，更新现有权威正文。
+2. 新建包文档使用 `Documentation~/README.md` 导航；已有 `Document/`、`Documentation/`、`docs/` 保留，先核对消费者再迁移。
+3. README 给出定位、环境、安装和最短接入路径；包内正文说明 API、所有权、失败行为和迁移。包内本地链接必须在独立安装后可读。
+4. 模板、事实语言和验收规则在维护规范维护；[首轮盘点](../../plans/2026-11-24-DocumentationSystemInventory.md)记录逐包缺口和批次。只修改链接、排版不刷新正文事实基线。
 
 ---
 
-## 📖 文档风格指南
-
-所有文档都遵循以下设计原则：
-
-| 原则 | 说明 |
-|------|------|
-| **问题驱动** | 先讲"为什么需要"，再讲"怎么用" |
-| **大量图示** | 用 ASCII 图解释抽象概念 |
-| **通俗类比** | 用生活实例帮助理解 |
-| **代码模板** | 提供可直接使用的代码 |
-| **最佳实践** | 明确告诉你要做什么、不要做什么 |
-
----
-
-## 🔧 文档贡献指南
-
-如果你想修改或补充文档：
-
-1. 每个模块的文档在 `Document/` 目录下
-2. Markdown 格式，支持飞书直接粘贴
-3. 代码示例使用 C# 语法高亮
-4. 流程图使用 Mermaid 或 ASCII 图
-
----
-
-## 📅 更新日志
+## 更新日志
 
 | 日期 | 模块 | 说明 |
 |------|------|------|
 | 2026-03-19 | All | 初始文档创建 |
+| 2026-11-24 | 文档入口 | 明确包使用文档与仓库设计分工，统一贡献入口，标明存量待核范围；不重验包行为或发布资格 |
+| 2026-11-25 | D3 核心包入口 | 接通世界、Host、同步、快照、记录、协议及网络运行时十包使用索引；核校范围与验证失败见批次记录，SDK 和适配包待后续 |
 
 ---
 
-*最后更新：2026-03-19*
+*导航最后更新：2026-11-25；正文核校按包分别记录*

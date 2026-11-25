@@ -7,7 +7,7 @@ using AbilityKit.Ability.Config;
 namespace AbilityKit.Orleans.Grains.Gameplays.Moba.Resources;
 
 /// <summary>
-/// Loads MOBA runtime resources from the server deployment or the repository Resources directory.
+/// 从服务端部署目录或仓库 Resources 目录加载 MOBA 运行时资源。
 /// </summary>
 internal sealed class ServerMobaTextAssetLoader : ITextAssetLoader, ITextAssetDirectoryLoader
 {

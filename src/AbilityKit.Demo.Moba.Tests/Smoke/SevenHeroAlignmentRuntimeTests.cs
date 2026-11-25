@@ -28,7 +28,7 @@ using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
-public sealed class SevenHeroAlignmentRuntimeTests
+public sealed partial class SevenHeroAlignmentRuntimeTests
 {
     [Fact]
     public void Jhin_Q_same_projectile_impact_kills_amplify_only_later_targets()
@@ -1051,17 +1051,207 @@ public sealed class SevenHeroAlignmentRuntimeTests
         Assert.True(forward.Z < -.999f, "Successful locked attack should snap authoritative facing to its target, not the stale input ray");
     }
 
+    [Theory]
+    [InlineData(3001)] [InlineData(3002)] [InlineData(3003)] [InlineData(3004)]
+    [InlineData(3005)] [InlineData(3006)] [InlineData(3007)]
+    public void Debug_spawn_creates_current_heroes_with_teams_skills_resources_and_birth_snapshots(int hero)
+    {
+        using var battle = new Battle(hero);
+        PrepareDebugOutput(battle);
+        var players = battle.Services.Resolve<MobaPlayerActorMapService>();
+        var actors = battle.Services.Resolve<MobaActorRegistry>();
+        var player = new PlayerId("player_1");
+        var opponent = new PlayerId("ai_1");
+        SubmitDebug(battle, player, MobaOpCodes.Input.DebugReplaceHero, MobaDebugReplaceHeroCodec.Serialize(hero));
+        SubmitDebug(battle, opponent, MobaOpCodes.Input.DebugReplaceHero, MobaDebugReplaceHeroCodec.Serialize(3007));
+        Assert.True(players.TryGetActorId(player, out var source));
+        Assert.True(players.TryGetActorId(opponent, out var enemySource));
+        // 只保留本用例指定的敌方模板，其余 Console 默认槽位改为友方。
+        foreach (var entry in actors.Entries.ToArray())
+            if (entry.Key != enemySource && entry.Value.hasTeam && entry.Value.team.Value == Team.Team2)
+                entry.Value.ReplaceTeam(Team.Team1);
+        battle.Setup.DisableActorBrain(source);
+        battle.Setup.DisableActorBrain(enemySource);
+        var sourcePosition = battle.Actor(source).transform.Value.Position;
+        var created = new HashSet<int>();
+        foreach (var relation in new[] { MobaDebugSpawnUnitRelation.Ally, MobaDebugSpawnUnitRelation.Enemy,
+                     MobaDebugSpawnUnitRelation.Ally })
+        {
+            var before = actors.Entries.Select(entry => entry.Key).ToHashSet();
+            SubmitDebug(battle, player, MobaOpCodes.Input.DebugSpawnUnit, MobaDebugSpawnUnitCodec.Serialize(relation));
+            var entry = Assert.Single(actors.Entries.Where(entry => !before.Contains(entry.Key)));
+            Assert.True(created.Add(entry.Key));
+            var unit = entry.Value;
+            var template = battle.Actor(relation == MobaDebugSpawnUnitRelation.Ally ? source : enemySource);
+            Assert.Equal(UnitSubType.Hero, unit.unitSubType.Value);
+            Assert.Equal(template.team.Value, unit.team.Value);
+            Assert.Equal(template.skillLoadout.HeroId, unit.skillLoadout.HeroId);
+            Assert.Equal(template.modelId.Value, unit.modelId.Value);
+            Assert.Equal(template.skillLoadout.ActiveSkills.Select(skill => skill.SkillId),
+                unit.skillLoadout.ActiveSkills.Select(skill => skill.SkillId));
+            Assert.True(new MobaAttrs(unit).MaxHp > 0);
+            Assert.Equal(new MobaAttrs(template).MaxHp, new MobaAttrs(unit).MaxHp);
+            Assert.True(unit.hasResourceContainer);
+            Assert.True(unit.hasCollisionId);
+            Assert.False(unit.hasActorBrain);
+            Assert.Equal(sourcePosition + new Vec3(relation == MobaDebugSpawnUnitRelation.Ally ? -1.25f : 1.25f, 0, 2),
+                unit.transform.Value.Position);
+            Assert.True(players.TryGetActorId(player, out var stillControlled));
+            Assert.Equal(source, stillControlled);
+            Assert.True(players.TryGetActorId(opponent, out var stillEnemy));
+            Assert.Equal(enemySource, stillEnemy);
+            var snapshots = new List<WorldStateSnapshot>();
+            battle.Services.Resolve<IMobaBattleOutputPort>().CollectSnapshots(
+                battle.Services.Resolve<IFrameTime>().Frame, snapshots, 128);
+            var birth = Assert.Single(snapshots.Where(s => s.OpCode == MobaOpCodes.Snapshot.ActorSpawn)
+                .SelectMany(s => MobaActorSpawnSnapshotCodec.Deserialize(s.Payload)), e => e.NetId == entry.Key);
+            Assert.Equal((int)SpawnEntityKind.Character, birth.Kind);
+            Assert.Equal(unit.skillLoadout.HeroId, birth.Code);
+            Assert.Equal(actors.GetEntityVersion(entry.Key), birth.EntityVersion);
+        }
+    }
+
+    [Theory]
+    [InlineData(3003, 3)]
+    [InlineData(3007, 2)]
+    public void Debug_spawned_teammate_receives_real_friendly_shield_but_enemy_does_not(int hero, int slot)
+    {
+        using var battle = new Battle(hero);
+        PrepareDebugOutput(battle);
+        var player = new PlayerId("player_1");
+        SubmitDebug(battle, player, MobaOpCodes.Input.DebugReplaceHero, MobaDebugReplaceHeroCodec.Serialize(hero));
+        var players = battle.Services.Resolve<MobaPlayerActorMapService>();
+        Assert.True(players.TryGetActorId(player, out var source));
+        battle.Setup.DisableActorBrain(source);
+        var actors = battle.Services.Resolve<MobaActorRegistry>();
+        var ally = Spawn(MobaDebugSpawnUnitRelation.Ally);
+        var enemy = Spawn(MobaDebugSpawnUnitRelation.Enemy);
+        var position = battle.Actor(ally).transform.Value.Position;
+        var direction = (position - battle.Actor(source).transform.Value.Position).Normalized;
+        var cast = battle.Skills.TryCastBySlot(source, slot, position, direction, hero == 3003 ? ally : 0);
+        Assert.True(cast.Success, cast.FailReason);
+        battle.Setup.TickMilliseconds(600);
+        var shields = battle.Services.Resolve<MobaShieldService>();
+        Assert.True(shields.GetTotalRemaining(ally) > 0);
+        Assert.Equal(0, shields.GetTotalRemaining(enemy));
+
+        int Spawn(MobaDebugSpawnUnitRelation relation)
+        {
+            var before = actors.Entries.Select(entry => entry.Key).ToHashSet();
+            SubmitDebug(battle, player, MobaOpCodes.Input.DebugSpawnUnit, MobaDebugSpawnUnitCodec.Serialize(relation));
+            return Assert.Single(actors.Entries.Where(entry => !before.Contains(entry.Key))).Key;
+        }
+    }
+
+    [Fact]
+    public void Debug_spawn_without_opponent_or_pending_start_spec_uses_current_hero_on_opposing_team()
+    {
+        using var battle = new Battle(3007);
+        PrepareDebugOutput(battle);
+        var actors = battle.Services.Resolve<MobaActorRegistry>();
+        foreach (var entry in actors.Entries.ToArray())
+            if (entry.Value.hasTeam) entry.Value.ReplaceTeam(Team.Team1);
+        var before = actors.Entries.Select(entry => entry.Key).ToHashSet();
+        SubmitDebug(battle, new PlayerId("alignment_caster"), MobaOpCodes.Input.DebugSpawnUnit,
+            MobaDebugSpawnUnitCodec.Serialize(MobaDebugSpawnUnitRelation.Enemy));
+        var spawned = Assert.Single(actors.Entries.Where(entry => !before.Contains(entry.Key))).Value;
+        Assert.Equal(Team.Team2, spawned.team.Value);
+        Assert.Equal(UnitSubType.Hero, spawned.unitSubType.Value);
+        Assert.Equal(3007, spawned.skillLoadout.HeroId);
+    }
+
+    private static void PrepareDebugOutput(Battle battle)
+    {
+        // 与正式启动完成后相同：临时开局规格已清空，动态生成只依赖当前世界。
+        battle.Services.Resolve<AbilityKit.Ability.Host.Extensions.Moba.StartSources.IMobaPendingGameStartSpecStore>().Clear();
+        battle.Services.Resolve<IMobaBattleOutputPort>().CollectSnapshots(
+            battle.Services.Resolve<IFrameTime>().Frame, new List<WorldStateSnapshot>(), 128);
+    }
+
+    private static void SubmitDebug(Battle battle, PlayerId player, int opCode, byte[] payload)
+    {
+        var frame = new FrameIndex(battle.Services.Resolve<IFrameTime>().Frame.Value + 1);
+        var command = new PlayerInputCommand(frame, player, opCode, payload);
+        var submitted = battle.Services.Resolve<IMobaBattleInputPort>().Submit(frame, new[] { command });
+        Assert.True(submitted.Succeeded, submitted.ToString());
+        battle.Setup.Tick(2);
+    }
+
+    [Theory]
+    [InlineData(3001)] [InlineData(3002)] [InlineData(3003)] [InlineData(3004)]
+    [InlineData(3005)] [InlineData(3006)] [InlineData(3007)]
+    public void Published_pillar_allows_real_hero_move_input_to_escape_contact_and_overlap(int hero)
+    {
+        using var battle = new Battle(hero, targetZ: 25);
+        var maps = battle.Services.Resolve<AbilityKit.Demo.Moba.Services.Map.IMobaMapRuntimeService>();
+        var pillar = Assert.Single(maps.CurrentMap.CollisionObjects, item =>
+            item.ShapeType == AbilityKit.Demo.Moba.Config.BattleDemo.MO.MapCollisionShapeType.Capsule);
+        Assert.True(maps.TryGetColliderId(pillar.Id, out _));
+        var center = new Vec3(pillar.Position.X, 0, pillar.Position.Z);
+        var actor = battle.Actor(battle.Caster);
+        var player = new PlayerId("alignment_caster");
+        var directions = new[] { Vec3.Right, -Vec3.Right, Vec3.Forward, -Vec3.Forward,
+            new Vec3(1, 0, 1).Normalized, new Vec3(-1, 0, 1).Normalized,
+            new Vec3(1, 0, -1).Normalized, new Vec3(-1, 0, -1).Normalized };
+
+        foreach (var direction in directions)
+        {
+            Place(center - direction * 3f);
+            Move(direction, 30);
+            var contact = actor.transform.Value.Position;
+            Assert.True(Vec3.Dot(contact - center, direction) < -.5f,
+                $"普通移动必须被圆柱挡住，hero={hero}, dir={direction}, pos={contact}");
+            Move(-direction, 12);
+            Assert.True(Vec3.Dot(actor.transform.Value.Position - contact, -direction) > .5f,
+                $"撞柱后反向输入必须脱离，hero={hero}, dir={direction}, pos={actor.transform.Value.Position}");
+
+            Place(contact);
+            var tangent = new Vec3(-direction.Z, 0, direction.X);
+            Move(tangent, 20);
+            Assert.True(Vec3.Dot(actor.transform.Value.Position - contact, tangent) > .5f,
+                $"贴柱后侧向输入必须移动，hero={hero}, dir={direction}, pos={actor.transform.Value.Position}");
+
+            foreach (var offset in new[] { 0f, .5f, 1f })
+            {
+                Place(center + direction * offset);
+                Move(direction, 20);
+                var escaped = actor.transform.Value.Position;
+                Assert.True(Vec3.Dot(escaped - center, direction) > 2f,
+                    $"重叠后普通移动必须走出圆柱，hero={hero}, dir={direction}, offset={offset}, pos={escaped}");
+            }
+        }
+
+        void Place(Vec3 position)
+        {
+            actor.ReplaceMoveInput(0, 0);
+            var transform = actor.transform.Value;
+            actor.ReplaceTransform(new Transform3(position, transform.Rotation, transform.Scale));
+            battle.Setup.Tick(2);
+        }
+
+        void Move(Vec3 direction, int ticks)
+        {
+            SubmitDebug(battle, player, MobaOpCodes.Input.Move, MobaMoveCodec.Serialize(direction.X, direction.Z));
+            battle.Setup.Tick(ticks);
+            Assert.True(actor.hasMoveInput);
+            Assert.Equal(direction.X, actor.moveInput.Dx);
+            Assert.Equal(direction.Z, actor.moveInput.Dz);
+        }
+    }
+
     private sealed class Battle : IDisposable
     {
         private readonly ConsoleBattleBootstrapper _bootstrapper;
+        private readonly bool _enableRegeneration;
         public LiveSimSetupActionExecutor Setup { get; }
         public int Caster { get; }
         public int Target { get; }
         public IWorldResolver Services => _bootstrapper.RuntimeServices!;
         public SkillCastCoordinator Skills => Services.Resolve<SkillCastCoordinator>();
 
-        public Battle(int hero, float targetZ = 3)
+        public Battle(int hero, float targetZ = 3, bool enableRegeneration = false, int level = 1)
         {
+            _enableRegeneration = enableRegeneration;
             var config = BattleStartConfig.CreateDefault();
             foreach (var player in config.Players) player.EnableBrainOnSpawn = false;
             _bootstrapper = new ConsoleBattleBootstrapper(config);
@@ -1071,23 +1261,24 @@ public sealed class SevenHeroAlignmentRuntimeTests
             _bootstrapper.SetupBattle();
             for (var i = 0; i < 10; i++) _bootstrapper.Tick();
             Setup = new LiveSimSetupActionExecutor(_bootstrapper);
-            Caster = Spawn("caster", hero, 1, 0);
+            Caster = Spawn("caster", hero, 1, 0, level: level);
             Target = Spawn("target", 3007, 2, targetZ);
             Setup.Tick(2);
         }
 
-        public int Spawn(string alias, int hero, int team, float z, float x = 0)
+        public int Spawn(string alias, int hero, int team, float z, float x = 0, int level = 1)
         {
             Setup.Execute(new MobaAcceptanceSetupActionExpectation
             {
                 action = "spawn_actor", alias = alias, playerId = "alignment_" + alias,
-                heroId = hero, attributeTemplateId = hero, teamId = team,
+                heroId = hero, attributeTemplateId = hero, teamId = team, level = level,
                 position = new MobaAcceptanceVector3Expectation { z = z, x = x },
             });
             Assert.True(Setup.TryGetActorId(alias, out var actor));
             Setup.DisableActorBrain(actor);
             Set(actor, "PER_SECOND_BLOOD_R", 0);
             Set(actor, "PER_SECOND_MANA_R", 0);
+            if (!_enableRegeneration) Set(actor, "MANA_REGEN_PER_SECOND", 0);
             return actor;
         }
 

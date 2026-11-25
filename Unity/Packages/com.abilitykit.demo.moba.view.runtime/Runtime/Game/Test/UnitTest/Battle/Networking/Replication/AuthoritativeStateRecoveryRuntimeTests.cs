@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
@@ -23,11 +25,13 @@ using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Game.Platform.Unity.Presentation;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
+using AbilityKit.Network.Battle.Config;
 using AbilityKit.Network.Battle.Projection;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Network.Room;
@@ -89,6 +93,9 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(fixture.Context.CanSubmitGameplayInput, Is.True);
             var playbackWorld = fixture.PlaybackWorld;
             Assert.That(playbackWorld, Is.Not.Null.And.Not.SameAs(sourceWorld));
+            var clock = Resolve<IFrameTime>(playbackWorld);
+            Assert.That(clock.Frame.Value, Is.EqualTo(10));
+            Assert.That(fixture.PlaybackRuntime.Features.TryGetFeature<IClientPredictionDriverStats>(out _), Is.False);
             var playbackActors = Resolve<MobaActorRegistry>(playbackWorld);
             AssertPosition(playbackActors, actorId, 10f);
             Assert.That(playbackActors.Entries.Select(entry => entry.Key),
@@ -101,6 +108,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var changed = new[] { ToTypedSnapshotActor(producer.ExtractFull(actorId)) };
             fixture.Runtime.HandleSnapshot(LocalFixedSnapshot(generation, 3, 1, 12, changed));
             AssertPosition(playbackActors, actorId, 12f);
+            Assert.That(clock.Frame.Value, Is.EqualTo(12));
             Assert.That(fixture.Replication.LastServerAckFrame, Is.EqualTo(8));
             AssertProjectedActors(fixture, allActorIds);
 
@@ -110,6 +118,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(fixture.Transport.FullStateRequests, Is.EqualTo(new[] { ("snapshot-fixed-baseline-mismatch", 12) }));
             fixture.Runtime.HandleSnapshot(LocalFixedSnapshot(generation, 6, 1, 15, changed));
             AssertPosition(playbackActors, actorId, 12f);
+            Assert.That(clock.Frame.Value, Is.EqualTo(12));
             Assert.That(fixture.Replication.SnapshotAdmission.LastAcceptedFrame, Is.EqualTo(12));
             Assert.That(fixture.Context.CanSubmitGameplayInput, Is.False);
             foreach (var retiredId in allActorIds.Skip(1)) sourceActors.Unregister(retiredId);
@@ -182,10 +191,14 @@ namespace AbilityKit.Game.Test.UnitTest
                     MaximumSchemaVersion = GatewayStateSyncSnapshot.CurrentSchemaVersion,
                     ClientPlayback = (int)ClientPlaybackCapabilities.AuthoritativeInterpolation,
                     Input = (int)InputPolicy.ImmediateSubmit,
-                    Snapshot = (int)SnapshotPolicy.FullSnapshot,
+                    Snapshot = (int)(SnapshotPolicy.FullSnapshot | SnapshotPolicy.DeltaSnapshot |
+                        SnapshotPolicy.FixedRateStateStream | SnapshotPolicy.EventStream),
                     Interest = (int)InterestPolicy.AllEntities,
                     Recovery = (int)RecoveryPolicy.RequestFullSnapshot,
-                    ServerValidation = (int)ServerValidationPolicy.AuthoritativeOnly
+                    ServerValidation = (int)(ServerValidationPolicy.AuthoritativeOnly | ServerValidationPolicy.InputValidation),
+                    ReliableEvent = (int)(ReliableEventCapabilities.OrderedDelivery |
+                        ReliableEventCapabilities.AutomaticAcknowledgement | ReliableEventCapabilities.PersistentCheckpoint |
+                        ReliableEventCapabilities.AuthoritativeBaselineRecovery)
                 });
 
         /// <summary>
@@ -510,6 +523,14 @@ namespace AbilityKit.Game.Test.UnitTest
             var sink = CreateSink();
             using var dispatcher = new SnapshotDispatcher();
             AbilityKit.Demo.Moba.Share.PresentationCueSnapshotRoute.RegisterDecoder(dispatcher);
+            AbilityKit.Demo.Moba.Share.ActorIndicatorSnapshotRoute.RegisterDecoder(dispatcher);
+            AbilityKit.Demo.Moba.Share.ShieldStateSnapshotRoute.RegisterDecoder(dispatcher);
+            AbilityKit.Demo.Moba.Share.ActorIndicatorStateData[] overheadRows = null;
+            AbilityKit.Demo.Moba.Share.ShieldStateData[] shieldRows = null;
+            using var overheadSubscription = dispatcher.Subscribe<AbilityKit.Demo.Moba.Share.ActorIndicatorStateData[]>(
+                MobaOpCodes.Snapshot.ActorIndicatorState, (_, entries) => overheadRows = entries);
+            using var shieldSubscription = dispatcher.Subscribe<AbilityKit.Demo.Moba.Share.ShieldStateData[]>(
+                MobaOpCodes.Snapshot.ShieldState, (_, entries) => shieldRows = entries);
             fixture.Context.BindSnapshotRouting(dispatcher, null, null);
             using var adapter = dispatcher.Subscribe<AbilityKit.Demo.Moba.Share.PresentationCueData[]>(
                 MobaOpCodes.Snapshot.PresentationCue, (packet, entries) => sink.OnPresentationCueSnapshot(packet, entries));
@@ -540,6 +561,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 fixture.Runtime.HandleSnapshot(recovered);
                 Assert.IsFalse(fixture.Runtime.PendingStateImport);
                 Assert.That(fixture.PlaybackWorld, Is.Not.Null.And.Not.SameAs(beforeReconnect));
+                Assert.That(overheadRows, Is.Not.Null);
+                Assert.That(overheadRows.Single(row => row.ActorId == actorId && row.IndicatorId == 1).Current,
+                    Is.EqualTo(source.GetActorHp(actorId)).Within(.01f));
+                var recoveredMana = overheadRows.Single(row => row.ActorId == actorId && row.IndicatorId == 2);
+                Assert.That(recoveredMana.Current, Is.LessThan(recoveredMana.Max));
+                Assert.That(shieldRows.Single(row => row.ActorId == actorId).CurrentShield, Is.GreaterThan(0));
                 Assert.That(Resolve<MobaActorRegistry>(fixture.PlaybackWorld).TryGet(actorId, out _), Is.True);
                 Assert.IsTrue(ShieldActive(), "The shield must not expire before the recovered full snapshot.");
                 var recoveredFrame = source.FrameTime.Frame.Value;
@@ -548,6 +575,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 var rebuiltViewId = root.GetChild(0).Id;
                 source.Tick(1);
                 Import(3, 2);
+                var nextMana = overheadRows.Single(row => row.ActorId == actorId && row.IndicatorId == 2);
+                Assert.That(nextMana.Current, Is.GreaterThan(recoveredMana.Current),
+                    "权威世界每帧回蓝应经状态同步接纳后的完整指示器通道更新。");
                 Assert.That(ShieldViewCount(), Is.EqualTo(1));
                 Assert.AreEqual(rebuiltViewId, root.GetChild(0).Id, "The next active set must reuse the recovered view.");
 
@@ -567,6 +597,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     $"rebuilt shield views={rebuiltCount}; views after expiry={ShieldViewCount()}");
                 Assert.That(new[] { rebuiltCount, ShieldViewCount() }, Is.EqualTo(new[] { 1, 0 }),
                     "The typed state-sync recovery path must rebuild exactly one shield and remove it at expiry.");
+                Assert.That(shieldRows.Any(row => row.ActorId == actorId && row.CurrentShield > 0), Is.False,
+                    "The complete shield channel must also clear on the actual remote recovery path.");
                 fixture.Runtime.HandleSnapshot(recovered);
                 Assert.That(ShieldViewCount(), Is.Zero, "A stale full snapshot must not bring back the expired shield.");
             }
@@ -582,7 +614,10 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 var frame = source.FrameTime.Frame;
                 Assert.IsTrue(cues.TryCaptureStateSyncBaseline(frame, out var cueBaseline));
-                var payload = MobaStateSyncCuePayloadCodec.Encode(0, 1, null, cueBaseline.Payload);
+                Assert.IsTrue(Resolve<MobaActorIndicatorSnapshotService>(source.World).TryGetActiveBaseline(out var indicators));
+                Assert.IsTrue(Resolve<MobaShieldStateSnapshotService>(source.World).TryGetActiveBaseline(out var shields));
+                var overhead = MobaStateSyncOverheadPayloadCodec.Encode(0, 1, null, indicators.Payload, shields.Payload);
+                var payload = MobaStateSyncCuePayloadCodec.Encode(MobaStateSyncOverheadPayloadCodec.OpCode, 1, overhead, cueBaseline.Payload);
                 var envelope = new WireStateSyncSnapshotPush
                 {
                     WorldId = 1UL,
@@ -820,13 +855,189 @@ namespace AbilityKit.Game.Test.UnitTest
             LogAssert.NoUnexpectedReceived();
         }
 
-        private static BattleStartPlan CreateLocalProofPlan()
+        /// <summary>
+        /// 类型化快照通过正式会话入口；不启动连接或构造网络数据。
+        /// </summary>
+        [Test]
+        public void ScopedMovementProof_IsVisibleOnlyAfterWorldCommitAndTracksAcceptedRevision()
         {
-            var world = new BattleStartPlanWorldOptions("typed-state-playback", "battle", "offline", "p1", 30, 0);
+            using var fixture = new Fixture();
+            var stream = Guid.NewGuid();
+            var input = Guid.NewGuid();
+            var observed = new List<long?>();
+            fixture.BeginGeneration(plan: CreateLocalProofPlan(scoped: true),
+                firstFrameReceived: () => observed.Add(fixture.Runtime.CommittedMovementProof?.SnapshotId));
+            fixture.World.BeforeCommit = () => Assert.That(fixture.Runtime.CommittedMovementProof?.SnapshotId,
+                Is.EqualTo(observed.Count == 0 ? null : observed[observed.Count - 1]));
+
+            fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, 1, 0, 10,
+                movementProof: MovementProof(input, stream, 1, 0, 10)));
+            fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, 2, 1, 11, actors: Array.Empty<GatewayStateSyncActorSnapshot>(),
+                movementProof: MovementProof(input, stream, 2, 1, 11)));
+            fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, 2, 1, 11));
+            fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, 3, 1, 12,
+                movementProof: MovementProof(input, Guid.NewGuid(), 3, 1, 12)));
+            fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, 4, 1, 13));
+
+            Assert.That(observed, Is.EqualTo(new long?[] { 1, 2, null, null }));
+            fixture.BeginGeneration(plan: CreateLocalProofPlan(scoped: true));
+            Assert.That(fixture.Runtime.CommittedMovementProof, Is.Null);
+        }
+
+        /// <summary>
+        /// 正式启动绑定先于首次类型化快照；初始化过程不尝试连接传输。
+        /// </summary>
+        [Test]
+        public void ScopedMovementProof_UsesFormalStartupBinding()
+        {
+            using var fixture = new Fixture();
+            var plan = CreateLocalProofPlan(scoped: true);
+            var stream = Guid.NewGuid();
+            var notified = false;
+            fixture.AttachStateSyncTransport(in plan, () => notified = true);
+            Assert.That(fixture.Runtime.PendingStateImport, Is.True);
+            Assert.That(fixture.Context.CanSubmitGameplayInput, Is.False);
+
+            fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, 1, 0, 10,
+                movementProof: MovementProof(Guid.NewGuid(), stream, 1, 0, 10)));
+
+            Assert.That(notified, Is.True);
+            Assert.That(fixture.World.ImportedFrames, Is.EqualTo(new[] { 10 }));
+            Assert.That(fixture.Runtime.CommittedMovementProof?.SnapshotId, Is.EqualTo(1));
+            Assert.That(fixture.Context.CanSubmitGameplayInput, Is.True);
+            Assert.That(fixture.Runtime.MovementPrediction, Is.Null, "proof delivery alone must not opt into prediction");
+        }
+
+        [Test]
+        public void ScopedMovementProof_PredictsAndReplaysLocalMovementWithoutSteppingAuthorityOrResubmitting()
+        {
+            using var fixture = new Fixture();
+            var inputGeneration = Guid.NewGuid();
+            var stream = Guid.NewGuid();
+            var plan = CreateLocalProofPlan(scoped: true, prediction: true);
+            using var session = fixture.CreateMovementSession(inputGeneration);
+            fixture.AttachStateSyncTransport(in plan, () => { }, session);
+            var movement = fixture.Runtime.MovementPrediction;
+            Assert.That(session.StateSyncMovement, Is.SameAs(movement));
+
+            Deliver(1, 0, 10, 1, new Transform3(new Vec3(10f, 0f, 0f), Quat.Identity, Vec3.One));
+            var request = new SubmitInputRequest(new WorldId("1"),
+                new PlayerInputCommand(new FrameIndex(12), new PlayerId("1"), MobaOpCodes.Input.Move, null));
+            session.SubmitInput(request, (1f, 0f));
+
+            movement.Tick(1f / 30f);
+            Assert.That(movement.TryGetState(out var tick11, out var tick, out var predicted), Is.True);
+            Assert.That(tick, Is.EqualTo(11));
+            Assert.That(predicted, Is.True);
+            Assert.That(tick11.Position.X, Is.EqualTo(10f));
+
+            movement.Tick(1f / 30f);
+            Assert.That(movement.TryGetState(out var tick12, out tick, out predicted), Is.True);
+            Assert.That(tick, Is.EqualTo(12));
+            Assert.That(predicted, Is.True);
+            Assert.That(tick12.Position.X, Is.GreaterThan(10f));
+
+            movement.Tick(1f / 30f);
+            Assert.That(movement.TryGetState(out var tick13, out var originalTick, out _), Is.True);
+            Assert.That(originalTick, Is.EqualTo(13));
+            Assert.That(tick13.Position.X, Is.GreaterThan(tick12.Position.X), "empty Tick retains movement intent");
+
+            Deliver(2, 1, 11, 1, tick11);
+            Assert.That(movement.LastSameTickMatch, Is.True);
+            Assert.That(movement.LastReplayTicks, Is.Zero, "unchanged future schedule needs no replay");
+            Deliver(3, 1, 12, 2, new Transform3(new Vec3(8f, 0f, 0f), tick12.Rotation, Vec3.One), moveX: 1);
+            Assert.That(movement.LastSameTickMatch, Is.False);
+            Assert.That(movement.LastReplayTicks, Is.EqualTo(1));
+            Assert.That(movement.TryGetState(out var corrected, out tick, out predicted), Is.True);
+            Assert.That(tick, Is.EqualTo(13));
+            Assert.That(predicted, Is.True);
+            Assert.That(corrected.Position.X, Is.EqualTo(8f + tick13.Position.X - tick12.Position.X).Within(0.0001f));
+            Assert.That(fixture.PreparedCount, Is.EqualTo(1));
+            Assert.That(fixture.World.CommittedFrames, Is.EqualTo(new[] { 10, 11, 12 }));
+
+            Deliver(4, 1, 20, 2, corrected, moveX: 1);
+            Assert.That(movement.TryGetState(out _, out tick, out predicted), Is.True);
+            Assert.That(tick, Is.EqualTo(20));
+            Assert.That(predicted, Is.False);
+            Assert.That(movement.LastReplayTicks, Is.Zero);
+
+            var unknown = new SubmitInputRequest(new WorldId("1"),
+                new PlayerInputCommand(new FrameIndex(21), new PlayerId("1"), 0, null));
+            session.SubmitInput(unknown);
+            movement.Tick(1f / 30f);
+            Assert.That(movement.TryGetState(out _, out tick, out predicted), Is.True);
+            Assert.That(tick, Is.EqualTo(20));
+            Assert.That(predicted, Is.False, "non-movement input does not become an empty Tick");
+            Deliver(5, 1, 21, 3, corrected, isolated: false);
+            movement.Tick(1f / 30f);
+            Assert.That(movement.TryGetState(out _, out tick, out predicted), Is.True);
+            Assert.That(tick, Is.EqualTo(21));
+            Assert.That(predicted, Is.False, "ineligible authoritative anchor cannot step");
+
+            fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, 6, 1, 22));
+            Assert.That(movement.TryGetProjection(out _, out _), Is.False);
+            Deliver(7, 1, 23, 3, corrected);
+            movement.Tick(1f / 30f);
+            Assert.That(movement.TryGetState(out _, out tick, out predicted), Is.True);
+            Assert.That(tick, Is.EqualTo(24));
+            Assert.That(predicted, Is.True);
+
+            fixture.Runtime.HandleConnectionClosed();
+            Assert.That(movement.TryGetProjection(out _, out _), Is.False);
+            fixture.Runtime.Dispose();
+            Assert.That(session.StateSyncMovement, Is.Null);
+
+            void Deliver(long revision, long baseline, int frame, long terminal, Transform3 pose,
+                float moveX = 0, bool isolated = true)
+            {
+                var position = pose.Position;
+                var rotation = pose.Rotation;
+                var proof = new GatewayStateSyncMovementProof(inputGeneration, 1, 1, stream, revision, baseline, frame,
+                    terminal, 7, 1, position.X, position.Y, position.Z, rotation.X, rotation.Y, rotation.Z, rotation.W,
+                    moveX, 0f, 30f, true, isolated);
+                fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, revision, baseline, frame,
+                    actors: new[] { ActorSnapshot(7, position.X) }, movementProof: proof));
+            }
+        }
+
+        [TestCase("import")]
+        [TestCase("apply")]
+        [TestCase("commit")]
+        public void ScopedMovementProof_DoesNotAdvanceOnFailedSnapshot(string failure)
+        {
+            using var fixture = new Fixture();
+            var stream = Guid.NewGuid();
+            var input = Guid.NewGuid();
+            fixture.BeginGeneration(plan: CreateLocalProofPlan(scoped: true));
+            var delta = failure != "import";
+            if (delta)
+                fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, 1, 0, 10,
+                    movementProof: MovementProof(input, stream, 1, 0, 10)));
+            fixture.World.ImportSucceeds = failure != "import";
+            fixture.World.ApplySucceeds = failure != "apply";
+            fixture.World.CommitSucceeds = failure != "commit";
+            var baseline = delta ? 1 : 0;
+            fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, 2, baseline, 11,
+                movementProof: MovementProof(input, stream, 2, baseline, 11)));
+            Assert.That(fixture.Runtime.CommittedMovementProof, Is.Null);
+            Assert.That(fixture.Runtime.PendingStateImport, Is.True);
+        }
+
+        private static GatewayStateSyncMovementProof MovementProof(Guid input, Guid stream, long revision, long baseline, int tick) =>
+            new GatewayStateSyncMovementProof(input, 1, 1, stream, revision, baseline, tick, 1, 7, 1,
+                10f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 1f, 5f, true, true);
+
+        private static BattleStartPlan CreateLocalProofPlan(bool scoped = false, bool prediction = false)
+        {
+            var world = new BattleStartPlanWorldOptions(prediction ? "1" : "typed-state-playback", "battle",
+                "offline", prediction ? "1" : "p1", 30, 0);
             var sync = new BattleStartPlanSyncOptions(BattleSyncMode.SnapshotAuthority, default, null);
             var remote = CreateRemoteCapabilities(BattleReplicationRuntime.SyncProfileName);
-            var options = new BattleStartPlanOptions(in world, BattleHostMode.GatewayRemote, in sync, default,
-                default, default, default, default, default, remoteSyncCapabilities: remote);
+            var gateway = scoped ? new BattleStartPlanGatewayOptions(true, "local", 1, 1, "token", "", "", false, false,
+                "", 0, 0, "battle", useScopedStateSyncInput: true) : default;
+            var authority = new BattleStartPlanAuthorityOptions(false, false, prediction);
+            var options = new BattleStartPlanOptions(in world, BattleHostMode.GatewayRemote, in sync, in authority, in gateway,
+                default, default, default, default, remoteSyncCapabilities: remote);
             return new BattleStartPlan(in options);
         }
 
@@ -917,11 +1128,11 @@ namespace AbilityKit.Game.Test.UnitTest
         private static GatewayStateSyncSnapshot FixedSnapshot(Guid generation, long snapshotId, long baseSnapshotId,
             int frame, string eventEpoch = "epoch-1",
             int schemaVersion = GatewayStateSyncSnapshot.CurrentSchemaVersion,
-            GatewayStateSyncActorSnapshot[] actors = null) => new GatewayStateSyncSnapshot(
+            GatewayStateSyncActorSnapshot[] actors = null, GatewayStateSyncMovementProof? movementProof = null) => new GatewayStateSyncSnapshot(
             1UL, frame, 0d, baseSnapshotId == 0, actors ?? new[] { ActorSnapshot(7, frame) },
             schemaVersion, eventEpoch: eventEpoch,
             usesFixedBaseline: true, stateStreamGeneration: generation, snapshotId: snapshotId,
-            baseSnapshotId: baseSnapshotId);
+            baseSnapshotId: baseSnapshotId, movementProof: movementProof);
 
         private static GatewayStateSyncActorSnapshot ActorSnapshot(int actorId, float x,
             SpawnEntityKind kind = SpawnEntityKind.Character)
@@ -1018,8 +1229,35 @@ namespace AbilityKit.Game.Test.UnitTest
             internal ReliableBattleEventDeliveryRuntime ReliableEvents => _reliableEvents;
             internal TrackingWorldRecoveryPort World { get; }
             internal IWorld PlaybackWorld => _handles?.RemoteDriven.World;
+            internal HostRuntime PlaybackRuntime => _handles?.RemoteDriven.Runtime;
             internal ControllableTransport Transport { get; }
             internal AuthoritativeStateRecoveryRuntime Runtime { get; }
+
+            internal int PreparedCount { get; private set; }
+
+            internal BattleLogicSession CreateMovementSession(Guid generation)
+            {
+                _networkTransport.Options.StateSyncInputGeneration = generation;
+                _networkTransport.Options.PrepareSubmitInput = request =>
+                    new SequencedInput((SubmitInputRequest)request, (ulong)(1 + ++PreparedCount), generation);
+                _networkTransport.Options.SerializeSubmitInput = _ =>
+                    throw new InvalidOperationException("This fixture does not send input.");
+                _networkTransport.Options.DeserializeSubmitInputResponse = _ => default;
+                return new BattleLogicSession(new BattleLogicSessionOptions
+                {
+                    Mode = BattleLogicMode.Remote,
+                    WorldId = new WorldId("1"),
+                    PlayerId = "1",
+                    AutoConnect = false,
+                    AutoCreateWorld = false,
+                    AutoJoin = false
+                }, _networkTransport);
+            }
+
+            internal void AttachStateSyncTransport(in BattleStartPlan plan, Action firstFrameReceived,
+                BattleLogicSession session = null) =>
+                Runtime.AttachStateSyncTransport(_networkTransport, 1, null, Context,
+                    in plan, 1f / 30f, _ => { }, firstFrameReceived, session);
 
             internal void BeginGeneration(
                 ControllableTransport transport = null,
@@ -1061,10 +1299,8 @@ namespace AbilityKit.Game.Test.UnitTest
             public void EnsureRemoteDrivenStarted(RemoteDrivenWorldInstallOptions options)
             {
                 if (options.Handles.World != null) return;
-                var runtimeOptions = new RemoteDrivenWorldRuntimeFactoryOptions(options.Plan, options.FixedDeltaSeconds,
-                    0, false, _ => null, _ => null, options.ResolveIdealFrameLimit, null, null);
                 options.Handles.BindWorldRuntime(CreateWorld(new WorldId(options.Plan.World.WorldId),
-                    options.Plan.World.WorldType, RemoteDrivenRuntimeModuleFactory.Create(runtimeOptions)));
+                    options.Plan.World.WorldType, StateSyncWorldRuntime.CreateModules(options.FixedDeltaSeconds)));
                 options.ResetTickState();
             }
 
@@ -1104,8 +1340,11 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             internal bool ImportSucceeds { get; set; } = true;
             internal bool ApplySucceeds { get; set; } = true;
+            internal bool CommitSucceeds { get; set; } = true;
+            internal Action BeforeCommit { get; set; }
             internal bool ThrowOnConfigure { get; set; }
             internal List<int> ImportedFrames { get; } = new List<int>();
+            internal List<int> CommittedFrames { get; } = new List<int>();
             internal List<GatewayStateSyncSnapshot> AppliedSnapshots { get; } =
                 new List<GatewayStateSyncSnapshot>();
             internal int ResetCount { get; private set; }
@@ -1133,6 +1372,13 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 AppliedSnapshots.Add(snapshot);
                 return ApplySucceeds;
+            }
+
+            public bool TryCommitAuthoritativeState(in GatewayStateSyncSnapshot snapshot)
+            {
+                BeforeCommit?.Invoke();
+                if (CommitSucceeds) CommittedFrames.Add(snapshot.Frame);
+                return CommitSucceeds;
             }
 
             public void ResetAfterReconnect()

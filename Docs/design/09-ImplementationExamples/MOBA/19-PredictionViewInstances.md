@@ -1,65 +1,51 @@
-# Prediction view instances
+# 预测视图实例
 
-`BattleSessionFeature` now exposes an opt-in side view for the remote-driven prediction world:
+`BattleSessionFeature` 现在为远端驱动的预测世界提供可选的侧视图：
 
 ```csharp
 var shown = battleSession.ShowPredictionView("comparison-left", new Vector3(30f, 0f, 0f));
-// Later, while the session is active:
+// 稍后，在会话仍活动时：
 battleSession.HidePredictionView("comparison-left");
 ```
 
-Other worlds can supply their own `IBattleProjectionViewSource` (stable `WorldId` and
-`TryGetProjection(out producer, out frame)`) and register a view with
-`ShowProjectionView(instanceId, source, worldOffset)`. Each instance reads its own
-source; `TryGetProjectionView(instanceId, out info)` returns its role, source world,
-offset, and effective capabilities. `GetProjectionViews(buffer)` lists all active instances, and
-`RebindProjectionViews()` refreshes their binders. `HideProjectionView` removes either
-role. A source that is temporarily
-unavailable clears its projected actors while retaining the instance registration.
+其他世界可提供自己的 `IBattleProjectionViewSource`（稳定的 `WorldId` 和
+`TryGetProjection(out producer, out frame)`），并用
+`ShowProjectionView(instanceId, source, worldOffset)` 注册视图。
+每个实例读取自己的来源；`TryGetProjectionView(instanceId, out info)` 返回其角色、来源世界、
+偏移及有效能力。`GetProjectionViews(buffer)` 列出全部活动实例，
+`RebindProjectionViews()` 刷新绑定器，`HideProjectionView` 可移除任一角色的实例。
+来源暂时不可用时，清除其投影角色，但保留实例注册。
 
-Projected views default to actor binding only. Pass
-`BattleProjectionViewCapabilities` to the `ShowProjectionView` or
-`ShowPredictionView` overload to add VFX, area effects, floating text, events, or
-camera control. Selecting `Events` also installs the VFX, area, and floating text
-handlers required by the event sink. Projected views do not subscribe to the main
-battle's snapshot or trigger stream.
+投影视图默认仅绑定角色。向 `ShowProjectionView` 或 `ShowPredictionView` 的重载传入
+`BattleProjectionViewCapabilities`，可增加特效、区域效果、飘字、事件或相机控制。
+选择 `Events` 还会安装事件接收器所需的特效、区域和飘字处理器。
+投影视图不订阅主战斗的快照或触发器流。
 
-A source may implement `IBattleProjectionViewEpochSource` to report a new epoch
-when its world is rebuilt, including when the same producer object is reused.
-The instance then clears old actors and transient effects before repopulating.
-To deliver events, implement `IBattleProjectionViewEventSource.SubscribeEvents`.
-The subscription receives the instance ID, world offset, epoch, and current frame;
-the source must map positional events into that instance's offset. The returned
-subscription is disposed when the source becomes unavailable, its epoch changes,
-or the instance closes. Registration performs an initial sync so the subscription
-is active before the next presentation tick. Requesting `Events` without an event
-source returns `false`.
+来源可实现 `IBattleProjectionViewEpochSource`，在世界重建时报告新的纪元，包括复用同一生产者对象的情况。
+实例随后清除旧角色和临时效果，再重新填充。
+若要传递事件，实现 `IBattleProjectionViewEventSource.SubscribeEvents`。
+订阅接收实例 ID、世界偏移、纪元和当前帧；来源必须把位置事件映射到该实例的偏移。
+来源不可用、纪元变化或实例关闭时，释放返回的订阅。
+注册时执行首次同步，使订阅在下一次表现步进前生效。
+请求 `Events` 但未提供事件来源时返回 `false`。
 
-Call `ShowPredictionView` after the remote-driven world starts. It returns `false` when
-client prediction or its actor projection producer is unavailable, or when the ID is
-already in use. Distinct IDs can be shown at the same time. The offset is applied to
-the side view's projected actor positions; the primary view stays at its normal
-coordinates. `PredictionViewCount` reports prediction-role instances;
-`ProjectionViewCount` reports all projected instances.
+在远端驱动世界启动后调用 `ShowPredictionView`。
+客户端预测或其角色投影生产者不可用，或 ID 已被使用时，返回 `false`。
+不同 ID 的视图可同时显示。偏移应用于侧视图投影角色的位置，主视图保持正常坐标。
+`PredictionViewCount` 统计预测角色实例，`ProjectionViewCount` 统计全部投影实例。
 
-Each side view owns a separate view `EntityWorld`, actor lookup, feature runtime,
-resource provider, hierarchy root, and view pools. The feature scheduler may tick
-multiple projected views of the same type; the instance registry is the lookup for
-all of them. The confirmed feature has its own CLR type, so type-based debug lookup
-cannot mistake a projected instance for a confirmed one. Disposing the remote-driven
-world during recovery clears predicted actors but retains view registrations; the
-views repopulate when their sources become available again. Auxiliary views keep
-their actors. Source availability is checked during the presentation tick.
-Stopping the battle session disposes every projected view instance.
+每个侧视图独立拥有表现 `EntityWorld`、角色查找表、功能运行时、资源提供者、层级根节点和表现对象池。
+功能调度器可推进多个同类型投影视图，实例注册表负责查找所有实例。
+已确认视图的功能有独立 CLR 类型，因此按类型进行调试查找时，不会将投影实例误认为已确认实例。
+恢复过程中释放远端驱动世界时，会清除预测角色但保留视图注册；来源重新可用后，视图重新填充。
+辅助视图保留自身角色。来源可用性在表现步进时检查。
+停止战斗会话会释放全部投影视图实例。
 
-The projection uses `IActorProjectionProducer.ExtractAll` each presentation
-tick and `ExtractSpawn` for newly seen actors. It creates and removes view entities,
-updates transform, team, health, and model identity, then lets the existing view
-binder render them without interpolation. The existing local-player prediction bridge
-still drives the primary view.
+投影在每次表现步进中使用 `IActorProjectionProducer.ExtractAll`，并对新观察到的角色使用 `ExtractSpawn`。
+它创建或移除表现实体，更新变换、队伍、生命和模型身份，随后由既有表现绑定器直接渲染，不执行插值。
+既有本地玩家预测桥接继续驱动主视图。
 
-Current scope: `ActorProjectionData` does not carry animation or skill cues.
-An event-enabled source must supply them through its own event subscription;
-actor projection alone displays only actor state. The projection has no actor
-generation field, so destruction and reuse of the same actor ID between two
-sampled ticks within one world epoch cannot be distinguished by this view alone.
+当前范围：`ActorProjectionData` 不携带动画或技能提示。
+启用事件的来源必须通过自己的事件订阅提供这些信息；仅有角色投影时，只显示角色状态。
+投影没有角色代际字段，因此同一世界纪元内，若同一角色 ID 在两次采样步进间被销毁并复用，
+此视图自身无法区分。

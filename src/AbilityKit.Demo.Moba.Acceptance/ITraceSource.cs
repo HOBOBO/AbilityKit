@@ -1,4 +1,5 @@
 using System.IO;
+using System.Security.Cryptography;
 using AbilityKit.Game.Test.UnitTest;
 
 namespace AbilityKit.Demo.Moba.Acceptance;
@@ -13,6 +14,15 @@ public interface ITraceSource
 {
     /// <summary>按 caseId 取观测 trace；无则返回 false（该用例标记 needs-trace）。</summary>
     bool TryGetRecords(string caseId, out MobaAcceptanceTraceRecord[] records);
+
+    /// <summary>
+    /// 读取记录和可选的完整性证据；旧来源仍可用于正向断言。
+    /// </summary>
+    bool TryGetEvidence(string caseId, out MobaAcceptanceTraceRecord[] records, out MobaAcceptanceTraceEvidence? evidence)
+    {
+        evidence = null;
+        return TryGetRecords(caseId, out records);
+    }
 }
 
 /// <summary>
@@ -31,6 +41,38 @@ public sealed class FileTraceSource : ITraceSource
         var path = Path.Combine(_directory, caseId + "_trace.jsonl");
         if (!File.Exists(path)) return false;
         records = AcceptanceJsonCodec.LoadTraceRecords(path);
+        return true;
+    }
+
+    public bool TryGetEvidence(string caseId, out MobaAcceptanceTraceRecord[] records, out MobaAcceptanceTraceEvidence? evidence)
+    {
+        records = null!;
+        evidence = null;
+        if (string.IsNullOrEmpty(caseId)) return false;
+        var tracePath = Path.Combine(_directory, caseId + "_trace.jsonl");
+        if (!File.Exists(tracePath)) return false;
+        var traceBytes = File.ReadAllBytes(tracePath);
+        using var reader = new StreamReader(new MemoryStream(traceBytes, writable: false));
+        records = AcceptanceJsonCodec.ReadTraceRecords(reader, allowPartial: true, out var malformed);
+        if (malformed) return true;
+        var summaryPath = Path.Combine(_directory, caseId + "_summary.json");
+        if (!File.Exists(summaryPath)) return true;
+        MobaAcceptanceSummary summary;
+        try
+        {
+            summary = AcceptanceJsonCodec.ParseSummary(File.ReadAllText(summaryPath));
+        }
+        catch (Exception exception) when (exception is System.Text.Json.JsonException or InvalidDataException)
+        {
+            return true;
+        }
+        var candidate = summary.traceEvidence;
+        if (summary.caseId != caseId || !MobaAcceptanceTraceEvidence.CanProveAbsence(candidate, records.Length)
+            || string.IsNullOrEmpty(candidate.traceSha256)
+            || records.Any(record => record.caseId != caseId || record.frame < candidate.startFrame || record.frame > candidate.endFrame))
+            return true;
+        if (string.Equals(candidate.traceSha256, Convert.ToHexString(SHA256.HashData(traceBytes)), StringComparison.OrdinalIgnoreCase))
+            evidence = candidate;
         return true;
     }
 }
@@ -57,6 +99,17 @@ public sealed class CompositeTraceSource(params ITraceSource[] sources) : ITrace
         foreach (var source in sources)
         {
             if (source is not null && source.TryGetRecords(caseId, out records)) return true;
+        }
+        return false;
+    }
+
+    public bool TryGetEvidence(string caseId, out MobaAcceptanceTraceRecord[] records, out MobaAcceptanceTraceEvidence? evidence)
+    {
+        records = null!;
+        evidence = null;
+        foreach (var source in sources)
+        {
+            if (source is not null && source.TryGetEvidence(caseId, out records, out evidence)) return true;
         }
         return false;
     }

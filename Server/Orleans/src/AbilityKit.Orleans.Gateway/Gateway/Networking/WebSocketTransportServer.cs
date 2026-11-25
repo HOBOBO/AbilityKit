@@ -228,7 +228,9 @@ public sealed class WebSocketTransportServer : IGatewayTransportServer
                 if (result.MessageType == WebSocketMessageType.Close) break;
                 if (buffered.Length == 0) continue;
 
-                // WebSocket messages are frame-complete — parse all frames in the message
+                /*
+                 * WebSocket 消息包含完整帧，解析消息内的全部帧。
+                 */
                 var data = buffered.GetBuffer();
                 var dataLen = (int)buffered.Length;
                 var offset = 0;

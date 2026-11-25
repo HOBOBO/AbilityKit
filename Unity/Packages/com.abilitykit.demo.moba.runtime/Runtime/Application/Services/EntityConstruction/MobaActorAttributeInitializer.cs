@@ -26,6 +26,32 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 
     public sealed class MobaActorAttributeInitializer
     {
+        /// <summary>
+        /// 出生属性覆盖完成后初始化资源；仅构造阶段调用，不作为运行中治疗入口。
+        /// 当前值限制在上限内，并同步生命属性和资源容器。
+        /// </summary>
+        public void InitializeBirthResources(global::ActorEntity entity)
+        {
+            var group = entity.attributeGroup.Group;
+            var resources = EnsureResourceContainer(entity);
+            var maxHp = group.GetValue(MobaAttributeIds.MAX_HP);
+            var maxMana = group.GetValue(MobaAttributeIds.MAX_MANA);
+            if (maxHp <= 0 || maxMana < 0 || float.IsNaN(maxHp) || float.IsInfinity(maxHp) ||
+                float.IsNaN(maxMana) || float.IsInfinity(maxMana))
+                throw new System.InvalidOperationException("Invalid summon birth resource limits.");
+            var hp = group.GetValue(MobaAttributeIds.HP);
+            var mana = group.GetValue(MobaAttributeIds.MANA);
+            if (float.IsNaN(hp) || float.IsInfinity(hp) || float.IsNaN(mana) || float.IsInfinity(mana))
+                throw new System.InvalidOperationException("Invalid summon birth resources.");
+            hp = System.Math.Min(maxHp, System.Math.Max(0, hp));
+            mana = System.Math.Min(maxMana, System.Math.Max(0, mana));
+            group.SetBase(MobaAttributeIds.HP, hp);
+            group.SetBase(MobaAttributeIds.MANA, mana);
+            EnsureResource(resources, ResourceType.Hp, MobaAttributeIds.MAX_HP, hp, maxHp);
+            EnsureResource(resources, ResourceType.Mana, MobaAttributeIds.MAX_MANA, mana, maxMana);
+            MobaResourceAttributeContextProjector.Refresh(entity);
+        }
+
         public void EnsureContainers(global::ActorEntity entity)
         {
             if (entity == null) return;
@@ -91,6 +117,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             group.SetBase(MobaAttributeIds.PER_SECOND_BLOOD_R, Grow(template.PerSecondBloodR, template.PerSecondBloodRGrowth, levelOffset));
             group.SetBase(MobaAttributeIds.PER_SECOND_MANA_R, Grow(template.PerSecondManaR, template.PerSecondManaRGrowth, levelOffset));
             group.SetBase(MobaAttributeIds.RESILIENCE_R, Grow(template.ResilienceR, template.ResilienceRGrowth, levelOffset));
+            group.SetBase(MobaAttributeIds.MANA_REGEN_PER_SECOND, Grow(template.ManaRegenPerSecond, template.ManaRegenPerSecondGrowth, levelOffset));
 
             var resources = new ResourceContainer
             {
@@ -174,6 +201,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             group.GetOrCreate(MobaAttributeIds.PER_SECOND_BLOOD_R);
             group.GetOrCreate(MobaAttributeIds.PER_SECOND_MANA_R);
             group.GetOrCreate(MobaAttributeIds.RESILIENCE_R);
+            group.GetOrCreate(MobaAttributeIds.MANA_REGEN_PER_SECOND);
 
             return group;
         }

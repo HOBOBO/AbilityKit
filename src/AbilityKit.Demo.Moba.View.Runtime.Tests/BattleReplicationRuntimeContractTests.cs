@@ -131,6 +131,23 @@ public sealed class BattleReplicationRuntimeContractTests
         })!;
     }
 
+    [Theory]
+    [InlineData(Game.Flow.BattleSyncMode.Lockstep, true)]
+    [InlineData(Game.Flow.BattleSyncMode.SnapshotAuthority, false)]
+    public void SettledFrameClock_RequiresFrameSyncModeEvenWithFixedRateStateStream(
+        Game.Flow.BattleSyncMode mode, bool usesSettledFrames)
+    {
+        var capabilities = CreateRemoteCapabilities(
+            AbilityKit.Protocol.Moba.SettledFrames.SettledFrameProtocol.CapabilityProfile);
+        var options = new Game.Flow.BattleStartPlanOptions(default, Game.Flow.BattleHostMode.GatewayRemote,
+            new Game.Flow.BattleStartPlanSyncOptions(mode, default, null), default, default,
+            default, default, default, default, remoteSyncCapabilities: capabilities);
+        var plan = new Game.Flow.BattleStartPlan(in options);
+
+        Assert.Equal(!usesSettledFrames, plan.UsesStateSyncAuthority);
+        Assert.Equal(usesSettledFrames, plan.UsesSettledFrames);
+    }
+
     [Fact]
     public void Build_WiresSubmitInputAck_ToUpdateLastServerAckFrame()
     {

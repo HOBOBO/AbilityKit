@@ -83,12 +83,14 @@ public sealed class MobaLogicWorldStateImportSmokeTests
         }
     }
 
-    [Fact]
-    public void Annie_q_precast_checkpoint_restores_complete_lifecycle_through_formal_registry()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Annie_q_precast_checkpoint_restores_complete_lifecycle_through_formal_registry(bool enableTrace)
     {
         var bootstrapper = new ConsoleBattleBootstrapper(
             BattleStartConfig.CreateDefault(),
-            additionalModules: new[] { new MobaTraceAdapterModule() });
+            additionalModules: enableTrace ? new[] { new MobaTraceAdapterModule() } : null);
         try
         {
             bootstrapper.Initialize();
@@ -174,9 +176,8 @@ public sealed class MobaLogicWorldStateImportSmokeTests
                     atMs = 1800, action = "wait", note = "Allow Annie Q cast and projectile hit to resolve.",
                 },
             });
-            Assert.True(bootstrapper.RuntimeServices!.TryResolve<MobaTraceRegistry>(out var trace) && trace != null,
-                "Runtime trace registry must be resolved for the real skill replay test.");
-            Assert.Contains(trace!.GetNodesByKind((int)MobaExecutionKind.SkillCast),
+            Assert.Equal(enableTrace, bootstrapper.RuntimeServices!.TryResolve<MobaTraceRegistry>(out var trace));
+            if (enableTrace) Assert.Contains(trace!.GetNodesByKind((int)MobaExecutionKind.SkillCast),
                 node => node.Metadata != null && node.Metadata.ConfigId == 30030201);
             var firstHp = executor.GetActorHp(targetId);
             var firstMana = executor.GetActorMana(annieId);
@@ -251,10 +252,13 @@ public sealed class MobaLogicWorldStateImportSmokeTests
         }
     }
 
-    [Fact]
-    public void StateImport_restores_perturbed_state_and_handles_spawn_despawn()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void StateImport_restores_perturbed_state_and_handles_spawn_despawn(bool enableTrace)
     {
-        var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault(),
+            additionalModules: enableTrace ? new[] { new MobaTraceAdapterModule() } : null);
         try
         {
             bootstrapper.Initialize();
@@ -286,6 +290,7 @@ public sealed class MobaLogicWorldStateImportSmokeTests
                 "MobaActorRegistry not resolved from world services.");
             Assert.True(services.TryResolve<MobaLogicWorldStateImporter>(out var importer) && importer != null,
                 "MobaLogicWorldStateImporter not resolved from world services.");
+            Assert.Equal(enableTrace, services.TryResolve<MobaTraceRegistry>(out _));
 
             var originals = CaptureStates(registry);
             Assert.NotEmpty(originals);

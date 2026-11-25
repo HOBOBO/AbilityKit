@@ -23,12 +23,14 @@ namespace AbilityKit.BehaviorTree.Editor.Bootstrap
         public const string CreateMenuId = ModuleId + ".menu.create";
         public const string ObservationPanelId = ModuleId + ".panel.observation";
         public const string CreatePanelId = ModuleId + ".panel.create";
+        private const string ObservationMenuPath = "Window/AbilityKit/行为树运行时观察";
 
         private readonly List<IDisposable> _registrations = new();
 
         public EditorModuleDescriptor Descriptor { get; } = new(
             ModuleId,
             "abilitykit.behaviortree.module.name",
+            showInHub: true,
             order: 200);
 
         public void OnRegister(IEditorPlatformContext context)
@@ -41,10 +43,17 @@ namespace AbilityKit.BehaviorTree.Editor.Bootstrap
             {
                 _registrations.Add(EditorLocalization.RegisterSource());
                 _registrations.Add(context.Menus.Register(new EditorMenuContribution(
-                    ObservationMenuId,
-                    "Window/AbilityKit/行为树/运行时观察",
-                    OpenObservation,
+                    ModuleId + ".menu.authoring",
+                    AuthoringHubWindow.MainMenuPath,
+                    AuthoringHubWindow.OpenFromMenu,
+                    showInHub: true,
                     order: 200)));
+                _registrations.Add(context.Menus.Register(new EditorMenuContribution(
+                    ObservationMenuId,
+                    ObservationMenuPath,
+                    OpenObservation,
+                    showInHub: true,
+                    order: 201)));
                 _registrations.Add(context.Menus.Register(new EditorMenuContribution(
                     CreateMenuId,
                     "Assets/Create/AbilityKit/行为树/新建行为树...",
@@ -81,7 +90,7 @@ namespace AbilityKit.BehaviorTree.Editor.Bootstrap
             _registrations.Clear();
         }
 
-        [MenuItem("Window/AbilityKit/行为树运行时观察", false, 201)]
+        [MenuItem(ObservationMenuPath, false, 201)]
         private static void OpenObservation()
         {
             var window = EditorWindow.GetWindow<DebugObservationWindow>();

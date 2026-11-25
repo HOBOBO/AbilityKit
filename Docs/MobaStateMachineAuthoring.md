@@ -1,5 +1,7 @@
 # MOBA 状态机创作与发布
 
+2026-11-24 已批准的 Cast 等级来源：`Casts` 中 `LevelSource` 缺省为 `CurrentSlot`；`Slot` 配合 `LevelSourceSlot` 显式读取另一槽；`ActivationBuff` 配合 `LevelSourceBuffId` 读取本人有效模式 Buff 持有的原 Cast 冻结等级。来源缺失、歧义、跨施法者或失效时拒绝，不从英雄身份推断。Prepare 一次采样后仍使用子技能自己的等级表；激活来源身份写入既有 Pipeline 纯数据 SharedData，在原提交点前核对同一来源。模式中升级不追溯本次激活的等级；退出、死亡与来源撤销沿既有 Buff 生命周期失效。Bindings 指纹与既有 Buff、Cast、Runner 恢复共同约束来源，不新增第二份可变等级或历史事件回放。
+
 角色 `character_bindings` 可显式声明 `DeathCasting`：`PermissionBuffId` 指向本人持有的限时许可 Buff，
 `Skills` 逐项声明有效技能 ID 与输入时的 `MinimumCompletionMs`，`RetainedBuffIds` 声明死亡清理期间保留的本人 Buff。
 许可只读取对应 Active Continuous 的剩余时长，默认未配置时拒绝所有死亡施法；输入时剩余时长必须严格大于提交跨度，

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace AbilityKit.Trace
@@ -72,14 +73,30 @@ namespace AbilityKit.Trace
     {
         internal readonly Dictionary<long, TraceContextRecord> _contexts;
         internal readonly Dictionary<long, TraceRootRecord> _roots;
-        internal readonly Dictionary<long, List<long>> _childrenByParent;
+        internal readonly Dictionary<long, ChildIndex> _childrenByParent;
         internal readonly ITraceLeafDataStore _leafDataStore;
         internal readonly ITraceContextSource _contextSource;
         internal long _nextId;
         private long _revision;
         private long _predictionFloor = 1;
 
-        private static readonly List<long> EmptyChildrenList = new List<long>();
+        internal sealed class ChildIndex : List<long>
+        {
+            private IReadOnlyList<long> _view;
+
+            public IReadOnlyList<long> View => _view ??= new ChildIndexView(this);
+        }
+
+        private sealed class ChildIndexView : IReadOnlyList<long>
+        {
+            private readonly ChildIndex _index;
+
+            public ChildIndexView(ChildIndex index) => _index = index;
+            public int Count => _index.Count;
+            public long this[int index] => _index[index];
+            public IEnumerator<long> GetEnumerator() => _index.GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
 
         public event Action<TraceRegistryEvent> RegistryEvent;
 
@@ -95,7 +112,7 @@ namespace AbilityKit.Trace
         {
             _contexts = new Dictionary<long, TraceContextRecord>();
             _roots = new Dictionary<long, TraceRootRecord>();
-            _childrenByParent = new Dictionary<long, List<long>>();
+            _childrenByParent = new Dictionary<long, ChildIndex>();
             _contextSource = contextSource ?? SimpleTraceContextSource.Instance;
             _leafDataStore = leafDataStore ?? NullTraceLeafDataStore.Instance;
             _nextId = 1;
@@ -117,18 +134,70 @@ namespace AbilityKit.Trace
         /// </summary>
         protected long NewId()
         {
-            if (_nextId == long.MaxValue)
-                throw new InvalidOperationException("Trace context ID space is exhausted.");
-            return _nextId++;
+            var contextId = ResolveCreationId(null);
+            _nextId = contextId + 1L;
+            return contextId;
         }
 
+        /// <summary>
+        /// 校验外部 ID，并按需推进本地分配游标；不创建节点。
+        /// </summary>
         protected void ReserveExternalId(long contextId, bool advanceAllocationFloor = true)
+        {
+            ValidateCreationId(contextId);
+            if (advanceAllocationFloor && contextId >= _nextId) _nextId = contextId + 1L;
+        }
+
+        private protected long ResolveCreationId(long? requestedId)
+        {
+            if (requestedId.HasValue)
+            {
+                ValidateCreationId(requestedId.Value);
+                return requestedId.Value;
+            }
+
+            var nextId = _nextId;
+            while (nextId < long.MaxValue && _contexts.ContainsKey(nextId)) nextId++;
+            if (nextId == long.MaxValue)
+                throw new InvalidOperationException("Trace context ID space is exhausted.");
+            return nextId;
+        }
+
+        private void ValidateCreationId(long contextId)
         {
             if (contextId <= 0L || contextId == long.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(contextId));
             if (_contexts.ContainsKey(contextId))
                 throw new InvalidOperationException($"Trace context {contextId} already exists.");
-            if (advanceAllocationFloor && contextId >= _nextId) _nextId = contextId + 1L;
+        }
+
+        private protected long CommitCreatedNode<TMetadata>(in TraceContextRecord record, TMetadata metadata,
+            ITraceMetadataStore<TMetadata> metadataStore, bool advanceAllocationFloor)
+            where TMetadata : TraceMetadata
+        {
+            ValidateCreationId(record.ContextId);
+            var isRoot = record.ParentId == 0L;
+            var root = default(TraceRootRecord);
+            ChildIndex siblings = null;
+            if (!isRoot && (!_contexts.TryGetValue(record.ParentId, out var parent) || parent.RootId != record.RootId ||
+                !_roots.TryGetValue(record.RootId, out root) || !_childrenByParent.TryGetValue(record.ParentId, out siblings)))
+                throw new InvalidOperationException($"Trace parent {record.ParentId} is no longer available for node creation.");
+
+            metadataStore.SetMetadata(record.ContextId, metadata);
+            _contexts.Add(record.ContextId, record);
+            _childrenByParent.Add(record.ContextId, new ChildIndex());
+            if (isRoot)
+                _roots.Add(record.RootId, new TraceRootRecord(1, 0, record.CreatedFrame));
+            else
+            {
+                siblings.Add(record.ContextId);
+                _roots[record.RootId] = root.WithActiveCount(root.ActiveCount + 1).WithLastTouchedFrame(record.CreatedFrame);
+            }
+
+            if (advanceAllocationFloor && record.ContextId >= _nextId) _nextId = record.ContextId + 1L;
+            Publish(new TraceRegistryEvent(isRoot ? TraceRegistryEventKind.RootCreated : TraceRegistryEventKind.ChildCreated,
+                record.ContextId, record.RootId, record.ParentId, record.Kind, record.CreatedFrame));
+            return record.ContextId;
         }
 
         /// <summary>
@@ -207,15 +276,19 @@ namespace AbilityKit.Trace
                     yield return CreateNodeSnapshot(kvp.Value);
         }
 
+        /// <summary>
+        /// 返回直接子节点的只读实时视图（按创建顺序）；叶节点的视图为空。
+        /// 不得在修改注册表时枚举。清理或移除父节点后应重新查询，不再使用旧视图。
+        /// </summary>
         public bool TryGetChildren(long parentId, out IReadOnlyList<long> children)
         {
             if (_childrenByParent.TryGetValue(parentId, out var list))
             {
-                children = list;
+                children = list.View;
                 return true;
             }
 
-            children = EmptyChildrenList;
+            children = Array.Empty<long>();
             return false;
         }
 
@@ -421,14 +494,19 @@ namespace AbilityKit.Trace
         }
 
         /// <summary>
-        /// 释放根节点（减少外部引用计数）
+        /// 释放一个根引用。最后一个引用在树已结束时释放，会刷新回收保留窗口。
+        /// 不存在的根或已无引用的根不产生变更。
         /// </summary>
         public void ReleaseRoot(long rootId)
         {
-            if (_roots.TryGetValue(rootId, out var record))
+            if (_roots.TryGetValue(rootId, out var record) && record.ExternalRefCount > 0)
             {
-                _roots[rootId] = record.WithExternalRefCount(Math.Max(0, record.ExternalRefCount - 1));
-                Publish(new TraceRegistryEvent(TraceRegistryEventKind.RootReleased, rootId, rootId, 0, 0, GetCurrentFrame()));
+                var frame = GetCurrentFrame();
+                var updated = record.WithExternalRefCount(record.ExternalRefCount - 1);
+                if (updated.ActiveCount == 0 && updated.ExternalRefCount == 0)
+                    updated = updated.WithLastTouchedFrame(Math.Max(record.LastTouchedFrame, frame));
+                _roots[rootId] = updated;
+                Publish(new TraceRegistryEvent(TraceRegistryEventKind.RootReleased, rootId, rootId, 0, 0, frame));
             }
         }
 
@@ -458,7 +536,7 @@ namespace AbilityKit.Trace
 
             if (_roots.TryGetValue(record.RootId, out var rootRec))
                 _roots[record.RootId] = rootRec.WithActiveCount(rootRec.ActiveCount - 1)
-                    .WithLastTouchedFrame(frame);
+                    .WithLastTouchedFrame(Math.Max(rootRec.LastTouchedFrame, frame));
 
             Publish(new TraceRegistryEvent(TraceRegistryEventKind.NodeEnded, contextId, record.RootId, record.ParentId, record.Kind, frame, reason));
             return true;
@@ -514,13 +592,64 @@ namespace AbilityKit.Trace
         }
 
         protected virtual object GetMetadataObject(long contextId) => null;
- 
+
+        private protected int GetChildCount(long contextId) =>
+            _childrenByParent.TryGetValue(contextId, out var children) ? children.Count : 0;
+
+        private protected void CollectStats(
+            long contextId, long rootId,
+            ref int totalNodes, ref int activeNodes, ref int endedNodes, ref int maxDepth,
+            int currentDepth)
+        {
+            if (!_contexts.TryGetValue(contextId, out var record) || record.RootId != rootId)
+                return;
+            totalNodes++;
+            if (record.IsEnded) endedNodes++; else activeNodes++;
+            maxDepth = Math.Max(maxDepth, currentDepth);
+            if (_childrenByParent.TryGetValue(contextId, out var children))
+                foreach (var childId in children)
+                    CollectStats(childId, rootId, ref totalNodes, ref activeNodes, ref endedNodes, ref maxDepth, currentDepth + 1);
+        }
+
+        private protected void RemoveRootTree<TMetadata>(long rootId, ITraceMetadataStore<TMetadata> metadataStore)
+            where TMetadata : TraceMetadata
+        {
+            var pending = new Stack<long>();
+            var records = new List<TraceContextRecord>();
+            pending.Push(rootId);
+            while (pending.Count > 0)
+            {
+                var contextId = pending.Pop();
+                records.Add(_contexts[contextId]);
+                if (_childrenByParent.TryGetValue(contextId, out var children))
+                    foreach (var childId in children)
+                        pending.Push(childId);
+            }
+
+            _roots.Remove(rootId);
+            for (var index = records.Count - 1; index >= 0; index--)
+            {
+                var contextId = records[index].ContextId;
+                _contexts.Remove(contextId);
+                _childrenByParent.Remove(contextId);
+                metadataStore.Clear(contextId);
+                _leafDataStore.Clear(contextId);
+            }
+
+            /*
+             * 整树删除后按子节点先于父节点的顺序通知，供诊断方清除逐节点数据。
+             */
+            var frame = GetCurrentFrame();
+            for (var index = records.Count - 1; index >= 0; index--)
+            {
+                var record = records[index];
+                Publish(new TraceRegistryEvent(TraceRegistryEventKind.RootPurged,
+                    record.ContextId, rootId, record.ParentId, record.Kind, frame));
+            }
+        }
+
         private TraceNodeSnapshot CreateNodeSnapshot(in TraceContextRecord record)
         {
-            var childCount = 0;
-            if (_childrenByParent.TryGetValue(record.ContextId, out var children) && children != null)
-                childCount = children.Count;
- 
             return new TraceNodeSnapshot(
                 contextId: record.ContextId,
                 rootId: record.RootId,
@@ -529,7 +658,7 @@ namespace AbilityKit.Trace
                 createdFrame: record.CreatedFrame,
                 endedFrame: record.EndedFrame,
                 endReason: record.EndReason,
-                childCount: childCount,
+                childCount: GetChildCount(record.ContextId),
                 metadata: GetMetadataObject(record.ContextId),
                 isEnded: record.IsEnded);
         }
@@ -584,35 +713,12 @@ namespace AbilityKit.Trace
             object originTarget = null,
             int configId = 0)
         {
-            var contextId = NewId();
-            var (originId, originDisplay) = ExtractOrigin(originSource);
-            var (targetId, targetDisplay) = ExtractOrigin(originTarget);
-
-            var createdFrame = Frame;
-            var record = new TraceContextRecord(
-                contextId: contextId,
-                rootId: contextId,
-                parentId: 0,
-                kind: kind,
-                createdFrame: createdFrame,
-                endedFrame: 0,
-                endReason: 0,
-                isEnded: false);
-
-            _contexts[contextId] = record;
-            _roots[contextId] = new TraceRootRecord(1, 0, createdFrame);
-            _childrenByParent[contextId] = new List<long>();
-
-            var metadata = CreateMetadata(
-                contextId, kind, sourceActorId, targetActorId,
-                originId, originDisplay, targetId, targetDisplay, configId);
-            _metadataStore.SetMetadata(contextId, metadata);
-            Publish(new TraceRegistryEvent(TraceRegistryEventKind.RootCreated, contextId, contextId, 0, kind, createdFrame));
-
-            return contextId;
+            return CreateRootCore(null, kind, sourceActorId, targetActorId, originSource, originTarget, configId, null, true);
         }
 
-        /// <summary>Records a root using an identity allocated by the execution-context owner.</summary>
+        /// <summary>
+        /// 使用外部执行上下文的 ID 创建根节点。可选择创建成功后是否推进本地 ID 游标。
+        /// </summary>
         public long CreateRootWithId(
             long contextId,
             int kind,
@@ -624,22 +730,22 @@ namespace AbilityKit.Trace
             int createdFrame = -1,
             bool advanceAllocationFloor = true)
         {
-            ReserveExternalId(contextId, advanceAllocationFloor);
+            return CreateRootCore(contextId, kind, sourceActorId, targetActorId, originSource, originTarget,
+                configId, createdFrame < 0 ? (int?)null : createdFrame, advanceAllocationFloor);
+        }
+
+        private long CreateRootCore(long? requestedId, int kind, long sourceActorId, long targetActorId,
+            object originSource, object originTarget, int configId, int? createdFrame, bool advanceAllocationFloor)
+        {
+            var contextId = ResolveCreationId(requestedId);
             var (originId, originDisplay) = ExtractOrigin(originSource);
             var (targetId, targetDisplay) = ExtractOrigin(originTarget);
-            if (createdFrame < 0) createdFrame = Frame;
             var record = new TraceContextRecord(
-                contextId, contextId, 0L, kind, createdFrame, 0, 0, false);
-
-            _contexts[contextId] = record;
-            _roots[contextId] = new TraceRootRecord(1, 0, createdFrame);
-            _childrenByParent[contextId] = new List<long>();
-            _metadataStore.SetMetadata(contextId, CreateMetadata(
+                contextId, contextId, 0L, kind, createdFrame ?? Frame, 0, 0, false);
+            var metadata = CreateMetadata(
                 contextId, kind, sourceActorId, targetActorId,
-                originId, originDisplay, targetId, targetDisplay, configId));
-            Publish(new TraceRegistryEvent(
-                TraceRegistryEventKind.RootCreated, contextId, contextId, 0, kind, createdFrame));
-            return contextId;
+                originId, originDisplay, targetId, targetDisplay, configId);
+            return CommitCreatedNode(in record, metadata, _metadataStore, advanceAllocationFloor);
         }
 
         public long CreateRoot(in TraceOrigin origin)
@@ -665,77 +771,13 @@ namespace AbilityKit.Trace
             object originTarget = null,
             int configId = 0)
         {
-            if (!_contexts.TryGetValue(parentContextId, out var parentRecord))
-                throw new ArgumentException($"Parent context {parentContextId} not found", nameof(parentContextId));
-
-            var contextId = NewId();
-            var rootId = parentRecord.RootId;
-
-            long originId; string originDisplay;
-            if (originSource != null)
-                (originId, originDisplay) = ExtractOrigin(originSource);
-            else if (_metadataStore.TryGetMetadata(rootId, out var m))
-                (originId, originDisplay) = (GetOriginSourceId(m), GetOriginSourceDisplay(m));
-            else
-                (originId, originDisplay) = (0, null);
-
-            long targetId; string targetDisplay;
-            if (originTarget != null)
-                (targetId, targetDisplay) = ExtractOrigin(originTarget);
-            else if (_metadataStore.TryGetMetadata(rootId, out var m2))
-                (targetId, targetDisplay) = (GetOriginTargetId(m2), GetOriginTargetDisplay(m2));
-            else
-                (targetId, targetDisplay) = (0, null);
-
-            if (sourceActorId == 0 && _metadataStore.TryGetMetadata(rootId, out var m3))
-                sourceActorId = GetSourceActorId(m3);
-            if (targetActorId == 0 && _metadataStore.TryGetMetadata(rootId, out var m4))
-                targetActorId = GetTargetActorId(m4);
-
-            var createdFrame = Frame;
-            var record = new TraceContextRecord(
-                contextId: contextId,
-                rootId: rootId,
-                parentId: parentContextId,
-                kind: kind,
-                createdFrame: createdFrame,
-                endedFrame: 0,
-                endReason: 0,
-                isEnded: false);
-
-            _contexts[contextId] = record;
-            _childrenByParent[contextId] = new List<long>();
- 
-            var metadata = CreateMetadata(
-                contextId,
-                kind,
-                sourceActorId,
-                targetActorId,
-                originId,
-                originDisplay,
-                targetId,
-                targetDisplay,
-                configId);
-            _metadataStore.SetMetadata(contextId, metadata);
- 
-            if (!_childrenByParent.TryGetValue(parentContextId, out var children))
-            {
-                children = new List<long>();
-                _childrenByParent[parentContextId] = children;
-            }
-            children.Add(contextId);
- 
-            if (_roots.TryGetValue(rootId, out var rootRec))
-            {
-                _roots[rootId] = rootRec.WithActiveCount(rootRec.ActiveCount + 1)
-                    .WithLastTouchedFrame(createdFrame);
-            }
- 
-            Publish(new TraceRegistryEvent(TraceRegistryEventKind.ChildCreated, contextId, rootId, parentContextId, kind, createdFrame));
-            return contextId;
+            return CreateChildCore(null, parentContextId, kind, sourceActorId, targetActorId,
+                originSource, originTarget, configId, null, true);
         }
 
-        /// <summary>Records a child using an identity allocated by the execution-context owner.</summary>
+        /// <summary>
+        /// 使用外部执行上下文的 ID 创建子节点。可选择创建成功后是否推进本地 ID 游标。
+        /// </summary>
         public long CreateChildWithId(
             long contextId,
             long parentContextId,
@@ -748,56 +790,37 @@ namespace AbilityKit.Trace
             int createdFrame = -1,
             bool advanceAllocationFloor = true)
         {
+            return CreateChildCore(contextId, parentContextId, kind, sourceActorId, targetActorId,
+                originSource, originTarget, configId, createdFrame < 0 ? (int?)null : createdFrame, advanceAllocationFloor);
+        }
+
+        private long CreateChildCore(long? requestedId, long parentContextId, int kind, long sourceActorId,
+            long targetActorId, object originSource, object originTarget, int configId, int? createdFrame,
+            bool advanceAllocationFloor)
+        {
             if (!_contexts.TryGetValue(parentContextId, out var parentRecord))
                 throw new ArgumentException($"Parent context {parentContextId} not found", nameof(parentContextId));
-            ReserveExternalId(contextId, advanceAllocationFloor);
 
+            var contextId = ResolveCreationId(requestedId);
             var rootId = parentRecord.RootId;
-            long originId;
-            string originDisplay;
-            if (originSource != null)
-                (originId, originDisplay) = ExtractOrigin(originSource);
-            else if (_metadataStore.TryGetMetadata(rootId, out var rootMetadata))
-                (originId, originDisplay) = (GetOriginSourceId(rootMetadata), GetOriginSourceDisplay(rootMetadata));
-            else
-                (originId, originDisplay) = (0L, null);
+            T rootMetadata = null;
+            var inherit = (originSource == null || originTarget == null || sourceActorId == 0L || targetActorId == 0L)
+                && _metadataStore.TryGetMetadata(rootId, out rootMetadata);
+            var (originId, originDisplay) = originSource != null ? ExtractOrigin(originSource)
+                : inherit ? (GetOriginSourceId(rootMetadata), GetOriginSourceDisplay(rootMetadata)) : (0L, null);
+            var (targetId, targetDisplay) = originTarget != null ? ExtractOrigin(originTarget)
+                : inherit ? (GetOriginTargetId(rootMetadata), GetOriginTargetDisplay(rootMetadata)) : (0L, null);
+            if (inherit && sourceActorId == 0L) sourceActorId = GetSourceActorId(rootMetadata);
+            if (inherit && targetActorId == 0L) targetActorId = GetTargetActorId(rootMetadata);
 
-            long targetId;
-            string targetDisplay;
-            if (originTarget != null)
-                (targetId, targetDisplay) = ExtractOrigin(originTarget);
-            else if (_metadataStore.TryGetMetadata(rootId, out var targetMetadata))
-                (targetId, targetDisplay) = (GetOriginTargetId(targetMetadata), GetOriginTargetDisplay(targetMetadata));
-            else
-                (targetId, targetDisplay) = (0L, null);
-
-            if (sourceActorId == 0L && _metadataStore.TryGetMetadata(rootId, out var sourceMetadata))
-                sourceActorId = GetSourceActorId(sourceMetadata);
-            if (targetActorId == 0L && _metadataStore.TryGetMetadata(rootId, out var actorMetadata))
-                targetActorId = GetTargetActorId(actorMetadata);
-
-            if (createdFrame < 0) createdFrame = Frame;
-            _contexts[contextId] = new TraceContextRecord(
-                contextId, rootId, parentContextId, kind, createdFrame, 0, 0, false);
-            _childrenByParent[contextId] = new List<long>();
-            _metadataStore.SetMetadata(contextId, CreateMetadata(
-                rootId, kind, sourceActorId, targetActorId,
-                originId, originDisplay, targetId, targetDisplay, configId));
-
-            if (!_childrenByParent.TryGetValue(parentContextId, out var children))
-            {
-                children = new List<long>();
-                _childrenByParent[parentContextId] = children;
-            }
-            children.Add(contextId);
-            if (_roots.TryGetValue(rootId, out var root))
-            {
-                _roots[rootId] = root.WithActiveCount(root.ActiveCount + 1)
-                    .WithLastTouchedFrame(createdFrame);
-            }
-            Publish(new TraceRegistryEvent(
-                TraceRegistryEventKind.ChildCreated, contextId, rootId, parentContextId, kind, createdFrame));
-            return contextId;
+            var record = new TraceContextRecord(
+                contextId, rootId, parentContextId, kind, createdFrame ?? Frame, 0, 0, false);
+            /*
+             * 保留两类公开入口原有的元数据参数；结构记录始终使用实际所属根。
+             */
+            var metadata = CreateMetadata(requestedId.HasValue ? rootId : contextId, kind, sourceActorId, targetActorId,
+                originId, originDisplay, targetId, targetDisplay, configId);
+            return CommitCreatedNode(in record, metadata, _metadataStore, advanceAllocationFloor);
         }
 
         public long CreateChild(in TraceOrigin origin)
@@ -956,21 +979,6 @@ namespace AbilityKit.Trace
             return true;
         }
 
-        private void CollectStats(
-            long contextId, long rootId,
-            ref int totalNodes, ref int activeNodes, ref int endedNodes, ref int maxDepth,
-            int currentDepth)
-        {
-            if (!_contexts.TryGetValue(contextId, out var record) || record.RootId != rootId)
-                return;
-            totalNodes++;
-            if (record.IsEnded) endedNodes++; else activeNodes++;
-            maxDepth = Math.Max(maxDepth, currentDepth);
-            if (_childrenByParent.TryGetValue(contextId, out var children))
-                foreach (var childId in children)
-                    CollectStats(childId, rootId, ref totalNodes, ref activeNodes, ref endedNodes, ref maxDepth, currentDepth + 1);
-        }
-
         /// <summary>
         /// 获取指定种类的所有节点
         /// </summary>
@@ -992,52 +1000,55 @@ namespace AbilityKit.Trace
         }
 
         /// <summary>
-        /// 清理已结束的根节点
+        /// 回收已结束且无人持有的整棵树。保留窗口以根最近一次变更帧为基准，
+        /// 使用与当前注册表相同的帧时钟；非正值表示不等待。返回实际回收的根数。
         /// </summary>
         public int Purge(int currentFrame, int keepEndedFrames = 0)
         {
             var purgedCount = 0;
             var toRemove = new List<long>();
 
-            foreach (var kvp in _roots)
-            {
-                var rootId = kvp.Key;
-                var record = kvp.Value;
-                if (record.ActiveCount > 0 || record.ExternalRefCount > 0)
-                    continue;
-
-                if (keepEndedFrames > 0)
-                {
-                    if (!_contexts.TryGetValue(rootId, out var ctxRec) || !ctxRec.IsEnded)
-                        continue;
-                    if (currentFrame - ctxRec.EndedFrame < keepEndedFrames)
-                        continue;
-                }
-                toRemove.Add(rootId);
-            }
+            foreach (var rootId in _roots.Keys)
+                if (CanPurgeRoot(rootId, currentFrame, keepEndedFrames))
+                    toRemove.Add(rootId);
 
             foreach (var rootId in toRemove)
             {
-                PurgeRoot(rootId);
+                /*
+                 * 订阅者可能已重新持有后续的候选根，因此删除前重新检查。
+                 */
+                if (!CanPurgeRoot(rootId, currentFrame, keepEndedFrames)) continue;
+                RemoveRootTree(rootId, _metadataStore);
                 purgedCount++;
             }
             return purgedCount;
         }
 
         /// <summary>
-        /// 清理指定根节点及其所有子节点
+        /// 兼容入口：立即尝试回收已结束且无人持有的整棵树，不等待保留窗口。
+        /// 需要获知是否实际回收时，使用 <see cref="TryPurgeRoot"/>。
         /// </summary>
         public void PurgeRoot(long rootId)
         {
-            if (_childrenByParent.TryGetValue(rootId, out var children))
-                foreach (var childId in children)
-                    PurgeRoot(childId);
-            _contexts.Remove(rootId);
-            _roots.Remove(rootId);
-            _childrenByParent.Remove(rootId);
-            _metadataStore.Clear(rootId);
-            _leafDataStore.Clear(rootId);
-            Publish(new TraceRegistryEvent(TraceRegistryEventKind.RootPurged, rootId, rootId, 0, 0, Frame));
+            TryPurgeRoot(rootId);
+        }
+
+        /// <summary>
+        /// 尝试立即回收已结束且无人持有的整棵树。不存在的 ID、子节点 ID、
+        /// 活动或仍被持有的根均返回 false，不改变状态，也不发布事件。
+        /// </summary>
+        public bool TryPurgeRoot(long rootId)
+        {
+            if (!CanPurgeRoot(rootId, currentFrame: 0, keepEndedFrames: 0)) return false;
+            RemoveRootTree(rootId, _metadataStore);
+            return true;
+        }
+
+        private bool CanPurgeRoot(long rootId, int currentFrame, int keepEndedFrames)
+        {
+            return _roots.TryGetValue(rootId, out var root) && root.ActiveCount == 0 && root.ExternalRefCount == 0
+                && _contexts.TryGetValue(rootId, out var node) && node.IsEnded
+                && (keepEndedFrames <= 0 || (long)currentFrame - root.LastTouchedFrame >= keepEndedFrames);
         }
 
         // ========================================================================
@@ -1046,9 +1057,6 @@ namespace AbilityKit.Trace
 
         private TraceSnapshot<T> CreateSnapshot(in TraceContextRecord record)
         {
-            var childCount = 0;
-            if (_childrenByParent.TryGetValue(record.ContextId, out var children) && children != null)
-                childCount = children.Count;
             _metadataStore.TryGetMetadata(record.ContextId, out var metadata);
             return new TraceSnapshot<T>(
                 contextId: record.ContextId,
@@ -1058,7 +1066,7 @@ namespace AbilityKit.Trace
                 createdFrame: record.CreatedFrame,
                 endedFrame: record.EndedFrame,
                 endReason: record.EndReason,
-                childCount: childCount,
+                childCount: GetChildCount(record.ContextId),
                 metadata: metadata,
                 isEnded: record.IsEnded);
         }
@@ -1078,7 +1086,7 @@ namespace AbilityKit.Trace
         // ========================================================================
 
         /// <summary>
-        /// 构建根节点元数据（抽象方法，子类必须实现）
+        /// 在节点提交前创建业务元数据，不得重入注册表写操作。
         /// </summary>
         protected abstract T CreateMetadata(
             long rootId, int kind,

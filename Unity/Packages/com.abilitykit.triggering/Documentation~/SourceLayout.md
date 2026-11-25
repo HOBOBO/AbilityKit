@@ -51,6 +51,8 @@ Unity 测试源文件放在 `Tests/Editor/` 下，由 `AbilityKit.Triggering.Tes
 | 职责 | 落点 | 边界 |
 | --- | --- | --- |
 | JSON 格式识别与转换 | `Runtime/Plans/Serialization/Json/{Parsing,Source,Conversion}/` | 解析器识别源格式和运行时格式，DTO 留在格式层；`TriggerPlanJsonReader` 负责展开模块、解析 Cue 并转换为运行时记录。解析成功不代表领域引用有效。 |
+| 单条 JSON 记录装配 | `Runtime/Plans/Serialization/Json/Conversion/` | `TriggerPlanConverter` 只装配扁平计划与执行根；动作选项、条件表达式和值/模板分别由 `TriggerPlanJsonActionConverter`、`TriggerPlanJsonPredicateConverter` 和 `TriggerPlanJsonValueConverter` 转换。同一条记录的两种产物共用记录级模板查询，不在共享转换器上保存临时状态。执行节点转换器负责引用展开及树形构造，不负责单个参数的解释。 |
+| 执行树引用 | `TriggerPlanExecutionNodeReferenceCatalog`、`TriggerPlanExecutionNodeReferenceResolver` | 模块展开后的每份文档在首棵显式执行树转换时建立一次行为与节点索引；纯扁平记录不读取索引。每棵树独立维护活动引用路径，只检测当前路径上的循环，不把兄弟分支使用同一引用判为循环，也不共享运行时节点。 |
 | 记录与索引 | `Runtime/Plans/Storage/` | `TriggerPlanRecordStore<TRecord>` 保存运行时记录、执行根索引、字符串与黑板初始化配置，不依赖 JSON、文件读取或宿主。 |
 | 兼容查询与文件读取 | `Runtime/Plans/Serialization/Json/{Database,Loading}/` | `TriggerPlanJsonDatabase` 保留现有公开加载、查询和合并入口；`TriggerPlanDirectoryLoader` 按输入与选项读取文件。不替宿主决定目录优先级或启动校验。 |
 | 发布聚合编译 | `Editor/Authoring/` | `TriggerPlanAggregateCompiler` 编译发布源；不是宿主的目录覆盖入口。 |

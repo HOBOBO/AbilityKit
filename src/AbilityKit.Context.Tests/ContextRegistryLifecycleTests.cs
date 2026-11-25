@@ -6,6 +6,74 @@ namespace AbilityKit.Context.Tests;
 public sealed class ContextRegistryLifecycleTests
 {
     [Fact]
+    public void Observers_see_entity_creation_property_update_and_removal_in_order()
+    {
+        var registry = new ContextRegistry();
+        var observed = new List<(ContextEventType Type, bool Exists, bool HasProperty)>();
+        registry.Subscribe(evt => observed.Add((evt.Type, registry.Exists(evt.EntityId), registry.Get<TestProperty>(evt.EntityId) != null)));
+
+        var id = registry.Create().With(new TestProperty()).Build();
+        Assert.True(registry.Destroy(id));
+
+        Assert.Equal(new[]
+        {
+            (ContextEventType.Created, true, false),
+            (ContextEventType.Updated, true, true),
+            (ContextEventType.Destroying, true, true),
+            (ContextEventType.Destroyed, false, false),
+        }, observed);
+        Assert.Empty(registry.GetEntitiesWith<TestProperty>());
+    }
+
+    [Fact]
+    public void Reentrant_destroy_of_same_entity_does_not_emit_another_lifecycle()
+    {
+        var registry = new ContextRegistry();
+        var id = registry.Create().With(new TestProperty()).Build();
+        var observed = new List<ContextEventType>();
+        bool? nestedResult = null;
+        var attempted = false;
+        registry.Subscribe(evt =>
+        {
+            observed.Add(evt.Type);
+            if (evt.Type != ContextEventType.Destroying || attempted) return;
+            attempted = true;
+            nestedResult = registry.Destroy(evt.EntityId);
+        });
+
+        Assert.True(registry.Destroy(id));
+        Assert.Equal(false, nestedResult);
+        Assert.Equal(new[] { ContextEventType.Destroying, ContextEventType.Destroyed }, observed);
+        Assert.False(registry.Exists(id));
+    }
+
+    [Fact]
+    public void Destroy_does_not_delete_a_replacement_under_the_same_id_after_notification()
+    {
+        var registry = new ContextRegistry();
+        var id = registry.Create().With(new TestProperty()).Build();
+        Assert.True(registry.TryGetReference(id, out var oldReference));
+        var replacement = new TestProperty();
+        var errors = new List<Exception>();
+        var observed = new List<ContextEventType>();
+        registry.EventHandlerException = (_, error) => errors.Add(error);
+        registry.Subscribe(evt =>
+        {
+            observed.Add(evt.Type);
+            if (evt.Type != ContextEventType.Destroying) return;
+            registry.RestoreLocalRollbackEntities(id, Array.Empty<long>(), Array.Empty<long>());
+            registry.RestoreEntity(id).With(replacement);
+        });
+
+        Assert.False(registry.Destroy(id));
+        Assert.Empty(errors);
+        Assert.Equal(new[] { ContextEventType.Destroying, ContextEventType.Created, ContextEventType.Updated }, observed);
+        Assert.Equal(ContextEntityQueryStatus.IdentityMismatch, registry.Query(oldReference));
+        Assert.Same(replacement, registry.Get<TestProperty>(id));
+        Assert.Equal(new[] { id }, registry.GetEntitiesWith<TestProperty>());
+    }
+
+    [Fact]
     public void Observer_failure_is_reported_and_does_not_change_create_or_destroy_result()
     {
         var registry = new ContextRegistry();
@@ -79,7 +147,8 @@ public sealed class ContextRegistryLifecycleTests
         var cursor = registry.NextEntityId;
 
         Assert.Throws<InvalidOperationException>(() => registry.RestoreEntity(id));
-        Assert.Same(property, new ContextValueResolver(registry).GetProperty<TestProperty>(id).Value);
+        Assert.True(registry.TryGetReference(id, out var reference));
+        Assert.Same(property, new ContextValueResolver(registry).ReadRealtimeProperty<TestProperty>(reference).Value);
         Assert.Equal(cursor, registry.NextEntityId);
         Assert.Equal(1, registry.Count);
     }

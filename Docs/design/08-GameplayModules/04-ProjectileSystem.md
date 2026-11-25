@@ -426,47 +426,35 @@ MOBA filter 在发射时复制规则和冻结目标身份，借助可选值快�
 
 *文档类型：Canonical 设计（Projectile 跨模块边界） | 事实基线：2026-08-16 | 证据等级：公共包局部 E3；E4 仅限日期化历史 artifact | 文档版本：v3.0*
 
-## Area cleanup and failed-spawn compensation
+## 区域清理及生成失败补偿
 
-### Destination suspension (approved 2026-11-13)
+### 到达目标后挂起（2026-11-13 已批准）
 
-`ProjectileSpawnParams.MaxDistanceResponse` defaults to `Exit`. `SuspendAtDestination`
-clamps movement to the remaining distance, records `ArrivedFrame`, suspends simulation
-and emits one `ProjectileArrivalEvent`, without Exit or entity removal. Arrived projectiles
-cannot resume flight; explicit despawn, owner cleanup and world disposal remain available.
-Suspension preserves the existing lifetime-pause contract and performs no flight collision.
-`IProjectileArrivalEventSource` exposes arrival events without changing existing service stubs.
-Rollback payload version 17 includes the response and arrival frame; older versions fail
-before clearing the current world. Arrival callbacks must be consumed before the battle's
-end-of-frame rollback capture, together with their resulting Area/Cast state.
+`ProjectileSpawnParams.MaxDistanceResponse` 默认为 `Exit`。`SuspendAtDestination` 将移动裁剪至剩余距离，记录 `ArrivedFrame`，挂起模拟并发出一次 `ProjectileArrivalEvent`，不触发 Exit 或移除实体。已到达投射物不能恢复飞行，仍可显式销毁、随所有者清理或世界释放。挂起保留既有寿命暂停契约，不执行飞行碰撞。`IProjectileArrivalEventSource` 公开到达事件，不改变既有服务桩。回滚载荷版本 17 包含响应和到达帧；旧版在清空当前世界前失败。到达回调及其产生的 Area/Cast 状态必须在战斗帧末回滚捕获前消费完成。
 
-MOBA arrival triggers execute with the original projectile source and actual arrival position.
-The projectile actor retains its original Cast until removal. An Area can remain the sole
-gameplay timer/terminal claimant while projectile HFSM actions await arrival, await an
-explicit original-Cast number, and remove the projectile after a configured presentation tail.
-These actions carry rollback state and never inspect hero or resource identity.
+MOBA 到达触发器使用原投射物来源及实际到达位置执行。投射物角色保留原 Cast 直到移除。Area 可继续作为唯一玩法计时器及终结认领者，而投射物 HFSM 动作等待到达、等待显式原 Cast 数值，并在配置的表现尾段后移除投射物。这些动作携带回滚状态，不检查英雄或资源身份。
 
-`AreaWorld` deliberately exposes two removal paths:
+`AreaWorld` 明确提供两条移除路径：
 
-- `DespawnArea(id, frame)` is gameplay removal. It appends `AreaExpireEvent`, which `MobaAreaSyncSystem` consumes and may turn into the configured expire trigger.
-- `IAreaRollbackService.CancelArea(id)` is failed-creation or rollback cleanup. It removes the low-level Area silently and never appends an expire event.
+- `DespawnArea(id, frame)` 是玩法移除，追加 `AreaExpireEvent`，由 `MobaAreaSyncSystem` 消费并可能转为配置的到期触发器。
+- `IAreaRollbackService.CancelArea(id)` 是创建失败或回滚清理，静默移除底层 Area，绝不追加到期事件。
 
-MOBA area creation registers service metadata only after the low-level Area exists. If metadata registration fails, compensation first cancels the low-level Area without an event, then removes runtime metadata, indexes, delay markers, execution context and skill-runtime retains. The next sync pass therefore has no stale `AreaExpireEvent` whose metadata has already been removed.
+MOBA 区域创建仅在底层 Area 存在后注册服务元数据。若注册失败，补偿先无事件取消底层 Area，再移除运行时元数据、索引、延迟标记、执行上下文及技能运行时保留引用。下一次同步因此不会遇到元数据已移除的过期 `AreaExpireEvent`。
 
-This is required for multi-area skills such as Jinx E: a failed later spawn must not dispatch an expire trigger for an earlier trap, and cancelling a cast must not look like normal gameplay expiration. Normal removal actions continue to use `DespawnArea` and preserve existing gameplay semantics.
+金克丝 E 等多区域技能需要此契约：后续生成失败不能触发此前陷阱的到期事件，取消施法也不能表现为正常玩法到期。普通移除动作继续使用 `DespawnArea`，保留既有玩法语义。
 
-### Distance return, support contact and leg identity
+### 距离返程、辅助接触及分段身份
 
-The [approved Lux extension](../../../plans/LuxImplementationReadiness.2026-11-13.md) adds `MaxDistanceResponse.ReturnToSource` (2). The outbound step stops at its actual maximum-distance boundary, then enters the existing return phase and tracks the source provider. Distance return and timed return are mutually exclusive. Return arrival clamps its final step, including a zero stop distance. Source death is handled by original Cast child cleanup, not inferred from a transform provider.
+[已批准的拉克丝扩展](../../../plans/LuxImplementationReadiness.2026-11-13.md) 增加 `MaxDistanceResponse.ReturnToSource`（2）。去程步进停在实际最大距离边界，再进入既有返程阶段并跟踪来源提供者。距离返程与定时返程互斥。返程到达裁剪最后一步，包括停止距离为零的情况。来源死亡由原 Cast 子对象清理处理，不从变换提供者推断。
 
-`HitIdentity.OncePerActorPerLeg` (2) maintains separate outbound and return actor sets. Turning never clears legacy OncePerActor or Bounce history. Unlimited piercing uses the existing negative remaining-budget convention; per-frame collision sweep limits still apply.
+`HitIdentity.OncePerActorPerLeg`（2）分别维护去程及返程角色集合。转向绝不清除既有 OncePerActor 或 Bounce 历史。无限贯穿沿用负数剩余预算约定，每帧碰撞扫描限制仍生效。
 
-`SupportContact` (3) is accepted only by an explicit friendly-hero collision rule. It emits ordinary attributed contact for living allies without changing hostile Hit validation or allowing friendly damage. Self shielding uses launch and successful-return callbacks; ignoring enemies or walls spends no contact budget.
+`SupportContact`（3）仅由显式友方英雄碰撞规则接纳。它向存活友方发出具有普通归因的接触，不改变敌方 Hit 验证或允许友伤。自身护盾通过发射及成功返程回调处理；忽略敌人或墙不消耗接触预算。
 
-Projectile snapshot format is now **18** (previously 17); it includes return-leg actor history and phase validation. Version 17 payloads are rejected rather than partially restored. Both peers must use matching code and snapshots. Tests cover outbound and returning restore, moving source tracking and preservation of legacy identity behavior.
+投射物快照格式现为 **18**（此前 17），包含返程角色历史及阶段验证。版本 17 载荷直接拒绝，不部分恢复。两端必须使用匹配代码及快照。测试覆盖去程及返程恢复、移动来源跟踪和既有身份行为保留。
 
-### Per-contact continuation and termination (D3, approved 2026-11-15)
+### 逐接触继续及终止（D3，2026-11-15 已批准）
 
-Collision responses append `HitAndContinue` (4) and `HitAndStop` (5), preserving values 0..3. Both use normal target eligibility, actor identity and hit cooldown, record an accepted Hit and increment TotalHitCount. Continue bypasses HitPolicy and does not consume HitsRemaining; Stop emits one Exit(Hit) at that contact after Hit and removes the projectile. Shield absorption and control immunity do not change collision termination. Legacy Hit still delegates to its configured HitPolicy.
+碰撞响应追加 `HitAndContinue`（4）和 `HitAndStop`（5），保留 0..3 的值。两者使用普通目标资格、角色身份及命中冷却，记录已接纳 Hit 并递增 TotalHitCount。Continue 跳过 HitPolicy 且不消耗 HitsRemaining；Stop 在该接触的 Hit 后发出一次 Exit(Hit)，再移除投射物。护盾吸收及控制免疫不改变碰撞终止。旧 Hit 仍委托给配置的 HitPolicy。
 
-MOBA rules cannot bypass self, allied-team or HitUnitSubType guards. StaticWorld only permits Ignore/Block. The first approved configuration scope is straight, nonreturning ExitOnHit/Pierce projectiles; incompatible bounce, arc or return configurations are rejected. Rules and actor history retain the existing launch freeze and snapshot layout; new response values add no binary fields. Content selects classifications, while the framework only consumes the response.
+MOBA 规则不能绕过自身、友方队伍或 HitUnitSubType 保护。StaticWorld 仅允许 Ignore/Block。首批批准配置范围是直线、不返程的 ExitOnHit/Pierce 投射物；不兼容的弹射、弧线或返程配置被拒绝。规则及角色历史沿用既有发射冻结及快照布局；新增响应值不增加二进制字段。内容选择分类，框架只消费响应。

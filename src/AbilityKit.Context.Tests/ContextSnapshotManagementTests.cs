@@ -151,18 +151,65 @@ public sealed class ContextSnapshotManagementTests
     }
 
     [Fact]
-    public void Legacy_snapshots_keep_replacement_semantics_and_field_missing_is_not_default_hit()
+    public void Exact_reads_distinguish_zero_missing_field_not_captured_and_evicted()
+    {
+        var store = Create(maxRecords: 1, perEntity: 1);
+        var first = Save(store, value: 0);
+        var expectedNext = new ContextSnapshotReference(store.StorageId, first.SnapshotId + 1, first.EntityId, 2);
+        var resolver = new ContextValueResolver(new ContextRegistry(), store);
+        using (store.Retain(first))
+        {
+            Assert.False(store.TrySaveManaged(new ValueSnapshot(1, 2, 5), new ContextSnapshotCapture(2, 2, "captured"), out var rejected));
+            Assert.False(rejected.IsValid);
+            Assert.Equal(ContextSnapshotQueryStatus.InvalidReference, resolver.ReadSnapshot<ValueSnapshot, int>(rejected, "value").Status);
+            Assert.Equal(ContextSnapshotQueryStatus.NotCaptured, resolver.ReadSnapshot<ValueSnapshot, int>(expectedNext, "value").Status);
+            var zero = resolver.ReadSnapshot<ValueSnapshot, int>(first, "value");
+            Assert.True(zero.Found);
+            Assert.Equal(0, zero.Value);
+            Assert.Equal(ContextSnapshotQueryStatus.FieldMissing, resolver.ReadSnapshot<ValueSnapshot, int>(first, "absent").Status);
+        }
+
+        var newest = Save(store, generation: 2, frame: 2, value: 5);
+        Assert.Equal(expectedNext.SnapshotId, newest.SnapshotId);
+        Assert.Equal(ContextSnapshotQueryStatus.Unavailable, resolver.ReadSnapshot<ValueSnapshot, int>(first, "value").Status);
+        Assert.False(store.TryGetLatest<ValueSnapshot>(first.EntityId, first.Generation, "captured", out _));
+        Assert.Equal(5, resolver.ReadSnapshot<ValueSnapshot, int>(newest, "value").Value);
+    }
+
+    [Fact]
+    public void Exact_snapshot_read_does_not_borrow_live_fields_even_when_the_entity_is_alive()
+    {
+        var registry = new ContextRegistry();
+        var store = Create();
+        var id = registry.Create().With(new RealtimeProperty()).Build();
+        Assert.True(registry.TryGetReference(id, out var identity));
+        var snapshot = Save(store, entity: id, generation: identity.Generation, value: 0);
+        var resolver = new ContextValueResolver(registry, store);
+
+        Assert.True(resolver.ReadRealtime<int, RealtimeProperty>(identity, "realtimeOnly").Found);
+        Assert.Equal(ContextSnapshotQueryStatus.FieldMissing, resolver.ReadSnapshot<ValueSnapshot, int>(snapshot, "realtimeOnly").Status);
+        var hit = resolver.ReadSnapshot<ValueSnapshot, int>(snapshot, "value");
+        Assert.True(hit.Found);
+        Assert.Equal(0, hit.Value);
+
+        Assert.True(registry.Destroy(id));
+        Assert.Equal(ContextEntityQueryStatus.Unavailable, resolver.ReadRealtime<int, RealtimeProperty>(identity, "value").Status);
+        Assert.True(resolver.ReadSnapshot<ValueSnapshot, int>(snapshot, "value").Found);
+    }
+
+    [Fact]
+    public void Unmanaged_snapshots_keep_latest_record_semantics_but_are_not_exact_references()
     {
         var store = new SnapshotStorage();
-        store.Save(new LegacySnapshot(1, 3));
-        store.Save(new LegacySnapshot(1, 4));
+        var newest = new LegacySnapshot(1);
+        store.Save(new LegacySnapshot(1));
+        store.Save(newest);
         Assert.Equal(1, store.Count);
         Assert.Equal(0, store.HistoryCount);
         Assert.Equal(2, store.GetLatestVersion(1));
-        var resolver = new ContextValueResolver(new ContextRegistry(), store);
-        var result = resolver.GetValue<int>(new ContextValueRequest(1, 0, "absent"), -1, ContextValueReadMode.SnapshotOnly);
-        Assert.Equal(ContextValueSource.DefaultValue, result.Source);
-        Assert.Equal(-1, result.Value);
+        Assert.True(store.TryGetRecord(1, out var record));
+        Assert.Same(newest, record.Snapshot);
+        Assert.False(record.Reference.IsValid);
     }
 
     [Fact]
@@ -172,9 +219,9 @@ public sealed class ContextSnapshotManagementTests
         Assert.Throws<ArgumentException>(() => store.SaveManaged(new ValueSnapshot(1, 1, 0), default));
         Assert.Throws<ArgumentException>(() => store.SaveManaged(new ValueSnapshot(1, 1, 0), new ContextSnapshotCapture(1, 2, "captured")));
         Save(store);
-        Assert.Throws<InvalidOperationException>(() => store.Save(new LegacySnapshot(1, 0)));
+        Assert.Throws<InvalidOperationException>(() => store.Save(new LegacySnapshot(1)));
         store.Remove(1);
-        store.Save(new LegacySnapshot(1, 0));
+        store.Save(new LegacySnapshot(1));
         Assert.Equal(1, store.Count);
     }
 
@@ -216,19 +263,25 @@ public sealed class ContextSnapshotManagementTests
         public bool TryGetValue<T>(string key, out T value) { value = default!; return false; }
     }
 
-    private sealed class LegacySnapshot : IContextSnapshot, IContextValueProvider, ISnapshotAccessor
+    private sealed class LegacySnapshot(long entityId) : IContextSnapshot
     {
-        private readonly int _value;
-        public LegacySnapshot(long entity, int value) { EntityId = entity; _value = value; }
-        public long EntityId { get; }
+        public long EntityId => entityId;
         public long CreatedAtMs => 0;
-        public bool IsRealtimeAvailable => false;
+    }
+
+    private sealed class RealtimeProperty : IProperty, IContextValueProvider
+    {
+        public int TypeId => PropertyTypeRegistry.Instance.Get<RealtimeProperty>()?.Id ?? 0;
+
         public bool TryGetValue<T>(string key, out T value)
         {
-            if (key == "value" && _value is T typed) { value = typed; return true; }
+            if ((key == "value" || key == "realtimeOnly") && 11 is T typed)
+            {
+                value = typed;
+                return true;
+            }
             value = default!;
             return false;
         }
-        public T GetValue<T>(string key, T snapshotDefault = default!) => snapshotDefault;
     }
 }

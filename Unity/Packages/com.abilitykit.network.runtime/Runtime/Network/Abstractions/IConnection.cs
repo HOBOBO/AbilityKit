@@ -25,7 +25,9 @@ namespace AbilityKit.Network.Abstractions
         void Send(uint opCode, ArraySegment<byte> payload, ushort flags = 0, uint seq = 0);
     }
 
-    /// <summary>Stable identity for one logical connection and its physical reconnect generations.</summary>
+    /// <summary>
+    /// 标识一条逻辑连接及其各次物理重连代际的稳定身份。
+    /// </summary>
     public interface IConnectionIdentity
     {
         string ConnectionId { get; }

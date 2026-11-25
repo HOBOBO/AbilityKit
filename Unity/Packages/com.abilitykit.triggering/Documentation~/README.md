@@ -1,5 +1,8 @@
 # Triggering 文档索引
 
+> 文档类型：包内使用与维护导航
+> 核校状态：2026-11-25 核对当前包声明、主线样例与正式边界清单；并非本轮对所有兼容入口逐项复验。
+
 包内指南统一放在 `Documentation~/`，不作为 Unity 资产导入。
 
 - [`Overview.md`](Overview.md)：包定位、正式主线和扩展方式。
@@ -14,6 +17,8 @@
 - [`Samples~/FormalMainline/FormalTriggeringMainlineExample.cs`](../Samples~/FormalMainline/FormalTriggeringMainlineExample.cs)：不装配时间调度的即时接入样板。
 - [`Samples~/RuleScheduling/RuleSchedulingExample.cs`](../Samples~/RuleScheduling/RuleSchedulingExample.cs)：单独导入的业务定时规则样例。
 - [`SampleInventory.md`](SampleInventory.md)：可选导入样例与历史源码处置记录。
+
+消费者建议顺序：包 README → [正式 API 边界](FormalApiBoundary.md) → [Overview](Overview.md) → 导入 Mainline 样例。维护源码再看 SourceLayout；商业化、回滚与下线清单属于限定范围的维护材料，不是安装或首个调用的前置步骤。
 
 ## 编辑器诊断
 

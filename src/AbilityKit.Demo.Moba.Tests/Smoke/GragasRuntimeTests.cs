@@ -465,6 +465,7 @@ public sealed class GragasRuntimeTests
             Setup.DisableActorBrain(id);
             Set(id, "MAGIC_DEFENSE", 0); Set(id, "PHYSICS_DEFENSE", 0);
             Set(id, "PER_SECOND_BLOOD_R", 0); Set(id, "PER_SECOND_MANA_R", 0);
+            Set(id, "MANA_REGEN_PER_SECOND", 0);
             return id;
         }
         public void Set(int id, string key, float value) => Setup.SetScenarioActorAttribute(id, key, value);

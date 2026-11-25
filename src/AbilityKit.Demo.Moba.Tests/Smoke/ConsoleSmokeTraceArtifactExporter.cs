@@ -1,9 +1,10 @@
 using System.Text.Json;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Trace;
+using AbilityKit.Game.Test.UnitTest;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
@@ -92,6 +93,7 @@ public static class ConsoleSmokeTraceArtifactExporter
 
     private static readonly JsonSerializerOptions JsonLineOptions = new()
     {
+        IncludeFields = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false
     };
@@ -127,7 +129,8 @@ public static class ConsoleSmokeTraceArtifactExporter
         var tracePath = Path.Combine(artifactDirectory, caseId + "_trace.jsonl");
         var summaryPath = Path.Combine(artifactDirectory, caseId + "_summary.json");
         var batchPath = Path.Combine(artifactDirectory, BatchSummaryFileName);
-        var records = CaptureTraceRecords(trace, autoTestResult, caseId, bootstrapper.Context.LastFrame);
+        if (!bootstrapper.RuntimeServices.TryResolve<IFrameTime>(out var clock) || clock == null) return null;
+        var records = MobaAcceptanceTraceCapture.ProjectRetainedNodes(trace, clock, caseId);
         var summary = BuildSummary(bootstrapper, autoTestResult, options, caseId, passed, records, tracePath, summaryPath);
 
         using (var writer = new StreamWriter(tracePath, false))
@@ -147,59 +150,7 @@ public static class ConsoleSmokeTraceArtifactExporter
             NormalizePath(tracePath),
             NormalizePath(summaryPath),
             NormalizePath(batchPath),
-            records.Count);
-    }
-
-    private static List<ConsoleSmokeTraceRecordDto> CaptureTraceRecords(MobaTraceRegistry trace, AutoTestResult autoTestResult, string caseId, int frame)
-    {
-        var records = new List<ConsoleSmokeTraceRecordDto>(64);
-        var seen = new HashSet<long>();
-        var script = autoTestResult.ScriptResult;
-
-        foreach (MobaExecutionKind kind in Enum.GetValues(typeof(MobaExecutionKind)))
-        {
-            if (kind == MobaExecutionKind.None) continue;
-
-            foreach (var node in trace.GetNodesByKind((int)kind))
-            {
-                if (!node.IsValid || !seen.Add(node.ContextId)) continue;
-
-                var metadata = node.Metadata;
-                records.Add(new ConsoleSmokeTraceRecordDto
-                {
-                    CaseId = caseId,
-                    Frame = frame,
-                    TimeMs = script?.TickCount ?? 0,
-                    RootId = node.RootId,
-                    ParentId = node.ParentId,
-                    NodeId = node.ContextId,
-                    Kind = ((MobaExecutionKind)node.Kind).ToString(),
-                    KindValue = node.Kind,
-                    ConfigId = metadata?.ConfigId ?? 0,
-                    SourceActorId = metadata?.SourceActorId ?? 0,
-                    TargetActorId = metadata?.TargetActorId ?? 0,
-                    SourceId = metadata?.SourceId ?? 0,
-                    TargetId = metadata?.TargetId ?? 0,
-                    OriginSourceId = metadata?.OriginSourceId ?? 0,
-                    OriginTargetId = metadata?.OriginTargetId ?? 0,
-                    OriginSource = metadata?.OriginSource,
-                    OriginTarget = metadata?.OriginTarget,
-                    IsRoot = node.IsRoot,
-                    IsEnded = node.IsEnded,
-                    EndedFrame = node.EndedFrame,
-                    EndReason = node.EndReason,
-                    ChildCount = node.ChildCount
-                });
-            }
-        }
-
-        records.Sort((x, y) =>
-        {
-            var rootCompare = x.RootId.CompareTo(y.RootId);
-            return rootCompare != 0 ? rootCompare : x.NodeId.CompareTo(y.NodeId);
-        });
-
-        return records;
+            records.Length);
     }
 
     private static ConsoleSmokeSummaryDto BuildSummary(
@@ -208,7 +159,7 @@ public static class ConsoleSmokeTraceArtifactExporter
         ConsoleSmokeTraceArtifactOptions options,
         string caseId,
         bool passed,
-        IReadOnlyList<ConsoleSmokeTraceRecordDto> records,
+        IReadOnlyList<MobaAcceptanceTraceRecord> records,
         string tracePath,
         string summaryPath)
     {
@@ -232,18 +183,18 @@ public static class ConsoleSmokeTraceArtifactExporter
             Result = new ConsoleSmokeResultDto
             {
                 Passed = passed,
-                SkillCastTraceFound = records.Any(r => r.Kind == MobaExecutionKind.SkillCast.ToString()),
-                EffectExecutionTraceFound = records.Any(r => r.Kind == MobaExecutionKind.EffectExecution.ToString()),
+                SkillCastTraceFound = records.Any(record => record.kindValue == (int)MobaExecutionKind.SkillCast),
+                EffectExecutionTraceFound = records.Any(record => record.kindValue == (int)MobaExecutionKind.EffectExecution),
                 AllExpectedActionsExecuted = true,
-                ProjectileLaunched = records.Any(r => r.Kind == MobaExecutionKind.ProjectileLaunch.ToString()),
-                EffectRootId = records.FirstOrDefault(r => r.Kind == MobaExecutionKind.EffectExecution.ToString())?.RootId ?? 0,
+                ProjectileLaunched = records.Any(record => record.kindValue == (int)MobaExecutionKind.ProjectileLaunch),
+                EffectRootId = records.FirstOrDefault(record => record.kindValue == (int)MobaExecutionKind.EffectExecution)?.rootId ?? 0,
                 FinalFrame = bootstrapper.Context.LastFrame,
                 FinalTimeMs = script?.TickCount ?? 0,
                 TraceNodeCount = records.Count,
                 ErrorMessage = BuildErrorMessage(autoTestResult)
             },
             TraceCounts = records
-                .GroupBy(r => r.Kind ?? string.Empty)
+                .GroupBy(record => record.kind ?? string.Empty)
                 .OrderBy(g => g.Key, StringComparer.Ordinal)
                 .Select(g => new ConsoleSmokeTraceCountDto { Kind = g.Key, Count = g.Count() })
                 .ToArray(),
@@ -316,32 +267,6 @@ public static class ConsoleSmokeTraceArtifactExporter
     private static string NormalizePath(string path)
     {
         return path.Replace('\\', '/');
-    }
-
-    private sealed class ConsoleSmokeTraceRecordDto
-    {
-        public string CaseId { get; set; } = string.Empty;
-        public int Frame { get; set; }
-        public int TimeMs { get; set; }
-        public long RootId { get; set; }
-        public long ParentId { get; set; }
-        public long NodeId { get; set; }
-        public string Kind { get; set; } = string.Empty;
-        public int KindValue { get; set; }
-        public int ConfigId { get; set; }
-        public long SourceActorId { get; set; }
-        public long TargetActorId { get; set; }
-        public long SourceId { get; set; }
-        public long TargetId { get; set; }
-        public long OriginSourceId { get; set; }
-        public long OriginTargetId { get; set; }
-        public string? OriginSource { get; set; }
-        public string? OriginTarget { get; set; }
-        public bool IsRoot { get; set; }
-        public bool IsEnded { get; set; }
-        public int EndedFrame { get; set; }
-        public int EndReason { get; set; }
-        public int ChildCount { get; set; }
     }
 
     private sealed class ConsoleSmokeSummaryDto

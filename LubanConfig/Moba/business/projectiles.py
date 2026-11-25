@@ -38,6 +38,10 @@ class Rule:
     def project(self, context):
         validate_collision_rules(context.tables["projectiles"])
         for row in context.tables["projectiles"]:
+            hit_vfx = row.get("HitOrdinalVfxIds", [])
+            if not isinstance(hit_vfx, list) or len(hit_vfx) > 256 or any(
+                    type(vfx_id) is not int or vfx_id <= 0 for vfx_id in hit_vfx):
+                raise ValueError(f"projectiles/{row['Id']}: HitOrdinalVfxIds requires up to 256 positive VFX IDs")
             response = row.get("MaxDistanceResponse", 0)
             if type(response) is not int or response not in (0, 1, 2):
                 raise ValueError(f"projectiles/{row['Id']}: invalid MaxDistanceResponse")
@@ -51,7 +55,8 @@ class Rule:
             "projectiles": {"OnHitEffectId": "triggers", "OnSpawnTriggerIds": "triggers",
                             "OnHitTriggerIds": "triggers", "OnTickTriggerIds": "triggers",
                             "OnExitTriggerIds": "triggers", "OnArrivalTriggerIds": "triggers", "VfxId": "vfx",
-                            "OnSpawnVfxId": "vfx", "OnHitVfxId": "vfx", "OnExpireVfxId": "vfx"},
+                            "OnSpawnVfxId": "vfx", "OnHitVfxId": "vfx", "OnExpireVfxId": "vfx",
+                            "HitOrdinalVfxIds": "vfx"},
             "aoes": {"ModelId": "models", "VfxId": "vfx", "OnDelayTriggerIds": "triggers",
                      "OnEnterTriggerIds": "triggers", "OnExitTriggerIds": "triggers",
                      "OnCrossTriggerIds": "triggers",

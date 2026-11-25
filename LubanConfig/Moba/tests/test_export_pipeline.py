@@ -28,6 +28,8 @@ class ReferenceValidationTests(unittest.TestCase):
             "models", "vfx", "component_templates", "summon_attr_inherits",
             "attr_types", "modifier_templates", "modifier_parameters",
             "battle_maps", "dungeons",
+            "indicator_definitions", "overhead_layouts", "actor_overhead_bindings",
+            "resource_regeneration_rules",
         )
         self.tables = {name: [] for name in names}
         self.tables["characters"] = [{"Id": 1, "AttributeTemplateId": 1,

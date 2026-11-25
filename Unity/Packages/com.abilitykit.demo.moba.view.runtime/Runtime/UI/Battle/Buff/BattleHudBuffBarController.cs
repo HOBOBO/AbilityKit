@@ -17,6 +17,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
         private readonly BattleHudCanvasProjector _projector;
         private readonly IBattleHudActorPositionResolver _positionResolver;
         private readonly BattleHudBuffBarFactory _factory;
+        public System.Func<int, RectTransform> PanelSlotResolver;
 
         private readonly Dictionary<int, BattleHudBuffBar> _barsByActorId = new Dictionary<int, BattleHudBuffBar>(32);
         private readonly Dictionary<string, int> _actorByInstanceKey = new Dictionary<string, int>(64);
@@ -121,6 +122,17 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             {
                 var bar = kv.Value;
                 if (bar?.Root == null) continue;
+                if (PanelSlotResolver != null)
+                {
+                    var slot = PanelSlotResolver(bar.ActorId);
+                    if (slot != null)
+                    {
+                        if (bar.Root.parent != slot) { bar.Root.SetParent(slot, false); bar.Root.anchoredPosition = Vector2.zero; }
+                        bar.Root.gameObject.SetActive(true);
+                    }
+                    else bar.Root.gameObject.SetActive(false);
+                    continue;
+                }
                 if (!_positionResolver.TryGetActorWorldPos(bar.ActorId, out var worldPos)) continue;
                 if (!_projector.TryProject(worldPos + _cfg.BuffBarWorldOffset, out var local)) continue;
                 bar.Root.anchoredPosition = local;

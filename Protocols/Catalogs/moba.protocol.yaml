@@ -194,3 +194,17 @@ messages:
     payloadType: AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload
     maximumPayloadBytes: 1048576
     captureSampleRate: 0.25
+  - id: actor-indicator-state.push
+    opCode: 4020
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotPayload
+    maximumPayloadBytes: 1048576
+    captureSampleRate: 0.25
+  - id: state-sync-overhead.push
+    opCode: 4021
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayload
+    maximumPayloadBytes: 4194304
+    captureSampleRate: 0.25

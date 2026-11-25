@@ -30,7 +30,9 @@ namespace AbilityKit.Network.Runtime.Conditioning
         public uint Sequence { get; }
     }
 
-    /// <summary>Protocol-level link for deterministic, socket-free scenario playback.</summary>
+    /// <summary>
+    /// 用于确定性无套接字场景播放的协议级链路。
+    /// </summary>
     public sealed class VirtualNetworkConditionLink : IDisposable
     {
         private readonly List<VirtualNetworkLinkEvent> _events = new List<VirtualNetworkLinkEvent>();
@@ -49,7 +51,9 @@ namespace AbilityKit.Network.Runtime.Conditioning
         public bool IsConnected { get; private set; } = true;
         public IReadOnlyList<VirtualNetworkLinkEvent> Events => _events.AsReadOnly();
 
-        /// <summary>Flush due packets before executing DSL actions at this timestamp.</summary>
+        /// <summary>
+        /// 执行当前时间戳的 DSL 动作前，先投递已到期数据包。
+        /// </summary>
         public void AdvanceTo(long nowMs)
         {
             ThrowIfDisposed();

@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Battle Scenario 环境构建器方向原型</title>
+  <desc id="desc">展示预设、空间编辑、角色属性覆盖和 DSL 预览如何在同一个环境构建器中协同工作。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171b25"/><stop offset="1" stop-color="#10131b"/></linearGradient>
+    <linearGradient id="toolbar" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#252b38"/><stop offset="1" stop-color="#1b202b"/></linearGradient>
+    <linearGradient id="arena" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#17323a"/><stop offset="1" stop-color="#0e202a"/></linearGradient>
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M36 0H0V36" fill="none" stroke="#31515a" stroke-width="1" opacity=".45"/></pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#74bdff"/></marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000" flood-opacity=".35"/></filter>
+    <style>
+      .ui{font-family:"Segoe UI","Microsoft YaHei",sans-serif;fill:#d9e0ed;font-size:13px}.small{font-size:11px;fill:#9ca8bb}.tiny{font-size:10px;fill:#8793a7}.title{font-size:16px;font-weight:600;fill:#f4f7fb}
+      .panel{fill:#1b202b;stroke:#313949;stroke-width:1}.subpanel{fill:#202735;stroke:#374153;stroke-width:1}.header{fill:#252c39}.line{stroke:#3a4454;stroke-width:1}.muted{fill:#77849a}
+      .blue{fill:#59a9ff}.bluebg{fill:#214765;stroke:#4e9ce8}.purple{fill:#c58cff}.purplebg{fill:#3d285a;stroke:#a86ee8}.green{fill:#76d69b}.greenbg{fill:#1f4a3d;stroke:#50bd87}.red{fill:#ff7883}.redbg{fill:#552d37;stroke:#e45a69}.yellow{fill:#f2c96d}.yellowbg{fill:#564525;stroke:#d6ac51}.cyan{fill:#54d6d0}.orange{fill:#ffab62}.bold{font-weight:600}.center{text-anchor:middle}.right{text-anchor:end}.round{rx:5;ry:5}
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect x="18" y="18" width="1564" height="964" rx="8" fill="#11151d" stroke="#3d4656" filter="url(#shadow)"/>
+  <rect x="19" y="19" width="1562" height="56" rx="8" fill="url(#toolbar)"/>
+  <circle cx="42" cy="47" r="7" fill="#e86c74"/><circle cx="65" cy="47" r="7" fill="#e1b85c"/><circle cx="88" cy="47" r="7" fill="#69c58c"/>
+  <text x="116" y="42" class="ui title">Environment Builder</text><text x="116" y="60" class="small">jhin-e-w-scene · 环境作者视图</text>
+  <rect x="430" y="30" width="94" height="32" class="bluebg round"/><text x="477" y="50" class="ui center bold">空间编辑</text>
+  <rect x="530" y="30" width="94" height="32" class="subpanel round"/><text x="577" y="50" class="ui center">结构化</text>
+  <rect x="630" y="30" width="94" height="32" class="subpanel round"/><text x="677" y="50" class="ui center">DSL 预览</text>
+  <rect x="744" y="30" width="104" height="32" class="subpanel round"/><text x="796" y="50" class="ui center">撤销 Ctrl+Z</text>
+  <rect x="860" y="30" width="94" height="32" class="subpanel round"/><text x="907" y="50" class="ui center">保存</text>
+  <rect x="966" y="30" width="130" height="32" class="greenbg round"/><text x="1031" y="50" class="ui center bold">✓ 编译预览</text>
+  <text x="1120" y="42" class="small">来源</text><text x="1120" y="59" class="yellow bold">● 预设 + 显式差异</text><text x="1548" y="50" class="green right">已保存 · 0 个错误</text>
+
+  <!-- left wizard -->
+  <rect x="30" y="88" width="282" height="652" class="panel"/><rect x="30" y="88" width="282" height="44" class="header"/><text x="48" y="115" class="ui bold">环境构建步骤</text><text x="292" y="115" class="blue right">？</text>
+  <text x="53" y="164" class="green">✓</text><text x="78" y="164" class="ui bold">1 选择环境预设</text><text x="78" y="185" class="small">duel-arena · 12m × 8m</text>
+  <line x1="61" y1="197" x2="61" y2="232" stroke="#4a6673" stroke-width="2"/>
+  <circle cx="61" cy="247" r="10" fill="#214765" stroke="#59a9ff"/><text x="61" y="251" class="ui center">2</text><text x="86" y="251" class="ui bold">摆放角色与锚点</text><text x="86" y="272" class="small">2 Actors · 3 Anchors</text>
+  <line x1="61" y1="284" x2="61" y2="320" stroke="#4a6673" stroke-width="2"/>
+  <circle cx="61" cy="335" r="10" fill="#202735" stroke="#4a5668"/><text x="61" y="339" class="small center">3</text><text x="86" y="339" class="ui">添加障碍与几何</text><text x="86" y="360" class="small">1 Wall · collision/default</text>
+  <line x1="61" y1="372" x2="61" y2="408" stroke="#4a5668" stroke-width="2"/>
+  <circle cx="61" cy="423" r="10" fill="#202735" stroke="#4a5668"/><text x="61" y="427" class="small center">4</text><text x="86" y="427" class="ui">设置初始状态</text><text x="86" y="448" class="small">HP / Buff / Tag / Loadout</text>
+  <line x1="61" y1="460" x2="61" y2="496" stroke="#4a5668" stroke-width="2"/>
+  <circle cx="61" cy="511" r="10" fill="#202735" stroke="#4a5668"/><text x="61" y="515" class="small center">5</text><text x="86" y="515" class="ui">预检与导出</text><text x="86" y="536" class="small">Scene → Case → Runner</text>
+  <line x1="48" y1="566" x2="294" y2="566" class="line"/><text x="48" y="591" class="small bold">快速入口</text>
+  <rect x="48" y="606" width="112" height="35" class="subpanel round"/><text x="104" y="628" class="ui center">＋ Actor</text><rect x="172" y="606" width="112" height="35" class="subpanel round"/><text x="228" y="628" class="ui center">＋ 障碍</text>
+  <rect x="48" y="650" width="112" height="35" class="subpanel round"/><text x="104" y="672" class="ui center">阵型模板</text><rect x="172" y="650" width="112" height="35" class="subpanel round"/><text x="228" y="672" class="ui center">＋ 锚点</text>
+  <text x="48" y="714" class="tiny">拖入画布即可创建，所有操作可撤销。</text>
+
+  <!-- central arena -->
+  <rect x="326" y="88" width="832" height="652" class="panel"/><rect x="326" y="88" width="832" height="44" class="header"/><text x="344" y="115" class="ui bold">空间画布 · 顶视图</text><text x="1138" y="115" class="small right">局部坐标 · 网格 0.5m · 吸附 ON</text>
+  <rect x="344" y="148" width="796" height="490" fill="url(#arena)" stroke="#42616a"/><rect x="344" y="148" width="796" height="490" fill="url(#grid)"/>
+  <!-- arena boundary -->
+  <rect x="405" y="202" width="658" height="365" fill="none" stroke="#6eabb0" stroke-width="2" stroke-dasharray="8 5"/><text x="420" y="224" class="small">duel-arena bounds</text>
+  <!-- wall -->
+  <rect x="690" y="260" width="28" height="235" fill="#875e4a" stroke="#d99565" stroke-width="2" class="round"/><text x="704" y="515" class="tiny center">wall_01</text>
+  <!-- anchors -->
+  <circle cx="535" cy="380" r="14" fill="#54d6d0" fill-opacity=".18" stroke="#54d6d0" stroke-width="2"/><path d="M535 360v40M515 380h40" stroke="#54d6d0"/><text x="535" y="414" class="small center">caster_spawn</text>
+  <circle cx="880" cy="380" r="14" fill="#54d6d0" fill-opacity=".18" stroke="#54d6d0" stroke-width="2"/><path d="M880 360v40M860 380h40" stroke="#54d6d0"/><text x="880" y="414" class="small center">target_spawn</text>
+  <!-- actors -->
+  <circle cx="535" cy="380" r="28" fill="#2d6ba0" stroke="#74bdff" stroke-width="3"/><text x="535" y="385" class="ui center bold">烬</text><path d="M550 365l42 -17" stroke="#74bdff" stroke-width="3" marker-end="url(#arrow)"/><text x="535" y="349" class="tiny center">caster · T1</text>
+  <circle cx="880" cy="380" r="28" fill="#873b50" stroke="#f18798" stroke-width="3"/><text x="880" y="385" class="ui center bold">目标</text><text x="880" y="349" class="tiny center">enemy_01 · T2</text>
+  <!-- target line / landing marker -->
+  <line x1="579" y1="362" x2="846" y2="362" stroke="#ffab62" stroke-width="2" stroke-dasharray="8 5"/><circle cx="775" cy="362" r="20" fill="#ffab62" fill-opacity=".15" stroke="#ffab62" stroke-width="2"/><path d="M775 343v38M756 362h38" stroke="#ffab62"/><text x="775" y="399" class="small center">W 释放方向 / E 落点</text>
+  <!-- selected gizmo -->
+  <circle cx="535" cy="380" r="43" fill="none" stroke="#59a9ff" stroke-width="1" stroke-dasharray="4 4"/><path d="M535 333v-22M535 427v22M488 380h-22M582 380h22" stroke="#59a9ff" stroke-width="2"/><rect x="344" y="606" width="796" height="32" fill="#17232c"/><text x="360" y="627" class="small">工具：选择  W 旋转  E 缩放  G 移动  ·  框选/复制/对齐/镜像  ·  选中节点会同步 Inspector</text>
+  <rect x="344" y="654" width="796" height="70" class="subpanel"/><text x="360" y="678" class="small bold">语义预览</text><text x="360" y="700" class="ui">Skill W 射线：caster_spawn → target_spawn</text><text x="680" y="700" class="ui">E Area 落点：x 4.2 · z 1.0</text><text x="948" y="700" class="yellow">1 个障碍会阻挡路径</text>
+
+  <!-- inspector -->
+  <rect x="1178" y="88" width="382" height="652" class="panel"/><rect x="1178" y="88" width="382" height="44" class="header"/><text x="1196" y="115" class="ui bold">Inspector · caster_spawn / 烬</text><text x="1540" y="115" class="small right">Actor</text>
+  <text x="1196" y="155" class="small">来源</text><rect x="1320" y="140" width="220" height="27" class="yellowbg round"/><text x="1430" y="159" class="ui center">场景显式值 · 可恢复默认</text>
+  <text x="1196" y="191" class="small">Alias</text><rect x="1320" y="176" width="220" height="27" class="subpanel round"/><text x="1332" y="195" class="ui">caster_spawn</text>
+  <text x="1196" y="227" class="small">Hero / Template</text><rect x="1320" y="212" width="220" height="27" class="subpanel round"/><text x="1332" y="231" class="ui">烬 · 1002 / 1002 ▾</text>
+  <text x="1196" y="263" class="small">Team / Player</text><rect x="1320" y="248" width="220" height="27" class="subpanel round"/><text x="1332" y="267" class="ui">T1 · player_1 ▾</text>
+  <text x="1196" y="299" class="small">Position</text><rect x="1320" y="284" width="220" height="27" class="bluebg round"/><text x="1332" y="303" class="ui">x 0.0 · y 0.0 · z 0.0</text>
+  <text x="1196" y="335" class="small">Facing</text><rect x="1320" y="320" width="220" height="27" class="bluebg round"/><text x="1332" y="339" class="ui">→ target_spawn</text>
+  <line x1="1196" y1="365" x2="1542" y2="365" class="line"/><text x="1196" y="391" class="small bold">技能负载</text><text x="1196" y="416" class="ui">Slot 2 · Curtain Call W</text><text x="1196" y="440" class="ui">Slot 3 · Captive Audience E</text><text x="1518" y="416" class="blue right">配置目录</text>
+  <line x1="1196" y1="460" x2="1542" y2="460" class="line"/><text x="1196" y="486" class="small bold">初始状态（显式差异）</text><rect x="1196" y="500" width="346" height="30" class="subpanel round"/><text x="1210" y="520" class="ui">HP 1000 · Mana 500</text><rect x="1196" y="538" width="346" height="30" class="subpanel round"/><text x="1210" y="558" class="ui">Buff: none · Tags: acceptance.caster</text><text x="1196" y="599" class="small">技能默认值来自 AttributeTemplate</text><text x="1518" y="599" class="blue right">恢复默认</text><text x="1196" y="630" class="ui">＋ 添加状态覆盖</text>
+
+  <!-- bottom output -->
+  <rect x="30" y="760" width="1530" height="202" class="panel"/><rect x="30" y="760" width="1530" height="42" class="header"/><text x="48" y="787" class="ui bold">编译预览与导出</text><text x="270" y="787" class="green bold">✓ 预检通过</text><text x="390" y="787" class="small">静态环境与用例覆盖已分离</text><text x="1540" y="787" class="yellow right">只保存显式差异</text>
+  <rect x="48" y="820" width="450" height="116" class="subpanel round"/><text x="64" y="845" class="small bold">BattleSceneDocument · jhin-e-w-scene</text><text x="64" y="870" class="ui">EnvironmentProfile: duel-arena</text><text x="64" y="892" class="ui">Setup: 2 Actors · 1 Obstacle · 2 Anchors</text><text x="64" y="914" class="green">✓ 坐标、别名、配置引用有效</text>
+  <rect x="516" y="820" width="450" height="116" class="subpanel round"/><text x="532" y="845" class="small bold">BattleScenarioDocument · jhin-e-w-acceptance</text><text x="532" y="870" class="ui">ScenarioRef: jhin-e-w-scene</text><text x="532" y="892" class="ui">Planned Overlay: target.hp = 620 · Timeline: 6</text><text x="532" y="914" class="yellow">○ 当前版本：另存为场景变体</text>
+  <rect x="984" y="820" width="558" height="116" class="subpanel round"/><text x="1000" y="845" class="small bold">DSL / JSON 投影（高级视图）</text><text x="1000" y="870" class="small">scene.sections.setup[0] = SpawnActorBlock(alias: "caster_spawn")</text><text x="1000" y="892" class="small">scene.sections.setup[1] = PlaceObstacleBlock(id: "wall_01")</text><text x="1000" y="914" class="blue">打开 diff · 导入 patch · 生成模板</text>
+</svg>

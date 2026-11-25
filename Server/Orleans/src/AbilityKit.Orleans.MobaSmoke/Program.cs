@@ -35,8 +35,9 @@ var connectPort = ParseIntArgument(args, "--connect-port", tcpPort, 1, 65535);
 var hostTimeoutSeconds = ParseIntArgument(args, "--host-timeout-seconds", 180, 1, 3600);
 var syncTemplateId = ParseStringArgument(args, "--sync-template", MobaSmokeConstants.DefaultSyncTemplateId);
 
-// Client-only mode: skip local silo, connect directly to an external silo.
-// Used by run_moba_multiprocess_smoke.ps1 to run independent client processes.
+/*
+ * 仅客户端模式：跳过本地 Silo，直接连接外部 Silo。供 run_moba_multiprocess_smoke.ps1 运行独立客户端进程。
+ */
 if (clientOnly)
 {
     try
@@ -341,9 +342,9 @@ static async Task<MobaSmokeResult> RunScenarioAsync(string host, int port, TimeS
             final.Snapshot.Players?.Count ?? 0, final.Snapshot.RoomRevision);
     }
 
-    // Subscribe both battle clients to StateSync so they receive actor snapshots.
-    // Must be called on the battle connection (not lobby) — the gateway binds the
-    // subscription to context.ConnectionId, and pushes are keyed by accountId.
+    /*
+     * 将两个战斗客户端订阅到 StateSync，以接收角色快照。必须在战斗连接上调用；网关将订阅绑定到 context.ConnectionId，并按 accountId 索引推送。
+     */
     await ownerBattle.SubscribeStateSyncAsync(final.Snapshot.BattleId, created.RoomId, timeoutCts.Token);
     await memberBattle.SubscribeStateSyncAsync(final.Snapshot.BattleId, created.RoomId, timeoutCts.Token);
 
@@ -576,7 +577,9 @@ internal sealed class MobaSmokeClient : IDisposable
     private string _syncTemplateId = string.Empty;
     private long _nextCommandSequence;
 
-    // StateSync diagnostics distinguish transport, decoding, and projection failures.
+    /*
+     * StateSync 诊断区分传输、解码及投影失败。
+     */
     internal int StateSyncPushCount => Volatile.Read(ref _stateSyncPushCount);
     internal int LastStateSyncPushSize => Volatile.Read(ref _lastStateSyncPushSize);
     internal int MaxActorCount => Volatile.Read(ref _maxActorCount);
@@ -599,9 +602,9 @@ internal sealed class MobaSmokeClient : IDisposable
         _syncTemplateId = syncTemplateId;
         _channel = new SmokeTcpGameFrameworkNetworkChannel($"MobaSmoke-{name}");
         _connection = GameFrameworkGatewayConnectionFactory.Wrap(_channel);
-        // The TCP gateway wraps every response with a four-byte status envelope.
-        // Decode it before deserializing the room payload so error responses are
-        // surfaced instead of being interpreted as a default MemoryPack value.
+        /*
+         * TCP 网关为每份响应包装四字节状态信封。反序列化房间载荷前先解码信封，使错误响应正常呈现，避免被解释为默认 MemoryPack 值。
+         */
         _requests = new RequestClient(
             _connection,
             TcpGatewayRequestResponseEnvelopeCodec.Instance);
@@ -1044,7 +1047,9 @@ internal sealed class MobaSmokeClient : IDisposable
 
         try
         {
-            // StateSync observer pushes use the room gateway MemoryPack envelope.
+            /*
+             * StateSync 观察者推送使用房间网关 MemoryPack 信封。
+             */
             var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
             _snapshots.Writer.TryWrite(wire);
             var actors = wire.Actors;

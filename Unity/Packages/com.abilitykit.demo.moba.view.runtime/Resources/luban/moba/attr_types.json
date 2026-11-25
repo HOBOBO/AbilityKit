@@ -330,5 +330,20 @@
       2
     ],
     "DefaultValue": 0
+  },
+  {
+    "Id": 24,
+    "Key": "MANA_REGEN_PER_SECOND",
+    "Name": "每秒固定法力回复",
+    "ValueKind": 0,
+    "Unit": 1,
+    "ValueMin": 0,
+    "ValueMax": 0,
+    "Ops": [
+      0,
+      1,
+      2
+    ],
+    "DefaultValue": 0
   }
 ]

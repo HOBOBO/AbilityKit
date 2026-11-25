@@ -7,19 +7,18 @@ using UnityEngine;
 namespace AbilityKit.Game.Battle.Vfx
 {
     /// <summary>
-    /// Per-vfxId GameObject pool for VFX entities.
     ///
-    /// Reuses GameObject instances between spawn cycles to avoid GC allocation and
-    /// <see cref="UnityEngine.Object.Instantiate"/> cost in hot paths (skill VFX,
-    /// projectile VFX, hit flashes). Buckets by vfxId so each visual archetype
-    /// retains its own warm cache (e.g. separate pools for hero icons vs placeholders).
     ///
-    /// Each bucket is backed by the framework <see cref="ObjectPool{T}"/>.
+    /// 按 vfxId 分桶的特效实体 GameObject 池。跨生成周期复用实例，避免技能特效、投射物特效及命中闪光热路径中的 GC 分配和 <see cref="UnityEngine.Object.Instantiate"/> 成本。各视觉原型保留各自预热缓存，如英雄图标及占位对象使用独立池。
     ///
-    /// Hierarchy layout (when an optional <see cref="BattleViewHierarchyManager"/> is supplied):
-    /// <c>[Battle]/_Pool/_Vfx/vfx_{vfxId}/...</c> for inactive pooled instances.
+    /// 每个分桶由框架 <see cref="ObjectPool{T}"/> 支撑。
     ///
-    /// Threading: All public methods must be called from the Unity main thread.
+    /// 提供可选 <see cref="BattleViewHierarchyManager"/> 时的层级布局：
+    /// 非活动池实例位于 <c>[Battle]/_Pool/_Vfx/vfx_{vfxId}/...</c>。
+    ///
+    /// 线程要求：所有公开方法必须在 Unity 主线程调用。
+    ///
+    ///
     /// </summary>
     public sealed class BattleVfxGameObjectPool
     {
@@ -43,12 +42,12 @@ namespace AbilityKit.Game.Battle.Vfx
         }
 
         /// <summary>
-        /// Configured base capacity used to size each lazily created vfxId bucket.
+        /// 用于确定各按需创建 vfxId 分桶大小的基础容量配置。
         /// </summary>
         public int CapacityPerVfxId => _capacityPerVfxId;
 
         /// <summary>
-        /// Total inactive instances currently held in all buckets.
+        /// 全部分桶当前持有的非活动实例总数。
         /// </summary>
         public int CountInPool
         {
@@ -64,8 +63,7 @@ namespace AbilityKit.Game.Battle.Vfx
         }
 
         /// <summary>
-        /// Rent a reusable GameObject for the given vfxId.
-        /// The bucket is lazily created on first use.
+        /// 为指定 vfxId 租用可复用 GameObject，分桶在首次使用时按需创建。
         /// </summary>
         public bool TryRent(int vfxId, out GameObject instance)
         {
@@ -103,7 +101,7 @@ namespace AbilityKit.Game.Battle.Vfx
         }
 
         /// <summary>
-        /// Return a GameObject to its vfxId bucket.
+        /// 将 GameObject 归还其 vfxId 分桶。
         /// </summary>
         public bool Return(int vfxId, GameObject instance)
         {
@@ -123,7 +121,7 @@ namespace AbilityKit.Game.Battle.Vfx
         }
 
         /// <summary>
-        /// Return a GameObject using the vfxId stored on the <see cref="BattleVfxPoolableTag"/>.
+        /// 使用 <see cref="BattleVfxPoolableTag"/> 保存的 vfxId 归还 GameObject。
         /// </summary>
         public void Return(GameObject instance)
         {
@@ -133,8 +131,7 @@ namespace AbilityKit.Game.Battle.Vfx
         }
 
         /// <summary>
-        /// Destroys every pooled GameObject and clears all bucket pools.
-        /// Safe to call on scene unload or domain reload.
+        /// 销毁全部池化 GameObject 并清空所有分桶池，可在场景卸载或 Domain Reload 时安全调用。
         /// </summary>
         public void Clear()
         {
@@ -163,9 +160,9 @@ namespace AbilityKit.Game.Battle.Vfx
                         {
                             if (go == null) return;
                             BattleVfxPoolableTag.Attach(go).VfxId = vfxId;
-                            // A paused or completed pooled system retains its playback
-                            // cursor. Restore fresh-instance semantics on every lease,
-                            // including editor previews without Unity's automatic loop.
+                            /*
+                             * 暂停或已完成的池化系统会保留播放游标。每次租用都恢复新实例语义，包括未运行 Unity 自动循环的编辑器预览。
+                             */
                             go.SetActive(true);
                             var particles = go.GetComponentsInChildren<ParticleSystem>(true);
                             foreach (var particle in particles)
@@ -210,8 +207,7 @@ namespace AbilityKit.Game.Battle.Vfx
         }
 
         /// <summary>
-        /// Variant of <see cref="ResetInstance"/> that parents the instance under its
-        /// pool bucket root when a hierarchy manager is supplied.
+        /// <see cref="ResetInstance"/> 的变体：提供层级管理器时，将实例挂到其对象池分桶根节点。
         /// </summary>
         private void ResetInstanceToBucket(GameObject go, int vfxId)
         {
@@ -280,7 +276,7 @@ namespace AbilityKit.Game.Battle.Vfx
     }
 
     /// <summary>
-    /// Pool tunables. The defaults favor visual fidelity and predictable memory.
+    /// 对象池可调参数，默认值优先保证视觉效果及可预期内存。
     /// </summary>
     public static class BattleVfxGameObjectPoolDefaults
     {
@@ -288,10 +284,12 @@ namespace AbilityKit.Game.Battle.Vfx
     }
 
     /// <summary>
-    /// Lightweight component attached by the pool to managed GameObjects. Records
-    /// the vfxId the pooled object belongs to so a stray Return() can route the
-    /// instance back to the correct bucket.
-    /// Implements <see cref="IPoolable"/> so the framework callbacks fire correctly.
+    ///
+    ///
+    /// 对象池附加到受管 GameObject 的轻量组件，记录所属 vfxId，使未显式提供键的 Return() 也能将实例归还正确分桶。
+    /// 实现 <see cref="IPoolable"/>，确保框架回调正确触发。
+    ///
+    ///
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class BattleVfxPoolableTag : MonoBehaviour, IPoolable

@@ -25,6 +25,11 @@ namespace ET.Logic
 
                 case MobaOpCodes.Snapshot.ShieldState:
                     return TryConvertShieldState(in snapshot, frameIndex, timestamp, out frameSnapshot);
+                case MobaOpCodes.Snapshot.ActorIndicatorState:
+                    if (!ActorIndicatorSnapshotRoute.TryDecode(in snapshot, out var indicators))
+                    { frameSnapshot = default; return false; }
+                    frameSnapshot = new FrameSnapshotData(frameIndex, timestamp, SnapshotType.Delta, actorIndicators: indicators);
+                    return true;
 
                 case MobaOpCodes.Snapshot.DamageEvent:
                     return TryConvertDamageEvent(in snapshot, frameIndex, timestamp, out frameSnapshot);

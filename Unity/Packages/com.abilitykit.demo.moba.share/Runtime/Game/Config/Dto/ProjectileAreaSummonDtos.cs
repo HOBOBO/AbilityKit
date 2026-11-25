@@ -53,6 +53,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int[] OnExitTriggerIds;
         public int OnSpawnVfxId;
         public int OnHitVfxId;
+        public int[] HitOrdinalVfxIds;
         public int OnExpireVfxId;
 
         public int ReturnAfterMs;

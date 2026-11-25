@@ -5,10 +5,7 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 namespace AbilityKit.Protocol.CatalogCompiler.Lowering;
 
 /// <summary>
-/// Lowers the codec-neutral IR into the runtime <see cref="ProtocolCatalogDefinition"/> model.
-/// This is the only place the compiler references the runtime catalog types; it exists so the
-/// authoritative runtime validator (<c>ProtocolCatalogValidator</c>) can run against the exact
-/// structures the generated C# will materialize, while emission stays on the IR.
+/// 将编解码无关中间表示转换为运行时 <see cref="ProtocolCatalogDefinition"/> 模型。这是编译器唯一引用运行时目录类型的位置，使权威运行时校验器 <c>ProtocolCatalogValidator</c> 可验证生成 C# 实际构造的精确结构，而生成流程继续基于中间表示。
 /// </summary>
 public static class IrLowering
 {

@@ -10250,34 +10250,9 @@
               "ConstValue": 1.0,
               "Scale": 1.0
             },
-            "magnitude_parameter": {
+            "magnitude_terms": {
               "Kind": "Const",
-              "ConstValue": 2009626731.0,
-              "Scale": 1.0
-            },
-            "magnitude_secondary_attribute": {
-              "Kind": "Const",
-              "ConstValue": 4.0,
-              "Scale": 1.0
-            },
-            "magnitude_secondary_coefficient": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
-              "Scale": 1.0
-            },
-            "magnitude_secondary_coefficient_parameter": {
-              "Kind": "Const",
-              "ConstValue": 1207078366.0,
-              "Scale": 1.0
-            },
-            "magnitude_secondary_type": {
-              "Kind": "Const",
-              "ConstValue": 2.0,
-              "Scale": 1.0
-            },
-            "magnitude_type": {
-              "Kind": "Const",
-              "ConstValue": 6.0,
+              "ConstValue": 1081345433.0,
               "Scale": 1.0
             },
             "projectile_impact_kill_bonus": {
@@ -10795,34 +10770,9 @@
               "ConstValue": 2.0,
               "Scale": 1.0
             },
-            "magnitude_parameter": {
+            "magnitude_terms": {
               "Kind": "Const",
-              "ConstValue": 2009626731.0,
-              "Scale": 1.0
-            },
-            "magnitude_secondary_attribute": {
-              "Kind": "Const",
-              "ConstValue": 4.0,
-              "Scale": 1.0
-            },
-            "magnitude_secondary_coefficient": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
-              "Scale": 1.0
-            },
-            "magnitude_secondary_coefficient_parameter": {
-              "Kind": "Const",
-              "ConstValue": 1207078366.0,
-              "Scale": 1.0
-            },
-            "magnitude_secondary_type": {
-              "Kind": "Const",
-              "ConstValue": 2.0,
-              "Scale": 1.0
-            },
-            "magnitude_type": {
-              "Kind": "Const",
-              "ConstValue": 6.0,
+              "ConstValue": 1081345433.0,
               "Scale": 1.0
             },
             "reason_param": {
@@ -10960,6 +10910,25 @@
             },
             "use_aim_distance": {
               "Kind": "Const",
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1483031378,
+          "Arity": 2,
+          "Args": {
+            "target_mode": {
+              "Kind": "Const",
+              "ConstValue": 4.0,
+              "Scale": 1.0
+            },
+            "template_id": {
+              "Kind": "Const",
+              "ConstValue": 90013004.0,
               "Scale": 1.0
             }
           },
@@ -11167,6 +11136,25 @@
             },
             "use_aim_distance": {
               "Kind": "Const",
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1483031378,
+          "Arity": 2,
+          "Args": {
+            "target_mode": {
+              "Kind": "Const",
+              "ConstValue": 4.0,
+              "Scale": 1.0
+            },
+            "template_id": {
+              "Kind": "Const",
+              "ConstValue": 90031010.0,
               "Scale": 1.0
             }
           },
@@ -12203,6 +12191,25 @@
           "MaxExecutions": -1,
           "CanBeInterrupted": true,
           "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1483031378,
+          "Arity": 2,
+          "Args": {
+            "target_mode": {
+              "Kind": "Const",
+              "ConstValue": 4.0,
+              "Scale": 1.0
+            },
+            "template_id": {
+              "Kind": "Const",
+              "ConstValue": 90032001.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
         }
       ]
     },
@@ -12252,6 +12259,25 @@
             "projectile_id": {
               "Kind": "Const",
               "ConstValue": 32020202.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1483031378,
+          "Arity": 2,
+          "Args": {
+            "target_mode": {
+              "Kind": "Const",
+              "ConstValue": 4.0,
+              "Scale": 1.0
+            },
+            "template_id": {
+              "Kind": "Const",
+              "ConstValue": 90032003.0,
               "Scale": 1.0
             }
           },
@@ -14728,9 +14754,14 @@
           "ActionId": 172589040,
           "Arity": 2,
           "Args": {
-            "duration_ms": {
+            "birth_attributes": {
               "Kind": "Const",
-              "ConstValue": 14000.0,
+              "ConstValue": 250346070.0,
+              "Scale": 1.0
+            },
+            "duration_skill_level_parameter": {
+              "Kind": "Const",
+              "ConstValue": 1110228641.0,
               "Scale": 1.0
             },
             "position_mode": {
@@ -24374,6 +24405,7 @@
     "239636723": "嬴政二技能王者守御：清除减速，击退近身敌人并获得护盾和移速",
     "242846148": "廉颇三技能：第二段落地触发区域",
     "248532223": "妲己一技能灵魂冲击：命中造成法术伤害并叠加失心",
+    "250346070": "[{\"attribute\":1,\"magnitude_terms\":[{\"type\":6,\"parameter\":\"summonHealth\"}]},{\"attribute\":2,\"magnitude_terms\":[{\"type\":6,\"parameter\":\"summonHealth\"}]},{\"attribute\":4,\"magnitude_terms\":[{\"type\":6,\"parameter\":\"summonDamage\"}]}]",
     "254297677": "墨子二技能：炮弹结束后生成弹坑持续伤害区域",
     "301207001": "廉颇三技能：第三段落地触发区域",
     "345703915": "赵云一技能二档增强：龙鸣二档触发额外一段冲锋突进",
@@ -24404,7 +24436,9 @@
     "1019465838": "小乔二技能：区域命中造成法术伤害并击飞目标",
     "1034041671": "妲己三技能女王崇拜：周期搜敌并发射狐火",
     "1050240204": "refund",
+    "1081345433": "[{\"type\":6,\"parameter\":\"damage\"},{\"type\":2,\"attribute\":4,\"coefficient_parameter\":\"physicalAttackRatio\",\"source_role\":1},{\"type\":2,\"attribute\":5,\"coefficient_parameter\":\"magicAttackRatio\",\"source_role\":1}]",
     "1087512403": "shield",
+    "1110228641": "summonDurationMs",
     "1117688528": "孙尚香三技能究极弩炮：发射一枚弩炮，对命中目标造成物理伤害",
     "1134160402": "释放技能1，给自己添加持续掉血buff！",
     "1139115579": "廉颇一技能：冲撞命中造成物理伤害并击飞目标",

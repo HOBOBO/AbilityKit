@@ -4,6 +4,8 @@
 
 **最小接入**：从 [离线帧命令示例](Samples~/LocalFrameCommands/README.md) 开始。由宿主标记哪一帧已齐备，读取该帧命令后固定步进；无命令但已齐备的帧也要推进，未齐备的帧不能当作空帧。
 
+安装环境与直接依赖以 [package.json](package.json) 为准；可选回滚的 Provider 封存、预检、部分失败及两种预测入口区别见[回滚接入与限制](Documentation~/Usage.md)。
+
 | 目录 | 内容 |
 | --- | --- |
 | `Runtime/FrameSync` | 帧驱动、时间和命令缓冲 |

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
@@ -12,6 +13,7 @@ using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Acceptance;
 using AbilityKit.Demo.Moba.Util.Converter;
 using AbilityKit.Protocol.Moba;
@@ -72,7 +74,7 @@ public sealed class LiveSimSetupActionExecutor : IAcceptanceObservationSource
         _aliasToPlayerId[alias] = resolvedPlayer;
     }
 
-    private IWorldResolver Services => _bootstrapper.RuntimeServices
+    internal IWorldResolver Services => _bootstrapper.RuntimeServices
         ?? throw new InvalidOperationException("RuntimeServices unavailable.");
 
     // —— 分发 ——
@@ -369,6 +371,24 @@ public sealed class LiveSimSetupActionExecutor : IAcceptanceObservationSource
     internal bool CanMove(int actorId) => Services.Resolve<MobaCombatRulesService>().CanMove(actorId);
 
     internal int GetActorLifetime(int actorId) => Services.Resolve<MobaActorRegistry>().GetEntityVersion(actorId);
+
+    internal void ObserveProjectiles(string ownerAlias, int templateId, List<ProjectileRuntimeState> samples)
+    {
+        samples.Clear();
+        if (!TryGetActorId(ownerAlias, out var ownerId))
+            throw new InvalidOperationException($"Local fixture actor not found: {ownerAlias}");
+
+        var actors = Services.Resolve<MobaActorRegistry>();
+        var links = Services.Resolve<MobaProjectileLinkService>();
+        var projectiles = Services.Resolve<IProjectileService>();
+        foreach (var actorId in actors.CopyActorIdsInOrder())
+        {
+            if (links.TryGetProjectileId(actorId, out var id) && links.TryGetSource(id, out var source) &&
+                source.SourceActorId == ownerId && source.ProjectileConfigId == templateId &&
+                projectiles.TryGetRuntimeState(id, out var state))
+                samples.Add(state);
+        }
+    }
 
     public void Tick(int ticks)
     {

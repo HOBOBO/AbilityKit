@@ -4,100 +4,65 @@ using System.Collections.Generic;
 namespace AbilityKit.Triggering.Runtime.Plan.Json
 {
     /// <summary>
-    /// Resolves execution-node behavior/node references for runtime plan JSON conversion.
+    /// 跟踪单棵执行树的当前引用路径，兄弟分支之间不共享活动引用。
     /// </summary>
     internal sealed class TriggerPlanExecutionNodeReferenceResolver
     {
-        private HashSet<string> _resolving;
+        private readonly TriggerPlanExecutionNodeReferenceCatalog _catalog;
+        private HashSet<string> _activeKeys;
+        private List<string> _path;
 
-        public TriggerPlanJsonDatabase.ExecutionNodeDto Resolve(
-            TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-            TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto,
-            List<string> resolvingKeys)
+        internal TriggerPlanExecutionNodeReferenceResolver(TriggerPlanExecutionNodeReferenceCatalog catalog)
         {
-            var behaviorCatalog = BuildCatalog(databaseDto?.Behaviors);
-            var nodeCatalog = BuildCatalog(databaseDto?.Nodes);
+            _catalog = catalog;
+        }
 
-            while (dto != null && TryGetReference(dto, out var id, out var kind))
+        /// <summary>
+        /// 返回进入当前节点前的引用路径深度，供退出时恢复父路径。
+        /// </summary>
+        internal int PathDepth => _path?.Count ?? 0;
+
+        /// <summary>
+        /// 展开别名链；引用在所有子节点转换结束前保持活动。
+        /// </summary>
+        internal TriggerPlanJsonDatabase.ExecutionNodeDto Resolve(TriggerPlanJsonDatabase.ExecutionNodeDto dto)
+        {
+            while (TryGetReference(dto, out var id, out var kind))
             {
                 var key = kind + ":" + id;
-                if (_resolving == null)
+                if (_activeKeys == null)
                 {
-                    _resolving = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    _activeKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    _path = new List<string>();
                 }
 
-                if (!_resolving.Add(key))
+                if (!_activeKeys.Add(key))
                 {
                     throw new InvalidOperationException($"Cyclic execution node reference detected: {key}");
                 }
 
-                resolvingKeys?.Add(key);
-                dto = ResolveTarget(id, kind, behaviorCatalog, nodeCatalog);
+                _path.Add(key);
+                dto = _catalog.ResolveTarget(id, kind);
             }
 
             return dto;
         }
 
-        public void EndResolve(List<string> resolvingKeys)
+        /// <summary>
+        /// 从当前路径移除本次节点访问添加的引用，包括异常退出的情况。
+        /// </summary>
+        internal void RestorePath(int depth)
         {
-            if (resolvingKeys == null || _resolving == null)
+            if (_path == null)
             {
                 return;
             }
 
-            for (int i = resolvingKeys.Count - 1; i >= 0; i--)
+            for (int index = _path.Count - 1; index >= depth; index--)
             {
-                _resolving.Remove(resolvingKeys[i]);
+                _activeKeys.Remove(_path[index]);
+                _path.RemoveAt(index);
             }
-        }
-
-        private static Dictionary<string, TriggerPlanJsonDatabase.ExecutionNodeDto> BuildCatalog(Dictionary<string, TriggerPlanJsonDatabase.ExecutionNodeDto> catalog)
-        {
-            if (catalog == null || catalog.Count == 0)
-            {
-                return null;
-            }
-
-            return new Dictionary<string, TriggerPlanJsonDatabase.ExecutionNodeDto>(catalog, StringComparer.OrdinalIgnoreCase);
-        }
-
-        private static TriggerPlanJsonDatabase.ExecutionNodeDto ResolveTarget(
-            string id,
-            string kind,
-            Dictionary<string, TriggerPlanJsonDatabase.ExecutionNodeDto> behaviorCatalog,
-            Dictionary<string, TriggerPlanJsonDatabase.ExecutionNodeDto> nodeCatalog)
-        {
-            if (string.Equals(kind, "behavior", StringComparison.OrdinalIgnoreCase))
-            {
-                if (behaviorCatalog != null && behaviorCatalog.TryGetValue(id, out var behavior) && behavior != null)
-                {
-                    return behavior;
-                }
-
-                throw new InvalidOperationException($"Behavior reference not found: {id}");
-            }
-
-            if (string.Equals(kind, "node", StringComparison.OrdinalIgnoreCase))
-            {
-                if (nodeCatalog != null && nodeCatalog.TryGetValue(id, out var node) && node != null)
-                {
-                    return node;
-                }
-
-                throw new InvalidOperationException($"Node reference not found: {id}");
-            }
-
-            if (behaviorCatalog != null && behaviorCatalog.TryGetValue(id, out var behaviorRef) && behaviorRef != null)
-            {
-                return behaviorRef;
-            }
-
-            if (nodeCatalog != null && nodeCatalog.TryGetValue(id, out var nodeRef) && nodeRef != null)
-            {
-                return nodeRef;
-            }
-
-            throw new InvalidOperationException($"Execution node reference not found: {id}");
         }
 
         private static bool TryGetReference(TriggerPlanJsonDatabase.ExecutionNodeDto dto, out string id, out string kind)

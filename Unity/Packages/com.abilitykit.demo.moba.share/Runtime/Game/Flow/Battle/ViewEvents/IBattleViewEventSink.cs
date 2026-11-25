@@ -37,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         void OnSkillStateSnapshot(in FrameSnapshotData snapshot);
         void OnShieldStateSnapshot(in FrameSnapshotData snapshot);
+        void OnActorIndicatorSnapshot(in FrameSnapshotData snapshot);
 
         /// <summary>
         /// 处理弹道事件快照

@@ -237,6 +237,7 @@ namespace AbilityKit.Game.Flow
                 WorldType = world.WorldType,
                 ClientId = world.ClientId,
                 PlayerId = world.PlayerId,
+                EnableTraceDiagnostics = world.EnableTraceDiagnostics,
 
                 ScanAssemblies = new[]
                 {

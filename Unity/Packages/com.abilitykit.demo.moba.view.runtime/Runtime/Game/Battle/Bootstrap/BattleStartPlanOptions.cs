@@ -13,6 +13,10 @@ namespace AbilityKit.Game.Flow
         public readonly string PlayerId;
         public readonly int TickRate;
         public readonly int InputDelayFrames;
+        /// <summary>
+        /// 此次启动是否装配 Trace 诊断模块，不参与同步配置。
+        /// </summary>
+        public readonly bool EnableTraceDiagnostics;
 
         public BattleStartPlanWorldOptions(
             string worldId,
@@ -20,7 +24,8 @@ namespace AbilityKit.Game.Flow
             string clientId,
             string playerId,
             int tickRate,
-            int inputDelayFrames)
+            int inputDelayFrames,
+            bool enableTraceDiagnostics = false)
         {
             WorldId = worldId;
             WorldType = worldType;
@@ -28,6 +33,7 @@ namespace AbilityKit.Game.Flow
             PlayerId = playerId;
             TickRate = tickRate;
             InputDelayFrames = inputDelayFrames;
+            EnableTraceDiagnostics = enableTraceDiagnostics;
         }
     }
 
@@ -53,10 +59,25 @@ namespace AbilityKit.Game.Flow
         public readonly bool EnableClientPrediction;
         public readonly bool EnableConfirmedAuthorityWorld;
 
+        /// <summary>
+        /// 仅在启用了作用域输入与移动证明的状态同步会话中开启本地主控移动预测，默认关闭。
+        /// </summary>
+        public readonly bool EnableStateSyncMovementPrediction;
+
         public BattleStartPlanAuthorityOptions(bool enableClientPrediction, bool enableConfirmedAuthorityWorld)
+            : this(enableClientPrediction, enableConfirmedAuthorityWorld, false)
+        {
+        }
+
+        /// <summary>
+        /// 分别配置帧同步预测、权威对照视图、状态同步移动预测。
+        /// </summary>
+        public BattleStartPlanAuthorityOptions(bool enableClientPrediction, bool enableConfirmedAuthorityWorld,
+            bool enableStateSyncMovementPrediction)
         {
             EnableClientPrediction = enableClientPrediction;
             EnableConfirmedAuthorityWorld = enableConfirmedAuthorityWorld;
+            EnableStateSyncMovementPrediction = enableStateSyncMovementPrediction;
         }
     }
 
@@ -76,6 +97,10 @@ namespace AbilityKit.Game.Flow
         public readonly uint JoinRoomOpCode;
         public readonly string BattleId;
         public readonly int MaxPlayers;
+        /// <summary>
+        /// 双端已部署时显式启用状态同步输入代际入口，默认保留原路径。
+        /// </summary>
+        public readonly bool UseScopedStateSyncInput;
 
         public BattleStartPlanGatewayOptions(
             bool useGatewayTransport,
@@ -91,7 +116,8 @@ namespace AbilityKit.Game.Flow
             uint createRoomOpCode,
             uint joinRoomOpCode,
             string battleId = "",
-            int maxPlayers = 2)
+            int maxPlayers = 2,
+            bool useScopedStateSyncInput = false)
         {
             if (maxPlayers <= 0) throw new System.ArgumentOutOfRangeException(nameof(maxPlayers));
             UseGatewayTransport = useGatewayTransport;
@@ -108,6 +134,7 @@ namespace AbilityKit.Game.Flow
             JoinRoomOpCode = joinRoomOpCode;
             BattleId = battleId ?? string.Empty;
             MaxPlayers = maxPlayers;
+            UseScopedStateSyncInput = useScopedStateSyncInput;
         }
     }
 

@@ -168,8 +168,21 @@ namespace AbilityKit.Game.Battle
 
         public void SubmitInput(SubmitInputRequest request)
         {
-            _client.SubmitInput(request);
+            SubmitInput(request, null);
         }
+
+        internal void SubmitInput(SubmitInputRequest request, (float X, float Z)? movement)
+        {
+            var prediction = StateSyncMovement;
+            if (prediction == null || _client is not BattleLogicTransportClient transport)
+            {
+                _client.SubmitInput(request);
+                return;
+            }
+            transport.SubmitInput(request, prepared => prediction.ObservePreparedInput(prepared, movement));
+        }
+
+        internal AbilityKit.Game.Flow.StateSyncMovementPrediction StateSyncMovement { get; set; }
 
         public void Tick(float deltaTime)
         {

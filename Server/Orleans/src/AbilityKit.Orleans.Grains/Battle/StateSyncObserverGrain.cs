@@ -70,9 +70,10 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
 
     public Task BindGatewayPushObserverAsync(
         string bindingId,
-        IStateSyncGatewayPushObserver observer)
+        IStateSyncGatewayPushObserver observer,
+        Guid connectionGeneration)
     {
-        _gatewayPushBinding.Bind(bindingId, observer);
+        _gatewayPushBinding.Bind(bindingId, observer, connectionGeneration);
         return Task.CompletedTask;
     }
 
@@ -86,17 +87,24 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
     /// 订阅战斗状态同步
     /// </summary>
     private bool _usesFixedBaseline;
+    private StateSyncPreparedRecipient? _preparedRecipient;
 
     public Task SubscribeAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor)
         => SubscribeCoreAsync(battleGrainKey, eventCursor, usesFixedBaseline: false);
 
-    public Task SubscribeFixedBaselineAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor)
-        => SubscribeCoreAsync(battleGrainKey, eventCursor, usesFixedBaseline: true);
+    public Task SubscribeFixedBaselineAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor,
+        StateSyncPreparedRecipient? recipient = null)
+        => SubscribeCoreAsync(battleGrainKey, eventCursor, usesFixedBaseline: true, recipient);
 
-    private async Task SubscribeCoreAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor, bool usesFixedBaseline)
+    private async Task SubscribeCoreAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor,
+        bool usesFixedBaseline, StateSyncPreparedRecipient? recipient = null)
     {
+        if (recipient is { } target && (target.SubscriptionGeneration == Guid.Empty || !_gatewayPushBinding.Matches(target)))
+            throw new InvalidOperationException("The state snapshot recipient binding is no longer current.");
+
         eventCursor ??= new ReliableBattleEventSubscribeCursor();
         _usesFixedBaseline = usesFixedBaseline;
+        _preparedRecipient = recipient;
         var battleGrain = GrainFactory.GetGrain<IBattleLogicHostGrain>(battleGrainKey);
         var decision = _subscriptionState.DecideSubscribe(battleGrainKey);
         _logger.LogInformation(
@@ -173,11 +181,15 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
     {
         try
         {
+            if (!AcceptsPreparedRecipient(snapshot.Recipient))
+                return Task.FromResult(new StateSyncDeliveryResult { Status = StateSyncDeliveryStatus.DroppedStale });
+
             if (!_usesFixedBaseline || ImmutableCollectionsMarshal.AsArray(snapshot.Payload) is not { Length: > 0 } payload
                 || payload.Length > FixedBaselineStateSyncProtocol.MaximumSnapshotBytes)
                 return Task.FromResult(new StateSyncDeliveryResult { Status = StateSyncDeliveryStatus.Failed });
 
-            return Task.FromResult(EnqueueSnapshot(payload, snapshot.Frame, snapshot.IsFullSnapshot, snapshot.NetworkEnvironmentId));
+            return Task.FromResult(EnqueueSnapshot(payload, snapshot.Frame, snapshot.IsFullSnapshot,
+                snapshot.NetworkEnvironmentId, snapshot.Recipient));
         }
         catch (Exception ex)
         {
@@ -186,12 +198,16 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
         }
     }
 
-    private StateSyncDeliveryResult EnqueueSnapshot(byte[] payload, int frame, bool isFullSnapshot, string networkEnvironmentId)
+    private bool AcceptsPreparedRecipient(StateSyncPreparedRecipient? recipient) =>
+        _preparedRecipient == recipient && (recipient is not { } target || _gatewayPushBinding.Matches(target));
+
+    private StateSyncDeliveryResult EnqueueSnapshot(byte[] payload, int frame, bool isFullSnapshot, string networkEnvironmentId,
+        StateSyncPreparedRecipient? recipient = null)
     {
         var opCode = isFullSnapshot ? RoomGatewayOpCodes.SnapshotPushed : RoomGatewayOpCodes.DeltaSnapshotPushed;
         var priority = isFullSnapshot ? SnapshotDeliveryPriority.FullBaseline : SnapshotDeliveryPriority.Delta;
         var nowTicks = DateTime.UtcNow.Ticks;
-        var outbound = new OutboundSnapshot(opCode, payload);
+        var outbound = new OutboundSnapshot(opCode, payload, recipient);
         var item = new SnapshotSendQueueItem<OutboundSnapshot>(outbound, frame, payload.Length, priority,
             replaceable: !isFullSnapshot, producedAtTicks: nowTicks);
         var result = GetSendQueue(nowTicks, networkEnvironmentId).Enqueue(in item, nowTicks);
@@ -286,7 +302,8 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
             ObserverKey = _observerKey,
             AccountId = _accountId,
             RoomId = _roomId,
-            UsesFixedBaseline = _usesFixedBaseline
+            UsesFixedBaseline = _usesFixedBaseline,
+            PreparedRecipient = _preparedRecipient
         };
     }
 
@@ -351,7 +368,7 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
         {
             _baselineRefresh.Request();
         }
-        if (!dequeued)
+        if (!dequeued || (item.Value.Recipient is not null && !AcceptsPreparedRecipient(item.Value.Recipient)))
         {
             return;
         }
@@ -606,16 +623,18 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
     internal sealed class StateSyncGatewayPushBinding
     {
         private string _bindingId = string.Empty;
+        private Guid _connectionGeneration;
         private IStateSyncGatewayPushObserver? _observer;
 
         public bool UsesGatewayPushObserver { get; private set; }
 
-        public void Bind(string bindingId, IStateSyncGatewayPushObserver observer)
+        public void Bind(string bindingId, IStateSyncGatewayPushObserver observer, Guid connectionGeneration = default)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(bindingId);
             ArgumentNullException.ThrowIfNull(observer);
 
             _bindingId = bindingId;
+            _connectionGeneration = connectionGeneration;
             _observer = observer;
             UsesGatewayPushObserver = true;
         }
@@ -629,8 +648,14 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
             }
 
             _bindingId = string.Empty;
+            _connectionGeneration = Guid.Empty;
             _observer = null;
         }
+
+        public bool Matches(StateSyncPreparedRecipient recipient) =>
+            _observer != null && _connectionGeneration != Guid.Empty &&
+            _connectionGeneration == recipient.ConnectionGeneration &&
+            string.Equals(_bindingId, recipient.BindingId, StringComparison.Ordinal);
 
         public bool TryPush(uint opCode, byte[] payload)
         {
@@ -655,7 +680,7 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
         await base.OnDeactivateAsync(reason, cancellationToken);
     }
 
-    private readonly record struct OutboundSnapshot(uint OpCode, byte[] Payload);
+    private readonly record struct OutboundSnapshot(uint OpCode, byte[] Payload, StateSyncPreparedRecipient? Recipient);
 
     private readonly record struct OutboundReliableEvents(byte[] Payload, long Watermark, bool RetentionGap);
 }

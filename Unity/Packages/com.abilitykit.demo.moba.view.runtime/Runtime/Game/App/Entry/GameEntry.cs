@@ -440,6 +440,7 @@ namespace AbilityKit.Game
         private string _localDebugMessage;
         private string _replaceHeroIdText = "1001";
         private Vector2 _heroOptionsScroll;
+        private Vector2 _localDebugPanelScroll;
         private float _localDebugPanelScale = 1f;
         private bool _localDebugPanelVisible = true;
 
@@ -452,6 +453,7 @@ namespace AbilityKit.Game
                 _replaceHeroIdText = "1001";
                 _localDebugPanelVisible = true;
                 _localDebugPanelScale = 1f;
+                _localDebugPanelScroll = Vector2.zero;
             }
 
             _entry = entry;
@@ -482,15 +484,31 @@ namespace AbilityKit.Game
 #endif
         }
 
-        private void DrawLocalDebugShortcuts()
-        {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (_entry == null || !_entry.DebugEnabled) return;
+        /// <summary>
+        /// 依据当前会话判断是否展示本地调试面板，不改变普通战斗的调试开关。
+        /// </summary>
+        internal bool ShouldDrawLocalDebugShortcuts()
+        {
+            if (_entry == null || !_entry.DebugEnabled) return false;
+
+#if UNITY_EDITOR
+            if (_entry.TryGet(out GameFlowDomain flow) &&
+                flow.CurrentBattleProfileId == Battle.Testing.MobaBattleScenarioPlayback.PreviewProfileId)
+                return false;
+#endif
 
             _entry.TryGet(out IFlowCommandSink sink);
             var inBattle = sink != null && sink.CurrentRootPhase == MobaRootState.Battle;
             var battleContext = ResolveBattleContext();
-            if (inBattle && (battleContext == null || battleContext.Plan.HostMode != BattleHostMode.Local)) return;
+            return !inBattle || (battleContext != null && battleContext.Plan.HostMode == BattleHostMode.Local);
+        }
+#endif
+
+        private void DrawLocalDebugShortcuts()
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!ShouldDrawLocalDebugShortcuts()) return;
 
             EnsureLocalDebugController();
             var debugSnapshot = _localDebug != null
@@ -522,6 +540,7 @@ namespace AbilityKit.Game
                 GUILayout.Width(150f));
             GUILayout.Label($"{Mathf.RoundToInt(_localDebugPanelScale * 100f)}%", GUILayout.Width(42f));
             GUILayout.EndHorizontal();
+            _localDebugPanelScroll = GUILayout.BeginScrollView(_localDebugPanelScroll);
             var previousEnabled = GUI.enabled;
             GUI.enabled = _localDebug != null && debugSnapshot.IsAvailable;
             if (GUILayout.Button("切换主控单位（P1/P2）", GUILayout.Height(30f)))
@@ -593,12 +612,12 @@ namespace AbilityKit.Game
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("创建己方单位", GUILayout.Height(30f)))
+            if (GUILayout.Button("创建己方英雄", GUILayout.Height(30f)))
             {
                 RunLocalDebugAction(_localDebug.TrySpawnAlly);
             }
 
-            if (GUILayout.Button("创建敌方单位", GUILayout.Height(30f)))
+            if (GUILayout.Button("创建敌方英雄", GUILayout.Height(30f)))
             {
                 RunLocalDebugAction(_localDebug.TrySpawnEnemy);
             }
@@ -610,6 +629,7 @@ namespace AbilityKit.Game
                 GUILayout.Label(_localDebugMessage);
             }
 
+            GUILayout.EndScrollView();
             GUILayout.EndArea();
             GUI.matrix = previousMatrix;
 #endif

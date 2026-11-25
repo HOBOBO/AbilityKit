@@ -295,6 +295,24 @@ namespace AbilityKit.Game.Test.UnitTest
         public bool DetailedText { get; set; } = true;
     }
 
+    /// <summary>
+    /// 验收用例的 Trace 采集范围和完整性，不是战斗状态。旧产物没有此证据。
+    /// </summary>
+    [Serializable]
+    public sealed class MobaAcceptanceTraceEvidence
+    {
+        public bool isComplete;
+        public int startFrame;
+        public int endFrame;
+        public int recordCount;
+        public string reason;
+        public string traceSha256;
+
+        public static bool CanProveAbsence(MobaAcceptanceTraceEvidence evidence, int recordCount) =>
+            evidence != null && evidence.isComplete && evidence.recordCount == recordCount
+            && evidence.startFrame <= evidence.endFrame;
+    }
+
     [Serializable]
     public sealed class MobaAcceptanceSummary
     {
@@ -317,6 +335,7 @@ namespace AbilityKit.Game.Test.UnitTest
         public MobaAcceptanceConfigExpectation config;
         public MobaAcceptanceResult result;
         public MobaAcceptanceCoverageSummary coverage;
+        public MobaAcceptanceTraceEvidence traceEvidence;
         public MobaAcceptanceTraceCount[] traceCounts;
         public MobaAcceptanceTraceDictionaryEntry[] traceDictionary;
         public string traceDictionaryVersion;
@@ -383,6 +402,7 @@ namespace AbilityKit.Game.Test.UnitTest
         public int satisfiedContextCount;
         public bool allRequiredTraceNodesMatched;
         public bool allForbiddenTraceNodesAbsent;
+        public bool forbiddenTraceEvidenceInsufficient;
         public bool allExpectedActionsExecuted;
         public bool allRelationshipsSatisfied;
         public bool allStateExpectationsSatisfied;

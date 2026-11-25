@@ -25,6 +25,7 @@ Phase 优先于整数 Order；不能跨 Phase 只比较常量。下表是关键�
 |---|---|---|
 | PreExecute | CollisionWorldSync | 1100；同步本帧移动前的碰撞体采样 |
 | PreExecute | EntityManagerSync、MotionInit | 按各自声明装配与初始化 |
+| Execute | ResourceRegeneration | Normal + 6；固定量非生命资源回复，早于 ActorStateMachine/Brain/技能费用检查 |
 | Execute | Motion、SkillPipeline、Trigger、HFSM、Buff、Continuous、Gameplay | 按生成清单顺序执行 |
 | Execute | ProjectileTick | 2500；只推进一次 schedules → AreaWorld → ProjectileWorld |
 | PostExecute | SkillCastDestroyCleanup | 1602；保留现有保留期及确认门限 |
@@ -95,6 +96,15 @@ due delay 在 Area Spawn 后采集并标记，只处理本轮开始已存在的�
 正常帧取样属性与 CanMove，空组及旧关联清扫仅撤销服务自己持有的来源。
 联合生命周期 v7 只恢复已批准的同实例混合来源值和次序，静默重绑不执行输入 System，
 下一帧仍按原顺序推进。删除重建、Path/CollisionDash 及其它未知来源不在该范围内。
+
+## 固定量资源自动回复
+
+2026-11-24 用户确认 `plans/MobaSevenHeroNumericBaseline.2026-11-24.md` R1–R3。
+`MobaResourceRegenerationSystem` 在 Execute 的 ResourceRegeneration 位置按世界步长调用领域服务，
+按 ActorId 和规则 ID 排序，先回复再进行本帧决策与技能费用检查。仅 InGame、活跃存活且已有资源的
+Actor 参与；死亡与暂停不补时，后续阶段出生/复活从下一次正常调度开始。
+速率属性与实时上限每帧采样，Current 仍由 ResourceContainer 独占，定点增量封顶但不修正已超上限值。
+恢复仅还原资源/属性，恢复过程不调用回复 System；从 N+1 正常重演，无新增计时或回复 Provider。
 
 ## 添加或修改系统
 

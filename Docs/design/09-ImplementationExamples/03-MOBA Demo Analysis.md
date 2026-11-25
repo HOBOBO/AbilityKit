@@ -30,7 +30,7 @@ MOBA Demo 不是单一技能演示，而是一个“完整战斗域集成样例�
 - View Runtime：`Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime`
 - Battle Blueprint：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Worlds/Blueprints/MobaBattleWorldBlueprint.cs`
 - Bootstrap Module：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaWorldBootstrapModule.cs`
-- 远程驱动工厂：`Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldRuntimeFactory.cs`
+- 远程驱动工厂：`Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/FrameSync/RemoteDrivenWorldRuntimeFactory.cs`
 - 测试入口：`src/AbilityKit.Demo.Moba.Tests`、`src/AbilityKit.Demo.Moba.View.Runtime.Tests` 与 Unity package tests
 
 MOBA 示例的责任边界是：
@@ -804,8 +804,8 @@ Local 与 Multiplayer 复用同一个 MOBA Root，不代表两种运行模式相
 | 投射物服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/MobaProjectileService.cs` |
 | 伤害服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaDamageService.cs` |
 | Transform 快照 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Actor/MobaActorTransformSnapshotService.cs` |
-| 远程驱动世界 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldRuntimeFactory.cs` |
-| 远程驱动模块 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenRuntimeModuleFactory.cs` |
+| 远程驱动世界 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/FrameSync/RemoteDrivenWorldRuntimeFactory.cs` |
+| 远程驱动模块 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/FrameSync/RemoteDrivenRuntimeModuleFactory.cs` |
 | session-bound 快照 Dispatcher | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Snapshot/FrameSnapshotDispatcher.cs` |
 | 通用快照 Pipeline | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/SnapshotPipeline.cs` |
 | MOBA 快照 registry | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Snapshot/BattleSnapshotRegistry.cs` |

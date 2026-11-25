@@ -116,6 +116,54 @@ public sealed class NetworkProtocolSessionTests
         Assert.Equal(1, handlerCalls);
     }
 
+    [Fact]
+    public void DisposeInServerPushSubscriber_SkipsRemainingCallbacksAndKeepsConnectionOpen()
+    {
+        var connection = new LegacyTestConnection();
+        using var session = new NetworkProtocolSession(connection);
+        var calls = 0;
+        Action<uint, ArraySegment<byte>> later = (_, _) => calls++;
+        session.ServerPushReceived += (_, _) => session.Dispose();
+        session.ServerPushReceived += later;
+        session.RegisterPushHandler(1007, _ => calls++);
+
+        connection.RaiseServerPush(1007, new ArraySegment<byte>(new byte[] { 1 }));
+
+        Assert.Equal(0, calls);
+        Assert.False(session.IsConnected);
+        Assert.True(connection.IsConnected);
+        Assert.Same(connection, session.RawConnection);
+        Assert.Throws<ObjectDisposedException>(() => session.ServerPushReceived += later);
+        Assert.Throws<ObjectDisposedException>(() => session.RegisterPushHandler(1007, _ => calls++));
+        session.ServerPushReceived -= later;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DisposeInPushHandler_SkipsRemainingHandlersFromTheSnapshot(bool routed)
+    {
+        TestConnectionBase connection = routed ? new RoutedTestConnection() : new LegacyTestConnection();
+        using var session = new NetworkProtocolSession(connection);
+        var calls = 0;
+        session.RegisterPushHandler(1008, _ => session.Dispose());
+        session.RegisterPushHandler(1008, _ => calls++);
+
+        if (connection is RoutedTestConnection routedConnection)
+        {
+            routedConnection.DispatchPush(1008, new byte[] { 1 });
+            var route = Assert.Single(routedConnection.PacketRouter.GetSnapshot().Routes);
+            Assert.Equal(0, route.HandlerCount);
+        }
+        else
+        {
+            ((LegacyTestConnection)connection).RaiseServerPush(1008, new ArraySegment<byte>(new byte[] { 1 }));
+        }
+
+        Assert.Equal(0, calls);
+        Assert.True(connection.IsConnected);
+    }
+
     private static NetworkPacketHeader Header(NetworkPacketFlags flags, uint opCode) =>
         new(flags, opCode, seq: 0, payloadLength: 0);
 

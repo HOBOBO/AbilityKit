@@ -216,6 +216,7 @@ namespace AbilityKit.Demo.Moba.Share
         }
 
         public virtual void OnShieldStateSnapshot(in FrameSnapshotData snapshot) { }
+        public virtual void OnActorIndicatorSnapshot(in FrameSnapshotData snapshot) { }
 
         public virtual void OnGameplayClockSnapshot(in FrameSnapshotData snapshot)
         {

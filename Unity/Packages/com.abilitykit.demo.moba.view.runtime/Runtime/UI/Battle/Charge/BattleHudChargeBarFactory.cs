@@ -24,7 +24,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             fill.transform.SetParent(bg.transform, worldPositionStays: false);
             var fillImage = fill.GetComponent<Image>();
             fillImage.color = cfg.ChargeBarFillColor;
-            fillImage.type = Image.Type.Filled;
+            fillImage.type = Image.Type.Simple;
             fillImage.fillMethod = Image.FillMethod.Horizontal;
             fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
             fillImage.fillAmount = 0f;

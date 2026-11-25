@@ -5,23 +5,26 @@ using System.Threading.Tasks;
 using AbilityKit.Core.Logging;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
-using AbilityKit.Network.Runtime.TcpGateway;
 
 namespace AbilityKit.Network.Runtime
 {
     /// <summary>
-    /// <see cref="INetworkProtocolSession"/> 的默认实现。
-    /// 包装 <see cref="IConnection"/> + 请求/响应客户端 + 推送分发。
+    /// 借用一个连接实现请求、响应和推送；会话拥有自身订阅，不拥有连接。
     /// </summary>
     public sealed class NetworkProtocolSession : INetworkProtocolSession, IDisposable
     {
         private readonly IConnection _connection;
         private readonly RequestClient _requestClient;
         private readonly NetworkPacketRouter? _packetRouter;
+        private readonly object _lifecycleGate = new();
         private readonly Dictionary<uint, List<Action<byte[]>>> _pushHandlers = new();
         private readonly Dictionary<uint, Dictionary<Action<byte[]>, NetworkPacketRouteHandler>> _routeHandlers = new();
+        private Action<uint, ArraySegment<byte>>? _serverPushReceived;
         private bool _disposed;
 
+        /// <summary>
+        /// 在调用方持有的连接上建立会话；未提供编解码器时返回原始响应载荷。
+        /// </summary>
         public NetworkProtocolSession(
             IConnection connection,
             IRequestResponseEnvelopeCodec? responseCodec = null)
@@ -34,16 +37,41 @@ namespace AbilityKit.Network.Runtime
             _connection.ServerPushReceived += OnServerPush;
         }
 
+        /// <inheritdoc />
         public IConnection RawConnection => _connection;
-        public event Action<uint, ArraySegment<byte>>? ServerPushReceived;
-        public bool IsConnected => _connection.IsConnected;
 
-        /// <summary>便捷创建方法。</summary>
+        /// <summary>
+        /// 在连接的推送分发路径上通知订阅者。载荷仅在回调期间有效；释放后不能订阅，但允许解绑。
+        /// </summary>
+        public event Action<uint, ArraySegment<byte>>? ServerPushReceived
+        {
+            add
+            {
+                lock (_lifecycleGate)
+                {
+                    ThrowIfDisposed();
+                    _serverPushReceived += value;
+                }
+            }
+            remove
+            {
+                lock (_lifecycleGate)
+                    _serverPushReceived -= value;
+            }
+        }
+
+        /// <inheritdoc />
+        public bool IsConnected => !Volatile.Read(ref _disposed) && _connection.IsConnected;
+
+        /// <summary>
+        /// 在不接管连接所有权的前提下创建会话。
+        /// </summary>
         public static NetworkProtocolSession Create(
             IConnection connection,
             IRequestResponseEnvelopeCodec? responseCodec = null) =>
             new(connection, responseCodec);
 
+        /// <inheritdoc />
         public Task<byte[]> SendRequestAsync(
             uint opCode,
             byte[] payload,
@@ -56,6 +84,9 @@ namespace AbilityKit.Network.Runtime
                 cancellationToken: cancellationToken);
         }
 
+        /// <summary>
+        /// 发送请求并等待响应；正数超时启用独立计时，返回会话拥有的响应副本。
+        /// </summary>
         public async Task<byte[]> SendRequestAsync(
             uint opCode,
             byte[] payload,
@@ -71,6 +102,7 @@ namespace AbilityKit.Network.Runtime
             return response.ToArray();
         }
 
+        /// <inheritdoc />
         public Task SendPushAsync(uint opCode, byte[] payload, CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
@@ -80,14 +112,15 @@ namespace AbilityKit.Network.Runtime
             return Task.CompletedTask;
         }
 
+        /// <inheritdoc />
         public void RegisterPushHandler(uint opCode, Action<byte[]> handler)
         {
-            ThrowIfDisposed();
-            if (handler == null) throw new ArgumentNullException(nameof(handler));
-
-            if (_packetRouter != null)
+            lock (_lifecycleGate)
             {
-                lock (_routeHandlers)
+                ThrowIfDisposed();
+                if (handler == null) throw new ArgumentNullException(nameof(handler));
+
+                if (_packetRouter != null)
                 {
                     if (!_routeHandlers.TryGetValue(opCode, out var handlers))
                     {
@@ -98,6 +131,7 @@ namespace AbilityKit.Network.Runtime
                     if (handlers.ContainsKey(handler)) return;
                     NetworkPacketRouteHandler routeHandler = dispatch =>
                     {
+                        if (Volatile.Read(ref _disposed)) return;
                         var bytes = dispatch.Payload.ToArray();
                         try { handler(bytes); }
                         catch (Exception ex)
@@ -108,12 +142,9 @@ namespace AbilityKit.Network.Runtime
                     };
                     handlers.Add(handler, routeHandler);
                     _packetRouter.Register(opCode, NetworkPacketDispatchKind.ServerPush, routeHandler);
+                    return;
                 }
-                return;
-            }
 
-            lock (_pushHandlers)
-            {
                 if (!_pushHandlers.TryGetValue(opCode, out var list))
                 {
                     list = new List<Action<byte[]>>(2);
@@ -124,14 +155,15 @@ namespace AbilityKit.Network.Runtime
             }
         }
 
+        /// <inheritdoc />
         public void UnregisterPushHandler(uint opCode, Action<byte[]> handler)
         {
-            ThrowIfDisposed();
-            if (handler == null) return;
-
-            if (_packetRouter != null)
+            lock (_lifecycleGate)
             {
-                lock (_routeHandlers)
+                ThrowIfDisposed();
+                if (handler == null) return;
+
+                if (_packetRouter != null)
                 {
                     if (_routeHandlers.TryGetValue(opCode, out var handlers) &&
                         handlers.Remove(handler, out var routeHandler))
@@ -139,12 +171,9 @@ namespace AbilityKit.Network.Runtime
                         _packetRouter.Unregister(opCode, NetworkPacketDispatchKind.ServerPush, routeHandler);
                         if (handlers.Count == 0) _routeHandlers.Remove(opCode);
                     }
+                    return;
                 }
-                return;
-            }
 
-            lock (_pushHandlers)
-            {
                 if (_pushHandlers.TryGetValue(opCode, out var list))
                 {
                     list.Remove(handler);
@@ -156,11 +185,18 @@ namespace AbilityKit.Network.Runtime
 
         private void OnServerPush(uint opCode, ArraySegment<byte> payload)
         {
-            var subscribers = ServerPushReceived?.GetInvocationList();
+            Delegate[]? subscribers;
+            lock (_lifecycleGate)
+            {
+                if (_disposed) return;
+                subscribers = _serverPushReceived?.GetInvocationList();
+            }
+
             if (subscribers != null)
             {
                 for (var i = 0; i < subscribers.Length; i++)
                 {
+                    if (Volatile.Read(ref _disposed)) return;
                     try
                     {
                         ((Action<uint, ArraySegment<byte>>)subscribers[i])(
@@ -176,19 +212,20 @@ namespace AbilityKit.Network.Runtime
                 }
             }
 
-            var bytes = payload.ToArray();
-            List<Action<byte[]>>? handlers;
+            Action<byte[]>[] handlers;
 
-            lock (_pushHandlers)
+            lock (_lifecycleGate)
             {
-                if (!_pushHandlers.TryGetValue(opCode, out handlers) || handlers == null || handlers.Count == 0)
+                if (_disposed || !_pushHandlers.TryGetValue(opCode, out var registered))
                     return;
 
-                handlers = new List<Action<byte[]>>(handlers); // 快照副本，避免 handler 内修改集合
+                handlers = registered.ToArray();
             }
 
-            for (var i = 0; i < handlers.Count; i++)
+            var bytes = payload.ToArray();
+            for (var i = 0; i < handlers.Length; i++)
             {
+                if (Volatile.Read(ref _disposed)) return;
                 try { handlers[i](bytes); }
                 catch (Exception ex)
                 {
@@ -197,16 +234,17 @@ namespace AbilityKit.Network.Runtime
             }
         }
 
+        /// <summary>
+        /// 撤销本会话订阅和请求；可重复调用，不关闭连接，也不等待已经开始的回调退出。
+        /// </summary>
         public void Dispose()
         {
-            if (_disposed) return;
-            _disposed = true;
-
-            _connection.ServerPushReceived -= OnServerPush;
-
-            if (_packetRouter != null)
+            lock (_lifecycleGate)
             {
-                lock (_routeHandlers)
+                if (_disposed) return;
+                Volatile.Write(ref _disposed, true);
+
+                if (_packetRouter != null)
                 {
                     foreach (var pair in _routeHandlers)
                     {
@@ -220,20 +258,17 @@ namespace AbilityKit.Network.Runtime
                     }
                     _routeHandlers.Clear();
                 }
-            }
-
-            ServerPushReceived = null;
-            _requestClient.Dispose();
-
-            lock (_pushHandlers)
-            {
+                _serverPushReceived = null;
                 _pushHandlers.Clear();
             }
+
+            _requestClient.Dispose();
+            _connection.ServerPushReceived -= OnServerPush;
         }
 
         private void ThrowIfDisposed()
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(NetworkProtocolSession));
+            if (Volatile.Read(ref _disposed)) throw new ObjectDisposedException(nameof(NetworkProtocolSession));
         }
     }
 }

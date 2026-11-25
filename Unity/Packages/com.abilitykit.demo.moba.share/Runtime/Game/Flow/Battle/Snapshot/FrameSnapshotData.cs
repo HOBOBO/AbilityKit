@@ -69,6 +69,14 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         public IReadOnlyList<SkillStateData> SkillStates { get; }
         public IReadOnlyList<ShieldStateData> ShieldStates { get; }
+        /// <summary>
+        /// 当前消息中的完整指示器集合，合法空集合用于清理。
+        /// </summary>
+        public IReadOnlyList<ActorIndicatorStateData> ActorIndicators { get; }
+        /// <summary>
+        /// 区分未携带本通道与显式携带空集合。
+        /// </summary>
+        public bool HasActorIndicators { get; }
 
         public GameplayClockData GameplayClock { get; }
 
@@ -92,7 +100,8 @@ namespace AbilityKit.Demo.Moba.Share
             IReadOnlyList<ActorDespawnData> actorDespawns = null,
             IReadOnlyList<SkillStateData> skillStates = null,
             IReadOnlyList<ShieldStateData> shieldStates = null,
-            GameplayClockData gameplayClock = default)
+            GameplayClockData gameplayClock = default,
+            IReadOnlyList<ActorIndicatorStateData> actorIndicators = null)
         {
             FrameIndex = frameIndex;
             Timestamp = timestamp;
@@ -107,6 +116,8 @@ namespace AbilityKit.Demo.Moba.Share
             ActorDespawns = actorDespawns ?? Array.Empty<ActorDespawnData>();
             SkillStates = skillStates ?? Array.Empty<SkillStateData>();
             ShieldStates = shieldStates ?? Array.Empty<ShieldStateData>();
+            ActorIndicators = actorIndicators ?? Array.Empty<ActorIndicatorStateData>();
+            HasActorIndicators = actorIndicators != null;
             GameplayClock = gameplayClock;
             PresentationCues = presentationCues ?? Array.Empty<PresentationCueData>();
         }

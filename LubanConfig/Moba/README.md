@@ -34,6 +34,17 @@ python LubanConfig/Moba/export_pipeline.py --check-published
 `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/Excel/` 中的旧 Excel 副本不参与当前 Luban 导表；正式主源仍是本目录下的 `Production/Datas/`。Unity `Assets` 下没有 Luban 生产表副本。
 
 ## 强类型字段
+
+### 头顶血条与多资源面板
+
+`Production/Datas/moba-overhead-indicators.xlsx` 是唯一配置源：`indicator_definitions` 定义只读来源与有限转换，`overhead_layouts` 定义连续条、分段格和数字的行布局，`actor_overhead_bindings` 将内容绑定到布局。七英雄均有生命/蓝量/护盾；烬额外显示普攻或 R 弹药，安妮显示被动四格，维迦显示成长层数。后三类计数默认仅本地角色可见。护盾继续读取独立 ShieldState，不在工作簿创建第二份护盾状态。
+
+后续适配英雄时，先复用 Resource、ActorCounter、有效 HFSM 参数、BuffStack/BuffPresent 来源，声明明确的上限、缺失策略和整数映射，再配置布局与内容绑定。缺失资源不能视为满值；数字可以不显示上限。分段必须有显式整数映射，共槽两行必须以同一 Buff 的相反存在条件互斥。发布器校验资源、Buff、正式 Trigger Counter 和绑定角色的 HFSM 参数，不支持任意脚本或英雄身份分支。超出现有来源/转换的机制仍需先按 MOBA 治理规范确认。
+
+发布沿用 `export_pipeline.py --apply`，随后执行 `--check-published`；不要直接改 Unity/Console 的 JSON、bytes 或生成 C#。对应测试在 `tests/test_overhead.py`、`SevenHeroAlignmentRuntimeTests.Overhead.cs` 和 Unity `MobaOverheadHudTests`。
+
+正式面板结构由 Unity 菜单 `AbilityKit/MOBA/Build Overhead HUD Prefab` 生成，批处理唯一入口为 `AbilityKit.Demo.Moba.Editor.MobaOverheadPrefabBuilder.Build`。该包内工具消费运行时强类型槽位，写入 `com.abilitykit.demo.moba.view.runtime/Resources/ui/battle/hud_overhead.prefab`；只在槽位结构变化时重建，普通数值/布局配置无需重建。批处理日志与测试结果显式输出到 `local/Logs/`。架构和当前验证范围见[头顶当前状态与多资源面板](../../Docs/design/09-ImplementationExamples/MOBA/04-SnapshotPresentationPrediction.md#18-头顶当前状态与多资源面板2026-11-24)。
+
 `J-效果表.xlsx` 的 `修饰器定义` 子 sheet 是 Buff、持续流程修饰器引用的主源。Buff/持续流程通过有序 `ModifierIds` 引用修饰器，并通过 `TagIds` 引用 `J-标签表.xlsx` 中的标签字典。标签规则组、逐行规则节点、持续模板以及结果 flag 映射统一由 `J-标签表.xlsx` 管理，导出二进制、JSON 和结果枚举；详见 [MobaTagAuthoring](../../Docs/MobaTagAuthoring.md)。持续模板 ID 保留，日常只编辑工作簿。
 
 无战斗消费路径的普通 `标签模板`、`演示物品` 和 `旧属性模板` 已退出生产导表；`Ability节点` 中由 Trigger Authoring 接管的旧触发器分文件行也已清除。非触发器 Ability 文档仍由 `Ability节点` 发布。
@@ -45,6 +56,14 @@ python LubanConfig/Moba/export_pipeline.py --check-published
 `J-角色表.xlsx` 的 `属性类型` 子 sheet 按属性逐行定义 `Id/Key/Name/ValueKind/DefaultValue`，ID 与 `BattleAttributeType` 的 1–23 号对应。`ValueKind` 使用 `Flat` 或 `Percent` 枚举；它表示属性值的类型，尚未改变运行时修饰器叠加和公式计算。原表中“战士/法师”两行是横向属性预设，不是属性类型定义；英雄的具体数值继续由 `属性模板` 子 sheet 编辑。属性类型表同时发布到 Luban 与旧 `moba/attr_types.json` 加载路径。新增属性时先扩展运行时枚举和属性定义，再扩展模板与计算规则。`migrations/migrate_attribute_types.py` 是一次性迁移脚本，日常无需运行。
 
 `属性模板` 同时定义 1 级基础值和各属性每级成长值（`*Growth`）。英雄出生属性使用 `基础值 + 每级成长值 × (Level - 1)`，等级来自进入战斗的 `MobaPlayerLoadout.Level`；HP、Mana 的当前值和最大值使用同一等级计算结果初始化。成长字段为 0 时保持旧行为，适合逐英雄渐进填数。百分比属性的 Growth 单位沿用对应属性的现有配置单位。当前成长是出生时计算，不包含对局中的升级事件。
+
+### 固定量资源自动回复
+
+`moba-resource-regeneration.xlsx` 的「回复规则」子表发布 `resource_regeneration_rules`：`ResourceType` 显式绑定非 HP 资源，`FlatPerSecondAttribute` 引用每秒固定点数属性；每个资源只能有一条规则。首批唯一规则为 Mana(2) → `MANA_REGEN_PER_SECOND`(24)。回复量仍配置在 `J-角色表.xlsx` 的属性模板，字段为 float `ManaRegenPerSecond` / `ManaRegenPerSecondGrowth`，出生等级按基础值加成长计算。公开资料的每 5 秒回复量应先除以 5，保留小数；旧 `PerSecondManaR` / `PerSecondBloodR` 回复率字段不承担这项固定量语义。
+
+世界 Execute 阶段在技能决策前执行一次 `min(Max, Current + max(0, EffectiveRate) × DeltaTime)`；动态 Max 读取实时有效属性，无 MaxAttribute 时只使用明确固定上限。死亡、未进入对局、世界暂停或缺资源时不回复，也不补时；移动、施法和引导照常回复。回复通过唯一 ResourceContainer 写入并刷新属性上下文，不走治疗事件。生命回复、百分比回复与脱战延迟不在本批。
+
+后续 Energy/Rage 可由同一表绑定已有正式 Flat/Point 属性，无需按英雄增加执行分支；新速率属性仍须完整配置属性定义、模板/来源与初始化。没有规则不会自动回复，也不会创建资源。发布门禁拒绝 HP/None、未知或重复资源、当前值/上限作为速率、非固定点数属性以及非有限/负基础值或成长。使用现有 `export_pipeline.py --apply` 发布，再以 `--check-published` 核对两端产物。
 
 技能等级表的 `ParamNames` 和各等级 `Params` 按同一列序配对。技能 Trigger Action 的数值引用可使用 `payload:skill.param.<名称>`（例如 `payload:skill.param.damage`）；运行时按本次技能等级读取参数，未定义的名称或该行缺少对应值时解析失败，不会静默回退到其他等级。参数名跨技能复用时应保持同一数值语义。
 
@@ -96,6 +115,8 @@ powershell -ExecutionPolicy Bypass -File tools/run-unity-editmode-tests.ps1 -Tes
 | `J-召唤物表.xlsx` | 召唤物、召唤属性继承、召唤动作模板 |
 | `J-战斗场景表.xlsx` | 地图、开局、玩法 |
 | `J-资源节点表.xlsx` | 仍需发布的非触发器 Ability 文档节点 |
+| `moba-overhead-indicators.xlsx` | 头顶指示器定义、布局、Actor 内容绑定 |
+| `moba-resource-regeneration.xlsx` | 非 HP 资源到固定量回复属性的显式规则 |
 
 新增表时，在对应工作簿新增子 sheet，并在 `__tables__.xlsx` 登记其 `input`；字段名和输出名仍按现有运行时契约命名。`repartition_workbooks.py` 记录了本次分组迁移，日常编辑无需运行。未登记的旧 `skill_flows.xlsx` 已移到 `Production/Archive/`，仅供迁移留档。
 

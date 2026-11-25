@@ -9,6 +9,7 @@ using UnityEditor;
 using UnityEngine;
 
 [assembly: InternalsVisibleTo("AbilityKit.Demo.Moba.BattleScenario.Editor.Tests")]
+[assembly: InternalsVisibleTo("AbilityKit.Demo.Moba.Editor")]
 
 namespace AbilityKit.BattleScenario.Editor
 {

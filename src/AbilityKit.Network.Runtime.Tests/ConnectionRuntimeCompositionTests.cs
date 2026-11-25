@@ -8,6 +8,59 @@ namespace AbilityKit.Network.Runtime.Tests;
 
 public sealed class ConnectionRuntimeCompositionTests
 {
+    [Theory]
+    [InlineData("{\"sessionToken\":\"token\",\"reason\":\"closed\"}", "token", "closed")]
+    [InlineData("{\"reason\":null}", "", "")]
+    [InlineData("{\"sessionToken\":\"unterminated}", "", "")]
+    [InlineData("{\"reason\":\"line\\n\"}", "", "line\n")]
+    [InlineData("{\"reason\":\"value\\q\"}", "", "valueq")]
+    public void Kick_push_decodes_a_payload_slice_and_notifies_before_closing(string json, string token, string reason)
+    {
+        var transport = new RecordingTransport();
+        RecordingSession? session = null;
+        using var connection = new ConnectionManager(() => transport, new ConnectionOptions
+        {
+            EnableKickHandling = true, KickPushOpCode = 91,
+            SessionFactory = context => session = new RecordingSession(context.Transport)
+        });
+        connection.Open("local-test", 1);
+        var notifications = 0;
+        connection.ServerPushReceived += (_, _) => Assert.Fail("Kick should be consumed by the manager.");
+        connection.Kicked += (actualToken, actualReason) =>
+        {
+            notifications++;
+            Assert.Equal(token, actualToken);
+            Assert.Equal(reason, actualReason);
+            Assert.False(session!.Disposed);
+        };
+        var bytes = System.Text.Encoding.UTF8.GetBytes("prefix" + json + "suffix");
+
+        session!.RaisePush(91, new ArraySegment<byte>(bytes, 6, bytes.Length - 12));
+
+        Assert.Equal(1, notifications);
+        Assert.True(session.Disposed);
+        Assert.Equal(ConnectionState.Disconnected, connection.State);
+    }
+
+    [Fact]
+    public void Push_passes_through_when_kick_handling_is_disabled()
+    {
+        var transport = new RecordingTransport();
+        RecordingSession? session = null;
+        using var connection = new ConnectionManager(() => transport, new ConnectionOptions
+        {
+            KickPushOpCode = 91,
+            SessionFactory = context => session = new RecordingSession(context.Transport)
+        });
+        connection.Open("local-test", 1);
+        var calls = 0;
+        connection.Kicked += (_, _) => Assert.Fail("Kick handling is disabled.");
+        connection.ServerPushReceived += (opcode, _) => { Assert.Equal(91U, opcode); calls++; };
+        session!.RaisePush(91, default);
+        Assert.Equal(1, calls);
+        Assert.False(session.Disposed);
+    }
+
     [Fact]
     public void Open_UsesConfiguredSessionHeartbeatAndReconnectSchedulerFactories()
     {
@@ -156,6 +209,7 @@ public sealed class ConnectionRuntimeCompositionTests
         public event Action<uint, ArraySegment<byte>>? ServerPushReceived;
 
         public void Start() => Started = true;
+        public void RaisePush(uint opcode, ArraySegment<byte> payload) => ServerPushReceived?.Invoke(opcode, payload);
         public void Stop() => Started = false;
 
         public void Send(uint opCode, ArraySegment<byte> payload, ushort flags = 0, uint seq = 0)

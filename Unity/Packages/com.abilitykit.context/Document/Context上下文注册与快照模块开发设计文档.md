@@ -72,7 +72,6 @@ Context 模块提供轻量的运行时上下文注册中心。它不试图替代
 | `Runtime/Events/ContextEvent*.cs` | 上下文事件、事件类型、事件委托定义 |
 | `Runtime/Query/Query.cs` | 基于属性类型的查询封装 |
 | `Runtime/Snapshot/IContextSnapshot.cs` | 快照基础接口、版本快照接口和快照记录 |
-| `Runtime/Snapshot/ISnapshotAccessor.cs` | 快照访问接口 |
 | `Runtime/Snapshot/SnapshotStorage.cs` | 快照保存、查询、销毁标记和索引维护 |
 | `Runtime/Internal/TimeUtil.cs` | 内部时间戳工具 |
 
@@ -225,18 +224,9 @@ using (var flow = registry.BeginFlow("SkillCast", ownerEntityId: casterId))
 
 `ContextValueResolver` 将实体属性、外部实时 provider 和快照组合为只读解析入口，不主动创建实体或生成快照。
 
-| 读取模式 | 优先级 |
-|----------|--------|
-| `RealtimeThenSnapshot` | 实时 provider / 注册属性，未命中再读快照 |
-| `RealtimeOnly` | 仅实时 provider / 注册属性 |
-| `SnapshotOnly` | 仅已保存快照 |
-| `SnapshotThenRealtime` | 快照未命中后再读实时 |
+实时 provider 返回业务状态的属性视图，不要求把每次变化写回 Registry。Registry.Destroy 不自动解绑 provider；宿主仍须清理绑定，避免复用 ID 时残留投影。
 
-实时 provider 是对业务真值的投影，不要求把每次数值变化写回 Registry。Registry.Destroy 不自动解绑 provider；宿主必须协调解绑，否则解析器仍可能读到 provider。
-
-`GetValue` 未命中时可返回 `Found=true, Source=DefaultValue`，不要只检查 Found 来判断实际数据命中；`TryGetValue` 排除默认值。基础解析器不校验业务 Version，也不保证两次读取来自同一原子快照。
-
-新快照使用 `IImmutableContextSnapshot`，通过 `TryGetValue` 明确表达键缺失；同时实现 provider 和旧 accessor 时，字段缺失不再回退 accessor 伪装命中。只有旧 `ISnapshotAccessor.GetValue` 的类型仍没有命中标志，兼容路径可能把默认值视为快照命中。属性级 `GetProperty` 回退也要求快照能提供该属性对象，不能假设任意字段快照都可还原属性。历史事实读取使用带完整快照引用的 ReadSnapshot，而不是这些按实体最新视图的回退入口。
+受管历史快照实现 `IImmutableContextSnapshot`，通过 `TryGetValue` 表达字段缺失，通过 `ReadSnapshot` 按完整快照引用读取。通用解析器不按模式混读来源、不校验业务 Version，也不保证两次实时读取共享原子视图。旧裸 ID 解析入口和默认值 accessor 已移除；领域若需要来源选择，应先选定来源，再从同一对象读取所需字段。
 
 ### 5.5 实时实例引用与精确读取
 
@@ -244,7 +234,7 @@ using (var flow = registry.BeginFlow("SkillCast", ownerEntityId: casterId))
 
 `ReadRealtimeProperty<TProperty>(reference)` 只解析该实例的实时属性，`ReadRealtime<TValue,TProperty>(reference,key)` 从同一属性对象读字段。它们不回退快照，不返回默认值伪装命中，也不在查询时注册新属性类型。PropertyMissing 与 FieldMissing 独立于身份失败；真实零值正常命中，默认结果不视为成功。
 
-外部 provider 返回属性后重新校验实体代次，字段读取后也重新校验，拒绝读取过程中销毁并复用 ID 的结果。这不是对可变业务对象的跨线程事务或自动深拷贝：provider 应返回一致的属性视图，宿主仍需在模拟线程协调。原 long ID 的 Get/GetValue 等入口保留兼容，不具备实例代次校验；历史快照必须使用独立 ContextSnapshotReference，不能把实时引用当作某份历史记录。
+外部 provider 返回属性后重新校验实体代次，字段读取后也重新校验，拒绝读取过程中销毁并复用 ID 的结果。这不是对可变业务对象的跨线程事务或自动深拷贝：provider 应返回一致的属性视图，宿主仍需在模拟线程协调。历史快照必须使用独立的 `ContextSnapshotReference`，不能把实时引用当作某份历史记录。
 
 ### 5.6 恢复身份与回滚不是同一能力
 

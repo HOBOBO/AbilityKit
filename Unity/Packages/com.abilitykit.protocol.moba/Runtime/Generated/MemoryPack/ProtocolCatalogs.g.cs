@@ -423,6 +423,36 @@ namespace AbilityKit.Protocol.Generated
                         0.25d,
                         null
                     ),
+                    new ProtocolMessageDefinition(
+                        "actor-indicator-state.push",
+                        4020u,
+                        ProtocolDirection.ServerToClient,
+                        ProtocolPacketKind.Push,
+                        "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotPayload",
+                        "memorypack",
+                        ProtocolReliability.Reliable,
+                        null,
+                        1,
+                        1,
+                        1048576,
+                        0.25d,
+                        null
+                    ),
+                    new ProtocolMessageDefinition(
+                        "state-sync-overhead.push",
+                        4021u,
+                        ProtocolDirection.ServerToClient,
+                        ProtocolPacketKind.Push,
+                        "AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayload",
+                        "memorypack",
+                        ProtocolReliability.Reliable,
+                        null,
+                        1,
+                        1,
+                        4194304,
+                        0.25d,
+                        null
+                    ),
                 }),
         };
 

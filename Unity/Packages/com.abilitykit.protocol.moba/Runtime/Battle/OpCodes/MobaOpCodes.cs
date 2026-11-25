@@ -39,6 +39,7 @@ namespace AbilityKit.Protocol.Moba
             public const int ActionAck = 4013;
             public const int ShieldState = 4015;
             public const int GameplayMatch = 4018;
+            public const int ActorIndicatorState = 4020;
         }
     }
 }

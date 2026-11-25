@@ -77,7 +77,9 @@
   },
   {
     "Id": 30010000,
-    "ContinuousProcessIds": [],
+    "ContinuousProcessIds": [
+      30010010
+    ],
     "CooldownMs": 0,
     "Name": "Jhin - Whisper",
     "TriggerIds": [

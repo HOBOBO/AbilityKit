@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Protocol;
 using MemoryPack;
@@ -310,6 +311,28 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(1)] public string Message { get; set; }
     }
 
+    /// <summary>
+    /// 显式预先选定的状态同步输入来源，不改变旧订阅请求的格式。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireSubscribeScopedStateSyncReq
+    {
+        [MemoryPackOrder(0)] public WireSubscribeStateSyncReq Subscription { get; set; }
+        [MemoryPackOrder(1)] public ulong WorldId { get; set; }
+        [MemoryPackOrder(2)] public uint PlayerId { get; set; }
+        [MemoryPackOrder(3)] public System.Guid InputGeneration { get; set; }
+    }
+
+    /// <summary>
+    /// 携带分配命令序号的输入生产者代际；重试不得改写它。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireSubmitScopedStateSyncInputReq
+    {
+        [MemoryPackOrder(0)] public WireSubmitBattleInputReq Input { get; set; }
+        [MemoryPackOrder(1)] public System.Guid InputGeneration { get; set; }
+    }
+
     [ProtocolOpCode(RoomGatewayOpCodes.RequestFullStateSync, ProtocolDirection.ClientToServer, nameof(WireRequestFullStateSyncReq))]
     [MemoryPackable]
     public partial struct WireRequestFullStateSyncReq
@@ -373,6 +396,48 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(9)] public int SchemaVersion { get; set; }
         [MemoryPackOrder(10)] public List<int>? RemovedActorIds { get; set; }
         [MemoryPackOrder(11)] public string EventEpoch { get; set; }
+    }
+
+    /// <summary>
+    /// 固定基线负载与移动证明共用同一次投递。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireStateSyncMovementPayload
+    {
+        public const int SchemaVersion = 5;
+
+        [MemoryPackOrder(0)] public byte[]? FixedBaselinePayload { get; set; }
+        [MemoryPackOrder(1)] public WireStateSyncMovementProof Proof { get; set; }
+    }
+
+    /// <summary>
+    /// 绑定主控输入生产者及单个已发布截面的连续输入终结前缀。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireStateSyncMovementProof
+    {
+        [MemoryPackOrder(0)] public Guid InputGeneration { get; set; }
+        [MemoryPackOrder(1)] public uint PlayerId { get; set; }
+        [MemoryPackOrder(2)] public ulong WorldId { get; set; }
+        [MemoryPackOrder(3)] public Guid StreamGeneration { get; set; }
+        [MemoryPackOrder(4)] public long SnapshotId { get; set; }
+        [MemoryPackOrder(5)] public long BaseSnapshotId { get; set; }
+        [MemoryPackOrder(6)] public int Tick { get; set; }
+        [MemoryPackOrder(7)] public long TerminalThrough { get; set; }
+        [MemoryPackOrder(8)] public int ActorId { get; set; }
+        [MemoryPackOrder(9)] public int EntityVersion { get; set; }
+        [MemoryPackOrder(10)] public float X { get; set; }
+        [MemoryPackOrder(11)] public float Y { get; set; }
+        [MemoryPackOrder(12)] public float Z { get; set; }
+        [MemoryPackOrder(13)] public float RotationX { get; set; }
+        [MemoryPackOrder(14)] public float RotationY { get; set; }
+        [MemoryPackOrder(15)] public float RotationZ { get; set; }
+        [MemoryPackOrder(16)] public float RotationW { get; set; }
+        [MemoryPackOrder(17)] public float MoveX { get; set; }
+        [MemoryPackOrder(18)] public float MoveZ { get; set; }
+        [MemoryPackOrder(19)] public float MoveSpeed { get; set; }
+        [MemoryPackOrder(20)] public bool CanMove { get; set; }
+        [MemoryPackOrder(21)] public bool HasIsolatedLocomotion { get; set; }
     }
 
     [MemoryPackable]

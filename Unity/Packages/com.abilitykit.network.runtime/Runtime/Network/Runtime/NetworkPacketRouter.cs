@@ -189,7 +189,12 @@ namespace AbilityKit.Network.Runtime
         /// <summary>Dispatches and preserves the reason a packet was not delivered.</summary>
         public NetworkPacketDispatchOutcome DispatchDetailed(
             NetworkPacketHeader header,
-            ArraySegment<byte> payload)
+            ArraySegment<byte> payload) => DispatchDetailed(header, payload, _exceptionHandler);
+
+        internal NetworkPacketDispatchOutcome DispatchDetailed(
+            NetworkPacketHeader header,
+            ArraySegment<byte> payload,
+            Action<Exception> reportError)
         {
             lock (_gate) _dispatchedCount++;
 
@@ -204,7 +209,7 @@ namespace AbilityKit.Network.Runtime
                 {
                     lock (_gate) _exceptionCount++;
                     lock (_gate) _boundaryRejectedCount++;
-                    try { _exceptionHandler?.Invoke(exception); }
+                    try { reportError?.Invoke(exception); }
                     catch { }
                     return NetworkPacketDispatchOutcome.BoundaryRejected;
                 }
@@ -262,7 +267,7 @@ namespace AbilityKit.Network.Runtime
                         route.ExceptionCount++;
                         _exceptionCount++;
                     }
-                    try { _exceptionHandler?.Invoke(exception); }
+                    try { reportError?.Invoke(exception); }
                     catch { }
                 }
             }

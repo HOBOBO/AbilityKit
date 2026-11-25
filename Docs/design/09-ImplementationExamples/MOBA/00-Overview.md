@@ -44,6 +44,7 @@ MOBA 示例已经进一步拆成更细专题，便于单独阅读每个设计点
 | Console Demo 装配 | Bootstrapper、FeatureHost、同步适配器、自动测试与录制入口 | [20-Console Demo 装配链路深潜](20-ConsoleDemoBootstrapAndFeatureDeepDive.md) |
 | Unity 示例宿主 | Starter、package scene、Profile/Catalog、Root 与战斗会话所有权 | [01-世界启动与运行时装配](01-WorldAndBootstrap.md)、[MOBA Demo 顶层解析](../03-MOBA%20Demo%20Analysis.md) |
 | 快照与表现 | WorldStateSnapshot、SnapshotBuffer、FrameSnapshotDispatcher、BattleSnapshotPipeline | [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md) |
+| 头顶血条与多资源扩展（已实施） | 当前状态投影、连续条/分段/数字、七英雄绑定与同步证据边界 | [当前契约](04-SnapshotPresentationPrediction.md#18-头顶当前状态与多资源面板2026-11-24)、[D1–D3 决策](../../../../plans/MobaActorOverheadIndicatorsProposal.2026-11-24.md) |
 | 远程驱动 | RemoteDrivenWorldRuntimeFactory、ClientPredictionDriverModule、RollbackRegistry | [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md) |
 | 同步闭环与英雄实现推进 | Lockstep、预测回滚、权威恢复、表现重建、Annie/Jinx 验收矩阵与剩余英雄批次 | [45-MOBA 同步闭环与英雄实现推进计划](45-MobaSynchronizationImplementationProgressPlan.md) |
 | 真实技能回滚验收 | P2 真实 World 捕获/恢复/重演的证据与当前阻断 | [47-真实技能回滚与重演验收](47-MobaRealSkillRollbackReplayAcceptance.md) |
@@ -257,7 +258,7 @@ P1 门禁 `moba-complete-battle-journey` 组合运行这两个测试。仓库证
 | Gateway 房间协议 | `Unity/Packages/com.abilitykit.protocol.moba/Runtime/Room/WireRoomGatewayTypes.cs` |
 | 进场协议 | `Unity/Packages/com.abilitykit.protocol.moba/Runtime/EnterGame/EnterMobaGameStructs.cs` |
 | 运行时端口 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/IO/IMobaBattleRuntimePort.cs` |
-| 远程驱动 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldRuntimeFactory.cs` |
+| 远程驱动 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/FrameSync/RemoteDrivenWorldRuntimeFactory.cs` |
 | 快照路由 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/SnapshotRouting/FrameSnapshotDispatcher.cs` |
 | 统一启动请求 | `Unity/Packages/com.abilitykit.demo.common/Runtime/Gameplay/DemoLaunchIntent.cs` |
 | Scene Composition Bootstrap | `Unity/Packages/com.abilitykit.demo.common/Runtime/Composition/DemoGameplayBootstrap.cs` |

@@ -690,7 +690,7 @@
     "Id": 30010301,
     "CastFlowId": 30010301,
     "Category": 9,
-    "CooldownMs": 18000,
+    "CooldownMs": 2000,
     "IconId": 903,
     "LevelTableId": 30010301,
     "Name": "万众倾倒",

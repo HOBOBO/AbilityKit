@@ -5,8 +5,7 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
 /// <summary>
-/// Emits an independent static metadata surface. This deliberately does not alter
-/// <see cref="CSharpEmitter"/> or the BuiltInProtocolCatalogs golden output.
+/// 生成独立静态元数据接口，不修改 <see cref="CSharpEmitter"/> 或 BuiltInProtocolCatalogs 的黄金基线产物。
 /// </summary>
 public static class ProtocolMetadataEmitter
 {

@@ -105,8 +105,9 @@ namespace AbilityKit.Network.Protocol
 
         private void ValidateIncomingLength(ArraySegment<byte> bytes)
         {
-            // Reject an oversized first frame before growing the accumulation buffer. A single
-            // transport chunk may contain several valid frames, so only inspect the first prefix.
+            /*
+             * 扩容累积缓冲前先拒绝过大的首帧。一个传输块可能包含多个有效帧，因此只检查首个前缀。
+             */
             Span<byte> prefix = stackalloc byte[4];
             var prefixCount = Math.Min(4, _count);
             for (var i = 0; i < prefixCount; i++) prefix[i] = _buffer[i];

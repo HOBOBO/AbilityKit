@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Orleans.Grains.Gameplays.Moba.Battle;
+using AbilityKit.Protocol.Room;
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
@@ -40,8 +41,9 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private FixedBaselineSnapshotStream _fixedBaselineStream = new(tickRate: 30);
     private readonly Dictionary<uint, ulong> _consumedCommandSequences = new();
     private readonly BattleServerPerformanceDiagnostics _performanceDiagnostics = new();
-    // Cache the method-group once. Installing the stage sink is a lifecycle operation;
-    // recreating it from every tick would add avoidable delegate churn to the hot path.
+    /*
+     * 一次性缓存方法组。安装阶段采集器属于生命周期操作，每步重建会给热路径带来可避免的委托分配抖动。
+     */
     private readonly Action<string, double> _shooterStageTimingSink;
     private BattleCommandAcknowledgement[] _cachedCommandAcknowledgements = Array.Empty<BattleCommandAcknowledgement>();
     private long _consumedCommandSequenceVersion;
@@ -545,7 +547,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         }
         var added = _observerRegistry.Subscribe(observer);
         if (_observerContexts.TryGetValue(observer, out var previousContext) &&
-            previousContext.UsesFixedBaseline != observerContext.UsesFixedBaseline)
+            (previousContext.UsesFixedBaseline != observerContext.UsesFixedBaseline ||
+                previousContext.PreparedRecipient != observerContext.PreparedRecipient))
         {
             _snapshotDeliveries.Remove(observer);
         }
@@ -839,6 +842,14 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _performanceDiagnostics.BeginTick(frame, tickStartedAt);
         try
         {
+            if (_syncProfile?.ResolveTemplate(_syncTemplateId)?.Mode == ServerBattleSyncMode.StateSync &&
+                _runtimeSession is IBattleRuntimeStateSyncClock stateSyncClock &&
+                !stateSyncClock.TryBeginStateSyncTick(frame, _tickRate))
+            {
+                _logger.LogWarning("[BattleLogicHost] StateSync world did not begin Tick {Frame}.", frame);
+                return;
+            }
+
             var tickResult = _tickDriver.Tick(_battleHostState, _inputBuffer);
             if (!tickResult.InputSubmitted)
             {
@@ -1091,7 +1102,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
                             _logger.LogDebug("Fixed baseline full snapshot. BattleId={BattleId}, Frame={Frame}, Reason={Reason}, Bytes={Bytes}",
                                 _battleId, frame, fullReason, wireBytes);
                         foreach (var observer in observers)
-                            if (UsesFixedBaseline(observer)) SendSnapshotDelivery(observer, push);
+                            if (_observerContexts.TryGetValue(observer, out var context) && context.UsesFixedBaseline)
+                                SendSnapshotDelivery(observer, PrepareRecipientSnapshot(push, projection, context.PreparedRecipient));
                     }
                     else
                     {
@@ -1123,6 +1135,66 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
                 startedAt,
                 Stopwatch.GetTimestamp());
         }
+    }
+
+    private SnapshotDeliveryPayload PrepareRecipientSnapshot(SnapshotDeliveryPayload delivery,
+        StateSyncPush projection, StateSyncPreparedRecipient? recipient)
+    {
+        var scoped = delivery.ForRecipient(recipient);
+        if (scoped.Prepared is not { } prepared || recipient is not { ReceivesMovementProof: true } target ||
+            _runtimeSession is not IMobaStateSyncMovementSource movementSource) return scoped;
+
+        try
+        {
+            if (!TryBindMovementProof(_battleId, prepared, target, movementSource, out var proof)) return scoped;
+            var wire = StateSyncSnapshotWireCodec.Serialize(projection, proof);
+            return wire.Count > FixedBaselineStateSyncProtocol.MaximumSnapshotBytes ? scoped :
+                new SnapshotDeliveryPayload(prepared with
+                {
+                    Payload = System.Runtime.InteropServices.ImmutableCollectionsMarshal.AsImmutableArray(wire.ToArray())
+                });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "StateSync movement proof unavailable. Frame={Frame}", prepared.Frame);
+            return scoped;
+        }
+    }
+
+    /// <summary>
+    /// 只绑定本次发布截面下、同接收者输入来源的连续终结事实。
+    /// </summary>
+    internal static bool TryBindMovementProof(string battleId, PreparedFixedBaselineSnapshot prepared,
+        StateSyncPreparedRecipient target, IMobaStateSyncMovementSource movementSource, out WireStateSyncMovementProof proof)
+    {
+        proof = default;
+        var revision = prepared.Revision;
+        if (prepared.Recipient != target || !target.ReceivesMovementProof ||
+            string.IsNullOrEmpty(target.BindingId) || target.PlayerId == 0 || target.InputGeneration == Guid.Empty ||
+            target.ConnectionGeneration == Guid.Empty || target.SubscriptionGeneration == Guid.Empty ||
+            revision.WorldId == 0 || revision.StreamGeneration == Guid.Empty || revision.SnapshotId <= 0 ||
+            !movementSource.TryCaptureCommittedMovement(prepared.Frame, target.PlayerId, target.ConnectionGeneration,
+                out var sample, target.InputGeneration) ||
+            !string.Equals(sample.BattleId, battleId, StringComparison.Ordinal) || sample.WorldId != revision.WorldId ||
+            sample.Tick != prepared.Frame || sample.PlayerId != target.PlayerId ||
+            sample.InputGeneration != target.InputGeneration || sample.SourceConnectionGeneration != target.ConnectionGeneration ||
+            sample.TerminalThrough is not > 0 || sample.Anchor.ActorId <= 0 || sample.Anchor.EntityVersion <= 0)
+            return false;
+
+        var anchor = sample.Anchor;
+        var position = anchor.Pose.Position;
+        var rotation = anchor.Pose.Rotation;
+        proof = new WireStateSyncMovementProof
+        {
+            InputGeneration = target.InputGeneration, PlayerId = target.PlayerId, WorldId = revision.WorldId,
+            StreamGeneration = revision.StreamGeneration, SnapshotId = revision.SnapshotId, BaseSnapshotId = revision.BaseSnapshotId,
+            Tick = prepared.Frame, TerminalThrough = sample.TerminalThrough.Value, ActorId = anchor.ActorId,
+            EntityVersion = anchor.EntityVersion, X = position.X, Y = position.Y, Z = position.Z,
+            RotationX = rotation.X, RotationY = rotation.Y, RotationZ = rotation.Z, RotationW = rotation.W,
+            MoveX = anchor.MoveX, MoveZ = anchor.MoveZ, MoveSpeed = anchor.MoveSpeed,
+            CanMove = anchor.CanMove, HasIsolatedLocomotion = anchor.HasIsolatedLocomotion
+        };
+        return true;
     }
 
     private StateSyncPush BuildStateSyncPush(IStateSyncObserverGrain observer, int frame, bool isFullSnapshot)
@@ -1396,7 +1468,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             info?.AccountId ?? string.Empty,
             info?.RoomId ?? string.Empty)
         {
-            UsesFixedBaseline = info?.UsesFixedBaseline == true
+            UsesFixedBaseline = info?.UsesFixedBaseline == true,
+            PreparedRecipient = info?.UsesFixedBaseline == true ? info.PreparedRecipient : null
         };
     }
 
@@ -1443,6 +1516,11 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         internal PreparedFixedBaselineSnapshot? Prepared { get; }
         internal int Frame => Prepared?.Frame ?? Structured!.Frame;
         internal bool IsFullSnapshot => Prepared?.IsFullSnapshot ?? Structured!.IsFullSnapshot;
+
+        internal SnapshotDeliveryPayload ForRecipient(StateSyncPreparedRecipient? recipient) =>
+            Prepared is { } prepared && recipient.HasValue
+                ? new SnapshotDeliveryPayload(prepared with { Recipient = recipient })
+                : this;
 
         internal Task<StateSyncDeliveryResult> SendAsync(IStateSyncObserverGrain observer) => Prepared is { } prepared
             ? observer.OnPreparedFixedBaselineSnapshotPushedAsync(prepared)

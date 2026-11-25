@@ -1,4 +1,4 @@
-param()
+﻿param()
 
 $ErrorActionPreference = 'Stop'
 
@@ -97,11 +97,9 @@ function Get-AuditedProjectFiles {
 $foundationAsmdef = Get-Content -LiteralPath $foundationAsmdefPath -Raw | ConvertFrom-Json
 Assert-Contract ($foundationAsmdef.name -eq 'AbilityKit.Core') 'Foundation asmdef name must remain AbilityKit.Core.'
 Assert-Contract ($foundationAsmdef.noEngineReferences -eq $true) 'AbilityKit.Core must keep noEngineReferences enabled.'
-# Contract update (2026-08 fixed-point migration, phase P2): the ONLY Unity assembly reference
-# Core may hold is the deterministic math kernel AbilityKit.Deterministic
-# (MathUtil.Sqrt / Vec Magnitude / Quat normalization route through the fixed-point kernel).
-# No other references may be added; Deterministic itself stays dependency-free
-# (both ship in the same release batch).
+# 契约更新（2026-08 定点迁移 P2）：Core 在 Unity 中唯一允许引用的程序集是确定性数学内核 AbilityKit.Deterministic。
+# MathUtil.Sqrt、向量模长及四元数归一化均经过定点内核，不得增加其他引用。
+# Deterministic 自身保持无依赖，二者随同一发布批次交付。
 $coreReferences = @($foundationAsmdef.references)
 $coreReferencesOk = ($coreReferences.Count -eq 1 -and $coreReferences[0] -eq 'AbilityKit.Deterministic')
 $coreReferencesMessage = 'AbilityKit.Core may reference only AbilityKit.Deterministic (deterministic math kernel, decision 2026-08). Found: [' + ($coreReferences -join ', ') + ']'

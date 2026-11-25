@@ -126,6 +126,12 @@ public sealed class TriggerExecutionSchedulerRuntimeAccessTests
         calls.Clear();
 
         scheduler.ValidateProgress(in checkpoint);
+        Assert.Empty(calls);
+        Assert.Equal(expected.Entries, scheduler.GetExecutions().Take(expected.Entries.Length));
+        Assert.True(scheduler.ContainsDefinition(future.Id));
+        Assert.Equal(future.Id + 1, scheduler.NextExecutionId);
+        Assert.Equal(1, scheduler.ActiveCount);
+
         scheduler.RestoreProgress(in checkpoint);
         Assert.Empty(calls);
         Assert.Equal(14d, checkpoint.Entries[0].ElapsedMs);
@@ -155,6 +161,7 @@ public sealed class TriggerExecutionSchedulerRuntimeAccessTests
         var validFirst = new TriggerScheduledExecutionInfo(handle.Id, TriggerScheduledExecutionState.Completed, 10, 10, 1, "");
         var invalid = new[]
         {
+            default(TriggerExecutionProgress),
             new TriggerExecutionProgress(0, before.Entries),
             new TriggerExecutionProgress(later.Id, before.Entries),
             new TriggerExecutionProgress(before.NextExecutionId, new[] { validFirst, validFirst }),
@@ -173,6 +180,63 @@ public sealed class TriggerExecutionSchedulerRuntimeAccessTests
             Assert.Equal(2, scheduler.ActiveCount);
             Assert.Equal(0, executable.Count);
         }
+    }
+
+    [Theory]
+    [InlineData(255, 0d, 0d, 0)]
+    [InlineData(0, -1d, 0d, 0)]
+    [InlineData(0, double.PositiveInfinity, 0d, 0)]
+    [InlineData(0, 0d, -1d, 0)]
+    [InlineData(0, 0d, double.NaN, 0)]
+    [InlineData(0, 0d, double.PositiveInfinity, 0)]
+    [InlineData(0, 0d, 0d, -1)]
+    public void Invalid_fields_are_rejected_by_snapshot_and_single_entry_access(
+        int state, double elapsedMs, double lastExecutionMs, int count)
+    {
+        var scheduler = new TriggerExecutionScheduler(retainFinishedEntries: true);
+        var context = default(ExecCtx<object>);
+        var executable = new CountingExecutable();
+        var handle = scheduler.Schedule(executable, null!, in context, EScheduleMode.Timed, 10f, 1, true);
+        scheduler.Tick(4f);
+        var before = scheduler.CaptureProgress();
+        var invalid = new TriggerScheduledExecutionInfo(handle.Id, (TriggerScheduledExecutionState)state,
+            elapsedMs, lastExecutionMs, count, "invalid");
+        var checkpoint = new TriggerExecutionProgress(before.NextExecutionId, new[] { invalid });
+
+        var validation = Assert.Throws<InvalidOperationException>(() => scheduler.ValidateProgress(in checkpoint));
+        var restore = Assert.Throws<InvalidOperationException>(() => scheduler.RestoreProgress(in checkpoint));
+        Assert.Equal(validation.Message, restore.Message);
+        Assert.Contains("in-process definition", validation.Message);
+        Assert.Equal("progress", Assert.Throws<ArgumentOutOfRangeException>(
+            () => scheduler.SetExecutionProgress(in invalid)).ParamName);
+        Assert.Equal(before.Entries, scheduler.GetExecutions());
+        Assert.Equal(before.NextExecutionId, scheduler.NextExecutionId);
+        Assert.Equal(1, scheduler.ActiveCount);
+        Assert.Equal(0, executable.Count);
+    }
+
+    [Fact]
+    public void Restore_uses_live_definition_order_not_input_array_order()
+    {
+        var scheduler = new TriggerExecutionScheduler();
+        var context = default(ExecCtx<object>);
+        var calls = new List<string>();
+        var first = scheduler.Schedule(new CallbackExecutable(() => calls.Add("first")), null!, in context,
+            EScheduleMode.Timed, 10f, 1, true);
+        var second = scheduler.Schedule(new CallbackExecutable(() => calls.Add("second")), null!, in context,
+            EScheduleMode.Timed, 10f, 1, true);
+        scheduler.Tick(4f);
+        var checkpoint = scheduler.CaptureProgress();
+        var reversed = new TriggerExecutionProgress(checkpoint.NextExecutionId, checkpoint.Entries.Reverse().ToArray());
+        scheduler.Tick(2f);
+
+        scheduler.RestoreProgress(in reversed);
+        Assert.Empty(calls);
+        Assert.Equal(new[] { first.Id, second.Id }, scheduler.GetExecutions().Select(entry => entry.Id));
+        scheduler.Tick(5f);
+        Assert.Empty(calls);
+        scheduler.Tick(1f);
+        Assert.Equal(new[] { "first", "second" }, calls);
     }
 
     [Fact]
@@ -201,8 +265,11 @@ public sealed class TriggerExecutionSchedulerRuntimeAccessTests
         var reached = false;
         var handle = scheduler.Schedule(new CallbackExecutable(() =>
         {
-            Assert.Throws<InvalidOperationException>(() => scheduler.CaptureProgress());
-            Assert.Throws<InvalidOperationException>(() => scheduler.RestoreProgress(in checkpoint));
+            var capture = Assert.Throws<InvalidOperationException>(() => scheduler.CaptureProgress());
+            var validation = Assert.Throws<InvalidOperationException>(() => scheduler.ValidateProgress(in checkpoint));
+            var restore = Assert.Throws<InvalidOperationException>(() => scheduler.RestoreProgress(in checkpoint));
+            Assert.Equal(capture.Message, validation.Message);
+            Assert.Equal(capture.Message, restore.Message);
             reached = true;
         }), null!, in context, mode, 5f, 1, true);
         checkpoint = scheduler.CaptureProgress();

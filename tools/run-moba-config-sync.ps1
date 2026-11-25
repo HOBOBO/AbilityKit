@@ -1,4 +1,4 @@
-﻿# Drives the demo.moba config sync chain headlessly (no Unity window interaction).
+﻿# 以无界面方式执行 demo.moba 配置同步链，无需操作 Unity 窗口。
 # 面向 AI/CI：AI 改逐条目 JSON（Resources/moba/{表}/）后 push-json 落盘 Excel 真相源并刷新运行时 JSON。
 # 前置：Unity 工程不能被其它 Unity 实例占用（Temp/UnityLockfile 存在时会直接报错）。
 # 用法：
@@ -24,11 +24,11 @@ $logPath = Join-Path $repoRoot "local\Logs\moba-config-sync.log"
 New-Item -ItemType Directory -Force (Split-Path -Parent $logPath) | Out-Null
 
 if (Test-Path (Join-Path $projectPath "Temp\UnityLockfile")) {
-    Write-Error "Unity project is locked by another editor instance. Close it first: $projectPath"
+    Write-Error "Unity 项目已被其他编辑器实例占用，请先关闭： $projectPath"
 }
 
 if (-not (Test-Path $UnityExe)) {
-    Write-Error "Unity editor not found at '$UnityExe'. Pass -UnityExe with the full path."
+    Write-Error "未找到 Unity 编辑器 '$UnityExe'，请通过 -UnityExe 指定完整路径。"
 }
 
 $unityArgs = @(

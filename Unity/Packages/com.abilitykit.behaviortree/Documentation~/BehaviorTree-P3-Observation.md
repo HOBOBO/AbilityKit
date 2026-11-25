@@ -1,23 +1,23 @@
-# Behavior Tree P3 Observation And Offline Debugging
+# 行为树 P3 观测与离线调试
 
-## Scope
+## 范围
 
-P3 extends the existing V2 observation/controller/timeline/layout work without changing runtime behavior tree semantics. The editor remains a pull-based observer over `IBtTreeDebugView`; runtime trees do not know about windows, recorders, or replay UI.
+P3 扩展既有 V2 观测、控制器、时间轴和布局能力，保持运行时行为树语义。编辑器仍通过 `IBtTreeDebugView` 主动拉取数据；运行时树不感知窗口、记录器或回放界面。
 
-## Sampling Bounds
+## 采样边界
 
-`BtObservationSettings` owns shared defaults and limits:
+`BtObservationSettings` 负责共享默认值和限制：
 
-- Default sample interval: `0.2` seconds.
-- Allowed sample interval: `0.01` to `10` seconds.
-- Default timeline capacity: `200` samples.
-- Allowed timeline capacity: `1` to `10000` samples.
+- 默认采样间隔：`0.2` 秒。
+- 允许采样间隔：`0.01` 至 `10` 秒。
+- 默认时间轴容量：`200` 个采样。
+- 允许时间轴容量：`1` 至 `10000` 个采样。
 
-`BtObservationController.SampleIntervalSeconds` and `TimelineCapacity` can be changed at runtime. Invalid non-positive values throw; over-large values are clamped to keep editor memory growth bounded.
+`BtObservationController.SampleIntervalSeconds` 和 `TimelineCapacity` 可在运行时修改。非正值抛出异常；过大值会被限制，以保持编辑器内存增长有界。
 
-## Recording DTO
+## 记录 DTO
 
-Observation recordings serialize through stable DTO classes rather than runtime/editor object graphs:
+观测记录通过稳定 DTO 类序列化，不保存运行时或编辑器对象图：
 
 - `BtObservationRecordingDto`
 - `BtObservationSnapshotDto`
@@ -25,25 +25,25 @@ Observation recordings serialize through stable DTO classes rather than runtime/
 - `BtObservationBlackboardDto`
 - `BtObservationStringMapEntryDto`
 
-The DTO stores enum values as integers, maps as sorted key/value arrays, and blackboard values as parallel primitive arrays. This keeps the JSON shape deterministic and avoids relying on dictionary serialization.
+DTO 将枚举保存为整数、映射保存为已排序键值数组、黑板值保存为平行的基本类型数组，使 JSON 结构确定，避免依赖字典序列化。
 
-## Core APIs
+## 核心 API
 
-Use `BtObservationRecording.ToJson`, `TimelineFromJson`, `SnapshotToJson`, `SnapshotFromJson`, `ExportToFile`, and `ImportTimelineFromFile` for capture exchange. Use `BtObservationOfflineReplay` for offline navigation over imported sessions via `Seek`, `StepPrevious`, `StepNext`, and `JumpToLatest`.
+通过 `BtObservationRecording.ToJson`、`TimelineFromJson`、`SnapshotToJson`、`SnapshotFromJson`、`ExportToFile` 和 `ImportTimelineFromFile` 交换捕获数据。使用 `BtObservationOfflineReplay` 的 `Seek`、`StepPrevious`、`StepNext` 和 `JumpToLatest` 浏览导入的离线会话。
 
-The observation window exposes this with toolbar entries:
+观测窗口通过工具栏提供入口：
 
-- `Interval` and `Capacity` fields for live sampling settings.
-- `Export Recording` for timeline JSON export.
-- `Import Replay` for offline loading.
-- `Previous`, `Next`, and `Latest` controls while viewing a replay.
+- `Interval` 和 `Capacity`：实时采样设置。
+- `Export Recording`：导出时间轴 JSON。
+- `Import Replay`：加载离线回放。
+- `Previous`、`Next` 和 `Latest`：回放浏览控制。
 
-## Scale Notes
+## 规模说明
 
-The P3 path reduces repeated state projection by reusing GraphView projection sets and overlay buffers, and by reusing controller registry lists during polling. Snapshots remain immutable deep copies by design so exported recordings and frozen/history views cannot be mutated by later runtime frames.
+P3 复用 GraphView 投影集合、覆盖层缓冲及轮询时的控制器注册表列表，减少重复状态投影。快照仍为不可变深拷贝，防止后续运行帧修改已导出记录及冻结或历史视图。
 
-Performance budget tests cover 100, 500, and 1000 node samples with large blackboard key sets. They record timing metrics through `TestContext` and assert only broad ceilings so the tests catch accidental quadratic regressions without binding CI to tight absolute timings.
+性能预算测试覆盖 100、500 和 1000 节点采样及大量黑板键，通过 `TestContext` 记录耗时，仅断言宽松上限，以发现意外的平方级退化，避免 CI 绑定过紧的绝对耗时。
 
-## Diagnostics
+## 诊断
 
-`BtEditorDiagnostics.AnalyzeObservation` reports observation sample count, capacity, sample interval, disconnected retained-history state, and maximum-capacity risk. These diagnostics are intentionally informational/warning-level because observation settings do not affect exported behavior tree runtime semantics.
+`BtEditorDiagnostics.AnalyzeObservation` 报告观测采样数、容量、间隔、断开后保留历史的状态及最大容量风险。诊断保持信息或警告等级，因为观测设置不影响导出的行为树运行时语义。

@@ -48,6 +48,13 @@ public sealed partial class MobaColdReplayFrameZeroTests(ITestOutputHelper outpu
         Assert.Equal(MobaStateSyncCuePayloadCodec.CarrierSchemaVersion, state.SchemaVersion);
         Assert.True(MobaStateSyncCuePayloadCodec.TryDecode(state.Payload!, out var projectionOpCode,
             out var projectionSchema, out var projection, out var activeCueSet));
+        Assert.Equal(MobaStateSyncOverheadPayloadCodec.OpCode, projectionOpCode);
+        var overhead = MobaStateSyncOverheadPayloadCodec.Decode(projection);
+        Assert.NotEmpty(MobaActorIndicatorSnapshotCodec.Deserialize(overhead.Indicators));
+        Assert.NotNull(MobaShieldStateSnapshotCodec.Deserialize(overhead.Shields));
+        projectionOpCode = overhead.ProjectionOpCode;
+        projectionSchema = overhead.ProjectionSchemaVersion;
+        projection = overhead.Projection;
         Assert.Contains(projectionOpCode, new[] { MobaCharacterHfsmRollbackProvider.DefaultKey, MobaCharacterHfsmWireCodec.CompressedOpCode });
         Assert.Equal(projectionOpCode == MobaCharacterHfsmWireCodec.CompressedOpCode
             ? MobaCharacterHfsmWireCodec.CompressedSchemaVersion : 2, projectionSchema);

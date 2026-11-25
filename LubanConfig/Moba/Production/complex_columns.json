@@ -48,5 +48,9 @@
   },
   "ability_nodes": {},
   "hero_level_skill_growth_parameters": {},
-  "model_animations": {}
+  "model_animations": {},
+  "indicator_definitions": {},
+  "overhead_layouts": {},
+  "actor_overhead_bindings": {},
+  "resource_regeneration_rules": {}
 }

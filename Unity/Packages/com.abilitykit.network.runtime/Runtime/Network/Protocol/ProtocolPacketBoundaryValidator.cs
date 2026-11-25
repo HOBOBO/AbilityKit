@@ -20,10 +20,7 @@ namespace AbilityKit.Network.Protocol
     }
 
     /// <summary>
-    /// Applies catalog-owned limits to inbound packets before they reach business handlers. This
-    /// validator intentionally does not decode payloads: decoding remains the responsibility of
-    /// the registered message handler, while size/version checks happen exactly once at the
-    /// transport boundary.
+    /// 入站数据包到达业务处理器前，应用目录定义的限制。载荷解码仍由已注册消息处理器负责，大小及版本检查仅在传输边界执行一次。
     /// </summary>
     public sealed class ProtocolPacketBoundaryValidator
     {

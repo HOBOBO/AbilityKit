@@ -1,7 +1,7 @@
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Damage rules consume authoritative Context facts and remain independent from Trace.
+    /// 伤害规则消费权威 Context 事实，保持与 Trace 独立。
     /// </summary>
     public static class MobaDamageExecutionConditions
     {

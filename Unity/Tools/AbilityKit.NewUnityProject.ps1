@@ -1,4 +1,4 @@
-param(
+﻿param(
   [Parameter(Mandatory=$true)][string]$TargetDirectory,
   [Parameter(Mandatory=$true)][string]$ProjectName,
   [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty()][string]$Profile,
@@ -163,6 +163,6 @@ foreach ($pkg in $profileJson.packages) {
   Ensure-Junction $dst $src
 }
 
-Write-Host "Done. Project: $ProjectPath"
-Write-Host "Profile: $Profile"
-Write-Host "Linked packages: $($profileJson.packages.Count)"
+Write-Host "完成。项目：$ProjectPath"
+Write-Host "配置：$Profile"
+Write-Host "已链接的包： $($profileJson.packages.Count)"

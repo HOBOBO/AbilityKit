@@ -613,6 +613,18 @@
           "project": "src/AbilityKit.Attributes.Tests/AbilityKit.Attributes.Tests.csproj"
         },
         {
+          "name": "Framework runtime and authoring dependency audit",
+          "kind": "powershell-script",
+          "script": "tools/audit_unity_package_dependencies.ps1",
+          "arguments": [
+            "-PackageNames",
+            "com.abilitykit.world.di,com.abilitykit.ability,com.abilitykit.combat.projectile,com.abilitykit.world.snapshot,com.abilitykit.game.battle.runtime",
+            "-IncludeEditor",
+            "-StrictInternalReferences"
+          ],
+          "timeoutSeconds": 120
+        },
+        {
           "name": "Core UPM direct dependency audit",
           "kind": "powershell-script",
           "script": "tools/audit_unity_package_dependencies.ps1",

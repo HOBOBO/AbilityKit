@@ -2,6 +2,11 @@ using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Share.Config;
 
+[assembly: MobaConfigTable("indicator_definitions", typeof(IndicatorDefinitionDTO), typeof(IndicatorDefinitionMO), ConfigGroupNames.LegacyJson, 310)]
+[assembly: MobaConfigTable("overhead_layouts", typeof(OverheadLayoutDTO), typeof(OverheadLayoutMO), ConfigGroupNames.LegacyJson, 320)]
+[assembly: MobaConfigTable("actor_overhead_bindings", typeof(ActorOverheadBindingDTO), typeof(ActorOverheadBindingMO), ConfigGroupNames.LegacyJson, 330)]
+[assembly: MobaConfigTable("resource_regeneration_rules", typeof(ResourceRegenerationRuleDTO), typeof(ResourceRegenerationRuleMO), ConfigGroupNames.LegacyJson, 340)]
+
 [assembly: MobaConfigTable(MobaConfigPaths.CharactersFile, typeof(CharacterDTO), typeof(CharacterMO), ConfigGroupNames.LegacyJson, 0)]
 [assembly: MobaConfigTable(MobaConfigPaths.AttributeTemplatesFile, typeof(BattleAttributeTemplateDTO), typeof(BattleAttributeTemplateMO), ConfigGroupNames.LegacyJson, 10)]
 [assembly: MobaConfigTable(MobaConfigPaths.AttributeTypesFile, typeof(AttrTypeDTO), typeof(AttrTypeMO), ConfigGroupNames.LegacyJson, 20)]

@@ -5,6 +5,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Network.Battle.Projection;
@@ -12,6 +13,7 @@ using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Battle;
 using AbilityKit.Orleans.Grains.Battle.Gameplay;
+using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplays.Moba.Protocol;
 using IWorld = AbilityKit.Ability.World.Abstractions.IWorld;
 
@@ -22,6 +24,15 @@ internal interface IMobaSettledFrameRuntime
 {
     bool TryTickSettledFrame(int frame, int tickRate, IReadOnlyList<BattleInputItem> inputs,
         out IReadOnlyList<MobaFrameInputOutcome> outcomes, out IReadOnlyList<MobaFrameAuthorityEntry> entries);
+}
+
+/// <summary>
+/// 仅状态同步宿主在同一已完成 Tick 内读取的类型化截面。
+/// </summary>
+internal interface IMobaStateSyncMovementSource
+{
+    bool TryCaptureCommittedMovement(int tick, uint playerId, Guid expectedSourceConnectionGeneration,
+        out MobaCommittedMovementSample sample, Guid expectedInputGeneration = default);
 }
 
 internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
@@ -44,7 +55,7 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
 
     private sealed class MobaBattleRuntimeSession : IBattleRuntimeSession, IBattleRuntimeInputDiagnostics,
         IBattleRuntimeFrameCompletion, IBattleRuntimeExternalFrameClock, IMobaSettledFrameRuntime,
-        IFixedBaselineBattleSnapshotSource
+        IFixedBaselineBattleSnapshotSource, IMobaStateSyncMovementSource, IBattleRuntimeStateSyncClock
     {
         private bool _settledFrameFaulted;
         private readonly string _battleId;
@@ -64,6 +75,15 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         private Dictionary<int, ActorProjectionData>? _lastProjectionData;
         private readonly Dictionary<uint, MobaBotState> _bots = new();
         private readonly Random _botRandom = new();
+        private MobaStateSyncInputTerminalLedger? _stateSyncTerminals;
+        private readonly List<StateSyncDispatch> _stateSyncDispatches = new();
+        private int? _stateSyncDispatchTick;
+        private int? _preparedStateSyncTick;
+        private int? _completedStateSyncTick;
+        private int _nextStateSyncTick;
+
+        private readonly record struct StateSyncDispatch(uint PlayerId, ulong Sequence, Guid SourceConnectionGeneration, Guid InputGeneration, PlayerId Controller,
+            int ActorId, int Lifetime, MobaFrameInputDisposition Disposition);
 
         public string LastInputSubmitDiagnostic { get; private set; } = string.Empty;
 
@@ -82,6 +102,9 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             _worldId = initParams.WorldId;
+            _stateSyncTerminals = string.Equals(initParams.SyncOptions?.SyncTemplateId,
+                ServerGameplayDescriptors.MobaStateSyncTemplate, StringComparison.Ordinal)
+                ? new MobaStateSyncInputTerminalLedger() : null;
             var launchSpec = _protocolMapper.CreateLaunchSpec(_battleId, initParams.TickRate, initParams);
             var initData = launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode);
             _battleWorld = _worldManager.CreateBattleWorld(
@@ -200,6 +223,18 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             return true;
         }
 
+        public bool TryBeginStateSyncTick(int tick, int tickRate)
+        {
+            if (_stateSyncTerminals == null || tick != _nextStateSyncTick || tickRate <= 0 ||
+                _frameGuard?.CanAdvance != true || _frameTime is not FrameTime time ||
+                !time.AlignTo(new FrameIndex(tick), 1f / tickRate)) return false;
+
+            _completedStateSyncTick = null;
+            _preparedStateSyncTick = tick;
+            _nextStateSyncTick++;
+            return true;
+        }
+
         public int SubmitInputs(int frame, IReadOnlyList<BattleInputItem> inputs)
         {
             if (inputs.Count == 0 || _runtimePort == null)
@@ -213,13 +248,98 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             var commands = _protocolMapper.CreatePlayerInputCommands(frame, inputs);
             if (commands.Count == 0)
             {
+                if (_stateSyncTerminals is { } ledger)
+                    foreach (var input in inputs) ledger.Invalidate(input.PlayerId);
                 LastInputSubmitDiagnostic = $"Protocol mapper produced no commands. frame={frame}, inputs={inputs.Count}.";
                 return 0;
             }
 
-            var result = _runtimePort.Submit(new FrameIndex(frame), commands);
+            var result = SubmitObservedStateSyncInputs(frame, inputs, commands);
             LastInputSubmitDiagnostic = result.Succeeded ? string.Empty : result.ToString();
             return result.Succeeded ? result.CommandCount : 0;
+        }
+
+        private MobaInputSubmitResult SubmitObservedStateSyncInputs(int tick, IReadOnlyList<BattleInputItem> inputs,
+            IReadOnlyList<PlayerInputCommand> commands)
+        {
+            var ledger = _stateSyncTerminals;
+            if (ledger == null) return _runtimePort!.Submit(new FrameIndex(tick), commands);
+
+            _completedStateSyncTick = null;
+            var services = _battleWorld?.Services;
+            if (_preparedStateSyncTick != tick || commands.Count != inputs.Count || services == null ||
+                !services.TryResolve<MobaBattleIOPort>(out var port) || port == null)
+            {
+                foreach (var input in inputs) ledger.Invalidate(input.PlayerId);
+                return _runtimePort!.Submit(new FrameIndex(tick), commands);
+            }
+
+            if (_stateSyncDispatchTick != tick)
+            {
+                FinishStateSyncInputs(_stateSyncDispatchTick, committed: false);
+                _stateSyncDispatchTick = tick;
+            }
+
+            var start = _stateSyncDispatches.Count;
+            for (var index = 0; index < inputs.Count; index++)
+            {
+                var input = inputs[index];
+                var controller = commands[index].Player;
+                TryResolveStateSyncActor(controller, out var actorId, out var version);
+                _stateSyncDispatches.Add(new StateSyncDispatch(input.PlayerId, input.CommandSequence,
+                    input.SourceConnectionGeneration, input.InputGeneration, controller, actorId, version, MobaFrameInputDisposition.Unknown));
+            }
+
+            return port.SubmitObserved(new FrameIndex(tick), commands, (ordinal, disposition) =>
+            {
+                var index = start + ordinal;
+                _stateSyncDispatches[index] = _stateSyncDispatches[index] with { Disposition = disposition };
+            });
+        }
+
+        private bool TryResolveStateSyncActor(PlayerId controller, out int actorId, out int version)
+        {
+            actorId = version = 0;
+            var services = _battleWorld?.Services;
+            if (services == null || !services.TryResolve<MobaPlayerActorMapService>(out var map) ||
+                !map.TryGetActorId(controller, out actorId) || !services.TryResolve<MobaActorRegistry>(out var actors) ||
+                !actors.TryGet(actorId, out _)) return false;
+            version = actors.GetEntityVersion(actorId);
+            return version > 0;
+        }
+
+        private void FinishStateSyncInputs(int? tick, bool committed)
+        {
+            var ledger = _stateSyncTerminals;
+            if (ledger == null) return;
+            foreach (var dispatch in _stateSyncDispatches)
+            {
+                if (committed && _stateSyncDispatchTick == tick &&
+                    TryResolveStateSyncActor(dispatch.Controller, out var actorId, out var version) &&
+                    dispatch.ActorId == actorId && dispatch.Lifetime == version)
+                    ledger.ObserveCommitted(dispatch.PlayerId, actorId, version, dispatch.SourceConnectionGeneration,
+                        dispatch.Sequence, dispatch.Disposition, dispatch.InputGeneration);
+                else
+                    ledger.Invalidate(dispatch.PlayerId);
+            }
+            _stateSyncDispatches.Clear();
+            _stateSyncDispatchTick = null;
+        }
+
+        public bool TryCaptureCommittedMovement(int tick, uint playerId, Guid expectedSourceConnectionGeneration,
+            out MobaCommittedMovementSample sample, Guid expectedInputGeneration = default)
+        {
+            sample = default;
+            if (_stateSyncTerminals == null || playerId == 0 || _completedStateSyncTick != tick ||
+                !MobaAuthoritativeMovementAnchor.TryCapture(_battleWorld?.Services,
+                    new PlayerId(playerId.ToString(System.Globalization.CultureInfo.InvariantCulture)), out var anchor)) return false;
+
+            var hasPrefix = _stateSyncTerminals.TryRead(playerId, anchor.ActorId, anchor.EntityVersion,
+                expectedSourceConnectionGeneration, out var terminalThrough, expectedInputGeneration);
+            sample = new MobaCommittedMovementSample(_battleId, _worldId, tick, playerId, anchor,
+                hasPrefix ? expectedSourceConnectionGeneration : Guid.Empty, hasPrefix ? terminalThrough : null,
+                hasPrefix ? expectedInputGeneration : Guid.Empty);
+            return true;
         }
 
         public bool TryTickSettledFrame(int frame, int tickRate, IReadOnlyList<BattleInputItem> inputs,
@@ -253,6 +373,9 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         public bool Tick(int frame, int tickRate, float deltaTime)
         {
             _completedSettlementFrame = null;
+            _completedStateSyncTick = null;
+            var isPreparedStateSyncTick = _preparedStateSyncTick == frame;
+            _preparedStateSyncTick = null;
             if (_battleWorld == null)
             {
                 return false;
@@ -278,14 +401,26 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             var completedTicks = _frameGuard?.CompletedTickCount;
-            _battleWorld.Tick(deltaTime);
+            try
+            {
+                _battleWorld.Tick(deltaTime);
+            }
+            catch
+            {
+                FinishStateSyncInputs(frame, committed: false);
+                throw;
+            }
             if (_bots.Count == 0 && !_hasUnrecordedPlayerJoin && completedTicks.HasValue &&
                 _frameGuard!.CompletedTickCount == completedTicks.Value + 1 && _frameGuard.CanCommit &&
                 _frameTime is { DeltaTime: > 0f } && _frameTime.Frame.Value == frame)
             {
-                _completedSettlementFrame = frame;
+                if (_stateSyncTerminals == null)
+                    _completedSettlementFrame = frame;
+                else if (isPreparedStateSyncTick)
+                    _completedStateSyncTick = frame;
             }
 
+            FinishStateSyncInputs(frame, _completedStateSyncTick == frame);
             return true;
         }
 
@@ -475,6 +610,16 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
                 MobaCharacterHfsmPushPayload.Attach(push, registry, definition, frame);
             }
 
+            if (_battleWorld.Services.TryResolve<MobaActorIndicatorSnapshotService>(out var indicators) &&
+                _battleWorld.Services.TryResolve<MobaShieldStateSnapshotService>(out var shields) &&
+                indicators.TryGetActiveBaseline(out var indicatorSnapshot) && shields.TryGetActiveBaseline(out var shieldSnapshot))
+            {
+                push.Payload = AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayloadCodec.Encode(
+                    push.PayloadOpCode, push.SchemaVersion, push.Payload, indicatorSnapshot.Payload, shieldSnapshot.Payload);
+                push.PayloadOpCode = AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayloadCodec.OpCode;
+                push.SchemaVersion = AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayloadCodec.SchemaVersion;
+            }
+
             if (_battleWorld.Services.TryResolve<MobaPresentationCueSnapshotService>(out var cueService) &&
                 cueService != null && cueService.TryCaptureStateSyncBaseline(new FrameIndex(frame), out var cues))
             {
@@ -500,13 +645,9 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         {
             try
             {
-                // TODO(v0.2.0): Actually spawn the bot player entity via the MOBA world's
-                // entity factory. Currently this method only checks whether gameplay is running
-                // without creating any entity, so Bot AI input generation (GenerateBotCommand)
-                // delivers commands into a void. The spawn should mirror what
-                // IMobaBattleRuntimePort does for human players: create an actor entity with
-                // the correct HeroId, TeamId, SpawnPointId, and AttributeTemplateId from
-                // the PlayerInitInfo, then register it with MobaActorRegistry.
+                /*
+                 * TODO(v0.2.0)：通过 MOBA 世界实体工厂实际生成机器人玩家实体。当前方法仅检查玩法是否运行，没有创建实体，因此机器人 AI 输入生成（GenerateBotCommand）的命令没有接收对象。生成应参照 IMobaBattleRuntimePort 对人类玩家的处理：用 PlayerInitInfo 中正确的 HeroId、TeamId、SpawnPointId 及 AttributeTemplateId 创建角色实体，再向 MobaActorRegistry 注册。
+                 */
                 return gameplay.IsRunning;
             }
             catch

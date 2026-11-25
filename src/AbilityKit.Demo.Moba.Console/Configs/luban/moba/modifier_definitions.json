@@ -1797,9 +1797,9 @@
     "Candidate": {
       "SkillId": 30010602,
       "ReferenceId": 0,
-      "HfsmParameterId": 0,
-      "HfsmParameterComparison": 0,
-      "HfsmParameterExpectedValue": 0
+      "HfsmParameterId": 10,
+      "HfsmParameterComparison": 1,
+      "HfsmParameterExpectedValue": 2
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1839,9 +1839,9 @@
     "Candidate": {
       "SkillId": 30010603,
       "ReferenceId": 0,
-      "HfsmParameterId": 0,
-      "HfsmParameterComparison": 0,
-      "HfsmParameterExpectedValue": 0
+      "HfsmParameterId": 10,
+      "HfsmParameterComparison": 1,
+      "HfsmParameterExpectedValue": 3
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,
@@ -1881,9 +1881,9 @@
     "Candidate": {
       "SkillId": 30010604,
       "ReferenceId": 0,
-      "HfsmParameterId": 0,
-      "HfsmParameterComparison": 0,
-      "HfsmParameterExpectedValue": 0
+      "HfsmParameterId": 10,
+      "HfsmParameterComparison": 1,
+      "HfsmParameterExpectedValue": 4
     },
     "FormulaConstant": 0,
     "FormulaLevelCoefficient": 0,

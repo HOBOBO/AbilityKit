@@ -1,5 +1,7 @@
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
@@ -15,6 +17,7 @@ using AbilityKit.Game.Test.UnitTest;
 using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Share.Config;
 using Xunit;
+using ActorDespawnReason = AbilityKit.Demo.Moba.Components.ActorDespawnReason;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
@@ -317,9 +320,16 @@ public sealed class VeigarQerRuntimeTests
         var other = battle.Spawn("other", 1001, 2, 102, 105);
         battle.Setup.Tick(2);
         battle.Cast(4, new Vec3(100, 0, 106), Vec3.Forward, target);
-        battle.Until(() => battle.Count(MobaExecutionKind.ProjectileLaunch, 32040501) == 1);
-        battle.Setup.SetScenarioActorAttribute(target, "hp", 0);
+        var projectiles = battle.Services.Resolve<AbilityKit.Combat.Projectile.IProjectileService>();
+        battle.Until(() => projectiles.ActiveCount == 1);
+        var registry = battle.Services.Resolve<MobaActorRegistry>();
+        Assert.True(registry.TryGet(target, out var actor));
+        var frame = battle.Services.Resolve<IFrameTime>().Frame.Value;
+        Assert.True(ActorLifecycleRequests.RequestDespawn(actor, frame, ActorDespawnReason.SceneCleanup));
         battle.Setup.TickMilliseconds(1800);
+        Assert.False(registry.TryGet(target, out _));
+        Assert.Equal(0, projectiles.ActiveCount);
+        Assert.Equal(0, battle.Count(MobaExecutionKind.ProjectileHit, 32040501));
         Assert.Equal(0, battle.Count(MobaExecutionKind.DamageApply, 30040501));
         Assert.Equal(battle.Setup.GetActorMaxHp(other), battle.Setup.GetActorHp(other));
     }

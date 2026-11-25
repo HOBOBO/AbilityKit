@@ -2,6 +2,7 @@
 #nullable enable annotations
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace AbilityKit.BattleScenario.Editor
 {
@@ -24,6 +25,24 @@ namespace AbilityKit.BattleScenario.Editor
         /// 播放已保存用例；第二个参数为 true 表示无交互预览。返回 false 表示未启动。
         /// </summary>
         public static Func<string, bool, bool>? PlaySavedCase { get; set; }
+
+        /// <summary>
+        /// 以项目内模型标识创建只读演员投影视图；缺少资源时返回空。
+        /// </summary>
+        public static Func<int, IActorReplayPreview?>? CreateActorReplayPreview { get; set; }
+
+        internal static Func<LocalStateSyncReplay>? CaptureStateSyncClientReplay { get; set; }
+    }
+
+    /// <summary>
+    /// 只消费已录制姿态的项目预览。视图不执行世界、输入或玩法事件。
+    /// </summary>
+    public interface IActorReplayPreview : IDisposable
+    {
+        /// <summary>
+        /// 同镜头绘制权威与预测模型。空姿态隐藏对应模型，镜头范围在整份录制内固定。
+        /// </summary>
+        void Draw(Rect rect, Bounds recordedBounds, Pose? authority, Pose? prediction);
     }
 }
 #endif

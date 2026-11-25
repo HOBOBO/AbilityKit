@@ -32,7 +32,9 @@ namespace AbilityKit.Demo.Moba
         public string FormulaId;
         public Services.MobaCombatExecutionFlags CombatFlags;
 
-        /// <summary>Target health sampled immediately before AttackCreated/BeforeCalc trigger dispatch.</summary>
+        /// <summary>
+        /// 紧接 AttackCreated/BeforeCalc 触发分发前采样的目标生命值。
+        /// </summary>
         public float TargetHp;
         public float TargetMaxHp;
 
@@ -322,9 +324,7 @@ namespace AbilityKit.Demo.Moba
 
         public float Value;
         /// <summary>
-        /// Amount consumed from the target's shield during this committed damage
-        /// operation. This is kept on the final event so AfterApply consumers do not
-        /// need to retain the earlier AttackCalcInfo instance.
+        /// 本次已提交伤害操作消耗的目标护盾量。保留在最终事件上，使 AfterApply 消费方无需持有此前的 AttackCalcInfo 实例。
         /// </summary>
         public float ShieldAbsorb;
         public float TargetHp;

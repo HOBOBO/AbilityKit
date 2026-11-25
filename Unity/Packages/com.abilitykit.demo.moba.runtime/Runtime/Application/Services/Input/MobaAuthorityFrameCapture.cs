@@ -8,17 +8,6 @@ using AbilityKit.Protocol.Moba.StateSync;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// 命令在派发点的执行类别；未知结果不能用于结算权威帧。
-    /// </summary>
-    public enum MobaFrameInputDisposition : byte
-    {
-        Unknown,
-        Executed,
-        Rejected,
-        Duplicate
-    }
-
-    /// <summary>
     /// 帧内命令结果。仅实际执行项保留可重演的输入。
     /// </summary>
     public readonly struct MobaFrameInputOutcome
@@ -152,7 +141,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             var result = _submit(inputs, ordinal => _ordinal = ordinal, (ordinal, command) =>
             {
-                var disposition = Classify(command);
+                var disposition = command.ClassifyAuthorityDisposition();
                 if (disposition == MobaFrameInputDisposition.Unknown)
                     throw new InvalidOperationException($"Unproven input outcome at frame {Frame.Value}, ordinal {ordinal}: {command}.");
                 var executed = disposition == MobaFrameInputDisposition.Executed ? inputs[ordinal] : default;
@@ -191,23 +180,5 @@ namespace AbilityKit.Demo.Moba.Services
         private void OnAuthorityEntry(MobaActionAckEntry entry) =>
             _entries.Add(new MobaFrameAuthorityEntry(_ordinal, entry));
 
-        private static MobaFrameInputDisposition Classify(in MobaInputCommandResult result)
-        {
-            if (result.IsDuplicate) return MobaFrameInputDisposition.Duplicate;
-            if (result.Succeeded) return MobaFrameInputDisposition.Executed;
-            switch (result.FailureCode)
-            {
-                case MobaInputCommandFailureCode.AuthorityRejected:
-                case MobaInputCommandFailureCode.FramePolicyRejected:
-                case MobaInputCommandFailureCode.PredictionIdentityRejected:
-                case MobaInputCommandFailureCode.InputSequenceRejected:
-                case MobaInputCommandFailureCode.InterruptEpochRejected:
-                case MobaInputCommandFailureCode.PayloadInvalid:
-                case MobaInputCommandFailureCode.PayloadMissing:
-                    return MobaFrameInputDisposition.Rejected;
-                default:
-                    return MobaFrameInputDisposition.Unknown;
-            }
-        }
     }
 }

@@ -55,7 +55,7 @@ public interface IRoomGrain : IGrainWithStringKey
 }
 
 /// <summary>
-/// Gateway-local room state observer exposed to the Silo through an Orleans object reference.
+/// 网关本地房间状态观察者，通过 Orleans 对象引用公开给 Silo。
 /// </summary>
 public interface IRoomStateGatewayPushObserver : IGrainObserver
 {

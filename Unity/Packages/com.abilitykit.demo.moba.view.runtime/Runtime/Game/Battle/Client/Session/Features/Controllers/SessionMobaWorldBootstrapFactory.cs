@@ -74,7 +74,7 @@ namespace AbilityKit.Game.Flow
             builder.RegisterInstance<ITextAssetLoader>(textAssetLoader);
             builder.RegisterInstance<ITextAssetDirectoryLoader>(textAssetLoader);
             builder.AddModule(new MobaConfigWorldModule());
-            builder.AddModule(new MobaTraceAdapterModule());
+            if (plan.World.EnableTraceDiagnostics) builder.AddModule(new MobaTraceAdapterModule());
             RegisterLogicWorldDriveProfile(plan, builder, replayInputValidated);
             if (registerWorldInitData)
             {

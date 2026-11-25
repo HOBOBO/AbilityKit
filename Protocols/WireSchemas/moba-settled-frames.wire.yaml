@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=../wire-schema.schema.json
+schemaVersion: 2
+projectId: abilitykit.moba
+groupId: settled-frames
+namespace: AbilityKit.Protocol.Moba.SettledFrames
+defaults:
+  memoryPackMode: sequential
+  declaration: struct
+  memberStyle: property
+types:
+  - name: WireSettledSubscribeRequest
+    fields:
+      - { id: 0, name: version, scalarType: int32, required: true }
+      - { id: 1, name: roomId, scalarType: uint64, required: true }
+      - { id: 2, name: worldId, scalarType: uint64, required: true }
+      - { id: 3, name: battleId, scalarType: string, required: true }
+      - { id: 4, name: spectator, scalarType: bool, required: true }
+  - name: WireSettledIdentity
+    fields:
+      - { id: 0, name: version, scalarType: int32, required: true }
+      - { id: 1, name: roomId, scalarType: uint64, required: true }
+      - { id: 2, name: worldId, scalarType: uint64, required: true }
+      - { id: 3, name: battleId, scalarType: string, required: true }
+      - { id: 4, name: runtimeGeneration, scalarType: string, required: true }
+  - name: WireSettledSubscribeResponse
+    fields:
+      - { id: 0, name: identity, type: AbilityKit.Protocol.Moba.SettledFrames.WireSettledIdentity, required: true }
+      - { id: 1, name: tickRate, scalarType: int32, required: true }
+      - { id: 2, name: lastSettledFrame, scalarType: int32, required: true }
+  - name: WireSettledCommand
+    fields:
+      - { id: 0, name: ordinal, scalarType: int32, required: true }
+      - { id: 1, name: disposition, scalarType: uint8, required: true }
+      - { id: 2, name: playerId, scalarType: uint32, required: true }
+      - { id: 3, name: opCode, scalarType: int32, required: true }
+      - { id: 4, name: executedPayload, scalarType: uint8, array: true, required: true }
+  - name: WireSettledDecision
+    fields:
+      - { id: 0, name: ordinal, scalarType: int32, required: true }
+      - { id: 1, name: actorId, scalarType: int32, required: true }
+      - { id: 2, name: entityVersion, scalarType: int32, required: true }
+      - { id: 3, name: predictionKey, scalarType: int32, required: true }
+      - { id: 4, name: skillId, scalarType: int32, required: true }
+      - { id: 5, name: accepted, scalarType: bool, required: true }
+      - { id: 6, name: authoritativeFrame, scalarType: int32, required: true }
+      - { id: 7, name: reason, scalarType: int32, required: true }
+      - { id: 8, name: interruptEpoch, scalarType: int32, required: true }
+      - { id: 9, name: authoritySequence, scalarType: int64, required: true }
+  - name: WireSettledFrame
+    fields:
+      - { id: 0, name: identity, type: AbilityKit.Protocol.Moba.SettledFrames.WireSettledIdentity, required: true }
+      - { id: 1, name: frame, scalarType: int32, required: true }
+      - { id: 2, name: initialCheckpoint, scalarType: bool, required: true }
+      - { id: 3, name: commands, type: AbilityKit.Protocol.Moba.SettledFrames.WireSettledCommand, array: true, required: true }
+      - { id: 4, name: decisions, type: AbilityKit.Protocol.Moba.SettledFrames.WireSettledDecision, array: true, required: true }
+  - name: WireSettledCatchUpRequest
+    fields:
+      - { id: 0, name: identity, type: AbilityKit.Protocol.Moba.SettledFrames.WireSettledIdentity, required: true }
+      - { id: 1, name: fromFrameExclusive, scalarType: int32, required: true }
+      - { id: 2, name: toFrameInclusive, scalarType: int32, required: true }
+  - name: WireSettledCatchUpResponse
+    fields:
+      - { id: 0, name: frames, type: AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame, array: true, required: true }

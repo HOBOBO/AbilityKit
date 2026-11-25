@@ -7,7 +7,9 @@ using UnityEngine;
 
 namespace AbilityKit.HFSM.Editor
 {
-    /// <summary>Editor-owned pull catalog. Runtime simulation never depends on this scan.</summary>
+    /// <summary>
+    /// 由编辑器维护的按需查询目录；运行时模拟不依赖此扫描。
+    /// </summary>
     public static class EditorBindingCatalog
     {
         private const string LegacyCatalogAssetGuidPreference = "AbilityKit.HFSM.BindingCatalogGuid";
@@ -104,7 +106,9 @@ namespace AbilityKit.HFSM.Editor
                 }
                 catch (ReflectionTypeLoadException)
                 {
-                    // Optional editor assemblies with unavailable types do not invalidate other catalogs.
+                    /*
+                     * 可选编辑器程序集中的类型不可用时，不影响其他目录的有效性。
+                     */
                 }
             }
 

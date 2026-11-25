@@ -10,6 +10,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
         public RectTransform Root;
         public Image Fill;
         public Vector3 WorldOffset;
+        public bool IsCharging;
 
         public void SetVisible(bool visible)
         {

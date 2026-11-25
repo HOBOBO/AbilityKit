@@ -19,7 +19,6 @@ public sealed class MobaRuntimeContextIdentityTests
         runtime.StackCount = 0;
         var result = Read<int>(reference, contexts, MobaRuntimeContextKeys.StackCount);
         Assert.True(result.Found);
-        Assert.True(result.IsIdentityChecked);
         Assert.True(result.IsVersionChecked);
         Assert.Equal(ContextValueSource.Realtime, result.Source);
         Assert.Equal(0, result.Value);
@@ -41,12 +40,8 @@ public sealed class MobaRuntimeContextIdentityTests
         Assert.Equal(MobaRuntimeContextValueFailure.IdentityMismatch, Read<int>(reference, second, MobaRuntimeContextKeys.StackCount).Failure);
     }
 
-    [Theory]
-    [InlineData(ContextValueReadMode.RealtimeOnly)]
-    [InlineData(ContextValueReadMode.RealtimeThenSnapshot)]
-    [InlineData(ContextValueReadMode.SnapshotOnly)]
-    [InlineData(ContextValueReadMode.SnapshotThenRealtime)]
-    public void Restored_same_id_and_version_rejects_old_reference(ContextValueReadMode mode)
+    [Fact]
+    public void Restored_same_id_and_version_rejects_old_reference()
     {
         using var contexts = new MobaRuntimeContextService();
         var runtime = Bind(contexts);
@@ -59,7 +54,8 @@ public sealed class MobaRuntimeContextIdentityTests
         contexts.TryGetBuffReference(runtime, out var restored);
         Assert.True(restored.Identity.Generation > old.Identity.Generation);
         Assert.Equal(old.Version, restored.Version);
-        Assert.Equal(MobaRuntimeContextValueFailure.IdentityMismatch, Read<int>(old, contexts, MobaRuntimeContextKeys.StackCount, mode).Failure);
+        Assert.Equal(MobaRuntimeContextValueFailure.IdentityMismatch, Read<int>(old, contexts, MobaRuntimeContextKeys.StackCount).Failure);
+        Assert.Equal(MobaRuntimeContextValueFailure.IdentityMismatch, ReadFinal<int>(old, contexts, MobaRuntimeContextKeys.StackCount).Failure);
         Assert.True(Read<int>(restored, contexts, MobaRuntimeContextKeys.StackCount).Found);
         Assert.Equal(payload, MemoryPackSerializer.Serialize(new MobaBuffStateRecoveryPayload(
             MobaBuffStateRecoveryProvider.CurrentPayloadVersion, new[] { MobaBuffStateRecoveryEntry.FromRuntime(1, runtime) })));
@@ -73,18 +69,41 @@ public sealed class MobaRuntimeContextIdentityTests
         contexts.TryGetBuffReference(runtime, out var reference);
         contexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Ended, 20, true);
         runtime.StackCount = 99;
-        var result = Read<int>(reference, contexts, MobaRuntimeContextKeys.StackCount);
+        var result = ReadFinal<int>(reference, contexts, MobaRuntimeContextKeys.StackCount);
         Assert.True(result.Found);
-        Assert.True(result.IsIdentityChecked);
         Assert.Equal(ContextValueSource.Snapshot, result.Source);
         Assert.Equal(2, result.Value);
         Assert.Equal(reference.Identity.Generation, result.ResolvedSnapshot.Generation);
         Assert.True(contexts.SnapshotReader.ReadSnapshot<MobaBuffContextSnapshot, int>(result.ResolvedSnapshot, MobaRuntimeContextKeys.StackCount).Found);
         Assert.Equal(MobaRuntimeContextValueFailure.ContextUnavailable,
-            Read<int>(reference, contexts, MobaRuntimeContextKeys.StackCount, ContextValueReadMode.RealtimeOnly).Failure);
+            Read<int>(reference, contexts, MobaRuntimeContextKeys.StackCount).Failure);
         contexts.Snapshots.Remove(reference.ContextId);
-        Assert.Equal(MobaRuntimeContextValueFailure.SnapshotUnavailable, Read<int>(reference, contexts, MobaRuntimeContextKeys.StackCount).Failure);
+        Assert.Equal(MobaRuntimeContextValueFailure.SnapshotUnavailable, ReadFinal<int>(reference, contexts, MobaRuntimeContextKeys.StackCount).Failure);
         Assert.Equal(ContextSnapshotQueryStatus.Unavailable, contexts.SnapshotReader.Query(result.ResolvedSnapshot, out _));
+    }
+
+    [Fact]
+    public void Final_snapshot_distinguishes_a_zero_value_missing_field_and_eviction()
+    {
+        using var contexts = new MobaRuntimeContextService();
+        var runtime = Bind(contexts);
+        Assert.True(contexts.TryGetBuffReference(runtime, out var reference));
+        runtime.StackCount = 0;
+        contexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Ended, 20, true);
+
+        var zero = ReadFinal<int>(reference, contexts, MobaRuntimeContextKeys.StackCount);
+        Assert.True(zero.Found);
+        Assert.Equal(ContextValueSource.Snapshot, zero.Source);
+        Assert.Equal(0, zero.Value);
+        var missing = ReadFinal<int>(reference, contexts, "unknown-field");
+        Assert.False(missing.Found);
+        Assert.Equal(MobaRuntimeContextValueFailure.ValueMissing, missing.Failure);
+
+        Assert.Equal(1, contexts.Snapshots.PruneBeforeFrame(21));
+        Assert.Equal(ContextSnapshotQueryStatus.Unavailable, contexts.SnapshotReader.Query(zero.ResolvedSnapshot, out _));
+        var evicted = ReadFinal<int>(reference, contexts, MobaRuntimeContextKeys.StackCount);
+        Assert.False(evicted.Found);
+        Assert.Equal(MobaRuntimeContextValueFailure.SnapshotUnavailable, evicted.Failure);
     }
 
     [Fact]
@@ -137,29 +156,43 @@ public sealed class MobaRuntimeContextIdentityTests
     }
 
     [Fact]
-    public void Legacy_reference_is_marked_unchecked_and_uses_one_property_for_version_and_value()
+    public void Buff_payloads_without_frozen_identity_cannot_read_from_a_live_runtime()
     {
         using var contexts = new MobaRuntimeContextService();
         var runtime = Bind(contexts);
-        var legacy = new MobaRuntimeContextReference(runtime.RuntimeContextId, runtime.RuntimeContextVersion);
-        var result = Read<int>(legacy, contexts, MobaRuntimeContextKeys.StackCount);
-        Assert.True(result.Found);
-        Assert.False(result.IsIdentityChecked);
-        Assert.True(result.IsVersionChecked);
+        var stage = new BuffTriggerContext
+        {
+            Runtime = runtime, RuntimeContextId = runtime.RuntimeContextId, RuntimeContextVersion = runtime.RuntimeContextVersion
+        };
+        var evt = new BuffEventArgs
+        {
+            Runtime = runtime, RuntimeContextId = runtime.RuntimeContextId, RuntimeContextVersion = runtime.RuntimeContextVersion
+        };
+        Assert.False(stage.TryGetRuntimeContext(out _));
+        Assert.False(evt.TryGetRuntimeContext(out _));
+        Assert.Equal(MobaRuntimeContextValueFailure.MissingRuntimeContext,
+            ((object)stage).ReadRealtimeContextValue<int, MobaBuffContextProperty>(contexts, MobaRuntimeContextKeys.StackCount).Failure);
+        Assert.Equal(MobaRuntimeContextValueFailure.MissingRuntimeContext,
+            ((object)evt).ReadRealtimeContextValue<int, MobaBuffContextProperty>(contexts, MobaRuntimeContextKeys.StackCount).Failure);
     }
 
-    [Theory]
-    [InlineData(ContextValueReadMode.RealtimeThenSnapshot, false)]
-    [InlineData(ContextValueReadMode.SnapshotThenRealtime, true)]
-    public void Version_and_value_cannot_be_borrowed_from_different_sources(ContextValueReadMode mode, bool snapshotFirst)
+    [Fact]
+    public void Realtime_and_final_reads_do_not_substitute_for_each_other()
     {
         using var contexts = new MobaRuntimeContextService();
-        var id = contexts.Registry.Create().With(new TestProperty(snapshotFirst)).Build();
-        contexts.Snapshots.Save(new TestSnapshot(id, !snapshotFirst));
-        object legacy = new MobaRuntimeContextReference(id, 1);
-        var result = legacy.GetRuntimeContextValue<int, TestProperty>(contexts, "value", mode);
-        Assert.False(result.Found);
-        Assert.Equal(MobaRuntimeContextValueFailure.ValueMissing, result.Failure);
+        var runtime = Bind(contexts);
+        Assert.True(contexts.TryGetBuffReference(runtime, out var older));
+        Assert.Equal(MobaRuntimeContextValueFailure.SnapshotUnavailable, ReadFinal<int>(older, contexts, MobaRuntimeContextKeys.StackCount).Failure);
+        runtime.RuntimeContextVersion++;
+        Assert.True(contexts.TryGetBuffReference(runtime, out var newer));
+
+        Assert.Equal(MobaRuntimeContextValueFailure.VersionMismatch, Read<int>(older, contexts, MobaRuntimeContextKeys.StackCount).Failure);
+        runtime.StackCount = 3;
+        Assert.Equal(3, Read<int>(newer, contexts, MobaRuntimeContextKeys.StackCount).Value);
+        contexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Ended, 20, true);
+        Assert.Equal(MobaRuntimeContextValueFailure.ContextUnavailable, Read<int>(newer, contexts, MobaRuntimeContextKeys.StackCount).Failure);
+        Assert.Equal(3, ReadFinal<int>(newer, contexts, MobaRuntimeContextKeys.StackCount).Value);
+        Assert.Equal(MobaRuntimeContextValueFailure.VersionMismatch, ReadFinal<int>(older, contexts, MobaRuntimeContextKeys.StackCount).Failure);
     }
 
     [Fact]
@@ -169,8 +202,9 @@ public sealed class MobaRuntimeContextIdentityTests
         var property = new TestProperty(true);
         var id = contexts.Registry.Create().With(property).Build();
         property.OnVersionRead = () => contexts.Registry.Set(id, new TestProperty(false));
-        object legacy = new MobaRuntimeContextReference(id, 1);
-        var result = legacy.GetRuntimeContextValue<int, TestProperty>(contexts, "value");
+        Assert.True(contexts.Registry.TryGetReference(id, out var identity));
+        object reference = new MobaRuntimeContextReference(identity, 1);
+        var result = reference.ReadRealtimeContextValue<int, TestProperty>(contexts, "value");
         Assert.True(result.Found);
         Assert.Equal(42, result.Value);
         Assert.Equal(ContextValueSource.Realtime, result.Source);
@@ -196,38 +230,24 @@ public sealed class MobaRuntimeContextIdentityTests
         contexts.RestoreBuffContext(runtime, Data(runtime));
         Assert.True(stage.TryGetRuntimeContext(out var after));
         Assert.Equal(before.Identity.Generation, after.Identity.Generation);
-        Assert.Equal(MobaRuntimeContextValueFailure.IdentityMismatch, ((object)stage).GetRuntimeContextValue<int, MobaBuffContextProperty>(contexts, MobaRuntimeContextKeys.StackCount).Failure);
-        Assert.Equal(MobaRuntimeContextValueFailure.IdentityMismatch, ((object)evt).GetRuntimeContextValue<int, MobaBuffContextProperty>(contexts, MobaRuntimeContextKeys.StackCount).Failure);
+        Assert.Equal(MobaRuntimeContextValueFailure.IdentityMismatch, ((object)stage).ReadRealtimeContextValue<int, MobaBuffContextProperty>(contexts, MobaRuntimeContextKeys.StackCount).Failure);
+        Assert.Equal(MobaRuntimeContextValueFailure.IdentityMismatch, ((object)evt).ReadRealtimeContextValue<int, MobaBuffContextProperty>(contexts, MobaRuntimeContextKeys.StackCount).Failure);
     }
 
-    [Fact]
-    public void Legacy_field_only_provider_remains_supported_and_is_not_reselected_per_field()
+    [Theory]
+    [InlineData(0, "captured")]
+    [InlineData(1, "removed")]
+    public void Final_buff_lookup_rejects_latest_record_with_wrong_generation_or_kind(long generationOffset, string kind)
     {
         using var contexts = new MobaRuntimeContextService();
-        var id = contexts.Registry.Create().Build();
-        var provider = new FieldOnlyProvider(42);
-        provider.OnVersionRead = () => contexts.Resolver.RealtimeProviders.Register<TestProperty>(new FieldOnlyProvider(99));
-        contexts.Resolver.RealtimeProviders.Register<TestProperty>(provider);
-        object legacy = new MobaRuntimeContextReference(id, 1);
-        var result = legacy.GetRuntimeContextValue<int, TestProperty>(contexts, "value");
-        Assert.True(result.Found);
-        Assert.False(result.IsIdentityChecked);
-        Assert.Equal(42, result.Value);
-        Assert.Equal(2, provider.ValueReads);
-    }
-
-    [Fact]
-    public void Legacy_accessor_snapshot_remains_supported_without_claiming_exact_identity()
-    {
-        using var contexts = new MobaRuntimeContextService();
-        contexts.Snapshots.Save(new AccessorSnapshot());
-        object legacy = new MobaRuntimeContextReference(1, 1);
-        var result = legacy.GetRuntimeContextValue<int, TestProperty>(contexts, "value", ContextValueReadMode.SnapshotOnly);
-        Assert.True(result.Found);
-        Assert.Equal(52, result.Value);
-        Assert.Equal(ContextValueSource.Snapshot, result.Source);
-        Assert.False(result.IsIdentityChecked);
-        Assert.False(result.ResolvedSnapshot.IsValid);
+        var runtime = Bind(contexts);
+        Assert.True(contexts.TryGetBuffReference(runtime, out var reference));
+        contexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Ended, 20, true);
+        contexts.Snapshots.Remove(reference.ContextId);
+        var unrelated = MobaBuffContextSnapshot.FromRuntime(runtime, 1, 21, MobaRuntimeContextLifecycleState.Ended);
+        contexts.Snapshots.SaveManaged(unrelated, new ContextSnapshotCapture(reference.Identity.Generation + generationOffset, 21, kind));
+        Assert.Equal(MobaRuntimeContextValueFailure.SnapshotUnavailable,
+            ReadFinal<int>(reference, contexts, MobaRuntimeContextKeys.StackCount).Failure);
     }
 
     [Fact]
@@ -236,26 +256,25 @@ public sealed class MobaRuntimeContextIdentityTests
         using var contexts = new MobaRuntimeContextService();
         var property = new TestProperty(true) { OnVersionRead = contexts.Dispose };
         var id = contexts.Registry.Create().With(property).Build();
-        object legacy = new MobaRuntimeContextReference(id, 1);
-        var result = legacy.GetRuntimeContextValue<int, TestProperty>(contexts, "value");
+        Assert.True(contexts.Registry.TryGetReference(id, out var identity));
+        object reference = new MobaRuntimeContextReference(identity, 1);
+        var result = reference.ReadRealtimeContextValue<int, TestProperty>(contexts, "value");
         Assert.False(result.Found);
         Assert.Equal(MobaRuntimeContextValueFailure.ContextServiceDisposed, result.Failure);
     }
 
     [Fact]
-    public void Invalid_identity_does_not_downgrade_to_legacy_and_dispose_cannot_rebind()
+    public void Incomplete_identity_or_version_is_rejected_and_dispose_cannot_rebind()
     {
         using var contexts = new MobaRuntimeContextService();
         var runtime = Bind(contexts);
         contexts.TryGetBuffReference(runtime, out var reference);
-        object invalid = MobaRuntimeContextReference.FromIdentityOrLegacy(runtime.RuntimeContextId, 1,
-            new ContextEntityReference(contexts.Registry.RegistryId, runtime.RuntimeContextId, 0));
+        object invalid = new MobaRuntimeContextReference(
+            new ContextEntityReference(contexts.Registry.RegistryId, runtime.RuntimeContextId, 0), 1);
         Assert.Equal(MobaRuntimeContextValueFailure.InvalidRuntimeContext,
-            invalid.GetRuntimeContextValue<int, MobaBuffContextProperty>(contexts, MobaRuntimeContextKeys.StackCount).Failure);
+            invalid.ReadRealtimeContextValue<int, MobaBuffContextProperty>(contexts, MobaRuntimeContextKeys.StackCount).Failure);
         Assert.Equal(MobaRuntimeContextValueFailure.InvalidRuntimeContext,
             Read<int>(new MobaRuntimeContextReference(reference.Identity, 0), contexts, MobaRuntimeContextKeys.StackCount).Failure);
-        Assert.True(Read<int>(new MobaRuntimeContextReference(runtime.RuntimeContextId, 0), contexts, MobaRuntimeContextKeys.StackCount).Found);
-        Assert.Equal(MobaRuntimeContextValueFailure.InvalidReadMode, Read<int>(reference, contexts, MobaRuntimeContextKeys.StackCount, (ContextValueReadMode)99).Failure);
         contexts.Dispose();
         contexts.Dispose();
         Assert.Equal(MobaRuntimeContextValueFailure.ContextServiceDisposed, Read<int>(reference, contexts, MobaRuntimeContextKeys.StackCount).Failure);
@@ -276,8 +295,10 @@ public sealed class MobaRuntimeContextIdentityTests
         MobaBuffRuntimeContextData.FromRuntime(runtime, 1, 10, MobaRuntimeContextLifecycleState.Active);
 
     private static MobaRuntimeContextValueResult<T> Read<T>(MobaRuntimeContextReference reference,
-        MobaRuntimeContextService contexts, string key, ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot) =>
-        ((object)reference).GetRuntimeContextValue<T, MobaBuffContextProperty>(contexts, key, mode);
+        MobaRuntimeContextService contexts, string key) => reference.ReadRealtimeContextValue<T, MobaBuffContextProperty>(contexts, key);
+
+    private static MobaRuntimeContextValueResult<T> ReadFinal<T>(MobaRuntimeContextReference reference,
+        MobaRuntimeContextService contexts, string key) => reference.ReadFinalBuffContextValue<T>(contexts, key);
 
     private sealed class TestProperty(bool hasValue) : IProperty, IContextValueProvider
     {
@@ -296,47 +317,4 @@ public sealed class MobaRuntimeContextIdentityTests
         }
     }
 
-    private sealed class FieldOnlyProvider(int data) : IContextRealtimeValueProvider
-    {
-        public Action? OnVersionRead;
-        public int ValueReads;
-        public bool TryGetProperty(long contextId, out IProperty property) { property = null!; return false; }
-        public bool TryGetValue<T>(long contextId, string key, out T value)
-        {
-            ValueReads++;
-            if (key == MobaRuntimeContextKeys.Version)
-            {
-                OnVersionRead?.Invoke();
-                if (1L is T version) { value = version; return true; }
-            }
-            if (key == "value" && data is T typed) { value = typed; return true; }
-            value = default!;
-            return false;
-        }
-    }
-
-    private sealed class AccessorSnapshot : IContextSnapshot, ISnapshotAccessor
-    {
-        public long EntityId => 1;
-        public long CreatedAtMs => 0;
-        public bool IsRealtimeAvailable => false;
-        public T GetValue<T>(string key, T snapshotDefault = default!)
-        {
-            object? value = key == MobaRuntimeContextKeys.Version ? (object)1L : key == "value" ? 52 : null;
-            return value is T typed ? typed : snapshotDefault;
-        }
-    }
-
-    private sealed class TestSnapshot(long id, bool hasValue) : IContextSnapshot, IContextValueProvider
-    {
-        public long EntityId => id;
-        public long CreatedAtMs => 0;
-        public bool TryGetValue<T>(string key, out T value)
-        {
-            if (key == MobaRuntimeContextKeys.Version && 1L is T version) { value = version; return true; }
-            if (key == "value" && hasValue && 99 is T typed) { value = typed; return true; }
-            value = default!;
-            return false;
-        }
-    }
 }

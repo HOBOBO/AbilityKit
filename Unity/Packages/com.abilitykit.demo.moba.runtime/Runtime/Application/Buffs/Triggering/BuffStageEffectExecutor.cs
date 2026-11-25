@@ -280,10 +280,15 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
 
         public bool TryGetBuffRuntime(out BuffRuntime runtime) => TryGetRuntime(out runtime);
 
+        /// <summary>
+        /// 读取阶段开始时冻结的身份与版本，不跟随运行时重绑。
+        /// </summary>
         public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
         {
-            reference = MobaRuntimeContextReference.FromIdentityOrLegacy(RuntimeContextId, RuntimeContextVersion, RuntimeContextIdentity);
-            return reference.IsValid;
+            reference = new MobaRuntimeContextReference(RuntimeContextIdentity, RuntimeContextVersion);
+            if (reference.IsValid && reference.ContextId == RuntimeContextId) return true;
+            reference = default;
+            return false;
         }
  
         public bool TryGetLiveBuffView(out BuffRuntimeView view)

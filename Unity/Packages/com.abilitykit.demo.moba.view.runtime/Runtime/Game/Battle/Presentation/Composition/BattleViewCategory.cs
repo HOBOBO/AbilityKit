@@ -1,102 +1,140 @@
 namespace AbilityKit.Game.Battle.Hierarchy
 {
     /// <summary>
-    /// Categories for organizing battle view GameObjects in the Unity Hierarchy.
-    /// Each category maps to a dedicated sub-root under <see cref="BattleViewHierarchyRoot"/>.
     ///
-    /// Hierarchy layout produced by the manager:
+    /// 用于在 Unity 层级中组织战斗视图 GameObject 的分类。
+    /// 每个分类映射到 <see cref="BattleViewHierarchyRoot"/> 下的专用子根节点。
+    ///
+    /// 管理器生成的层级布局：
     /// <code>
     /// [Battle] (BattleViewHierarchyRoot)
-    ///   ├── _Pool/          // inactive, pooled instances awaiting reuse
-    ///   │   ├── _Shell         // BattleViewShellPool buckets
-    ///   │   ├── _Vfx           // BattleVfxGameObjectPool buckets
-    ///   │   ├── _Area          // BattleAreaVfxPool buckets (Model / Range / Vfx kinds)
-    ///   │   ├── _Projectile    // BattleProjectileShellPool buckets
-    ///   │   ├── _FloatingText  // pooled world-space combat text
-    ///   │   └── _Hud           // other HUD-related pooled UI elements
-    ///   ├── _Active/        // currently rented, live GameObjects
-    ///   │   ├── _Character     // hero / player shells
-    ///   │   ├── _Projectile    // active projectiles
-    ///   │   ├── _Summon        // summoned creatures
+    /// ├── _Pool/          // 等待复用的非活动池实例
+    /// │   ├── _Shell         // BattleViewShellPool 分桶
+    /// │   ├── _Vfx           // BattleVfxGameObjectPool 分桶
+    /// │   ├── _Area          // BattleAreaVfxPool 分桶（Model / Range / Vfx）
+    /// │   ├── _Projectile    // BattleProjectileShellPool 分桶
+    /// │   ├── _FloatingText  // 池化的世界空间战斗文字
+    /// │   └── _Hud           // 其他 HUD 相关池化 UI 元素
+    /// ├── _Active/        // 当前已租出的活动 GameObject
+    /// │   ├── _Character     // 英雄或玩家外壳
+    /// │   ├── _Projectile    // 活动投射物
+    /// │   ├── _Summon        // 召唤生物
     ///   │   ├── _Turret        // towers
-    ///   │   ├── _Monster       // jungle creeps
+    /// │   ├── _Monster       // 野怪
     ///   │   ├── _Building      // buildings
-    ///   │   ├── _Area          // live area effects
-    ///   │   ├── _Vfx           // live VFX entities
-    ///   │   └── _FloatingText  // live world-space combat text
-    ///   └── _Debug/         // editor-only visualization helpers
+    /// │   ├── _Area          // 活动区域效果
+    /// │   ├── _Vfx           // 活动特效实体
+    /// │   └── _FloatingText  // 活动世界空间战斗文字
+    /// └── _Debug/         // 仅编辑器可视化辅助对象
     /// </code>
+    ///
     /// </summary>
     public enum BattleViewCategory
     {
-        /// <summary>Unknown / unclassified. Used as a safe fallback.</summary>
+        /// <summary>
+        /// 未知或未分类，用作安全回退。
+        /// </summary>
         Unknown = 0,
 
         // ---- Pool (inactive) categories ----
 
-        /// <summary>Pooled entity shells (BattleViewShellPool buckets).</summary>
+        /// <summary>
+        /// 池化实体外壳（BattleViewShellPool 分桶）。
+        /// </summary>
         PoolShell = 100,
 
-        /// <summary>Pooled VFX GameObjects (BattleVfxGameObjectPool buckets).</summary>
+        /// <summary>
+        /// 池化特效 GameObject（BattleVfxGameObjectPool 分桶）。
+        /// </summary>
         PoolVfx = 101,
 
-        /// <summary>Pooled area-effect GameObjects (BattleAreaVfxPool buckets).</summary>
+        /// <summary>
+        /// 池化区域效果 GameObject（BattleAreaVfxPool 分桶）。
+        /// </summary>
         PoolArea = 102,
 
-        /// <summary>Pooled projectile shells (BattleProjectileShellPool buckets).</summary>
+        /// <summary>
+        /// 池化投射物外壳（BattleProjectileShellPool 分桶）。
+        /// </summary>
         PoolProjectile = 103,
 
-        /// <summary>Pooled HUD UI elements (buffs, indicators, etc.).</summary>
+        /// <summary>
+        /// 池化 HUD UI 元素，如 Buff 和指示器。
+        /// </summary>
         PoolHud = 104,
 
-        /// <summary>Pooled world-space combat floating text.</summary>
+        /// <summary>
+        /// 池化世界空间战斗飘字。
+        /// </summary>
         PoolFloatingText = 105,
 
         // ---- Active (live) categories ----
 
-        /// <summary>Live hero / player character shells.</summary>
+        /// <summary>
+        /// 活动英雄或玩家角色外壳。
+        /// </summary>
         ActiveCharacter = 200,
 
-        /// <summary>Live projectile shells (currently in flight).</summary>
+        /// <summary>
+        /// 飞行中的活动投射物外壳。
+        /// </summary>
         ActiveProjectile = 201,
 
-        /// <summary>Live summoned creatures / minions.</summary>
+        /// <summary>
+        /// 活动召唤生物或随从。
+        /// </summary>
         ActiveSummon = 202,
 
-        /// <summary>Live mirror / clone entities.</summary>
+        /// <summary>
+        /// 活动镜像或分身实体。
+        /// </summary>
         ActiveClone = 203,
 
-        /// <summary>Live turret / tower entities.</summary>
+        /// <summary>
+        /// 活动炮塔或防御塔实体。
+        /// </summary>
         ActiveTurret = 204,
 
-        /// <summary>Live wild monster / neutral creep entities.</summary>
+        /// <summary>
+        /// 活动野怪或中立生物实体。
+        /// </summary>
         ActiveMonster = 205,
 
-        /// <summary>Live building / static structure entities.</summary>
+        /// <summary>
+        /// 活动建筑或静态结构实体。
+        /// </summary>
         ActiveBuilding = 206,
 
-        /// <summary>Live lane minion entities.</summary>
+        /// <summary>
+        /// 活动兵线小兵实体。
+        /// </summary>
         ActiveMinion = 210,
 
-        /// <summary>Live area-effect zones.</summary>
+        /// <summary>
+        /// 活动区域效果范围。
+        /// </summary>
         ActiveArea = 207,
 
-        /// <summary>Live VFX entities (skill VFX, hit flashes, attached VFX).</summary>
+        /// <summary>
+        /// 活动特效实体，包括技能特效、命中闪光及附着特效。
+        /// </summary>
         ActiveVfx = 208,
 
-        /// <summary>Live world-space combat floating text.</summary>
+        /// <summary>
+        /// 活动世界空间战斗飘字。
+        /// </summary>
         ActiveFloatingText = 209,
 
         // ---- Misc ----
 
-        /// <summary>Debug / inspection helpers (editor only).</summary>
+        /// <summary>
+        /// 调试及检查辅助对象，仅编辑器使用。
+        /// </summary>
         Debug = 900,
     }
 
     /// <summary>
-    /// Static helpers that centralize the human-readable category path used to
-    /// build the Unity Hierarchy. The returned path uses "/" as a hierarchy
-    /// separator and is relative to the <see cref="BattleViewHierarchyRoot"/>.
+    /// 集中管理 Unity 层级可读分类路径的静态辅助方法。返回路径相对于 <see cref="BattleViewHierarchyRoot"/>，使用“/”分隔层级。
     /// </summary>
     public static class BattleViewCategoryPaths
     {
@@ -105,12 +143,10 @@ namespace AbilityKit.Game.Battle.Hierarchy
         public const string DebugRoot = "_Debug";
 
         /// <summary>
-        /// Returns the path segments relative to the
-        /// <see cref="BattleViewHierarchyRoot"/> root for the given category.
+        /// 返回指定分类相对于 <see cref="BattleViewHierarchyRoot"/> 的路径段。
         /// </summary>
         /// <remarks>
-        /// The returned array always has 2 elements: [topLevel, leafName].
-        /// Callers should walk the path top-down, lazily creating each level.
+        /// 返回数组始终有两个元素：[topLevel, leafName]。调用方应从上到下遍历，按需创建各级。
         /// </remarks>
         public static string[] GetPathSegments(BattleViewCategory category)
         {
@@ -145,9 +181,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Maps a <see cref="AbilityKit.Game.Battle.Entity.BattleEntityKind"/> to its
-        /// matching active-view category. Returns <see cref="BattleViewCategory.Unknown"/>
-        /// if no specific category exists.
+        /// 将 <see cref="AbilityKit.Game.Battle.Entity.BattleEntityKind"/> 映射为对应活动视图分类；无具体分类时返回 <see cref="BattleViewCategory.Unknown"/>。
         /// </summary>
         public static BattleViewCategory FromEntityKind(AbilityKit.Game.Battle.Entity.BattleEntityKind kind)
         {

@@ -79,8 +79,9 @@ internal sealed class FixedBaselineSnapshotStream
 
         var mustSendFull = fullReason != FixedBaselineFullReason.None;
         var snapshotId = checked(_lastSnapshotId + 1);
+        var baseSnapshotId = mustSendFull ? 0 : _baseSnapshotId;
         var encoded = FixedBaselineStateSyncProtocol.Encode(
-            _generation, snapshotId, mustSendFull ? 0 : _baseSnapshotId, projection.SchemaVersion, projection.Payload);
+            _generation, snapshotId, baseSnapshotId, projection.SchemaVersion, projection.Payload);
 
         projection.IsFullSnapshot = mustSendFull;
         if (!mustSendFull) projection.Actors = upserts;
@@ -97,7 +98,10 @@ internal sealed class FixedBaselineSnapshotStream
 
         if (prepareDelivery)
             prepared = new PreparedFixedBaselineSnapshot(projection.Frame, mustSendFull, projection.NetworkEnvironmentId,
-                ImmutableCollectionsMarshal.AsImmutableArray(wire.ToArray()));
+                ImmutableCollectionsMarshal.AsImmutableArray(wire.ToArray()))
+            {
+                Revision = new FixedBaselineSnapshotRevision(projection.WorldId, _generation, snapshotId, baseSnapshotId)
+            };
 
         if (mustSendFull)
         {

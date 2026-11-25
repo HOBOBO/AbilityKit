@@ -70,6 +70,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (!MobaEffectMagnitudeSchemaReader.TryValidateTerms(args, out error)) return false;
             if (HasAny(args, "projectile_impact_kill_bonus") &&
                 (!TryReadConstantNumber(args, out var killBonus, "projectile_impact_kill_bonus") ||
                  double.IsNaN(killBonus) || double.IsInfinity(killBonus) || killBonus < 0d || killBonus > 1d))

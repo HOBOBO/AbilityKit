@@ -71,6 +71,22 @@ public partial class Tables
     /// Independent model animation facts
     /// </summary>
     public ModelAnimations ModelAnimations {get; }
+    /// <summary>
+    /// Actor overhead indicators
+    /// </summary>
+    public IndicatorDefinitions IndicatorDefinitions {get; }
+    /// <summary>
+    /// Actor overhead indicators
+    /// </summary>
+    public OverheadLayouts OverheadLayouts {get; }
+    /// <summary>
+    /// Actor overhead indicators
+    /// </summary>
+    public ActorOverheadBindings ActorOverheadBindings {get; }
+    /// <summary>
+    /// 非生命资源固定量自动回复
+    /// </summary>
+    public ResourceRegenerationRules ResourceRegenerationRules {get; }
 
     public Tables(System.Func<string, ByteBuf> loader)
     {
@@ -117,6 +133,10 @@ public partial class Tables
         TagHudPresentations = new TagHudPresentations(loader("tag_hud_presentations"));
         HeroLevelSkillGrowthParameters = new HeroLevelSkillGrowthParameters(loader("hero_level_skill_growth_parameters"));
         ModelAnimations = new ModelAnimations(loader("model_animations"));
+        IndicatorDefinitions = new IndicatorDefinitions(loader("indicator_definitions"));
+        OverheadLayouts = new OverheadLayouts(loader("overhead_layouts"));
+        ActorOverheadBindings = new ActorOverheadBindings(loader("actor_overhead_bindings"));
+        ResourceRegenerationRules = new ResourceRegenerationRules(loader("resource_regeneration_rules"));
         ResolveRef();
     }
     
@@ -165,6 +185,10 @@ public partial class Tables
         TagHudPresentations.ResolveRef(this);
         HeroLevelSkillGrowthParameters.ResolveRef(this);
         ModelAnimations.ResolveRef(this);
+        IndicatorDefinitions.ResolveRef(this);
+        OverheadLayouts.ResolveRef(this);
+        ActorOverheadBindings.ResolveRef(this);
+        ResourceRegenerationRules.ResolveRef(this);
     }
 }
 

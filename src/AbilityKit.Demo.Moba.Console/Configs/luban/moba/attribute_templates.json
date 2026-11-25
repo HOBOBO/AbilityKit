@@ -48,6 +48,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [
       10010101,
       10010201,
@@ -106,6 +108,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [
       10020101,
       10020201,
@@ -164,6 +168,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [
       10030101,
       10030201,
@@ -222,6 +228,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [
       10040101,
       10040201,
@@ -280,6 +288,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [
       10050101,
       10050201,
@@ -338,6 +348,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [
       10060101,
       10060201,
@@ -396,6 +408,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [
       10070101,
       10070201,
@@ -454,6 +468,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [
       10080101,
       10080201,
@@ -512,6 +528,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [],
     "PassiveSkills": []
   },
@@ -564,6 +582,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [],
     "PassiveSkills": []
   },
@@ -616,6 +636,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 1.2,
+    "ManaRegenPerSecondGrowth": 0.16,
     "ActiveSkills": [
       30010101,
       30010201,
@@ -675,6 +697,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 1.6,
+    "ManaRegenPerSecondGrowth": 0.16,
     "ActiveSkills": [
       30030201,
       30030301,
@@ -734,6 +758,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 1.34,
+    "ManaRegenPerSecondGrowth": 0.2,
     "ActiveSkills": [
       30020101,
       30020201,
@@ -793,6 +819,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 0,
+    "ManaRegenPerSecondGrowth": 0,
     "ActiveSkills": [],
     "PassiveSkills": []
   },
@@ -845,6 +873,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 1.6,
+    "ManaRegenPerSecondGrowth": 0.16,
     "ActiveSkills": [
       30040201,
       30040301,
@@ -904,6 +934,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 1.2,
+    "ManaRegenPerSecondGrowth": 0.16,
     "ActiveSkills": [
       30050201,
       30050301,
@@ -963,6 +995,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 1.6,
+    "ManaRegenPerSecondGrowth": 0.16,
     "ActiveSkills": [
       30060201,
       30060301,
@@ -1022,6 +1056,8 @@
     "PerSecondBloodRGrowth": 0,
     "PerSecondManaRGrowth": 0,
     "ResilienceRGrowth": 0,
+    "ManaRegenPerSecond": 1.8,
+    "ManaRegenPerSecondGrowth": 0.16,
     "ActiveSkills": [
       30070201,
       30070301,

@@ -28,6 +28,11 @@ namespace AbilityKit.Game.Flow
         [LabelText("RuntimeOverrides(灏戦噺杩愯鏃惰鐩?")]
         public BattleStartRuntimeOverrides RuntimeOverrides;
 
+        /// <summary>
+        /// 为本次战斗启用 Trace 诊断；默认不采集执行树。
+        /// </summary>
+        public bool EnableTraceDiagnostics;
+
         [Header("Formal Start Profile")]
         [LabelText("WorldId(涓栫晫ID/鎴块棿ID)")]
         public string WorldId = "room_1";

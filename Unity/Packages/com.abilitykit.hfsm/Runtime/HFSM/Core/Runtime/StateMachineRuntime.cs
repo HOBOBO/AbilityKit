@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using AbilityKit.Deterministic;
 
 using AbilityKit.HFSM.Definition;
@@ -19,8 +18,8 @@ namespace AbilityKit.HFSM.Runtime
         private readonly TOwner _owner;
         private readonly StateMachineDefinition _definition;
         private readonly long _definitionHash;
-        private readonly Dictionary<string, CompiledMachine> _machines;
-        private readonly CompiledMachine _root;
+        private readonly Dictionary<string, CompiledHfsmMachine<TOwner>> _machines;
+        private readonly CompiledHfsmMachine<TOwner> _root;
         private readonly List<IRuntimeObserver> _observers = new List<IRuntimeObserver>();
         private HfsmRuntimeVisualization? _visualization;
         private const int MaximumGhostTransitions = 1024;
@@ -39,9 +38,9 @@ namespace AbilityKit.HFSM.Runtime
 
             DefinitionValidator.ValidateOrThrow(definition);
             _owner = owner;
-            _definition = CloneDefinition(definition);
+            _definition = StateMachineCompiler<TOwner>.CloneDefinition(definition);
             _definitionHash = _definition.ComputeDefinitionHash();
-            _machines = Compile(_definition, bindings);
+            _machines = StateMachineCompiler<TOwner>.Compile(_definition, bindings);
             _root = _machines[_definition.RootMachineId];
         }
 
@@ -322,7 +321,7 @@ namespace AbilityKit.HFSM.Runtime
             }
         }
 
-        private void TickMachine(CompiledMachine machine, in TickContext context)
+        private void TickMachine(CompiledHfsmMachine<TOwner> machine, in TickContext context)
         {
             if (string.IsNullOrEmpty(machine.ActiveStateId)) return;
             var state = machine.StatesById[machine.ActiveStateId];
@@ -372,7 +371,7 @@ namespace AbilityKit.HFSM.Runtime
             if (state.ChildMachine != null) TickMachine(state.ChildMachine, in context);
         }
 
-        private bool TriggerMachine(CompiledMachine machine, string triggerId, in TickContext context)
+        private bool TriggerMachine(CompiledHfsmMachine<TOwner> machine, string triggerId, in TickContext context)
         {
             var state = machine.StatesById[machine.ActiveStateId];
             var forceOnly = !string.IsNullOrEmpty(machine.PendingTransitionId);
@@ -386,15 +385,15 @@ namespace AbilityKit.HFSM.Runtime
             return state.ChildMachine != null && TriggerMachine(state.ChildMachine, triggerId, in context);
         }
 
-        private CompiledTransition? SelectTransition(
-            CompiledMachine machine,
-            CompiledState state,
+        private CompiledHfsmTransition<TOwner>? SelectTransition(
+            CompiledHfsmMachine<TOwner> machine,
+            CompiledHfsmState<TOwner> state,
             string triggerId,
             bool forceOnly,
             in TickContext context)
         {
-            List<CompiledTransition>? any;
-            List<CompiledTransition>? local;
+            List<CompiledHfsmTransition<TOwner>>? any;
+            List<CompiledHfsmTransition<TOwner>>? local;
             if (string.IsNullOrEmpty(triggerId))
             {
                 any = machine.TickFromAny;
@@ -410,10 +409,10 @@ namespace AbilityKit.HFSM.Runtime
                 ?? SelectFromList(machine, state, local, triggerId, forceOnly, in context);
         }
 
-        private CompiledTransition? SelectFromList(
-            CompiledMachine machine,
-            CompiledState state,
-            List<CompiledTransition>? transitions,
+        private CompiledHfsmTransition<TOwner>? SelectFromList(
+            CompiledHfsmMachine<TOwner> machine,
+            CompiledHfsmState<TOwner> state,
+            List<CompiledHfsmTransition<TOwner>>? transitions,
             string triggerId,
             bool forceOnly,
             in TickContext context)
@@ -448,9 +447,9 @@ namespace AbilityKit.HFSM.Runtime
         }
 
         private void RequestTransition(
-            CompiledMachine machine,
-            CompiledState state,
-            CompiledTransition transition,
+            CompiledHfsmMachine<TOwner> machine,
+            CompiledHfsmState<TOwner> state,
+            CompiledHfsmTransition<TOwner> transition,
             string triggerId,
             in TickContext context,
             bool resolveGhost = true)
@@ -478,9 +477,9 @@ namespace AbilityKit.HFSM.Runtime
         }
 
         private void PerformTransition(
-            CompiledMachine machine,
-            CompiledState source,
-            CompiledTransition transition,
+            CompiledHfsmMachine<TOwner> machine,
+            CompiledHfsmState<TOwner> source,
+            CompiledHfsmTransition<TOwner> transition,
             string triggerId,
             in TickContext context,
             bool resolveGhost = true)
@@ -526,9 +525,9 @@ namespace AbilityKit.HFSM.Runtime
         }
 
         private void PerformExitTransition(
-            CompiledMachine machine,
-            CompiledState source,
-            CompiledTransition transition,
+            CompiledHfsmMachine<TOwner> machine,
+            CompiledHfsmState<TOwner> source,
+            CompiledHfsmTransition<TOwner> transition,
             in TransitionContext transitionContext,
             in TickContext context)
         {
@@ -544,7 +543,7 @@ namespace AbilityKit.HFSM.Runtime
                 machine.Id, source.Id, transition.Definition.Id, transitionContext.TriggerId);
         }
 
-        private void CompletePendingTransition(CompiledMachine machine, in TickContext context)
+        private void CompletePendingTransition(CompiledHfsmMachine<TOwner> machine, in TickContext context)
         {
             if (string.IsNullOrEmpty(machine.PendingTransitionId) ||
                 string.IsNullOrEmpty(machine.ActiveStateId))
@@ -560,7 +559,7 @@ namespace AbilityKit.HFSM.Runtime
             PerformTransition(machine, source, transition, triggerId, in context);
         }
 
-        private void RequestMachineExit(CompiledMachine machine, in TickContext context)
+        private void RequestMachineExit(CompiledHfsmMachine<TOwner> machine, in TickContext context)
         {
             if (string.IsNullOrEmpty(machine.ActiveStateId)) return;
             var state = machine.StatesById[machine.ActiveStateId];
@@ -569,7 +568,7 @@ namespace AbilityKit.HFSM.Runtime
             if (state.ChildMachine != null) RequestMachineExit(state.ChildMachine, in context);
         }
 
-        private void ResolveGhostTransitions(CompiledMachine machine, in TickContext context)
+        private void ResolveGhostTransitions(CompiledHfsmMachine<TOwner> machine, in TickContext context)
         {
             var transitionCount = 0;
             while (!string.IsNullOrEmpty(machine.ActiveStateId))
@@ -594,7 +593,7 @@ namespace AbilityKit.HFSM.Runtime
             }
         }
 
-        private void EnterMachine(CompiledMachine machine, in TickContext context)
+        private void EnterMachine(CompiledHfsmMachine<TOwner> machine, in TickContext context)
         {
             var stateId = machine.Definition.RememberLastState &&
                           !string.IsNullOrEmpty(machine.RememberedStateId)
@@ -613,7 +612,7 @@ namespace AbilityKit.HFSM.Runtime
             ResolveGhostTransitions(machine, in context);
         }
 
-        private void ExitMachine(CompiledMachine machine, in TickContext context)
+        private void ExitMachine(CompiledHfsmMachine<TOwner> machine, in TickContext context)
         {
             if (string.IsNullOrEmpty(machine.ActiveStateId)) return;
             var state = machine.StatesById[machine.ActiveStateId];
@@ -728,7 +727,7 @@ namespace AbilityKit.HFSM.Runtime
         }
 
         private static void ValidateSnapshotHierarchy(
-            CompiledMachine machine,
+            CompiledHfsmMachine<TOwner> machine,
             bool expectedActive,
             Dictionary<string, MachineRuntimeSnapshot> snapshots)
         {
@@ -799,88 +798,6 @@ namespace AbilityKit.HFSM.Runtime
             }
         }
 
-        private static Dictionary<string, CompiledMachine> Compile(
-            StateMachineDefinition definition,
-            RuntimeBindings<TOwner> bindings)
-        {
-            var machines = new Dictionary<string, CompiledMachine>(StringComparer.Ordinal);
-            for (var machineIndex = 0; machineIndex < definition.Machines.Count; machineIndex++)
-            {
-                var machineDefinition = definition.Machines[machineIndex];
-                var machine = new CompiledMachine(machineDefinition);
-                machines.Add(machine.Id, machine);
-                for (var stateIndex = 0; stateIndex < machineDefinition.States.Count; stateIndex++)
-                {
-                    var stateDefinition = machineDefinition.States[stateIndex];
-                    machine.StatesById.Add(
-                        stateDefinition.Id,
-                        new CompiledState(stateDefinition, CreateStateBehavior(stateDefinition, bindings),
-                            CreateStateActions(stateDefinition.LogicEntryActionKeys, bindings),
-                            CreateStateActions(stateDefinition.LogicExitActionKeys, bindings)));
-                }
-            }
-
-            foreach (var machinePair in machines)
-            {
-                var machine = machinePair.Value;
-                foreach (var statePair in machine.StatesById)
-                {
-                    if (!string.IsNullOrEmpty(statePair.Value.Definition.ChildMachineId))
-                    {
-                        var child = machines[statePair.Value.Definition.ChildMachineId];
-                        statePair.Value.ChildMachine = child;
-                        child.ParentMachine = machine;
-                        child.ParentStateId = statePair.Key;
-                    }
-                }
-
-                for (var index = 0; index < machine.Definition.Transitions.Count; index++)
-                {
-                    var definitionItem = machine.Definition.Transitions[index];
-                    var transition = new CompiledTransition(
-                        definitionItem,
-                        bindings.CreateCondition(definitionItem.ConditionKey),
-                        bindings.CreateAction(definitionItem.ActionKey));
-                    machine.TransitionsById.Add(definitionItem.Id, transition);
-                    AddTransition(machine, transition);
-                }
-
-                SortTransitions(machine.TickFromAny);
-                foreach (var triggerPair in machine.TriggerFromAny) SortTransitions(triggerPair.Value);
-                foreach (var statePair in machine.StatesById)
-                {
-                    SortTransitions(statePair.Value.TickTransitions);
-                    foreach (var triggerPair in statePair.Value.TriggerTransitions) SortTransitions(triggerPair.Value);
-                }
-            }
-
-            return machines;
-        }
-
-        private static IRuntimeState<TOwner> CreateStateBehavior(
-            StateDefinition definition,
-            RuntimeBindings<TOwner> bindings)
-        {
-            var keys = definition.ParallelBehaviorKeys ?? new List<string>();
-            if (keys.Count == 0) return bindings.CreateState(definition.BehaviorKey);
-
-            var states = new List<IRuntimeState<TOwner>>(keys.Count);
-            for (var index = 0; index < keys.Count; index++)
-                states.Add(bindings.CreateState(keys[index]));
-            return new ParallelRuntimeState(states, definition.ParallelExitPolicy);
-        }
-
-        private static List<IStateLifecycleAction<TOwner>> CreateStateActions(
-            List<string> keys,
-            RuntimeBindings<TOwner> bindings)
-        {
-            var actions = new List<IStateLifecycleAction<TOwner>>(keys?.Count ?? 0);
-            if (keys == null) return actions;
-            for (var index = 0; index < keys.Count; index++)
-                actions.Add(bindings.CreateStateAction(keys[index]));
-            return actions;
-        }
-
         private void ExecuteStateActions(
             List<IStateLifecycleAction<TOwner>> actions,
             string stateId,
@@ -894,332 +811,7 @@ namespace AbilityKit.HFSM.Runtime
             }
         }
 
-        private static void AddTransition(CompiledMachine machine, CompiledTransition transition)
-        {
-            var definition = transition.Definition;
-            if (string.IsNullOrEmpty(definition.TriggerId))
-            {
-                var list = definition.FromAnyState
-                    ? machine.TickFromAny
-                    : machine.StatesById[definition.FromStateId].TickTransitions;
-                list.Add(transition);
-                return;
-            }
-
-            var triggers = definition.FromAnyState
-                ? machine.TriggerFromAny
-                : machine.StatesById[definition.FromStateId].TriggerTransitions;
-            if (!triggers.TryGetValue(definition.TriggerId, out var triggerList))
-            {
-                triggerList = new List<CompiledTransition>();
-                triggers.Add(definition.TriggerId, triggerList);
-            }
-
-            triggerList.Add(transition);
-        }
-
-        private static void SortTransitions(List<CompiledTransition> transitions)
-        {
-            transitions.Sort((left, right) => StateMachineDefinition.CompareTransitions(
-                left.Definition,
-                right.Definition));
-        }
-
-        private static StateMachineDefinition CloneDefinition(StateMachineDefinition source)
-        {
-            var clone = new StateMachineDefinition
-            {
-                DefinitionId = source.DefinitionId ?? string.Empty,
-                FormatVersion = source.FormatVersion,
-                RootMachineId = source.RootMachineId ?? string.Empty,
-                Parameters = (source.Parameters ?? new List<StateMachineParameterDefinition>())
-                    .Select(parameter => new StateMachineParameterDefinition
-                    {
-                        Id = parameter.Id,
-                        Name = parameter.Name ?? string.Empty,
-                        DefaultValue = parameter.DefaultValue,
-                        SupportedOperations = new List<int>(parameter.SupportedOperations ?? new List<int>()),
-                    }).ToList(),
-            };
-
-            for (var machineIndex = 0; machineIndex < source.Machines.Count; machineIndex++)
-            {
-                var sourceMachine = source.Machines[machineIndex];
-                var machine = new MachineDefinition
-                {
-                    Id = sourceMachine.Id ?? string.Empty,
-                    InitialStateId = sourceMachine.InitialStateId ?? string.Empty,
-                    RememberLastState = sourceMachine.RememberLastState,
-                };
-
-                for (var stateIndex = 0; stateIndex < sourceMachine.States.Count; stateIndex++)
-                {
-                    var state = sourceMachine.States[stateIndex];
-                    machine.States.Add(new StateDefinition
-                    {
-                        Id = state.Id ?? string.Empty,
-                        BehaviorKey = state.BehaviorKey ?? string.Empty,
-                        LogicEntryActionKeys = state.LogicEntryActionKeys == null
-                            ? new List<string>() : new List<string>(state.LogicEntryActionKeys),
-                        LogicExitActionKeys = state.LogicExitActionKeys == null
-                            ? new List<string>() : new List<string>(state.LogicExitActionKeys),
-                        ChildMachineId = state.ChildMachineId ?? string.Empty,
-                        RequiresExitApproval = state.RequiresExitApproval,
-                        IsGhostState = state.IsGhostState,
-                        ParallelBehaviorKeys = new List<string>(
-                            state.ParallelBehaviorKeys ?? new List<string>()),
-                        ParallelExitPolicy = state.ParallelExitPolicy,
-                    });
-                }
-
-                for (var transitionIndex = 0; transitionIndex < sourceMachine.Transitions.Count; transitionIndex++)
-                {
-                    var transition = sourceMachine.Transitions[transitionIndex];
-                    machine.Transitions.Add(new TransitionDefinition
-                    {
-                        Id = transition.Id ?? string.Empty,
-                        FromAnyState = transition.FromAnyState,
-                        FromStateId = transition.FromStateId ?? string.Empty,
-                        ToStateId = transition.ToStateId ?? string.Empty,
-                        TriggerId = transition.TriggerId ?? string.Empty,
-                        ConditionKey = transition.ConditionKey ?? string.Empty,
-                        ActionKey = transition.ActionKey ?? string.Empty,
-                        Priority = transition.Priority,
-                        ForceImmediate = transition.ForceImmediate,
-                        ExitMachine = transition.ExitMachine,
-                        MinimumActiveDurationRaw = transition.MinimumActiveDurationRaw,
-                    });
-                }
-
-                clone.Machines.Add(machine);
-            }
-
-            return clone;
-        }
-
         private static string StateKey(string machineId, string stateId) => machineId + "\0" + stateId;
-
-        private sealed class CompiledMachine
-        {
-            public CompiledMachine(MachineDefinition definition)
-            {
-                Definition = definition;
-            }
-
-            public string Id => Definition.Id;
-            public MachineDefinition Definition { get; }
-            public CompiledMachine? ParentMachine { get; set; }
-            public string ParentStateId { get; set; } = string.Empty;
-            public Dictionary<string, CompiledState> StatesById { get; } =
-                new Dictionary<string, CompiledState>(StringComparer.Ordinal);
-            public Dictionary<string, CompiledTransition> TransitionsById { get; } =
-                new Dictionary<string, CompiledTransition>(StringComparer.Ordinal);
-            public List<CompiledTransition> TickFromAny { get; } = new List<CompiledTransition>();
-            public Dictionary<string, List<CompiledTransition>> TriggerFromAny { get; } =
-                new Dictionary<string, List<CompiledTransition>>(StringComparer.Ordinal);
-            public string ActiveStateId { get; set; } = string.Empty;
-            public string RememberedStateId { get; set; } = string.Empty;
-            public string PendingTransitionId { get; set; } = string.Empty;
-            public string PendingTriggerId { get; set; } = string.Empty;
-            public long ActiveSinceRaw { get; set; }
-        }
-
-        private sealed class CompiledState
-        {
-            public CompiledState(StateDefinition definition, IRuntimeState<TOwner> behavior,
-                List<IStateLifecycleAction<TOwner>> entryActions,
-                List<IStateLifecycleAction<TOwner>> exitActions)
-            {
-                Definition = definition;
-                Behavior = behavior;
-                EntryActions = entryActions;
-                ExitActions = exitActions;
-            }
-
-            public string Id => Definition.Id;
-            public StateDefinition Definition { get; }
-            public IRuntimeState<TOwner> Behavior { get; }
-            public List<IStateLifecycleAction<TOwner>> EntryActions { get; }
-            public List<IStateLifecycleAction<TOwner>> ExitActions { get; }
-            public CompiledMachine? ChildMachine { get; set; }
-            public List<CompiledTransition> TickTransitions { get; } = new List<CompiledTransition>();
-            public Dictionary<string, List<CompiledTransition>> TriggerTransitions { get; } =
-                new Dictionary<string, List<CompiledTransition>>(StringComparer.Ordinal);
-        }
-
-        private sealed class CompiledTransition
-        {
-            public CompiledTransition(
-                TransitionDefinition definition,
-                ITransitionCondition<TOwner>? condition,
-                ITransitionAction<TOwner>? action)
-            {
-                Definition = definition;
-                Condition = condition;
-                Action = action;
-            }
-
-            public TransitionDefinition Definition { get; }
-            public ITransitionCondition<TOwner>? Condition { get; }
-            public ITransitionAction<TOwner>? Action { get; }
-        }
-
-        private sealed class ParallelRuntimeState : RuntimeStateBase<TOwner>, IStateSnapshotParticipant
-        {
-            private readonly List<IRuntimeState<TOwner>> _states;
-            private readonly ParallelExitPolicy _exitPolicy;
-
-            public ParallelRuntimeState(
-                List<IRuntimeState<TOwner>> states,
-                ParallelExitPolicy exitPolicy)
-            {
-                _states = states;
-                _exitPolicy = exitPolicy;
-            }
-
-            public int SnapshotVersion => 1;
-
-            public override void OnEnter(TOwner owner, in TickContext context)
-            {
-                for (var index = 0; index < _states.Count; index++)
-                    _states[index].OnEnter(owner, in context);
-            }
-
-            public override void OnTick(TOwner owner, in TickContext context)
-            {
-                for (var index = 0; index < _states.Count; index++)
-                    _states[index].OnTick(owner, in context);
-            }
-
-            public override void OnExitRequested(TOwner owner, in TickContext context)
-            {
-                for (var index = 0; index < _states.Count; index++)
-                    _states[index].OnExitRequested(owner, in context);
-            }
-
-            public override bool CanExit(TOwner owner, in TickContext context)
-            {
-                if (_exitPolicy == ParallelExitPolicy.All)
-                {
-                    for (var index = 0; index < _states.Count; index++)
-                        if (!_states[index].CanExit(owner, in context)) return false;
-                    return true;
-                }
-
-                for (var index = 0; index < _states.Count; index++)
-                    if (_states[index].CanExit(owner, in context)) return true;
-                return false;
-            }
-
-            public override void OnExit(TOwner owner, in TickContext context)
-            {
-                for (var index = 0; index < _states.Count; index++)
-                    _states[index].OnExit(owner, in context);
-            }
-
-            public string CaptureSnapshot()
-            {
-                var builder = new StringBuilder();
-                for (var index = 0; index < _states.Count; index++)
-                {
-                    if (index > 0) builder.Append(';');
-                    if (_states[index] is not IStateSnapshotParticipant participant)
-                    {
-                        builder.Append('-');
-                        continue;
-                    }
-
-                    var payload = participant.CaptureSnapshot() ?? string.Empty;
-                    builder.Append(participant.SnapshotVersion);
-                    builder.Append('|');
-                    builder.Append(Convert.ToBase64String(Encoding.UTF8.GetBytes(payload)));
-                }
-                return builder.ToString();
-            }
-
-            public void ValidateSnapshot(int version, string payload)
-            {
-                var entries = ParseSnapshot(version, payload);
-                for (var index = 0; index < _states.Count; index++)
-                {
-                    if (_states[index] is IStateSnapshotParticipant participant)
-                    {
-                        var entry = entries[index];
-                        participant.ValidateSnapshot(entry.Version, entry.Payload);
-                    }
-                }
-            }
-
-            public void RestoreSnapshot(int version, string payload)
-            {
-                var entries = ParseSnapshot(version, payload);
-                for (var index = 0; index < _states.Count; index++)
-                {
-                    if (_states[index] is IStateSnapshotParticipant participant)
-                    {
-                        var entry = entries[index];
-                        participant.RestoreSnapshot(entry.Version, entry.Payload);
-                    }
-                }
-            }
-
-            private List<ParallelSnapshotEntry> ParseSnapshot(int version, string payload)
-            {
-                if (version != SnapshotVersion)
-                    throw new InvalidOperationException("Unsupported parallel HFSM state snapshot version.");
-
-                var parts = (payload ?? string.Empty).Split(';');
-                if (parts.Length != _states.Count)
-                    throw new InvalidOperationException("Parallel HFSM state snapshot item count does not match.");
-
-                var result = new List<ParallelSnapshotEntry>(_states.Count);
-                for (var index = 0; index < parts.Length; index++)
-                {
-                    var participant = _states[index] as IStateSnapshotParticipant;
-                    if (participant == null)
-                    {
-                        if (!string.Equals(parts[index], "-", StringComparison.Ordinal))
-                            throw new InvalidOperationException("Parallel HFSM snapshot contains payload for a stateless child.");
-                        result.Add(default);
-                        continue;
-                    }
-
-                    var separator = parts[index].IndexOf('|');
-                    if (separator <= 0 || !int.TryParse(
-                            parts[index].Substring(0, separator),
-                            System.Globalization.NumberStyles.Integer,
-                            System.Globalization.CultureInfo.InvariantCulture,
-                            out var childVersion))
-                    {
-                        throw new InvalidOperationException("Parallel HFSM snapshot child header is invalid.");
-                    }
-
-                    try
-                    {
-                        var childPayload = Encoding.UTF8.GetString(
-                            Convert.FromBase64String(parts[index].Substring(separator + 1)));
-                        result.Add(new ParallelSnapshotEntry(childVersion, childPayload));
-                    }
-                    catch (FormatException exception)
-                    {
-                        throw new InvalidOperationException("Parallel HFSM snapshot child payload is invalid.", exception);
-                    }
-                }
-                return result;
-            }
-
-            private readonly struct ParallelSnapshotEntry
-            {
-                public ParallelSnapshotEntry(int version, string payload)
-                {
-                    Version = version;
-                    Payload = payload;
-                }
-
-                public int Version { get; }
-                public string Payload { get; }
-            }
-        }
 
         private sealed class StatePayloadRestore
         {

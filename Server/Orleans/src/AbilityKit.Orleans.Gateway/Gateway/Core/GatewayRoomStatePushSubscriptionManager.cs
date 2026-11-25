@@ -8,8 +8,7 @@ using Orleans;
 namespace AbilityKit.Orleans.Gateway.Core;
 
 /// <summary>
-/// Binds a lobby connection to its RoomGrain through an Orleans client observer.
-/// Room snapshots are coalesced because every push contains the complete authoritative state.
+/// 通过 Orleans 客户端观察者将大厅连接绑定到其 RoomGrain。每次推送包含完整权威状态，因此房间快照可合并。
 /// </summary>
 public sealed class GatewayRoomStatePushSubscriptionManager
 {

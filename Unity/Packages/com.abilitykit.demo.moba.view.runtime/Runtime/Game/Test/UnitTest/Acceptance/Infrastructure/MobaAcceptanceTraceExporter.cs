@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
@@ -19,48 +20,14 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             if (harness == null) throw new ArgumentNullException(nameof(harness));
 
-            var records = new List<MobaAcceptanceTraceRecord>(64);
-            var seen = new HashSet<long>();
-            foreach (MobaExecutionKind kind in Enum.GetValues(typeof(MobaExecutionKind)))
-            {
-                if (kind == MobaExecutionKind.None) continue;
+            var records = MobaAcceptanceTraceCapture.ProjectRetainedNodes(harness.Trace, harness.FrameTime, caseId);
+            AddDisplayLabels(harness, records);
+            return records;
+        }
 
-                foreach (var node in harness.Trace.GetNodesByKind((int)kind))
-                {
-                    if (!node.IsValid || !seen.Add(node.ContextId)) continue;
-                    var metadata = node.Metadata;
-                    var record = new MobaAcceptanceTraceRecord
-                    {
-                        caseId = caseId,
-                        frame = node.CreatedFrame,
-                        timeMs = (int)Math.Round(harness.FrameTime.FrameToTime(new AbilityKit.Ability.FrameSync.FrameIndex(node.CreatedFrame)) * 1000d),
-                        rootId = node.RootId,
-                        parentId = node.ParentId,
-                        nodeId = node.ContextId,
-                        kind = ((MobaExecutionKind)node.Kind).ToString(),
-                        kindValue = node.Kind,
-                        configId = metadata != null ? metadata.ConfigId : 0,
-                        sourceActorId = metadata != null ? metadata.SourceActorId : 0,
-                        targetActorId = metadata != null ? metadata.TargetActorId : 0,
-                        sourceId = metadata != null ? metadata.SourceId : 0,
-                        targetId = metadata != null ? metadata.TargetId : 0,
-                        originSourceId = metadata != null ? metadata.OriginSourceId : 0,
-                        originTargetId = metadata != null ? metadata.OriginTargetId : 0,
-                        originSource = metadata != null ? metadata.OriginSource : null,
-                        originTarget = metadata != null ? metadata.OriginTarget : null,
-                        isRoot = node.IsRoot,
-                        isEnded = node.IsEnded,
-                        endedFrame = node.EndedFrame,
-                        endReason = node.EndReason,
-                        childCount = node.ChildCount
-                    };
-                    ApplyTraceSemantics(harness, record);
-                    records.Add(record);
-                }
-            }
-
-            records.Sort(CompareTraceRecord);
-            return records.ToArray();
+        internal static void AddDisplayLabels(MobaSkillConfigTestHarness harness, MobaAcceptanceTraceRecord[] records)
+        {
+            foreach (var record in records) ApplyTraceSemantics(harness, record);
         }
 
         public static MobaAcceptanceSummary BuildSummary(
@@ -85,14 +52,15 @@ namespace AbilityKit.Game.Test.UnitTest
             MobaAcceptanceTraceRecord[] records,
             string traceJsonlPath,
             string traceTextPath,
-            string summaryJsonPath)
+            string summaryJsonPath,
+            MobaAcceptanceTraceEvidence evidence = null)
         {
             if (harness == null) throw new ArgumentNullException(nameof(harness));
             if (expectation == null) throw new ArgumentNullException(nameof(expectation));
             if (records == null) throw new ArgumentNullException(nameof(records));
 
             var effectRootId = FindRootId(records, "EffectExecution", expectation.config != null ? expectation.config.effectId : 0);
-            var coverage = BuildCoverage(expectation, records, effectRootId);
+            var coverage = BuildCoverage(expectation, records, effectRootId, evidence);
             var diagnostics = BuildDiagnosticsSummary(harness, expectation.config != null ? expectation.config.triggerId : 0);
             var passed = coverage.allRequiredTraceNodesMatched
                 && coverage.allForbiddenTraceNodesAbsent
@@ -138,6 +106,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     satisfiedRelationshipCount = coverage.satisfiedRelationshipCount
                 },
                 coverage = coverage,
+                traceEvidence = evidence,
                 traceCounts = CountByKind(records),
                 traceDictionary = BuildTraceDictionary(harness, records),
                 traceDictionaryVersion = BuildTraceDictionaryVersion(harness),
@@ -186,6 +155,12 @@ namespace AbilityKit.Game.Test.UnitTest
                     }
                 }
 
+                if (summary.traceEvidence != null)
+                {
+                    using var traceStream = File.OpenRead(tracePath);
+                    using var sha256 = SHA256.Create();
+                    summary.traceEvidence.traceSha256 = BitConverter.ToString(sha256.ComputeHash(traceStream)).Replace("-", string.Empty);
+                }
                 File.WriteAllText(summaryPath, JsonUtility.ToJson(summary, true));
             }
 
@@ -395,7 +370,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 .AppendLine();
 
             if (!childrenByParent.TryGetValue(record.nodeId, out var children)) return;
-            children.Sort(CompareTraceRecord);
+            children.Sort((left, right) => left.nodeId.CompareTo(right.nodeId));
             for (var i = 0; i < children.Count; i++)
             {
                 AppendTraceNode(builder, children[i], depth + 1, childrenByParent, visited);
@@ -417,13 +392,6 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             if (string.IsNullOrWhiteSpace(value)) return "-";
             return value.Replace('\r', ' ').Replace('\n', ' ').Trim();
-        }
-
-        private static int CompareTraceRecord(MobaAcceptanceTraceRecord x, MobaAcceptanceTraceRecord y)
-        {
-            var rootCompare = x.rootId.CompareTo(y.rootId);
-            if (rootCompare != 0) return rootCompare;
-            return x.nodeId.CompareTo(y.nodeId);
         }
 
         private static void ApplyTraceSemantics(MobaSkillConfigTestHarness harness, MobaAcceptanceTraceRecord record)
@@ -621,7 +589,7 @@ namespace AbilityKit.Game.Test.UnitTest
             return true;
         }
 
-        private static MobaAcceptanceCoverageSummary BuildCoverage(MobaAcceptanceExpectation expectation, MobaAcceptanceTraceRecord[] records, long effectRootId)
+        private static MobaAcceptanceCoverageSummary BuildCoverage(MobaAcceptanceExpectation expectation, MobaAcceptanceTraceRecord[] records, long effectRootId, MobaAcceptanceTraceEvidence evidence)
         {
             var required = expectation.mustContain;
             var forbidden = expectation.mustNotContain;
@@ -656,7 +624,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 for (var i = 0; i < forbidden.Length; i++)
                 {
                     var item = forbidden[i];
-                    var count = Count(records, item.kind, item.configId, item.underEffectId > 0 ? effectRootId : 0);
+                    var count = MobaAcceptanceForbiddenTrace.Count(records, item, out var scopeFound);
+                    coverage.forbiddenTraceEvidenceInsufficient |= !scopeFound;
                     if (count > 0) unexpectedTraceNodes.Add(FormatTraceExpectation(item, count));
                 }
             }
@@ -684,7 +653,10 @@ namespace AbilityKit.Game.Test.UnitTest
             coverage.missingExpectedTraceNodeCount = missingTraceNodes.Count;
             coverage.unexpectedForbiddenTraceNodeCount = unexpectedTraceNodes.Count;
             coverage.allRequiredTraceNodesMatched = coverage.missingExpectedTraceNodeCount == 0;
-            coverage.allForbiddenTraceNodesAbsent = coverage.unexpectedForbiddenTraceNodeCount == 0;
+            coverage.forbiddenTraceEvidenceInsufficient |= coverage.forbiddenTraceNodeCount > 0
+                && !MobaAcceptanceTraceEvidence.CanProveAbsence(evidence, records.Length);
+            coverage.allForbiddenTraceNodesAbsent = coverage.unexpectedForbiddenTraceNodeCount == 0
+                && !coverage.forbiddenTraceEvidenceInsufficient;
             coverage.allExpectedActionsExecuted = coverage.executedExpectedActionCount == coverage.expectedActionCount;
             coverage.allRelationshipsSatisfied = coverage.satisfiedRelationshipCount == coverage.expectedRelationshipCount;
             coverage.missingTraceNodes = string.Join(",", missingTraceNodes.ToArray());

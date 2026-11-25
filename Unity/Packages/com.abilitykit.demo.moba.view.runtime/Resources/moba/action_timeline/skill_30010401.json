@@ -1,29 +1,5 @@
 {
-  "groups": [
-    {
-      "name": "JhinCurtainCall",
-      "ActorId": 0,
-      "active": true,
-      "tracks": [
-        {
-          "name": "CastPresentation",
-          "active": true,
-          "actionClips": [
-            {
-              "resourceKey": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Cast",
-              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Cast.prefab",
-              "startTime": 0.0,
-              "length": 1.8,
-              "name": "PlayParticle",
-              "presentationTemplateId": 90013004,
-              "$type": "AbilityKit.ActionEditorImpl.PlayParticle"
-            }
-          ],
-          "$type": "AbilityKit.ActionEditorImpl.EffectTrack"
-        }
-      ]
-    }
-  ],
+  "groups": [],
   "exportMobaRuntime": true,
   "length": 1.8,
   "viewTimeMin": 0.0,

@@ -1,6 +1,10 @@
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using AbilityKit.Demo.Moba.Acceptance;
+using AbilityKit.Game.Test.UnitTest;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Acceptance.Tests;
@@ -25,8 +29,7 @@ public class AcceptanceBatchRunnerTests
     [Fact]
     public void Batch_runs_real_expectation_directory_with_composite_trace_source()
     {
-        var artifactDir = Path.Combine(Path.GetTempPath(), "abk-acceptance-batch");
-        if (Directory.Exists(artifactDir)) Directory.Delete(artifactDir, recursive: true);
+        var artifactDir = CreateArtifactDirectory();
 
         var batch = AcceptanceBatchRunner.RunDirectory(ExpectationsDir, artifactDir, Source, exportArtifacts: true);
 
@@ -55,6 +58,67 @@ public class AcceptanceBatchRunnerTests
         Assert.Equal(batch.total, batch.results.Count(r => r.errorType == "needs-trace"));
         Assert.Equal(0, batch.failed);
         Assert.True(batch.allPassed);
+    }
+
+    [Theory]
+    [InlineData("paired", null)]
+    [InlineData("legacy", "trace-incomplete")]
+    [InlineData("tampered", "trace-incomplete")]
+    [InlineData("truncated", "trace-incomplete")]
+    [InlineData("missing", "trace-incomplete")]
+    [InlineData("forbidden-retained", "verdict-failed")]
+    public void Offline_reverse_assertions_require_paired_trace_evidence(string artifactState, string? errorType)
+    {
+        const string caseId = "offline-absence";
+        var directory = CreateArtifactDirectory();
+        var expectation = new MobaAcceptanceExpectation
+        {
+            caseId = caseId,
+            mustNotContain = new[] { new MobaAcceptanceTraceExpectation { kind = "DamageApply", configId = 42 } },
+        };
+        File.WriteAllText(Path.Combine(directory, caseId + ".expected.json"), AcceptanceJsonCodec.Serialize(expectation));
+        var tracePath = Path.Combine(directory, caseId + "_trace.jsonl");
+        var jsonOptions = new JsonSerializerOptions(AcceptanceJsonCodec.Options) { WriteIndented = false };
+        var traceLine = JsonSerializer.Serialize(new MobaAcceptanceTraceRecord
+        {
+            caseId = caseId, frame = 5, rootId = 1, nodeId = 1,
+            kind = artifactState == "forbidden-retained" ? "DamageApply" : "SkillCast", configId = 42,
+        }, jsonOptions) + "\n";
+
+        if (artifactState != "missing") File.WriteAllText(tracePath, traceLine);
+        if (artifactState is not ("legacy" or "missing"))
+            AcceptanceJsonCodec.WriteSummary(Path.Combine(directory, caseId + "_summary.json"), new MobaAcceptanceSummary
+            {
+                caseId = caseId,
+                traceEvidence = new MobaAcceptanceTraceEvidence
+                {
+                    isComplete = true, startFrame = 1, endFrame = 10, recordCount = 1,
+                    traceSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(traceLine))),
+                },
+            });
+
+        if (artifactState == "tampered") File.WriteAllText(tracePath, traceLine + "\n");
+        if (artifactState == "truncated") File.WriteAllText(tracePath, traceLine[..(traceLine.Length / 2)]);
+        if (artifactState == "forbidden-retained") File.AppendAllText(tracePath, "{");
+
+        var source = new CompositeTraceSource(new NullTraceSource(), new FileTraceSource(directory));
+        var batch = AcceptanceBatchRunner.RunDirectory(directory, artifactDirectory: null, source, exportArtifacts: false);
+        var result = Assert.Single(batch.results);
+        Assert.Equal(errorType, result.errorType);
+        Assert.Equal(errorType == null, result.passed);
+        Assert.Equal(errorType == null, batch.allPassed);
+        if (artifactState == "forbidden-retained") Assert.Contains("DamageApply", result.errorMessage);
+    }
+
+    private static string CreateArtifactDirectory()
+    {
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
+        {
+            if (!File.Exists(Path.Combine(dir.FullName, "tools", "run_test_gate.ps1"))) continue;
+            return Directory.CreateDirectory(Path.Combine(dir.FullName, "local", "Logs", "moba-acceptance",
+                $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}")).FullName;
+        }
+        throw new DirectoryNotFoundException("Could not locate the AbilityKit repository.");
     }
 
     private static string ResolveExpectationsDir()

@@ -6,10 +6,7 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 namespace AbilityKit.Protocol.CatalogCompiler.Compatibility;
 
 /// <summary>
-/// The committed compatibility baseline: a full snapshot of every wire-relevant fact of the
-/// protocol catalogs and wire schemas at the moment it was captured. The breaking diff compares
-/// the current sources against this document, so it must record everything that classifies as a
-/// contract fact and nothing that is presentation or tooling state.
+/// 已入库的兼容性基线，完整保存捕获时协议目录及线协议结构中与传输相关的契约事实。破坏性差异检查将当前源与该基线比较，因此必须记录全部契约事实，不包含表现或工具状态。
 /// </summary>
 public sealed class ProtocolCompatibilityBaselineDocument
 {
@@ -68,9 +65,7 @@ public sealed class ProtocolCompatibilityBaselineWireField
 }
 
 /// <summary>
-/// Captures the compatibility baseline from the compiler IR and (de)serializes the baseline
-/// artifact. Serialization is byte-stable for a given IR (fixed formatting, camelCase, and wire
-/// types sorted by qualified type independently of source-file grouping).
+/// 从编译器中间表示捕获兼容性基线，并序列化或反序列化基线产物。相同中间表示生成稳定字节：固定格式、camelCase，并按完整类型名排序线协议类型，不依赖源文件分组。
 /// </summary>
 public static class ProtocolCompatibilityBaseline
 {

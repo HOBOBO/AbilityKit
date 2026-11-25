@@ -53,6 +53,7 @@ public sealed partial class DRProjectiles : Luban.BeanBase
         CollisionRules = _buf.ReadString();
         MaxDistanceResponse = _buf.ReadInt();
         {int n0 = _buf.ReadSize(); OnArrivalTriggerIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); OnArrivalTriggerIds.Add(_e0);}}
+        {int n0 = _buf.ReadSize(); HitOrdinalVfxIds = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); HitOrdinalVfxIds.Add(_e0);}}
     }
 
     public static DRProjectiles DeserializeDRProjectiles(ByteBuf _buf)
@@ -208,6 +209,10 @@ public sealed partial class DRProjectiles : Luban.BeanBase
     /// OnArrivalTriggerIds
     /// </summary>
     public readonly System.Collections.Generic.List<int> OnArrivalTriggerIds;
+    /// <summary>
+    /// 按同一枚投射物的实际命中顺序选择特效 ID；超出列表用默认命中特效。
+    /// </summary>
+    public readonly System.Collections.Generic.List<int> HitOrdinalVfxIds;
    
     public const int __ID__ = -48050628;
     public override int GetTypeId() => __ID__;
@@ -256,6 +261,7 @@ public sealed partial class DRProjectiles : Luban.BeanBase
         + "CollisionRules:" + CollisionRules + ","
         + "MaxDistanceResponse:" + MaxDistanceResponse + ","
         + "OnArrivalTriggerIds:" + Luban.StringUtil.CollectionToString(OnArrivalTriggerIds) + ","
+        + "HitOrdinalVfxIds:" + Luban.StringUtil.CollectionToString(HitOrdinalVfxIds) + ","
         + "}";
     }
 }

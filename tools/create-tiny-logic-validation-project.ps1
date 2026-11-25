@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([string]$OutputPath = '')
 
 $ErrorActionPreference = 'Stop'
@@ -65,4 +65,4 @@ $manifest = [ordered]@{
 $utf8 = [System.Text.UTF8Encoding]::new($false)
 [System.IO.File]::WriteAllText((Join-Path $projectPackages 'manifest.json'),
     ($manifest | ConvertTo-Json -Depth 20), $utf8)
-Write-Host "Tiny Logic validation project: $projectRoot"
+Write-Host "Tiny 逻辑验证项目：$projectRoot"

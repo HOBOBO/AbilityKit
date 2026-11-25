@@ -4,10 +4,7 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 namespace AbilityKit.Protocol.CatalogCompiler.Compatibility;
 
 /// <summary>
-/// The catalog revision policy: breaking changes against the committed baseline must be
-/// accompanied by a revision bump of the catalog that owns the broken contract, and no catalog
-/// revision may ever decrease. Wire-schema breaking changes are attributed to every catalog whose
-/// messages (in the baseline or the current sources) carry the affected payload type.
+/// 目录修订策略：相对入库基线的破坏性变化，必须递增所属目录修订号，任何目录修订号均不得降低。线协议结构的破坏性变化归属到基线或当前源中携带受影响载荷类型的所有目录。
 /// </summary>
 public static class ProtocolRevisionPolicy
 {
@@ -88,8 +85,7 @@ public static class ProtocolRevisionPolicy
     }
 
     /// <summary>
-    /// Catalogs that reference the payload type either in the baseline or in the current sources;
-    /// both directions matter because either side is the contract a peer was built against.
+    /// 基线或当前源中引用此载荷类型的目录；两侧均需检查，因为对端可能依据任一侧契约构建。
     /// </summary>
     private static IEnumerable<string> OwningCatalogIds(
         IReadOnlyList<ProtocolCompatibilityBaselineCatalog> baselineCatalogs,

@@ -39,6 +39,12 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
         }
 
         var req = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputReq>(request.Payload);
+        return await SubmitAsync(request.Seq, context, req, Guid.Empty);
+    }
+
+    internal async ValueTask<GatewayResponse> SubmitAsync(uint requestSequence, GatewaySessionContext context,
+        WireSubmitBattleInputReq req, Guid inputGeneration)
+    {
         if (string.IsNullOrWhiteSpace(req.SessionToken)
             || string.IsNullOrWhiteSpace(req.BattleId)
             || req.WorldId == 0
@@ -48,7 +54,7 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
             || req.InputOpCode > _inputSecurityOptions.MaxOpCode
             || (req.Payload?.Length ?? 0) > _inputSecurityOptions.MaxPayloadBytes)
         {
-            return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+            return GatewayResponse.Error(requestSequence, GatewayStatusCode.BadRequest);
         }
 
         try
@@ -56,49 +62,52 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
             var accountId = await RoomGatewayWireMapper.ValidateAccountAsync(_clusterClient, req.SessionToken);
             if (string.IsNullOrWhiteSpace(accountId))
             {
-                return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+                return GatewayResponse.Error(requestSequence, GatewayStatusCode.BadRequest);
             }
 
             var mapping = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
             var roomId = await mapping.TryGetAccountRoomAsync(accountId);
             if (string.IsNullOrWhiteSpace(roomId))
             {
-                return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+                return GatewayResponse.Error(requestSequence, GatewayStatusCode.BadRequest);
             }
 
             var room = _clusterClient.GetGrain<IRoomGrain>(roomId);
             var snapshot = await room.GetSnapshotAsync();
-            if (!CanSubmitInput(snapshot, req.BattleId, req.WorldId, accountId, req.PlayerId))
+            if (inputGeneration == Guid.Empty
+                ? !CanSubmitInput(snapshot, req.BattleId, req.WorldId, accountId, req.PlayerId)
+                : req.CommandSequence == 0 || !CanUseScopedInput(snapshot, req.BattleId, req.WorldId, accountId, req.PlayerId) ||
+                    context.ScopedStateSyncInput?.Matches(accountId, req.BattleId, req.WorldId, req.PlayerId, inputGeneration) != true)
             {
-                return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+                return GatewayResponse.Error(requestSequence, GatewayStatusCode.BadRequest);
             }
 
             if (RoomFrameSyncAuthorization.SupportsFrameSync(snapshot) &&
                 await _clusterClient.GetGrain<AbilityKit.Orleans.Contracts.FrameSync.IBattleFrameSyncGrain>(snapshot.WorldId.ToString())
                     .GetSettledBindingAsync() != null)
-                return GatewayResponse.Error(request.Seq, GatewayStatusCode.SettledFrameVersionMismatch);
+                return GatewayResponse.Error(requestSequence, GatewayStatusCode.SettledFrameVersionMismatch);
 
             var guard = _inputGuard.Check(req.SessionToken, req.BattleId, req.PlayerId, req.CommandSequence, DateTime.UtcNow.Ticks);
             if (guard == GatewayBattleInputGuardResult.Duplicate)
             {
-                return CreateInputResponse(request.Seq, true, req.Frame, req.Frame, "Deduplicated", "Command sequence was already accepted.", shouldResync: false);
+                return CreateInputResponse(requestSequence, true, req.Frame, req.Frame, "Deduplicated", "Command sequence was already accepted.", shouldResync: false);
             }
 
             if (guard == GatewayBattleInputGuardResult.TooOld)
             {
-                return CreateInputResponse(request.Seq, false, req.Frame, req.Frame, BattleResultStatusCodes.RejectedSequenceTooOld, "Command sequence is outside the replay window.", shouldResync: false);
+                return CreateInputResponse(requestSequence, false, req.Frame, req.Frame, BattleResultStatusCodes.RejectedSequenceTooOld, "Command sequence is outside the replay window.", shouldResync: false);
             }
 
             if (guard == GatewayBattleInputGuardResult.RateLimited)
             {
-                return CreateInputResponse(request.Seq, false, req.Frame, req.Frame, BattleResultStatusCodes.RejectedRateLimited, "Battle input rate limit exceeded.", shouldResync: false);
+                return CreateInputResponse(requestSequence, false, req.Frame, req.Frame, BattleResultStatusCodes.RejectedRateLimited, "Battle input rate limit exceeded.", shouldResync: false);
             }
 
             var battle = _clusterClient.GetGrain<IBattleLogicHostGrain>(req.BattleId);
             var currentFrame = await battle.GetCurrentFrameAsync();
             if (req.Frame > currentFrame + MaxFutureLeadFrames)
             {
-                return CreateInputResponse(request.Seq, false, req.Frame, currentFrame, "RejectedTooFarFuture", "Input frame is too far ahead of the battle frame.", shouldResync: true);
+                return CreateInputResponse(requestSequence, false, req.Frame, currentFrame, "RejectedTooFarFuture", "Input frame is too far ahead of the battle frame.", shouldResync: true);
             }
 
             var submit = await battle.SubmitInputAsync(req.WorldId, req.Frame, new BattleInputItem
@@ -106,7 +115,9 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
                 PlayerId = req.PlayerId,
                 OpCode = req.InputOpCode,
                 Payload = req.Payload ?? Array.Empty<byte>(),
-                CommandSequence = req.CommandSequence
+                CommandSequence = req.CommandSequence,
+                SourceConnectionGeneration = context.ConnectionGeneration,
+                InputGeneration = inputGeneration
             });
             if (submit.Accepted)
             {
@@ -127,11 +138,11 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
                 ServerTicks = DateTime.UtcNow.Ticks
             };
             var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
-            return GatewayResponse.Ok(request.Seq, responsePayload.ToArray());
+            return GatewayResponse.Ok(requestSequence, responsePayload.ToArray());
         }
         catch (Exception)
         {
-            return GatewayResponse.Error(request.Seq, GatewayStatusCode.InternalError);
+            return GatewayResponse.Error(requestSequence, GatewayStatusCode.InternalError);
         }
     }
 
@@ -172,6 +183,11 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
         return GatewayResponse.Ok(requestSequence, WireRoomGatewayBinary.Serialize(in wire).ToArray());
     }
 
+    internal static bool CanUseScopedInput(RoomSnapshot? snapshot, string? battleId, ulong worldId, string? accountId, uint playerId) =>
+        snapshot is { SyncCapabilities.MaximumSchemaVersion: >= FixedBaselineStateSyncProtocol.SchemaVersion } &&
+        GameplayRoomTypes.IsMoba(snapshot.Summary.RoomType) && !RoomFrameSyncAuthorization.SupportsFrameSync(snapshot) &&
+        CanSubmitInput(snapshot, battleId, worldId, accountId, playerId);
+
     internal static bool CanSubmitInput(RoomSnapshot? snapshot, string? battleId, ulong worldId, string? accountId, uint playerId)
     {
         if (snapshot == null || string.IsNullOrWhiteSpace(battleId) || worldId == 0 || string.IsNullOrWhiteSpace(accountId) || playerId == 0)
@@ -185,6 +201,25 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
         }
 
         return RoomGatewayWireMapper.ResolvePlayerId(snapshot, accountId) == playerId;
+    }
+}
+
+/// <summary>
+/// 接收显式携带生产者代际的 MOBA 状态同步输入，复用常规输入准入。
+/// </summary>
+[Core.GatewayHandler(RoomGatewayOpCodes.SubmitScopedStateSyncInput)]
+public sealed partial class SubmitScopedStateSyncInputHandler(SubmitBattleInputHandler legacyHandler) : GatewayRequestHandlerBase
+{
+    public override ValueTask<GatewayResponse> HandleAsync(GatewayRequest request, GatewaySessionContext context,
+        CancellationToken cancellationToken)
+    {
+        if (request.Payload is not { Length: > 0 })
+            return ValueTask.FromResult(GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest));
+
+        var scoped = WireRoomGatewayBinary.Deserialize<WireSubmitScopedStateSyncInputReq>(request.Payload);
+        return scoped.InputGeneration == Guid.Empty
+            ? ValueTask.FromResult(GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest))
+            : legacyHandler.SubmitAsync(request.Seq, context, scoped.Input, scoped.InputGeneration);
     }
 }
 

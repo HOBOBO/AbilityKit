@@ -2,7 +2,9 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
-/// <summary>Builds the transitive, project-owned schema closure required by a MemoryPack export.</summary>
+/// <summary>
+/// 构建 MemoryPack 导出所需、由项目拥有的传递结构依赖闭包。
+/// </summary>
 public static class MemoryPackExportPlanner
 {
     public static MemoryPackExportPlan Create(
@@ -64,9 +66,7 @@ public static class MemoryPackExportPlanner
             : schema.TargetNamespace + "." + schema.Type;
 
     /// <summary>
-    /// Strips trailing <c>[]</c> from a catalog payload type to recover the element type,
-    /// which is what the wire-schema qualified type names. <c>System.*</c> primitives are left
-    /// untouched so the planner can keep ignoring them as schema-less scalars.
+    /// 移除目录载荷类型末尾的 <c>[]</c>，得到线协议完整类型名对应的元素类型。保留 <c>System.*</c> 基本类型，使规划器继续将其作为无需结构定义的标量忽略。
     /// </summary>
     public static string ElementType(string payloadType)
     {

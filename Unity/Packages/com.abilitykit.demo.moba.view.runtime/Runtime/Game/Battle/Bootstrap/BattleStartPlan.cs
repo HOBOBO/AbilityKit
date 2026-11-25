@@ -23,8 +23,13 @@ namespace AbilityKit.Game.Flow
         /// <summary>
         /// 仅由房间权威同步能力声明选择结算帧协议，不使用本地启动意图推断。
         /// </summary>
-        internal bool UsesSettledFrames => RemoteSyncCapabilities?.ProfileName ==
+        internal bool UsesSettledFrames => !UsesStateSyncAuthority && RemoteSyncCapabilities?.ProfileName ==
             AbilityKit.Protocol.Moba.SettledFrames.SettledFrameProtocol.CapabilityProfile;
+
+        /// <summary>
+        /// 仅主同步模式决定世界时钟；帧同步附带的状态推送不改变该模式。
+        /// </summary>
+        internal bool UsesStateSyncAuthority => Sync.SyncMode == BattleSyncMode.SnapshotAuthority;
 
         public readonly BattleHostMode HostMode;
         public readonly MobaBattleLaunchSpec LaunchSpec;
@@ -73,7 +78,7 @@ namespace AbilityKit.Game.Flow
                 Gateway.UseGatewayTransport, Gateway.Host, Gateway.Port, Gateway.NumericRoomId,
                 gatewaySessionToken, Gateway.Region, Gateway.ServerId, Gateway.AutoCreateRoom,
                 Gateway.AutoJoinRoom, Gateway.JoinRoomId, Gateway.CreateRoomOpCode,
-                Gateway.JoinRoomOpCode, Gateway.BattleId, Gateway.MaxPlayers);
+                Gateway.JoinRoomOpCode, Gateway.BattleId, Gateway.MaxPlayers, Gateway.UseScopedStateSyncInput);
             return Rebuild(World, gateway, Sync, Authority, RunModeOptions);
         }
 
@@ -81,12 +86,12 @@ namespace AbilityKit.Game.Flow
         {
             var world = new BattleStartPlanWorldOptions(
                 worldId, World.WorldType, World.ClientId, World.PlayerId,
-                World.TickRate, World.InputDelayFrames);
+                World.TickRate, World.InputDelayFrames, World.EnableTraceDiagnostics);
             var gateway = new BattleStartPlanGatewayOptions(
                 Gateway.UseGatewayTransport, Gateway.Host, Gateway.Port, numericRoomId,
                 Gateway.SessionToken, Gateway.Region, Gateway.ServerId, Gateway.AutoCreateRoom,
                 Gateway.AutoJoinRoom, Gateway.JoinRoomId, Gateway.CreateRoomOpCode,
-                Gateway.JoinRoomOpCode, Gateway.BattleId, Gateway.MaxPlayers);
+                Gateway.JoinRoomOpCode, Gateway.BattleId, Gateway.MaxPlayers, Gateway.UseScopedStateSyncInput);
             return Rebuild(world, gateway, Sync, Authority, RunModeOptions);
         }
 
@@ -103,6 +108,17 @@ namespace AbilityKit.Game.Flow
             var runMode = new BattleStartPlanRunModeOptions(
                 BattleRunMode.Replay, false, string.Empty, true, inputReplayPath);
             return Rebuild(World, gateway, sync, authority, runMode);
+        }
+
+        /// <summary>
+        /// 显式选择是否装配 Trace；保留原有的玩法和同步选项。
+        /// </summary>
+        public BattleStartPlan WithTraceDiagnostics(bool enabled = true)
+        {
+            var world = new BattleStartPlanWorldOptions(
+                World.WorldId, World.WorldType, World.ClientId, World.PlayerId,
+                World.TickRate, World.InputDelayFrames, enabled);
+            return Rebuild(world, Gateway, Sync, Authority, RunModeOptions);
         }
 
         internal BattleStartPlan WithConfirmedAuthorityWorld(bool enabled)

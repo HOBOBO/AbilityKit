@@ -13,9 +13,7 @@ namespace AbilityKit.HFSM.Editor.Export
 {
 
     /// <summary>
-    /// Stable UI action exposed by the HFSM export menu. The action model keeps
-    /// menu composition separate from exporter execution and allows registered
-    /// legacy exporters to contribute without changing the editor window.
+    /// HFSM 导出菜单公开的稳定界面动作。动作模型分离菜单装配与导出器执行，使已注册的旧导出器可在不修改编辑器窗口的情况下提供入口。
     /// </summary>
     public sealed class ExportAction
     {

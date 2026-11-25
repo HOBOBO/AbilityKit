@@ -1,8 +1,7 @@
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
-using AbilityKit.Network.Runtime.TcpGateway;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 using Xunit;
@@ -38,11 +37,16 @@ public sealed class NetworkSdkRoomExtensionsTests
         Assert.Equal(1, connection.ServerPushSubscriberCount);
     }
 
-    [Fact]
-    public async Task CreateRoomAsync_UsesSdkRequestEnvelopeAndRoomWireProtocol()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateRoomAsync_UsesSdkResponsePolicyAndRoomWireProtocol(bool useLegacyEnvelope)
     {
         var connection = new ObservableConnection();
-        using var sdk = CreateSdk(connection);
+        var builder = new NetworkSdkBuilder().UseConnectionFactory(() => connection);
+        if (useLegacyEnvelope)
+            builder.UseResponseEnvelopeCodec(TcpGatewayRequestResponseEnvelopeCodec.Instance);
+        using var sdk = builder.Build();
         using var room = sdk.CreateRoomClient();
 
         var pending = room.CreateRoomAsync(new RoomGatewayCreateRequest(
@@ -79,7 +83,11 @@ public sealed class NetworkSdkRoomExtensionsTests
             NumericRoomId = 1001UL,
             Message = "created"
         };
-        connection.CompleteResponse(send.OpCode, send.Seq, in response);
+        var body = WireRoomGatewayBinary.Serialize(in response);
+        var payload = useLegacyEnvelope
+            ? TcpGatewayRequestResponseEnvelopeCodec.Instance.EncodeSuccess(send.OpCode, send.Seq, body)
+            : body;
+        connection.CompleteResponse(send.OpCode, send.Seq, payload);
 
         var result = await pending;
         Assert.True(result.Success);
@@ -121,7 +129,7 @@ public sealed class NetworkSdkRoomExtensionsTests
 
         var pending = sdk.SendRawRequestAsync(9901U, new ArraySegment<byte>(new byte[] { 1, 2 }));
         var send = Assert.Single(connection.Sends);
-        connection.CompleteRawResponse(send.OpCode, send.Seq, new byte[] { 3, 4 });
+        connection.CompleteResponse(send.OpCode, send.Seq, new ArraySegment<byte>(new byte[] { 3, 4 }));
 
         var response = await pending;
         Assert.Equal(new byte[] { 3, 4 }, response.ToArray());
@@ -235,15 +243,9 @@ public sealed class NetworkSdkRoomExtensionsTests
             Sends.Add(new SendRecord(opCode, seq, flags, bytes));
         }
 
-        public void CompleteResponse<T>(uint opCode, uint seq, in T response)
+        public void CompleteResponse(uint opCode, uint seq, ArraySegment<byte> payload)
         {
-            var payload = WireRoomGatewayBinary.Serialize(in response);
-            _packetReceived?.Invoke(opCode, seq, EncodeGatewayResponse(payload));
-        }
-
-        public void CompleteRawResponse(uint opCode, uint seq, byte[] payload)
-        {
-            _packetReceived?.Invoke(opCode, seq, EncodeGatewayResponse(new ArraySegment<byte>(payload)));
+            _packetReceived?.Invoke(opCode, seq, payload);
         }
 
         public void PushRoomSnapshot(WireRoomSnapshot snapshot)
@@ -262,18 +264,6 @@ public sealed class NetworkSdkRoomExtensionsTests
         {
             DisposeCount++;
             State = ConnectionState.Disconnected;
-        }
-
-        private static ArraySegment<byte> EncodeGatewayResponse(ArraySegment<byte> payload)
-        {
-            var bytes = new byte[sizeof(int) + payload.Count];
-            BinaryPrimitives.WriteInt32LittleEndian(bytes, (int)TcpGatewayStatusCode.Ok);
-            if (payload.Count > 0)
-            {
-                Buffer.BlockCopy(payload.Array!, payload.Offset, bytes, sizeof(int), payload.Count);
-            }
-
-            return new ArraySegment<byte>(bytes);
         }
 
         public readonly record struct SendRecord(uint OpCode, uint Seq, ushort Flags, byte[] Payload);

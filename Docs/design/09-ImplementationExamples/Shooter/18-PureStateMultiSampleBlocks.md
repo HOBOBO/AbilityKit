@@ -1,39 +1,25 @@
-# Shooter PureState Multi-Sample Blocks
+# Shooter PureState 多采样状态块
 
-## Goal
+## 目标
 
-The mass-battle PureState profile publishes every three server frames. A
-single endpoint transform per push is sufficient for linear interpolation, but
-it discards the two intermediate simulation poses. Curved movement, avoidance,
-and rapid direction changes therefore still look like 10 Hz motion even when
-the Unity render loop runs at 30 or 60 Hz.
+大规模战斗 PureState 配置每三个服务器帧推送一次。每次仅携带一个端点变换虽足以线性插值，却丢失中间两个模拟姿态。因此，即使 Unity 渲染循环为 30 或 60 Hz，曲线移动、避让和快速变向仍呈现出 10 Hz 的运动效果。
 
-This stage adds an explicit comparison mode in which one authoritative push
-carries the missing server-frame transform samples. The client applies the
-latest authoritative state once, then plays the transform samples across the
-server frame timeline. Controlled-player prediction, state hashes, lifecycle,
-health, score, acknowledgements, and recovery remain on the existing authority
-path.
+本阶段增加显式对比模式，让一次权威推送携带缺失的服务器帧变换采样。客户端只应用一次最新权威状态，再沿服务器帧时间轴播放变换采样。受控玩家预测、状态哈希、生命周期、生命、分数、确认及恢复仍走既有权威路径。
 
-## Comparison templates
+## 对比模板
 
-Both templates use the same 30 Hz simulation, three-frame push cadence, AOI,
-LOD intervals, active budget, and adaptive playback policy.
+两种模板使用相同的 30 Hz 模拟、三帧推送节奏、AOI、LOD 间隔、活动预算和自适应播放策略。
 
-| Template | Payload presentation | Purpose |
+| 模板 | 载荷表现 | 用途 |
 |---|---|---|
-| `mass-battle-lod-aoi` | Current authoritative sample only | Existing baseline |
-| `mass-battle-lod-aoi-sample-block` | Two historical samples plus current authority | Multi-sample comparison |
+| `mass-battle-lod-aoi` | 仅当前权威采样 | 既有基线 |
+| `mass-battle-lod-aoi-sample-block` | 两个历史采样加当前权威采样 | 多采样对比 |
 
-The second template sets `PlaybackPayloadMode = MultiSampleBlock`,
-`SampleBlockFrameCount = 3`, and the mass-battle presentation density policy.
-The original template remains unchanged so test runs can compare both paths
-without changing the synchronization model.
+第二个模板设置 `PlaybackPayloadMode = MultiSampleBlock`、`SampleBlockFrameCount = 3`，并启用大规模战斗表现密度策略。原模板保持不变，使测试可在同一同步模型下比较两条路径。
 
-## Wire format
+## 线协议格式
 
-PureState wire version 2 appends two unmanaged arrays to the version 1
-12-member envelope:
+PureState 线协议版本 2 在版本 1 的 12 成员包络后追加两个非托管数组：
 
 ```text
 FrameSamples[]
@@ -50,92 +36,49 @@ TransformSamples[]
   Flags
 ```
 
-Transforms are flattened instead of stored as an array inside every frame.
-This allows the custom decoder to retain two capacity-backed arrays and copy
-unmanaged spans directly. After warmup, decoding a stable sample block does not
-allocate. Frame descriptors must be strictly increasing, must not exceed the
-authoritative frame, and must reference valid non-overlapping transform ranges.
+变换采用扁平存储，不在每帧内嵌数组。自定义解码器因此可以保留两个带容量的数组，直接复制非托管连续内存。预热后，解码稳定采样块不产生分配。帧描述必须严格递增，不得超出权威帧，并且引用合法、互不重叠的变换范围。
 
-The reusable decoder accepts both layouts:
+可复用解码器接受以下布局：
 
-- 14 members: version 2 authority plus presentation samples;
-- 12 members: version 1 payload, decoded with empty sample arrays;
-- 11 members and the old six-field settings layout: existing legacy fallback.
+- 14 成员：版本 2 权威数据及表现采样；
+- 12 成员：版本 1 载荷，解码后采样数组为空；
+- 11 成员及旧六字段设置布局：沿用既有旧版回退。
 
-Historical samples are presentation-only. They never enter the PureState
-baseline/hash controller and cannot spawn, despawn, acknowledge commands, or
-restore authority.
+历史采样仅用于表现，绝不进入 PureState 基线或哈希控制器，也不能生成、销毁、确认命令或恢复权威状态。
 
-## Server sampling path
+## 服务器采样路径
 
-After every successful battle tick, the runtime exporter copies only the
-already quantized transform fields into a reusable transient buffer. It does
-not compute a state hash, build a delta, sort candidates, or serialize a full
-snapshot.
+每次战斗步进成功后，运行时导出器仅将已量化的变换字段复制到可复用临时缓冲区；不计算状态哈希、不构建增量、不排序候选，也不序列化完整快照。
 
-The Orleans battle session copies that prefix into an eight-slot fixed ring.
-At push time it selects the intermediate frames immediately before the current
-authority frame and flattens them into reusable output buffers. Observer pushes
-apply the observer AOI boundary while flattening. The per-frame ceiling is still
-the PureState active synchronization budget, but the mass-battle template also
-caps the complete historical block at 32 transforms. This second limit is
-independent of the number of units and prevents two historical frames from each
-consuming the full active budget. The template then selects presentation
-samples by distance from the observer:
+Orleans 战斗会话将该有效前缀复制进八槽固定环形缓冲区。推送时选择紧邻当前权威帧之前的中间帧，并将其扁平写入可复用输出缓冲区。观察者推送在扁平化时应用其 AOI 边界。每帧上限仍为 PureState 活动同步预算，但大规模战斗模板还将整个历史块限制为最多 32 个变换。此第二重限制与单位数无关，避免两个历史帧分别占满活动预算。随后按距观察者的距离选择表现采样：
 
-- near, at or below `visibleRadius * 0.40`: every historical frame;
-- mid, at or below `visibleRadius * 0.75`: every second historical slot,
-  anchored at the newest historical frame;
-- far and AOI-boundary retention: no historical transform; the current
-  authoritative envelope remains the keyframe.
+- 近处，距离不超过 `visibleRadius * 0.40`：每个历史帧都采样；
+- 中距，距离不超过 `visibleRadius * 0.75`：以最新历史帧为锚点，每隔一个历史槽位采样；
+- 远处及 AOI 边界保留对象：不携带历史变换，当前权威包络继续作为关键帧。
 
-The observer-controlled player is omitted from historical samples because the
-client already predicts it. Without a valid observer AOI, every entity is
-treated as near; the server never invents a distance from the world origin.
-Selection scans near, then mid, then far, so an active-budget cap cannot let an
-earlier far entity displace a near entity. Empty frame descriptors remain on
-the timeline when density removes every transform from a selected frame. The
-remaining block budget is divided fairly across the remaining historical frame
-descriptors; unused capacity from an older frame is available to a newer frame.
-The full-density policy retains an unlimited block cap for protocol comparison
-tests and is not used by the mass-battle template.
+历史采样省略观察者控制的玩家，因为客户端已对其预测。没有有效观察者 AOI 时，全部实体视为近处；服务器不会凭空使用距世界原点的距离。选择按近、中、远顺序扫描，避免活动预算上限让较早的远处实体挤占近处实体。若密度策略移除了所选帧的全部变换，仍在时间轴保留空帧描述。剩余块预算在剩余历史帧描述间公平分配，较旧帧未使用的容量可供较新帧使用。全密度策略不限制整块容量，仅用于协议对比测试，不用于大规模战斗模板。
 
-Fail-closed AOI pushes carry no historical samples. Starting, disposing, or
-changing a battle session clears the ring so samples cannot cross worlds.
+因校验失败而关闭输出的 AOI 推送不携带历史采样。启动、释放或切换战斗会话时清空环形缓冲区，防止采样跨世界。
 
-This design adds one O(N) quantized transform copy per simulation frame when
-the sample-block template is enabled. Single-sample templates do not execute
-the capture path. The cost is deliberate: intermediate poses have to be
-sampled somewhere, but the path avoids hash, delta, dictionary, nested-array,
-and serialization work until a push is actually produced.
+启用采样块模板时，每个模拟帧额外进行一次 O(N) 量化变换复制；单采样模板不执行此捕获路径。中间姿态必须在某处采样，这是明确接受的开销，但在真正产生推送前，避免了哈希、增量、字典、嵌套数组和序列化工作。
 
-## Client playback
+## 客户端播放
 
-For an accepted PureState payload the client performs these operations in
-order:
+对于已接受的 PureState 载荷，客户端依次执行：
 
-1. Apply the current authoritative envelope through the existing PureState
-   controller.
-2. Update lifecycle suppression from the current authoritative batch.
-3. Publish valid historical transform-only batches in ascending frame order.
-4. Publish the current authoritative transform batch.
-5. Advance the existing adaptive playback clock on render ticks.
+1. 通过既有 PureState 控制器应用当前权威包络。
+2. 根据当前权威批次更新生命周期抑制。
+3. 按帧升序发布合法的历史纯变换批次。
+4. 发布当前权威变换批次。
+5. 在渲染步进时推进既有自适应播放时钟。
 
-The controlled player is filtered from every historical sample and continues
-to use immediate prediction. A current despawn suppresses older transforms in
-the same block, so delayed playback cannot recreate an entity. Duplicate,
-stale, malformed, or backward samples are rejected without rewinding the
-playback clock.
+每个历史采样都过滤受控玩家，其继续使用即时预测。当前销毁会抑制同一块中的旧变换，防止延迟播放重新创建实体。重复、过期、格式错误或倒退采样会被拒绝，播放时钟不会回退。
 
-Pooled transform lists own samples while they are retained by
-`ShooterSnapshotStream`; eviction and reset return them to the existing list
-pool. This avoids retaining references to the decoder's transient arrays after
-the next network packet overwrites them.
+采样由池化变换列表持有，并由 `ShooterSnapshotStream` 保留；淘汰和重置时归还既有列表池。这样不会在下一个网络包覆盖解码器临时数组后，仍保留对该数组的引用。
 
-## Diagnostics and acceptance
+## 诊断与验收
 
-`ShooterPureStatePlaybackDiagnostics` and the multiplayer headless JSON now
-include:
+`ShooterPureStatePlaybackDiagnostics` 和多人无界面 JSON 现包含：
 
 - `ReceivedSampleBlockCount`;
 - `ReceivedFrameSampleCount`;
@@ -147,51 +90,28 @@ include:
 - `AverageTransformSamplesPerFrame`;
 - `HistoricalTransformAmplificationRatio`.
 
-Compare these beside buffered frame span, playback lead, starvation ratio,
-held-playback ratio, payload bytes, queue wait, presentation time, view render
-time, and GC bytes. A healthy three-frame block run should approach two
-historical samples per received block after startup, have a zero rejection
-count, and reduce starvation/held ratios relative to the single-sample
-template under the same network condition.
+对比这些指标时，同时记录缓冲帧跨度、播放落后量、断供占比、播放保持占比、载荷字节、排队等待、表现耗时、视图渲染耗时和 GC 字节。健康的三帧块运行在启动后，每个接收块应接近两个历史采样，拒绝数为零；同一网络条件下，断供和保持占比应低于单采样模板。
 
-Automated coverage includes:
+自动化覆盖包括：
 
-- version 2 owned and reusable round trips;
-- allocation-free reusable frame-sample decode after warmup;
-- version 1 12-member compatibility;
-- historical frame order and flattened offsets;
-- AOI filtering and world reset of the server ring;
-- near/mid/far density, observer-player omission, and near-first budget use;
-- 1,200-unit steady-state sampling without allocation after warmup;
-- a deterministic 1,000-unit payload comparison between single sample, full
-  multi-sample, and density-limited multi-sample payloads;
-- explicit single-sample versus sample-block template selection;
-- client playback of frames 1, 2, and 3 across render ticks;
-- duplicate historical sample rejection without time reversal.
+- 版本 2 独立持有与可复用载荷往返；
+- 预热后可复用帧采样解码无分配；
+- 版本 1 的 12 成员兼容；
+- 历史帧顺序及扁平偏移；
+- 服务器环形缓冲区的 AOI 过滤和世界重置；
+- 近、中、远密度、观察者玩家省略及近处优先的预算使用；
+- 预热后 1,200 单位稳态采样无分配；
+- 1,000 单位下单采样、完整多采样和限密度多采样载荷的确定性对比；
+- 显式选择单采样或采样块模板；
+- 客户端跨渲染步进播放第 1、2、3 帧；
+- 拒绝重复历史采样且时间不倒退。
 
-The 1,000-unit protocol gate uses a fixed 40/30/30 near/mid/far distribution.
-For two historical frames it expects 2,000 transforms in the full-density
-block and 32 in the mass-battle density block. It also requires the complete
-density-block payload, including the same 1,000 current authoritative entity
-deltas, to be no more than 80% of the full-density payload and the density
-sample count to remain below 5% of full density. This is a stable wire-size
-assertion, not a wall-clock benchmark.
+1,000 单位协议门禁使用固定的近、中、远 40/30/30 分布。两个历史帧在全密度块中应有 2,000 个变换，在大规模战斗密度块中应有 32 个。门禁还要求完整密度块载荷（包括相同的 1,000 个当前权威实体增量）不超过全密度载荷的 80%，且密度采样数低于全密度的 5%。这是稳定的线协议大小断言，不是运行耗时基准。
 
-See [19-PureState Sample Density and A/B Validation](19-PureStateSampleDensityAndABValidation.md)
-for the policy contract, metrics, and acceptance matrix.
+策略契约、指标和验收矩阵见[19-PureState 采样密度与 A/B 验证](19-PureStateSampleDensityAndABValidation.md)。
 
-## Remaining work
+## 剩余工作
 
-The paired Headless runner and artifact comparator are now available, and the
-first real 1K/2K runs are recorded in
-[19-PureState Sample Density and A/B Validation](19-PureStateSampleDensityAndABValidation.md).
-Those single repetitions establish a diagnostic baseline but still do not
-establish profile-specific production limits. At least three repetitions per
-target topology are required before promoting payload, starvation, held
-playback, reconciliation movement, p95/p99 arrival gaps, recovery, and GC
-thresholds to a performance gate.
+配对无界面运行器和产物比较器现已可用，首轮真实 1K/2K 运行记录于[19-PureState 采样密度与 A/B 验证](19-PureStateSampleDensityAndABValidation.md)。这些单次重复建立了诊断基线，但不足以确定各配置的生产限制。每种目标拓扑至少重复三次后，才能将载荷、断供、播放保持、纠偏位移、p95/p99 到达间隔、恢复和 GC 阈值提升为性能门禁。
 
-The next synchronization-model comparison remains deterministic frame sync.
-It should be exposed as a separate Shooter template and validated for RVO/job
-determinism before checkpoint, input WAL, reconnect reconstruction, and
-zero-client server takeover are treated as production-capable behavior.
+下一项同步模型对比仍为确定性帧同步。应将其作为独立 Shooter 模板提供，并验证 RVO 和作业确定性，再将检查点、输入 WAL、重连重建及无客户端服务器接管视为生产可用行为。

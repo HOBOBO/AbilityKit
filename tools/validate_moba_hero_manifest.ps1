@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$ManifestPath = 'tools\moba-hero-manifest.json'
 )
@@ -134,4 +134,4 @@ foreach ($hero in $heroes) {
     $acceptanceHeroIds[$acceptanceHeroId] = $true
 }
 
-Write-Host "MOBA hero production manifest passed for $($heroes.Count) heroes." -ForegroundColor Green
+Write-Host "MOBA 英雄生产清单检查通过，英雄数量：$($heroes.Count)。" -ForegroundColor Green

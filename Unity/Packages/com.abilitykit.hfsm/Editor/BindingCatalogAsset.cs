@@ -22,7 +22,9 @@ namespace AbilityKit.HFSM.Editor
             entries.Add(entry);
         }
 
-        /// <summary>Builds a metadata-only runtime catalog and returns all asset diagnostics.</summary>
+        /// <summary>
+        /// 构建仅含元数据的运行时目录，并返回全部资产诊断。
+        /// </summary>
         public BindingCatalog BuildCatalog()
         {
             var catalog = new BindingCatalog();

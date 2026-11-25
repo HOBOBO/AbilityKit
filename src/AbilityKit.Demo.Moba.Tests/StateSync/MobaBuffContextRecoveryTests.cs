@@ -48,12 +48,14 @@ public sealed class MobaBuffContextRecoveryTests : IDisposable
         var restored = Assert.Single(_actor.buffs.Active);
         Assert.Equal(id, restored.RuntimeContextId);
         Assert.Equal(7L, restored.RuntimeContextVersion);
-        Assert.Equal(8f, Read<float>(id, MobaRuntimeContextKeys.RemainingSeconds).Value);
-        Assert.Equal(7L, Read<long>(id, MobaRuntimeContextKeys.Version).Value);
-        Assert.True(_contexts.TryGetBuffContext(id, out var property));
-        Assert.Equal(7L, property.Version);
+        Assert.True(_contexts.TryGetBuffReference(restored, out var reference));
+        Assert.Equal(8f, Read<float>(reference, MobaRuntimeContextKeys.RemainingSeconds).Value);
+        Assert.Equal(7L, Read<long>(reference, MobaRuntimeContextKeys.Version).Value);
+        var property = _contexts.Resolver.ReadRealtimeProperty<MobaBuffContextProperty>(reference.Identity);
+        Assert.True(property.Found);
+        Assert.Equal(7L, property.Value.Version);
         Assert.Equal(payload, _recovery.ExportState(_frame));
-        Assert.Equal(ContextValueSource.Realtime, Read<int>(id, MobaRuntimeContextKeys.StackCount).Source);
+        Assert.Equal(ContextValueSource.Realtime, Read<int>(reference, MobaRuntimeContextKeys.StackCount).Source);
         Assert.False(_contexts.Snapshots.TryGetRecord(id, out _));
         Assert.NotEqual(id, Bind(AddBuff(2)));
     }
@@ -140,18 +142,19 @@ public sealed class MobaBuffContextRecoveryTests : IDisposable
         if (withoutTrace) runtime.SourceContextId = 0;
         var id = Bind(runtime);
         runtime.RuntimeContextVersion = 4;
+        Assert.True(_contexts.TryGetBuffReference(runtime, out var reference));
         var hook = new CallbackHook(() =>
         {
             Assert.Equal(id, runtime.RuntimeContextId);
             Assert.Equal(4L, runtime.RuntimeContextVersion);
             Assert.False(_contexts.Registry.Exists(id));
             runtime.StackCount = 99;
-            var frozen = Read<int>(id, MobaRuntimeContextKeys.StackCount);
+            var frozen = ReadFinal<int>(reference, MobaRuntimeContextKeys.StackCount);
             Assert.Equal(ContextValueSource.Snapshot, frozen.Source);
             Assert.Equal(2, frozen.Value);
-            Assert.Equal(4L, Read<long>(id, MobaRuntimeContextKeys.Version).Value);
+            Assert.Equal(4L, ReadFinal<long>(reference, MobaRuntimeContextKeys.Version).Value);
             _contexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Destroyed, 99, true);
-            Assert.Equal(MobaRuntimeContextLifecycleState.Ended, Read<MobaRuntimeContextLifecycleState>(id, MobaRuntimeContextKeys.LifecycleState).Value);
+            Assert.Equal(MobaRuntimeContextLifecycleState.Ended, ReadFinal<MobaRuntimeContextLifecycleState>(reference, MobaRuntimeContextKeys.LifecycleState).Value);
             throw new InvalidOperationException("callback failed");
         });
         var hooks = new MobaRuntimeLifecycleHookService();
@@ -165,7 +168,7 @@ public sealed class MobaBuffContextRecoveryTests : IDisposable
         Assert.Empty(_actor.buffs.Active);
         Assert.Equal(0L, runtime.RuntimeContextId);
         Assert.Equal(0L, runtime.RuntimeContextVersion);
-        Assert.Equal(2, Read<int>(id, MobaRuntimeContextKeys.StackCount).Value);
+        Assert.Equal(2, ReadFinal<int>(reference, MobaRuntimeContextKeys.StackCount).Value);
     }
 
     [Fact]
@@ -174,11 +177,12 @@ public sealed class MobaBuffContextRecoveryTests : IDisposable
         var runtime = AddBuff();
         runtime.SourceContextId = 0;
         var id = Bind(runtime);
+        Assert.True(_contexts.TryGetBuffReference(runtime, out var reference));
         new BuffContextRegistry(null, _contexts, null).CancelAndEnd(runtime);
         Assert.False(_contexts.Registry.Exists(id));
         Assert.Equal(0L, runtime.RuntimeContextId);
         Assert.Equal(0L, runtime.RuntimeContextVersion);
-        Assert.Equal(ContextValueSource.Snapshot, Read<int>(id, MobaRuntimeContextKeys.StackCount).Source);
+        Assert.Equal(ContextValueSource.Snapshot, ReadFinal<int>(reference, MobaRuntimeContextKeys.StackCount).Source);
     }
 
     [Fact]
@@ -198,7 +202,7 @@ public sealed class MobaBuffContextRecoveryTests : IDisposable
         runtime.Remaining = 99;
         var result = _contexts.Resolver.ReadSnapshot<MobaBuffContextSnapshot, int>(record.Reference, MobaRuntimeContextKeys.StackCount);
         Assert.Equal(2, result.Value);
-        Assert.False(((MobaBuffContextSnapshot)record.Snapshot).IsRealtimeAvailable);
+        Assert.True(result.Found);
         Assert.Equal(ContextSnapshotQueryStatus.FieldMissing,
             _contexts.SnapshotReader.ReadSnapshot<MobaBuffContextSnapshot, int>(record.Reference, "absent").Status);
     }
@@ -253,7 +257,11 @@ public sealed class MobaBuffContextRecoveryTests : IDisposable
     private long Bind(BuffRuntime runtime) => _contexts.EnsureBuffContext(runtime,
         MobaBuffRuntimeContextData.FromRuntime(runtime, 1, 10, MobaRuntimeContextLifecycleState.Active));
 
-    private ContextValueResult<T> Read<T>(long id, string key) => _contexts.Resolver.GetValue<T, MobaBuffContextProperty>(id, key);
+    private MobaRuntimeContextValueResult<T> Read<T>(MobaRuntimeContextReference reference, string key) =>
+        reference.ReadRealtimeContextValue<T, MobaBuffContextProperty>(_contexts, key);
+
+    private MobaRuntimeContextValueResult<T> ReadFinal<T>(MobaRuntimeContextReference reference, string key) =>
+        reference.ReadFinalBuffContextValue<T>(_contexts, key);
 
     private static byte[] Payload(params BuffRuntime[] runtimes) => MemoryPackSerializer.Serialize(
         new MobaBuffStateRecoveryPayload(MobaBuffStateRecoveryProvider.CurrentPayloadVersion,

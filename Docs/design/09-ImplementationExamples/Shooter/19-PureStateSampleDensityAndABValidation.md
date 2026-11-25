@@ -1,136 +1,76 @@
-# Shooter PureState Sample Density and A/B Validation
+# Shooter PureState 采样密度与 A/B 验证
 
-## Scope
+## 范围
 
-PureState has two independent density decisions. The authoritative exporter
-decides when gameplay state is synchronized by near/mid/far LOD cadence. The
-sample-block ring decides how many transform-only presentation samples are
-added between authoritative pushes. This stage changes only the second
-decision. Spawns, despawns, health, score, ownership, hashes, baselines,
-acknowledgements, and recovery remain unchanged.
+PureState 有两个独立的密度决策。权威导出器根据近、中、远 LOD 频率决定何时同步玩法状态；采样块环形缓冲决定在权威推送之间加入多少仅含变换的表现采样。本阶段只修改第二项。生成、销毁、生命值、分数、所有权、哈希、基线、确认及恢复均保持不变。
 
-## Mass-battle policy
+## 大规模战斗策略
 
-`mass-battle-lod-aoi-sample-block` keeps the same 30 Hz simulation, three-frame
-push cadence, PureState settings, AOI radii, active budget, and network profile
-as `mass-battle-lod-aoi`. Its only differences are the three-frame presentation
-block and this density policy:
+`mass-battle-lod-aoi-sample-block` 与 `mass-battle-lod-aoi` 保持相同的 30 Hz 模拟、三帧推送频率、PureState 设置、AOI 半径、活动预算及网络配置。区别仅为三帧表现块和以下密度策略：
 
-| Tier | Observer distance | Metered history | Unmetered history | Current authority |
+| 层级 | 与观察者的距离 | 受限链路历史采样 | 非受限链路历史采样 | 当前权威状态 |
 |---|---:|---:|---:|---:|
-| Near | `<= visibleRadius * 0.40` | Every historical frame | Every historical frame | Unchanged |
-| Mid | `<= visibleRadius * 0.75` | Newest historical frame | Newest historical frame | Unchanged |
-| Far/boundary | Remaining AOI boundary | None | Newest historical frame | Unchanged |
+| 近处 | `<= visibleRadius * 0.40` | 每个历史帧 | 每个历史帧 | 不变 |
+| 中距 | `<= visibleRadius * 0.75` | 最新历史帧 | 最新历史帧 | 不变 |
+| 远处或边界 | 剩余 AOI 边界 | 无 | 最新历史帧 | 不变 |
 
-The newest historical frame is the stride anchor. With authority frame 3 and
-historical frames 1 and 2, near sends frames 1 and 2 and mid sends frame 2.
-Far sends neither on a metered link and sends frame 2 on an unmetered link.
-Velocity remains in each selected transform so sparse tracks retain bounded
-extrapolation information.
+最新历史帧是步幅锚点。权威帧为 3、历史帧为 1 和 2 时，近处发送帧 1、2，中距发送帧 2。远处在受限链路不发送历史帧，在非受限链路发送帧 2。选中的每个变换仍包含速度，为稀疏轨迹保留有界外推信息。
 
-AOI is evaluated before density. A transform outside the observer boundary is
-never emitted. The observer-controlled player is also omitted because local
-prediction owns its presentation. When no observer scope exists, all visible
-entities are treated as near rather than measured from an arbitrary origin.
+先判断 AOI，再决定密度。观察者边界外的变换绝不输出。观察者控制的玩家也被排除，其表现由本地预测负责。没有观察者作用域时，所有可见实体都按近处处理，不从任意原点测距。
 
-## Budget behavior
+## 预算行为
 
-`ActiveSyncBudget` remains the per-frame safety ceiling, but it is not a safe
-sample-block budget for a mass battle. If two historical frames can each spend
-that budget, one push may carry roughly twice the current authoritative budget
-in presentation-only transforms. The initial Headless runs demonstrated that
-this increases packet size and queue pressure enough to trigger sequence gaps,
-resync requests, and more full baselines.
+`ActiveSyncBudget` 仍为每帧安全上限，但不足以充当大规模战斗的安全采样块预算。两个历史帧若各自消耗该预算，一次推送中仅供表现的变换可能达到当前权威预算的约两倍。最初的无头运行表明，这会增加包大小和队列压力，触发序列缺口、重同步请求及更多完整基线。
 
-The metered mass-battle policy therefore applies an additional hard limit:
+因此，受限链路的大规模战斗策略增加如下硬限制：
 
 ```text
 MaxHistoricalTransformsPerBlock = 32
 ```
 
-For a three-frame block there are two historical frame descriptors. The ring
-divides the remaining block budget by the number of remaining descriptors,
-rounding up. With 32 available transforms both frames initially receive 16. If
-the older frame uses fewer than 16, its unused capacity transfers to the newer
-frame. The sum can never exceed 32, even when `ActiveSyncBudget` is 2,048.
-`FullDensity` keeps `int.MaxValue` so protocol tests can still compare an
-unbounded reference payload. The playable unmetered policy uses a 2,048
-transform block ceiling; the `limitedbw` comparison policy remains capped at
-32 and omits far history. This split prevents the weak-link stress case from
-silently becoming the local/LAN continuity default.
+三帧块包含两个历史帧描述符。环形缓冲将剩余块预算除以剩余描述符数量，向上取整。预算为 32 个变换时，两帧初始各分配 16 个；较旧帧未用满的容量转给较新帧。即使 `ActiveSyncBudget` 为 2,048，总量也不会超过 32。`FullDensity` 保留 `int.MaxValue`，供协议测试对照无界参考载荷。可玩模式的非受限策略使用 2,048 个变换的块上限；`limitedbw` 对照策略仍限制为 32，并省略远处历史，避免弱链路压力配置悄然成为本地或局域网连续性的默认配置。
 
-Inside each frame, selection performs stable near, mid, and far passes over the
-captured transform order. This gives near entities first access to the frame's
-share without sorting, dictionaries, or per-push allocation. Frame descriptors
-stay in ascending order and keep valid flat offsets, including a zero transform
-count when a selected timeline frame has no eligible samples.
+每帧按捕获变换顺序稳定执行近、中、远三轮筛选，让近处实体优先使用该帧份额，无需排序、字典或每次推送分配。帧描述符保持升序和有效平铺偏移；选定时间轴帧没有合格采样时，变换数可为零。
 
-A finite block budget also rotates the starting transform across authority
-blocks. Block 0 starts at capture index 0, block 1 advances by the 32-transform
-budget, and the index wraps by the captured count. Both historical frames in a
-three-frame block use the same start, so their samples describe the same entity
-window rather than two unrelated subsets. This removes permanent first-32
-monopolization while keeping tier priority, determinism, the hard budget, and
-the zero-allocation steady state. `FullDensity` does not rotate and therefore
-retains its original protocol-reference order.
+有限块预算还会在权威块之间轮换起始变换。块 0 从捕获索引 0 开始，块 1 按 32 个变换的预算前移，并按捕获数量循环。三帧块的两个历史帧使用相同起点，描述同一实体窗口。这样可避免前 32 个实体永久占用预算，同时保持层级优先、确定性、硬预算和稳态零分配。`FullDensity` 不轮换，保留原协议参考顺序。
 
-`ShooterPureStateFrameSampleDiagnostics` records eligible and selected counts
-per tier, observer-controlled omissions, rejected transforms, total selected
-transforms, and the selection ratio. These diagnostics are returned directly
-by the ring for deterministic tests and profiling; they are not added to the
-wire format.
+`ShooterPureStateFrameSampleDiagnostics` 记录各层级符合条件及选中的数量、观察者控制玩家的排除数、拒绝变换数、选中变换总数及选择比例。环形缓冲直接返回这些诊断供确定性测试和性能分析使用，不加入传输格式。
 
-## A/B evidence
+## A/B 证据
 
-The deterministic protocol test constructs 1,000 authoritative units with a
-fixed 40/30/30 near/mid/far distribution and compares:
+确定性协议测试构造 1,000 个权威单位，近、中、远分布固定为 40/30/30，对照如下：
 
-| Variant | Historical transforms for two frames | Required ordering |
+| 变体 | 两帧历史变换数 | 载荷大小要求 |
 |---|---:|---:|
-| Single sample | 0 | Smallest |
-| Mass-battle density block | 32 | Between single and full |
-| Full-density block | 2,000 | Largest |
+| 单采样 | 0 | 最小 |
+| 大规模战斗密度块 | 32 | 介于单采样和全密度之间 |
+| 全密度块 | 2,000 | 最大 |
 
-The density payload must be at most 80% of the full-density payload while both
-contain the same 1,000 current authoritative deltas, and its historical sample
-count must be below 5% of the full-density count. A separate 1,200-unit test
-warms the ring and then requires less than 256 bytes of thread allocation over
-64 capture/attach cycles. These tests deliberately avoid timing assertions,
-which are unstable on shared CI workers.
+两种载荷包含相同的 1,000 个当前权威增量，密度策略载荷必须不超过全密度载荷的 80%，历史采样数量低于全密度的 5%。另一项 1,200 单位测试预热环形缓冲后，要求 64 次捕获及附加循环的线程分配少于 256 字节。这些测试避免使用在共享 CI 工作节点上不稳定的耗时断言。
 
-## Headless metrics
+## 无头运行指标
 
-Use the two templates under the same client count, unit distribution, duration,
-and network condition. Compare these JSON fields together:
+在相同客户端数、单位分布、时长和网络条件下运行两个模板，综合对照以下 JSON 字段：
 
-- `battlePushPayloadBytes`, `battlePushMaxPayloadBytes`, and
-  `battlePushAveragePayloadBytes`;
-- `pureStatePlaybackReceivedSampleBlockCount`;
-- `pureStatePlaybackReceivedFrameSampleCount`;
-- `pureStatePlaybackReceivedTransformSampleCount`;
-- `pureStatePlaybackMaxTransformSampleCountPerBlock`;
-- `pureStatePlaybackReceivedAuthoritativeTransformCount`;
-- `pureStatePlaybackAverageTransformSamplesPerFrame`;
-- `pureStatePlaybackHistoricalTransformAmplificationRatio`;
-- `pureStatePlaybackStaleFrameSampleCount` and
-  `pureStatePlaybackInvalidFrameSampleCount`;
-- `snapshotResyncNeededCount` and `pureStateFullAppliedCount`;
-- starvation and held-playback ratios;
-- p95/p99 arrival gap, source age, queue wait, and apply time;
-- movement reconciliation and GC metrics.
+- `battlePushPayloadBytes`、`battlePushMaxPayloadBytes` 和 `battlePushAveragePayloadBytes`；
+- `pureStatePlaybackReceivedSampleBlockCount`；
+- `pureStatePlaybackReceivedFrameSampleCount`；
+- `pureStatePlaybackReceivedTransformSampleCount`；
+- `pureStatePlaybackMaxTransformSampleCountPerBlock`；
+- `pureStatePlaybackReceivedAuthoritativeTransformCount`；
+- `pureStatePlaybackAverageTransformSamplesPerFrame`；
+- `pureStatePlaybackHistoricalTransformAmplificationRatio`；
+- `pureStatePlaybackStaleFrameSampleCount` 和 `pureStatePlaybackInvalidFrameSampleCount`；
+- `snapshotResyncNeededCount` 和 `pureStateFullAppliedCount`；
+- 采样不足和播放保持比例；
+- 到达间隔、源数据年龄、队列等待及应用耗时的 p95/p99；
+- 移动校正和 GC 指标。
 
-A useful result must show both sides of the tradeoff. Lower starvation with an
-unbounded payload increase is not acceptable, and lower bytes with repeated
-held playback is not a continuity improvement. Thresholds should be promoted
-to a gate only after repeated runs on the target topology and hardware.
+有效结果必须体现取舍的两面。不能以载荷无界增长换取采样不足减少，也不能将字节减少但反复保持旧画面视为连续性改善。只有在目标拓扑和硬件上重复运行后，才应将阈值纳入门禁。
 
-## Paired headless runner
+## 配对无头运行器
 
-`tools/run_shooter_pure_state_sample_block_ab.ps1` runs every case in a fixed
-baseline-then-candidate order. This keeps the enemy budget, network
-environment, sync model, view backend, and repetition aligned while limiting
-compile warmup to the first run. Start by inspecting the matrix without
-launching Unity:
+`tools/run_shooter_pure_state_sample_block_ab.ps1` 对每个用例固定先运行基线再运行候选，使敌人预算、网络环境、同步模型、视图后端及重复轮次对齐，并仅在第一次运行时进行编译预热。先检查矩阵，不启动 Unity：
 
 ```powershell
 & tools/run_shooter_pure_state_sample_block_ab.ps1 `
@@ -140,8 +80,7 @@ launching Unity:
   -PlanOnly
 ```
 
-Run the same matrix without `-PlanOnly` when the Gateway is available and both
-dedicated Headless Unity projects are free:
+Gateway 可用且两个专用无头 Unity 项目均空闲时，移除 `-PlanOnly` 运行相同矩阵：
 
 ```powershell
 & tools/run_shooter_pure_state_sample_block_ab.ps1 `
@@ -152,323 +91,157 @@ dedicated Headless Unity projects are free:
   -Repetitions 3
 ```
 
-Each case stores the original owner/member Headless results and a
-`comparison.json`. The run root stores `ab-summary.json`; its `groups` array
-reports medians by enemy budget and network environment for payload
-amplification, starvation, held playback, p99 arrival gap, unexplained
-backward movement, GC delta, resync-needed count, full-snapshot applications,
-and coalesced automatic recovery triggers. A zero-valued single-run median is
-preserved as `0`, not serialized as `null`. Only comparisons that pass the
-artifact contract enter those medians. Every failed, missing, or mismatched
-case still makes the complete run fail.
+每个用例保存房主及成员的原始无头结果和 `comparison.json`。运行根目录保存 `ab-summary.json`；其 `groups` 数组按敌人预算和网络环境报告载荷放大、采样不足、播放保持、p99 到达间隔、无法解释的后退、GC 增量、重同步需求数、完整快照应用数及合并的自动恢复触发数的中位数。单次运行中值为零时保留 `0`，不序列化成 `null`。仅通过产物契约的对照进入中位数统计；任何失败、缺失或不匹配的用例仍使整次运行失败。
 
-The comparator is fail-closed about experiment identity. Both sides must use
-the expected template, and sync model, network environment, enemy budget, and
-view backend must match. The baseline must contain no sample block or
-historical transform, while the candidate must contain both and reject zero
-invalid frame samples. The candidate must also report a positive
-`pureStatePlaybackMaxTransformSampleCountPerBlock` no greater than 32 for
-`limitedbw` or 2,048 for an unmetered environment. This
-prevents a successful process exit, an old artifact without the block-budget
-field, or a stale result file from being mistaken for a valid A/B pair.
+比较器对实验身份采用严格拒绝策略。两侧必须使用预期模板，同步模型、网络环境、敌人预算和视图后端必须一致。基线不得包含采样块或历史变换；候选必须同时包含两者，结构无效帧采样拒绝数必须为零。候选还须报告正数 `pureStatePlaybackMaxTransformSampleCountPerBlock`，且在 `limitedbw` 下不超过 32、非受限环境不超过 2,048。这样可避免将进程成功退出、缺少块预算字段的旧产物或过期结果文件误认为有效 A/B 配对。
 
-Stale and invalid samples are intentionally separated. A stale sample is a
-well-formed sample that arrived after its playback point or duplicates already
-accepted time; it is rejected locally but does not prove a protocol defect. An
-invalid sample has malformed offsets, counts, ordering, or another structural
-violation and fails the artifact contract. `RejectedFrameSampleCount` remains
-the total, while stale and invalid counts explain its cause.
+过期采样与无效采样有意分开。过期采样结构正确，但晚于播放点到达或重复已接纳时间，因此在本地拒绝，并不能证明协议缺陷。无效采样存在偏移、数量、顺序或其他结构违规，会使产物契约失败。`RejectedFrameSampleCount` 仍为总数，由过期数及无效数解释原因。
 
-By default the runner is report-only: artifact contracts are enforced, but
-performance thresholds are not. Add `-EnableGate` only after the target
-hardware and topology have enough repeated evidence. The initial configurable
-limits are 1.75x average payload amplification, +0.02 starvation, +0.02 held
-playback, +50 ms p99 arrival gap, +0.10 unexplained backward movement, and
-+65,536 average GC bytes per frame, plus at most four additional resync-needed
-events and four additional full snapshots. The 32-transform block maximum is
-always an artifact contract, not an optional performance threshold. All
-performance limits are provisional guardrails rather than demonstrated
-production budgets.
+运行器默认仅报告：强制执行产物契约，不执行性能阈值。目标硬件和拓扑积累充分重复证据后，再添加 `-EnableGate`。初始可配置限制为平均载荷放大 1.75 倍、采样不足增加 0.02、播放保持增加 0.02、p99 到达间隔增加 50 ms、无法解释的后退增加 0.10、每帧平均 GC 增加 65,536 字节，以及重同步需求和完整快照各最多增加四次。32 个变换的块上限始终属于产物契约，不是可选性能阈值。所有性能限制均为暂定保护线，尚未证明可作为生产预算。
 
-`tools/compare_shooter_pure_state_sample_block_ab.ps1` can also compare one
-existing owner/member pair directly. This is useful for inspecting a failed
-case without relaunching Unity.
+`tools/compare_shooter_pure_state_sample_block_ab.ps1` 也可直接比较一组已有房主及成员配对，便于不重启 Unity 即检查失败用例。
 
-## Real Headless evidence (2026-08-20)
+## 真实无头运行证据（2026-08-20）
 
-The first real matrix used dedicated owner/member Headless projects against the
-same local Orleans/Gateway stack. Every row is one repetition, so the numbers
-are diagnostic evidence rather than stable percentiles.
+第一组真实矩阵使用专用房主及成员无头项目，连接同一套本地 Orleans/Gateway。每行仅运行一次，因此数字为诊断证据，不能视为稳定百分位。
 
-Before the block-level limit, historical density scaled with unit count and
-link behavior instead of staying bounded:
+增加块级限制前，历史密度随单位数量和链路行为变化，未保持有界：
 
-| Enemies / network | Payload amplification | Starvation delta | Held delta | Historical transforms / received blocks |
+| 敌人数 / 网络 | 载荷放大 | 采样不足变化 | 播放保持变化 | 历史变换数 / 收到块数 |
 |---|---:|---:|---:|---:|
 | 1,000 / ideal | `2.250784x` | `+1.7520 pp` | `+1.7681 pp` | `9,943 / 125` |
 | 1,000 / limitedbw | `2.728976x` | `+0.6537 pp` | `+1.2371 pp` | `9,365 / 99` |
 | 2,000 / ideal | `3.096309x` | `+3.9275 pp` | `+3.8290 pp` | `9,586 / 95` |
 | 2,000 / limitedbw | `1.894878x` | `-0.9897 pp` | `-0.7692 pp` | `13,751 / 94` |
 
-Per-client blocks in the worst 2,000/limited-bandwidth run carried about 141 to
-151 historical transforms. Large pushes were more likely to be superseded or
-dropped, which widened sequence gaps and requested new full baselines. The
-sample block then amplified the recovery traffic it had helped trigger.
+最差的 2,000 单位受限带宽运行中，每个客户端的块携带约 141 至 151 个历史变换。大推送更易被替代或丢弃，扩大序列缺口，触发新的完整基线；采样块进一步放大了自己参与触发的恢复流量。
 
-After applying the 32-transform limit, representative reruns were:
+应用 32 个变换限制后，代表性重跑结果如下：
 
-| Enemies / network | Payload amplification | Starvation delta | Held delta | Historical transforms / received blocks |
+| 敌人数 / 网络 | 载荷放大 | 采样不足变化 | 播放保持变化 | 历史变换数 / 收到块数 |
 |---|---:|---:|---:|---:|
 | 1,000 / ideal | `1.204224x` | `+2.3391 pp` | `+2.4122 pp` | `1,411 / 102` |
 | 2,000 / limitedbw | `1.209429x` | `-1.6335 pp` | `-1.7384 pp` | `1,293 / 95` |
 
-The latest 1,000/ideal artifact also contains the strengthened artifact fields:
+最新的 1,000/ideal 产物还包含增强后的产物字段：
 
 ```text
 artifacts/shooter-pure-state-sample-block-ab/
   20260820-headless-ab-budget32-contract-1000-ideal
 ```
 
-It passed every structural contract. Both clients reported a maximum of 32
-transforms per block, aggregate invalid samples were zero, average payload
-amplification was `1.698963x`, starvation changed by `-6.7175 pp`, held
-playback by `-6.1591 pp`, and p99 apply time by `-55.5 ms`. However, p99 arrival
-gap regressed by `+673 ms`, resync-needed count increased by 4, and full
-snapshots increased by 10. The run was report-only, so its serialized
-`gatePassed=true` means no performance assertions were requested; it must not
-be read as a production performance pass.
+它通过全部结构契约。两个客户端报告的每块最大变换数均为 32，无效采样总数为零，平均载荷放大 `1.698963x`，采样不足变化 `-6.7175 pp`，播放保持变化 `-6.1591 pp`，p99 应用耗时变化 `-55.5 ms`。但 p99 到达间隔恶化 `+673 ms`，重同步需求增加 4 次，完整快照增加 10 次。此次仅报告，因此序列化的 `gatePassed=true` 只表示未请求性能断言，不能解读为生产性能通过。
 
-Applying the current optional gate to that artifact fails exactly the p99
-arrival-gap and full-snapshot assertions. The gated comparison is stored beside
-the original case as `comparison-gated.json`. That is useful evidence, not a
-reason to widen the limits: it identifies the sequence-gap/full-baseline
-feedback path as the next bottleneck. The variation between the two 1,000/ideal
-runs also confirms that at least three repetitions per matrix cell are needed
-before medians can support a production gate.
+对该产物应用当前可选门禁时，恰好是 p99 到达间隔及完整快照断言失败。门禁对照作为 `comparison-gated.json` 保存在原用例旁。这是定位序列缺口与完整基线反馈路径这一后续瓶颈的有效证据，不能据此放宽限制。两次 1,000/ideal 运行的波动也说明，每个矩阵单元至少需要三次重复，中位数才足以支持生产门禁。
 
-The next client-side recovery pass now coalesces automatic FullBaseline
-requests by recovery episode. Once a request is accepted, changing gap
-frame/hash values do not emit another request while the same recovery remains
-unresolved. A successfully applied baseline clears the episode; if no baseline
-arrives, a five-second timeout permits a retry. Explicit initial-baseline calls
-retain their previous exact-request semantics. Headless output exposes
-`automaticFullStateSyncCoalescedRequestCount`, and the A/B comparator reports
-its aggregate and delta so a later run can distinguish repeated gap detection
-from actual recovery traffic. The 2026-08-20 artifacts predate this field and
-therefore do not prove its E4 effect.
+后续客户端恢复处理已按恢复轮次合并自动 FullBaseline 请求。请求被接纳后，即使缺口帧号或哈希变化，同一恢复未解决期间也不再发起请求。成功应用基线即清除该轮次；五秒内未收到基线则允许重试。显式初始基线调用保留原有精确请求语义。无头输出公开 `automaticFullStateSyncCoalescedRequestCount`，A/B 比较器报告其总量及差值，以区分重复缺口检测与实际恢复流量。2026-08-20 的产物早于该字段，不能证明其 E4 效果。
 
-## Real Headless evidence (2026-08-21)
+## 真实无头运行证据（2026-08-21）
 
-The first fresh 1,000/ideal pair after recovery-episode coalescing is stored at:
+恢复轮次合并后的首组新 1,000/ideal 配对位于：
 
 ```text
 artifacts/shooter-pure-state-sample-block-ab/
   20260821-headless-ab-recovery-coalescing-1000-ideal
 ```
 
-Its structural contract passed: the candidate received 113 blocks and 1,604
-historical transforms, never exceeded 32 transforms per block, and rejected
-zero structurally invalid samples. Three well-formed samples were stale. The
-paired deltas were:
+结构契约通过：候选收到 113 个块、1,604 个历史变换，每块不超过 32 个变换，结构无效采样拒绝数为零。三个结构正确的采样已过期。配对差值如下：
 
-| Metric | Candidate delta |
+| 指标 | 候选变化 |
 |---|---:|
-| Average payload amplification | `1.032244x` |
-| Starvation | `+2.4962 pp` |
-| Held playback | `+2.3542 pp` |
-| p99 arrival gap | `0 ms` |
-| p99 queue wait | `+75.5 ms` |
-| p99 apply time | `+22 ms` |
-| Resync-needed events | `-7` |
-| Applied FullBaseline snapshots | `-4` |
-| Coalesced automatic recovery triggers | `-256` (`813` to `557`) |
+| 平均载荷放大 | `1.032244x` |
+| 采样不足 | `+2.4962 pp` |
+| 播放保持 | `+2.3542 pp` |
+| p99 到达间隔 | `0 ms` |
+| p99 队列等待 | `+75.5 ms` |
+| p99 应用耗时 | `+22 ms` |
+| 重同步需求事件 | `-7` |
+| 已应用 FullBaseline 快照 | `-4` |
+| 已合并自动恢复触发 | `-256` （`813` 降至 `557`） |
 
-Applying the optional gate fails only starvation and held playback, both just
-above the provisional +2 percentage-point limit. Payload, arrival gap,
-reconciliation, GC, resync, and FullBaseline gates pass. Compared with the
-2026-08-20 diagnostic, the earlier +673 ms arrival-gap and +10 FullBaseline
-failures are absent, but this remains one repetition and cannot establish
-causality or a production threshold. The baseline itself reported a 2,048.5 ms
-p99 arrival gap, so absolute continuity is still poor even though the paired
-arrival-gap delta is zero.
+可选门禁仅在采样不足及播放保持上失败，两者略超暂定的增加 2 个百分点限制。载荷、到达间隔、校正、GC、重同步及 FullBaseline 门禁均通过。相比 2026-08-20 的诊断，此前到达间隔增加 673 ms 和 FullBaseline 增加 10 次的问题未出现；但仍只有一次重复，不能建立因果关系或生产阈值。基线自身的 p99 到达间隔为 2,048.5 ms，故即使配对差值为零，绝对连续性仍差。
 
-This artifact predates cross-block entity-window rotation. A new run is needed
-to verify the fairness change; the rotation is covered separately by a
-deterministic 1,000-unit test that checks block windows `1..16` and `33..48`.
+该产物早于跨块实体窗口轮换，需要新运行验证公平性改动。另有确定性 1,000 单位测试覆盖轮换，检查块窗口 `1..16` 和 `33..48`。
 
-### Rotation, drain, and controlled-player correction follow-up
+### 轮换、队列排空及受控玩家校正后续
 
-Cross-block rotation was exercised by a fresh 1,000/ideal pair at:
+新 1,000/ideal 配对验证了跨块轮换，位于：
 
 ```text
 artifacts/shooter-pure-state-sample-block-ab/
   20260821-headless-ab-entity-window-rotation-1000-ideal
 ```
 
-Payload amplification was `0.908142x`, starvation improved by `7.3786 pp`, and
-held playback improved by `8.0965 pp`, but p99 queue wait regressed by
-`1,355.5 ms` and p99 apply time by `1,146.5 ms`. The older optional gate passed
-this run because it did not gate queue wait or apply time. Both metrics are now
-first-class optional gates with a default maximum increase of 50 ms.
+载荷放大为 `0.908142x`，采样不足改善 `7.3786 pp`，播放保持改善 `8.0965 pp`，但 p99 队列等待恶化 `1,355.5 ms`，p99 应用耗时恶化 `1,146.5 ms`。旧可选门禁因未检查队列等待和应用耗时而通过；现在两者均为正式可选门禁，默认最多增加 50 ms。
 
-The attempted three-repetition follow-up at
-`20260821-headless-ab-rotation-1000-ideal-r3` produced only one valid paired
-comparison. One candidate caught a real movement assertion
-(`maxUnexplained=0.833`), one pair completed, and the third owner was lost to a
-concurrent `Unity.ILPP.Trigger.exe` APPCRASH. It is not three-run median
-evidence and must not be summarized as such.
+三次重复的后续运行 `20260821-headless-ab-rotation-1000-ideal-r3` 仅生成一组有效配对。一组候选触发真实移动断言（`maxUnexplained=0.833`），一组配对完成，第三组房主因并发 `Unity.ILPP.Trigger.exe` APPCRASH 丢失。它不构成三次运行的中位数证据，汇总时必须明确。
 
-The next diagnostic pair is stored at:
+下一组诊断配对位于：
 
 ```text
 artifacts/shooter-pure-state-sample-block-ab/
   20260821-headless-ab-drain-and-tug-diagnostics-1000-ideal
 ```
 
-It passed the structural contract and all current optional gates. Candidate
-deltas included payload `1.128442x`, starvation `-4.2521 pp`, held playback
-`-4.3117 pp`, p99 arrival gap `-27.5 ms`, p99 queue wait `-874.5 ms`, and p99
-apply time `-945 ms`. Baseline processed/enqueued counts were `198/198` and
-candidate counts were `204/204`; neither side coalesced a snapshot. Their
-budget-limited drain ratios were `0.000897` and `0.000446`. Sustained client
-drain throughput is therefore not the explanation for the observed second-long
-spikes. Peak queue depth instead coincided with large Editor update gaps, which
-points to an intermittent client main-thread stall.
+它通过结构契约及全部当前可选门禁。候选差值包括载荷 `1.128442x`、采样不足 `-4.2521 pp`、播放保持 `-4.3117 pp`、p99 到达间隔 `-27.5 ms`、p99 队列等待 `-874.5 ms`、p99 应用耗时 `-945 ms`。基线处理及入队数为 `198/198`，候选为 `204/204`，两侧均未合并快照。预算限制排空比例分别为 `0.000897` 和 `0.000446`。因此持续客户端排空吞吐量无法解释秒级尖峰。队列深度峰值与较大 Editor 更新间隔重合，指向间歇性的客户端主线程停顿。
 
-Movement diagnostics also showed that ordinary backward samples arrived with
-an advancing PureState authority frame, an empty queue, and no resync request.
-Code inspection found that the controlled-player runtime could be tens of
-frames away from the authority timeline under 1,000-unit load. The old
-reconciliation treated the entire position difference as drift, corrected up
-to 0.25 units for every snapshot, and could apply several corrections in one
-network drain. This produced the visible authority sawtooth even though
-historical transform samples explicitly exclude the controlled player.
+移动诊断还表明，普通后退采样到达时 PureState 权威帧在推进，队列为空，也没有重同步请求。代码检查发现，1,000 单位负载下，受控玩家运行时可能与权威时间轴相差数十帧。旧校正把完整位置差当作漂移，每个快照最多校正 0.25 单位，一次网络排空可能连续校正多次。即使历史变换明确排除了受控玩家，仍产生可见的权威锯齿。
 
-The controlled-player policy now:
+受控玩家策略现为：
 
-- treats distance reachable across the absolute client/authority frame gap as
-  valid prediction uncertainty, after subtracting pending frames already
-  replayed onto the authority pose;
-- corrects only error outside that envelope and shares a 0.25-unit correction
-  budget across all snapshots applied in one client simulation frame;
-- clears pending inputs on a world transition and preserves a hard reset only
-  for that transition;
-- does not hard-snap same-world FullBaseline or authority-override recovery
-  traffic.
+- 将客户端与权威绝对帧差内可达距离视为合法预测不确定性，并扣除已重演到权威姿态的待处理帧；
+- 仅校正该范围外误差，同一客户端模拟帧内应用的所有快照共享 0.25 单位校正预算；
+- 世界切换时清除待处理输入，仅对该切换保留硬重置；
+- 同世界 FullBaseline 或权威覆盖恢复流量不进行硬跳转。
 
-The last rule prevents replayed recovery input from placing the player outside
-the circular arena. A failed diagnostic run at
-`20260821-headless-controlled-reconciliation-1000-ideal-i2` captured the old
-chain directly: a replay snap put the member at progress `40.5`, then the next
-gameplay tick clamped it to the arena radius `34`, producing a 6.5-unit backward
-event without an advancing authority frame. The same run also recorded
-0.33-3.5-unit same-world recovery corrections, so it is failure evidence, not
-validation of the revised policy.
+最后一条防止恢复输入重演将玩家放到圆形竞技场外。失败诊断运行 `20260821-headless-controlled-reconciliation-1000-ideal-i2` 直接捕获旧链路：重演跳转将成员进度置为 `40.5`，下一个玩法步进将其裁剪到竞技场半径 `34`，产生 6.5 单位后退，且权威帧未推进。同次还记录了同世界恢复中 0.33–3.5 单位校正，因此属于失败证据，不能验证修订策略。
 
-Six reconciliation-policy EditMode tests passed for the first revision,
-covering prediction preservation, excess drift, pending-input replay, the
-per-frame budget, small-error tolerance, and forced world reset. The subsequent
-absolute-frame-gap revision compiled the Shooter runtime assembly; its added
-client-behind test and the next real Headless rerun are currently blocked by
-unrelated workspace Moba test compile errors in
-`NetworkTransportAuthenticationGateTests.cs` (calls to
-`InputSubmissionDiagnosticsBinding.Bind` are missing the new `scope`
-argument). That blocker must be cleared before this section can claim an E4
-improvement.
+首版六项校正策略 EditMode 测试通过，覆盖预测保留、超额漂移、待处理输入重演、每帧预算、小误差容忍及强制世界重置。之后的绝对帧差版本已编译 Shooter 运行时程序集；新增的客户端落后测试及下一次真实无头重跑仍被无关的 MOBA 工作区测试编译错误阻断：`NetworkTransportAuthenticationGateTests.cs` 调用 `InputSubmissionDiagnosticsBinding.Bind` 缺少新 `scope` 参数。消除该阻断后，本节才可声称 E4 改善。
 
-The Headless warmup runner also now opens completed Unity logs with
-`FileShare.ReadWrite | FileShare.Delete` and retries for up to 30 seconds. This
-addresses a real false infrastructure failure where Unity exited successfully
-but a child process retained the log handle beyond the previous ten-second
-`ReadAllText` window.
+无头预热运行器现以 `FileShare.ReadWrite | FileShare.Delete` 打开已完成的 Unity 日志，最多重试 30 秒。这解决了一次真实的基础设施误报：Unity 成功退出，但子进程持有日志句柄超过原先十秒的 `ReadAllText` 窗口。
 
-### Authoritative server clock and stage diagnostics
+### 权威服务端时钟及阶段诊断
 
-`BattleLogicHostGrain` now records a fixed-memory 150-tick performance window
-for both timer-driven state sync and externally driven frame sync. It reports
-the negotiated and achieved tick rate together with fixed-bucket
-P50/P95/P99/max timings for:
+`BattleLogicHostGrain` 为定时器驱动的状态同步及外部驱动的帧同步记录固定内存的 150 步性能窗口。报告协商频率、实际频率，以及以下阶段的固定桶 P50/P95/P99/最大耗时：
 
-- timer interval and total battle callback;
-- input submission and authoritative world tick;
-- reliable-event capture;
-- per-observer snapshot build, gameplay serialization, and enqueue;
-- asynchronous observer delivery latency.
+- 定时器间隔及完整战斗回调；
+- 输入提交及权威世界步进；
+- 可靠事件捕获；
+- 每个观察者的快照构建、玩法序列化及入队；
+- 异步观察者投递延迟。
 
-The same window counts snapshots queued behind an in-flight delivery. That
-counter separates server-side supersession pressure from client queue wait.
-Each completed window emits one structured
-`[BattleLogicHost] ServerPerformance` log entry containing battle/template,
-frame range, observer count, all stage distributions, `TargetHz`, and
-`AchievedHz`. The per-tick path stores no samples or strings; it only updates
-fixed histogram arrays.
+同一窗口还统计已有投递进行时排队的快照数，用来区分服务端替代压力与客户端队列等待。每个完成窗口输出一条结构化 `[BattleLogicHost] ServerPerformance` 日志，包含战斗及模板、帧范围、观察者数、全部阶段分布、`TargetHz` 及 `AchievedHz`。每步路径不保存采样或字符串，只更新固定直方图数组。
 
-The Headless, A/B, and performance-matrix runners accept an optional
-`-ServerLogPath`. They snapshot the file offset before launching clients and
-always export only newly appended `ServerPerformance` entries to
-`server-performance.log` in the case artifact, including failed cases. This
-keeps authority-clock evidence beside the owner/member client metrics without
-copying or scanning the server's complete historical log.
+无头、A/B 及性能矩阵运行器接受可选 `-ServerLogPath`。它们在启动客户端前记录文件偏移，只将新追加的 `ServerPerformance` 条目导出到用例产物的 `server-performance.log`，失败用例也保留。这样权威时钟证据可与房主及成员指标一起保存，无需复制或扫描服务端完整历史日志。
 
-Four focused .NET tests pass for rate arithmetic, percentile buckets, window
-reset semantics, and a 1,000-iteration zero-allocation recording gate. This is
-implementation-level validation only. The currently running server processes
-predate this build, and the Unity compiler blocker above prevents a fresh
-1,000/2,000-unit run, so no real server timing numbers are claimed yet.
+四项定向 .NET 测试通过，覆盖频率计算、百分位桶、窗口重置语义及 1,000 次迭代零分配记录门禁。这仅为实现级验证。当前运行的服务端进程早于此次构建，且上述 Unity 编译阻断使新的 1,000/2,000 单位运行无法进行，故尚无真实服务端耗时结论。
 
-The full Grains regression exposed and then verified two adjacent transport
-defects. First, `ShooterPureStateFrameSampleRing` replaced its transform array
-when growing from the first 16-sample historical frame to the second one but
-did not copy the existing prefix. The older frame therefore contained 16
-zero-valued transforms even though frame counts and block structure remained
-valid. Buffer growth now preserves the populated prefix. Second, an oversized
-FullBaseline was admitted against the configured burst size but deducted its
-entire payload size from the token bucket, creating bandwidth debt larger than
-the burst and unnecessarily holding later snapshots. It now consumes at most
-the same burst budget used by admission. The stale room-flow assertion was
-also changed from an obsolete fixed total entity count to player/enemy chunk
-invariants. The focused set passes 24/24 and the complete Grains suite passes
-259/259 after these fixes.
+完整 Grains 回归暴露并验证了两个相邻传输缺陷。其一，`ShooterPureStateFrameSampleRing` 从第一个 16 采样历史帧扩容到第二帧时替换变换数组，却未复制已有前缀，导致旧帧出现 16 个零值变换，尽管帧计数和块结构仍有效。扩容现保留已填充前缀。其二，超大 FullBaseline 按配置突发量接纳，却从令牌桶扣除整个载荷大小，造成超过突发量的带宽负债，额外阻塞后续快照。现在最多消耗接纳所用的相同突发预算。过期的房间流程断言也由固定实体总数改为玩家及敌人分块不变量。修复后定向集 24/24 通过，完整 Grains 套件 259/259 通过。
 
-## Evidence boundary
+## 证据边界
 
-`-PlanOnly` proves only matrix construction. PowerShell contract tests use
-synthetic JSON to prove fail-closed validation and metric arithmetic. Protocol
-tests prove deterministic selection, wire size, compatibility, and steady-state
-allocation behavior. None of these is a real multiplayer performance pass.
+`-PlanOnly` 仅证明矩阵构造。PowerShell 契约测试以合成 JSON 验证严格拒绝和指标计算；协议测试证明确定性选择、传输大小、兼容性及稳态分配行为。这些均不等于真实多人性能通过。
 
-A Headless E4 result can be claimed only from fresh baseline and candidate
-artifacts produced by the paired runner on the declared machine and network
-profile. The artifacts above satisfy that boundary for their exact one-run
-configurations. They do not establish hardware-independent limits, a three-run
-median, a production performance gate, or behavior under a remote deployment.
+只有配对运行器在声明的机器和网络配置上生成新的基线及候选产物，才可声称无头 E4 结果。上述产物仅满足其精确单次运行配置的边界，不能建立硬件无关限制、三次运行中位数、生产性能门禁或远程部署行为。
 
-## Recommended next optimization
+## 后续优化建议
 
-Do not simply raise the 32-transform cap. The next iteration should:
+不要简单提高 32 个变换的上限。下一轮应：
 
-1. clear the unrelated Unity compilation blocker, rerun the revised controlled
-   correction policy at 1,000/ideal, and require raw and unexplained backward
-   events to fall rather than relaxing their thresholds;
-2. deploy the new server battle-clock instrumentation and capture its achieved
-   tick rate and per-stage histograms under 1,000/2,000 units. A client
-   prediction clock cannot remain smooth indefinitely if the authority world
-   itself cannot sustain the negotiated tick rate;
-3. distinguish server production stalls, transport supersession, client
-   queueing, and Editor update stalls in every p99 queue/apply outlier;
-4. measure per-entity sample age after cross-block rotation, not only aggregate
-   block counts, and derive any adaptive sample budget from that fairness data;
-5. only after a clean single pair, rerun three repetitions for 1,000/2,000
-   units under ideal and limited-bandwidth profiles and gate grouped medians.
+1. 清除无关的 Unity 编译阻断，在 1,000/ideal 下重跑修订后的受控校正策略，要求原始及无法解释的后退事件减少，不放宽阈值；
+2. 部署新的服务端战斗时钟诊断，在 1,000/2,000 单位下捕获实际步进频率和各阶段直方图。若权威世界不能维持协商频率，客户端预测时钟无法无限保持平滑；
+3. 对每个 p99 队列及应用异常，区分服务端生产停顿、传输替代、客户端排队和 Editor 更新停顿；
+4. 跨块轮换后测量每实体采样年龄，而非只看块总数，并用公平性数据推导自适应采样预算；
+5. 单组配对干净通过后，再对 1,000/2,000 单位在理想及受限带宽配置各重复三次，按分组中位数执行门禁。
 
-## 2026-08-21 E4 follow-up: battle clock and observer budget
+## 2026-08-21 E4 后续：战斗时钟及观察者预算
 
-The first real 1,000-unit run exposed two independent causes of apparent client stutter:
+首个真实 1,000 单位运行暴露了客户端表面卡顿的两个独立原因：
 
-1. Orleans `RegisterTimer` schedules the next callback only after the async callback completes. A 30 Hz period therefore became `16.05-17.63 Hz` when the world tick took `15-20 ms`. `BattleLogicHostGrain` now advances a monotonic absolute deadline with a one-shot timer and skips expired deadlines instead of accumulating callback time.
-2. `StateSyncObserverGrain` applied its default `128 Kbps` queue budget even when the case requested `ideal`. This duplicated transport conditioning, dropped/merged pure-state deltas, and caused repeated full-baseline requests. `StateSyncPush.NetworkEnvironmentId` now selects an unlimited observer queue for `ideal`, `lan`, `mobile4g`, `crossregion`, and `poorwifi`; `limitedbw` keeps the explicit 128 Kbps budget.
+1. Orleans `RegisterTimer` 在异步回调完成后才安排下一次回调。世界步进耗时 `15-20 ms` 时，30 Hz 周期实际降为 `16.05-17.63 Hz`。`BattleLogicHostGrain` 现用一次性定时器推进单调绝对截止点，跳过已过期截止点，避免累积回调耗时。
+2. 即使用例指定 `ideal`，`StateSyncObserverGrain` 仍应用默认 `128 Kbps` 队列预算，重复施加传输条件，丢弃或合并纯状态增量，造成重复完整基线请求。`StateSyncPush.NetworkEnvironmentId` 现为 `ideal`、`lan`、`mobile4g`、`crossregion`、`poorwifi` 选择无限制观察者队列，`limitedbw` 保留显式 128 Kbps 预算。
 
-Fresh artifacts:
+新产物：
 
 ```text
 artifacts/shooter-controlled-reconciliation-e4-1000-ideal/20260821-053810-231
@@ -478,178 +251,87 @@ artifacts/shooter-controlled-reconciliation-e4-1000-ideal-budget-repeat/20260821
 artifacts/shooter-controlled-reconciliation-e4-1000-ideal-budget-repeat/20260821-061334-265
 ```
 
-The fixed-budget correction reduced the maximum snapshot arrival gap from `2.01 s` to `0.24-0.55 s`, reduced full baselines to one per observer in the repeat runs, and reduced pure-state playback starvation from roughly `54-56%` to `16-20%`. All three budget-corrected runs passed the structural AOI acceptance with `0 B/frame` reported GC. The server windows still report only `23-24 Hz` under this shared development machine; the remaining gap is a server scheduling/WorldTick capacity issue, not a client interpolation claim.
+预算修正将最大快照到达间隔从 `2.01 s` 降至 `0.24-0.55 s`，重复运行中完整基线降至每观察者一次，纯状态播放采样不足从约 `54-56%` 降至 `16-20%`。三次预算修正运行均通过结构 AOI 验收，GC 为 `0 B/frame`。共享开发机器上的服务端窗口仍仅为 `23-24 Hz`；剩余差距属于服务端调度及 WorldTick 容量问题，不能据此声称客户端插值已达标。
 
-The server artifact now also preserves low-frequency `[StateSyncObserver] DeliveryPerformance` records with produced/sent/dropped/merged bytes, queue age, and resync count. This is required to distinguish expected `limitedbw` backpressure from an unintended queue regression.
+服务端产物还保留低频 `[StateSyncObserver] DeliveryPerformance` 记录，包含生产、发送、丢弃及合并字节数、队列年龄及重同步数，用于区分预期的 `limitedbw` 背压与非预期队列退化。
 
-## Next comparison
+## 下一项对照
 
-The next synchronization-model branch is deterministic frame sync as a
-separate template. It should first prove deterministic RVO/job output and
-input replay. Client-uploaded checkpoints, snapshot plus input reconstruction,
-disconnect recovery, and zero-client server takeover are later reliability
-layers; none should be inferred from the PureState presentation block.
+下一个同步模型分支是作为独立模板的确定性帧同步，应先证明 RVO/Job 输出及输入重演的确定性。客户端上传检查点、快照加输入重建、断线恢复及零客户端时的服务端接管属于后续可靠性层，不能从 PureState 表现块推断。
 
-## 2026-08-21 hash/stage E4 repeat and input transport diagnostics
+## 2026-08-21 哈希及阶段 E4 重复验证与输入传输诊断
 
-The lightweight state-hash path and one-time Shooter stage sink installation
-were validated in a fresh two-observer run:
+轻量状态哈希路径及一次性 Shooter 阶段采集器安装，在新双观察者运行中完成验证：
 
 ```text
 artifacts/shooter-worldtick-hash-stage-e4-1000-ideal-repeat/20260821-080113-258
 ```
 
-The structural acceptance passed for 1,000 enemies with the multi-sample-block
-template. The stable server window was `28.77 Hz`, with `WorldTick` mean
-`5.493 ms`, `EnemyMovementIntent` mean `1.874 ms`, `RvoSolve` mean `2.997 ms`,
-and `SnapshotBuild` mean `1.739 ms`. The first window of the same run was a
-cold-start outlier (`18.33 Hz`); it must be reported separately rather than
-averaged away. Owner and member both reported `0 B/frame` GC, zero unexplained
-backward movement, and zero resync requests. Snapshot-gap P95/P99 remained
-roughly `220-245/374 ms`, and playback starvation remained `23-25%`, so the
-sample-block buffer is still the next continuity target.
+1,000 敌人及多采样块模板的结构验收通过。稳定服务端窗口为 `28.77 Hz`，`WorldTick` 平均 `5.493 ms`、`EnemyMovementIntent` 平均 `1.874 ms`、`RvoSolve` 平均 `2.997 ms`、`SnapshotBuild` 平均 `1.739 ms`。同次首个窗口为冷启动异常（`18.33 Hz`），必须单独报告，不能用平均值掩盖。房主及成员均报告 GC 为 `0 B/frame`、无法解释的后退和重同步请求均为零。快照间隔 P95/P99 仍约为 `220-245/374 ms`，播放采样不足仍为 `23-25%`，故采样块缓冲仍是后续连续性优化目标。
 
-The first artifact in the pair is deliberately retained as a negative sample:
-member input timed out during startup and the acceptance failed. The failure
-identified a diagnostics hole: `NetworkTransport.SendInputAsync` used to swallow
-transport exceptions into an empty default response, and the Shooter adapter did
-not pass its timeout/cancellation arguments. The adapter now forwards both;
-non-cancellation failures return `Status=TransportError` plus the exception
-message, while caller cancellation remains cancellable. Future E4 reports should
-include transport status counts so cold-start failures cannot be mistaken for
-authoritative input rejection.
+配对中的首份产物有意保留为负面样本：成员启动时输入超时，验收失败。失败揭示诊断缺口：`NetworkTransport.SendInputAsync` 曾将传输异常吞成空默认响应，Shooter 适配器也未传入超时及取消参数。现在适配器转发两者；非取消失败返回 `Status=TransportError` 及异常消息，调用方取消仍可正常取消。后续 E4 报告应包含传输状态计数，避免将冷启动失败误判为权威输入拒绝。
 
-Two follow-up runs completed the same structural acceptance but were correctly
-kept outside the default performance gate:
+两次后续运行完成相同结构验收，但正确地排除在默认性能门禁之外：
 
 ```text
 artifacts/shooter-worldtick-hash-stage-e4-1000-ideal-r3/20260821-082518-175
 artifacts/shooter-worldtick-hash-stage-e4-1000-ideal-r3-tuned/20260821-082737-192
 ```
 
-The first had `0.24-0.55%` playback starvation and a `39.5 ms` P99 apply outlier.
-The second had `0.73-1.30%` starvation, up to `49 ms` P99 apply, and a peak
-client queue depth of `18`, even though input success was `18/18`, resync count was zero, and GC was
-`0 B/frame`. This supports the current diagnosis: sample-block buffering has
-substantially reduced persistent starvation, while intermittent main-thread or
-queue spikes still need a separate investigation. Do not weaken the gate or
-declare a stable 30 Hz result from these single repetitions.
+第一次播放采样不足为 `0.24-0.55%`，P99 应用异常为 `39.5 ms`。第二次采样不足为 `0.73-1.30%`，P99 应用最多 `49 ms`，客户端队列深度峰值为 `18`，尽管输入成功 `18/18`、重同步为零、GC 为 `0 B/frame`。这支持当前诊断：采样块缓冲显著减少持续采样不足，间歇性主线程或队列尖峰仍需单独调查。不能放宽门禁，或从这些单次运行宣称稳定 30 Hz。
 
-## 2026-08-24 formal multiplayer default correction
+## 2026-08-24 正式多人模式默认配置修正
 
-The formal multiplayer profile still selected `mass-battle-lod-aoi` and
-inherited that experimental template's `limitedbw` network environment. This
-meant a normal local multiplayer launch unintentionally enabled the observer's
-128 Kbps stress budget. The server log for battle
-`36e69bb6897d41c58c716088b5cb5eb1` separated the stages clearly: the authority
-clock sustained about `30 Hz`, while one observer produced `3,800,716` bytes,
-sent `501,056` bytes, and merged `3,288,633` bytes. The one-to-two-second visual
-steps were therefore primarily queue supersession under an explicitly
-constrained profile, not evidence that the authority simulation only ticked
-once every one or two seconds.
+正式多人配置仍选择 `mass-battle-lod-aoi`，继承实验模板的 `limitedbw` 网络环境，导致普通本地多人启动意外启用观察者 128 Kbps 压力预算。战斗 `36e69bb6897d41c58c716088b5cb5eb1` 的服务端日志清晰区分了阶段：权威时钟维持约 `30 Hz`，而一个观察者生产 `3,800,716` 字节、发送 `501,056` 字节、合并 `3,288,633` 字节。因此一至两秒的画面跳变主要来自显式受限配置下的队列替代，不能证明权威模拟每一两秒才步进一次。
 
-The playable default now separates synchronization shape from network fault
-injection:
+可玩模式默认配置现将同步形态与网络故障注入分开：
 
-- the formal and fallback room defaults use
-  `mass-battle-lod-aoi-sample-block`, so the client can spread historical
-  samples across render frames;
-- the playable network environment is explicitly `ideal`, which disables the
-  observer token-bucket budget and client-side simulated loss/latency;
-- `limitedbw` remains available only when a test profile or matrix case asks
-  for it explicitly.
+- 正式及回退房间默认使用 `mass-battle-lod-aoi-sample-block`，使客户端可将历史采样分散到渲染帧；
+- 可玩模式网络环境显式设为 `ideal`，关闭观察者令牌桶预算及客户端模拟丢包、延迟；
+- `limitedbw` 仅在测试配置或矩阵用例显式请求时启用。
 
-The profile contract asserts the template ID, room network tag, zero bandwidth
-limit, and zero synthetic latency/jitter/loss/reorder. A fresh two-client
-Headless run is still required before assigning new arrival-gap or starvation
-numbers to this correction.
+配置契约断言模板 ID、房间网络标签、零带宽限制，以及零合成延迟、抖动、丢包和乱序。仍需新的双客户端无头运行，才能为该修正提供新的到达间隔或采样不足数据。
 
-The same playable-default contract now applies to every multiplayer entry
-surface, not only the formal scene controller. `ShooterPlayModeMenu`, the
-remote-state-sync profile samples, and the Unity two-client Headless runner all
-select `mass-battle-lod-aoi-sample-block` with `ideal` unless the caller
-explicitly chooses another network environment. The Headless command writes
-that environment into the profile before building both client session options
-and room tags, so a performance-matrix case no longer conditions only the
-server while silently leaving the client on another profile. The dedicated
-sample-block A/B runner continues to pass the single-sample baseline and
-`limitedbw` explicitly, preserving the stress comparison.
+相同可玩默认契约现适用于所有多人入口，包括正式场景控制器、`ShooterPlayModeMenu`、远程状态同步配置示例及 Unity 双客户端无头运行器。除非调用方显式选择其他网络环境，均使用 `mass-battle-lod-aoi-sample-block` 和 `ideal`。无头命令在构建客户端会话选项及房间标签前，将环境写入配置，避免性能矩阵仅改变服务端条件而让客户端静默使用其他配置。专用采样块 A/B 运行器继续显式传入单采样基线及 `limitedbw`，保留压力对照。
 
-## 2026-08-24 template routing fix and 1,000-unit server RVO follow-up
+## 2026-08-24 模板路由修复及 1,000 单位服务端 RVO 后续
 
-The first Headless verification after the playable-default correction exposed
-another configuration override. `AbilityKit.Orleans.ShooterSmoke` defaulted
-`ABILITYKIT_SHOOTER_STATE_SYNC_PAYLOAD_MODE` to `packed` and wrote it for every
-server launch. That environment override has higher priority than the room
-sync template, so a room labelled `mass-battle-lod-aoi-sample-block` still sent
-packed actor snapshots. The diagnostic signature was unambiguous:
-`actorSnapshotAppliedCount > 0`, while every pure-state sample-block and
-playback counter remained zero.
+可玩默认修正后的首次无头验证暴露另一处配置覆盖。`AbilityKit.Orleans.ShooterSmoke` 将 `ABILITYKIT_SHOOTER_STATE_SYNC_PAYLOAD_MODE` 默认设为 `packed`，每次服务端启动均写入。该环境覆盖优先于房间同步模板，因此标记为 `mass-battle-lod-aoi-sample-block` 的房间仍发送压缩角色快照。诊断特征明确：`actorSnapshotAppliedCount > 0`，而所有纯状态采样块及播放计数均为零。
 
-ShooterSmoke now defaults its command-line payload selector to `template`.
-That mode clears the environment override and lets the room template select
-the payload. Explicit `packed` and `pure-state` options remain available for
-the multi-process compatibility suites. A fresh 64-unit two-client run then
-reported 120/126 received sample blocks, 239/252 frame samples, 2,123/2,010
-playback render ticks, zero playback starvation, and a successful AOI despawn
-lifecycle:
+ShooterSmoke 的命令行载荷选择器现默认为 `template`。该模式清除环境覆盖，由房间模板选择载荷。显式 `packed` 和 `pure-state` 仍供多进程兼容性套件使用。随后新 64 单位双客户端运行报告收到 120/126 个采样块、239/252 个帧采样、2,123/2,010 次播放渲染步进，播放采样不足为零，AOI 销毁生命周期成功：
 
 ```text
 artifacts/shooter-unity-headless/20260824-082937-033
 ```
 
-The 512-unit run also completed the full lifecycle with zero client GC and
-snapshot-arrival P95 around 181-184 ms. At 1,000 units, however, the authority
-fell to 18-22 Hz and playback starvation rose to 18-24%. The server stages
-showed that this was no longer primarily a serialization or observer-bandwidth
-problem: snapshot build averaged 2.8-3.4 ms, while `WorldTick` averaged
-20-30 ms and was dominated by enemy movement intent plus managed RVO.
+512 单位运行也完成完整生命周期，客户端 GC 为零，快照到达 P95 约 181–184 ms。但在 1,000 单位时，权威降至 18–22 Hz，播放采样不足升至 18–24%。服务端阶段表明，主要问题已不在序列化或观察者带宽：快照构建平均 2.8–3.4 ms，`WorldTick` 平均 20–30 ms，主要消耗在敌人移动意图及托管 RVO。
 
-The Orleans world had selected `AcceleratedPreferred`, but unlike Unity it had
-no platform acceleration service and silently used the single-threaded managed
-neighbor collector. The server now injects a per-world deterministic spatial
-grid collector. It reuses its grid storage, writes disjoint per-agent neighbor
-slots, uses at most four workers above 256 agents, and sorts each result by
-distance then entity ID. A 513-agent test compares every result against a
-brute-force reference, and repeated parallel runs assert stable output.
+Orleans 世界选择了 `AcceleratedPreferred`，但没有 Unity 的平台加速服务，静默使用单线程托管邻居收集器。服务端现注入每世界独立的确定性空间网格收集器：复用网格存储，写入各代理互不重叠的邻居槽，超过 256 个代理时最多使用四个工作线程，每项结果先按距离再按实体 ID 排序。513 代理测试将每项结果与暴力参考实现比较，重复并行运行断言输出稳定。
 
-In the immediate 1,000-unit A/B repeat, the stable RVO mean decreased from
-12.48 ms to 9.84 ms and achieved authority rate increased from 22.02 Hz to
-24.55 Hz:
+紧接着的 1,000 单位 A/B 重复中，稳定 RVO 平均耗时由 12.48 ms 降至 9.84 ms，权威实际频率由 22.02 Hz 升至 24.55 Hz：
 
 ```text
-before: artifacts/shooter-unity-headless/20260824-084249-577
-after:  artifacts/shooter-unity-headless/20260824-085805-364
+修改前：artifacts/shooter-unity-headless/20260824-084249-577
+修改后：artifacts/shooter-unity-headless/20260824-085805-364
 ```
 
-This is a capacity improvement, not a final 30 Hz claim. The next server work
-should measure neighbor collection separately from ORCA solving, remove the
-remaining serial solve bottleneck, and validate multi-room fairness before
-raising worker parallelism. Client playback should retain the sample-block
-buffer: it masks ordinary 100-300 ms delivery variation, but it cannot conceal
-an authority that continuously produces fewer than 30 simulation frames per
-second.
+这是容量改善，尚不能宣称最终达到 30 Hz。后续服务端工作应分别测量邻居收集与 ORCA 求解，消除剩余串行求解瓶颈，并在提高并行度前验证多房间公平性。客户端应保留采样块缓冲：它可掩盖普通 100–300 ms 投递波动，却无法掩盖持续每秒生产不足 30 个模拟帧的权威端。
 
-## 2026-08-24 RVO substage measurement and parallel ORCA
+## 2026-08-24 RVO 子阶段测量及并行 ORCA
 
-The server performance sink now keeps the existing inclusive `RvoSolve`
-window and adds three non-overlapping substages:
+服务端性能采集器保留原有包含子阶段的 `RvoSolve` 窗口，并增加三个互不重叠的子阶段：
 
-- `RvoNeighborCollect` covers accelerated collection plus any managed fallback;
-- `RvoAcceleratedValidation` covers bounds, ordering, duplicate, and exact
-  distance validation of accelerated output;
-- `RvoOrcaSolve` covers ORCA line construction and the per-agent linear
-  programs.
+- `RvoNeighborCollect` 覆盖加速收集及托管回退；
+- `RvoAcceleratedValidation` 覆盖加速输出的边界、顺序、重复及精确距离验证；
+- `RvoOrcaSolve` 覆盖 ORCA 约束线构建及各代理线性规划。
 
-The first 1,000-unit run with those counters completed the two-observer AOI
-lifecycle and reported `0 B/frame` client GC:
+带这些计数器的首次 1,000 单位运行完成双观察者 AOI 生命周期，客户端 GC 为 `0 B/frame`：
 
 ```text
 artifacts/shooter-unity-headless/20260824-115114-247
 ```
 
-Its stable `150-299` server window showed that the remaining RVO time was not
-primarily validation:
+稳定的 `150-299` 服务端窗口显示，剩余 RVO 耗时主要不在验证：
 
 ```text
 AchievedHz=22.24
@@ -661,173 +343,97 @@ RvoSolve=10.021 ms
   RvoOrcaSolve=6.016 ms
 ```
 
-The managed solver therefore gained an optional server-only per-agent
-accelerator. ORCA agents read the immutable frame input and neighbor arrays and
-write disjoint line, projected-line, and output-velocity slots. The projected
-line scratch buffer was expanded from one shared segment to one segment per
-agent before enabling concurrency. Worlds without the accelerator, small
-worlds below 256 agents, and the normal Unity client path retain the serial
-solver. Tests compare the accelerated world against the managed world by state
-hash and assert that every parallel agent slot is visited exactly once.
+因此托管求解器增加仅服务端可选的逐代理加速器。ORCA 代理读取不可变帧输入及邻居数组，写入各自独立的约束线、投影线和输出速度槽。启用并发前，投影线临时缓冲从共享单段扩为每代理一段。无加速器的世界、低于 256 代理的小世界及普通 Unity 客户端路径仍使用串行求解器。测试通过状态哈希比较加速世界与托管世界，并断言每个并行代理槽恰好访问一次。
 
-The immediate parallel-ORCA repeat used the same 1,000-unit template and ideal
-network profile:
+紧接着的并行 ORCA 重复采用相同 1,000 单位模板及理想网络配置：
 
 ```text
 artifacts/shooter-unity-headless/20260824-120411-586
 ```
 
-Stable-window comparison:
+稳定窗口对照：
 
 ```text
-                           before       parallel ORCA    change
+                           修改前       并行 ORCA        变化
 RvoOrcaSolve               6.016 ms     4.081 ms         -32.2%
 RvoSolve                  10.021 ms     8.356 ms         -16.6%
 WorldTick                 18.305 ms    16.289 ms         -11.0%
-Achieved authority rate   22.24 Hz     25.21 Hz          +13.4%
+权威实际频率              22.24 Hz     25.21 Hz          +13.4%
 ```
 
-This repeat also passed AOI lifecycle and input acceptance with zero reported
-client GC. Its owner process performed a second Unity script/DAG refresh after
-the formal process started, producing a 3.3-second Editor update stall; client
-p99 arrival, input RTT, and playback starvation from that run are therefore
-not valid A/B evidence. The server stable window is still useful because the
-refresh contamination is visible and the individual stage counters remain
-separable.
+该重复也通过 AOI 生命周期及输入验收，客户端报告 GC 为零。正式进程启动后，房主进程又进行一次 Unity 脚本及 DAG 刷新，造成 3.3 秒 Editor 更新停顿，因此该次客户端 p99 到达、输入 RTT 和播放采样不足不能作为有效 A/B 证据。服务端稳定窗口仍有价值，因为刷新干扰可见，各阶段计数可分离。
 
-Parallel ORCA improves capacity but does not establish stable 30 Hz. The next
-server target is `EnemyMovementIntent` at roughly 6.6 ms, followed by the
-3.3 ms neighbor collector. Before increasing the current four-worker ceiling,
-run concurrent-room fairness and server allocation tests: two `Parallel.For`
-phases per authority tick may add thread-pool contention and small server-side
-allocations even though Unity client GC remains zero.
+并行 ORCA 改善容量，尚未证明稳定 30 Hz。下一项服务端目标是约 6.6 ms 的 `EnemyMovementIntent`，再处理 3.3 ms 的邻居收集器。提高当前四线程上限前，应执行并发房间公平性及服务端分配测试：即使 Unity 客户端 GC 为零，每次权威步进中的两个 `Parallel.For` 阶段仍可能增加线程池争用和少量服务端分配。
 
-## 2026-08-24 per-entity continuity follow-up
+## 2026-08-24 每实体连续性后续
 
-Aggregate block counts were not enough to explain the reported one-second
-visual steps. The client now records a fixed 256-frame histogram of transform
-sample intervals per entity, including P50/P95/P99 and maximum. Historical
-block transforms are always marked as sparse trajectory observations, and the
-playback track may project their velocity for at most six frames. Teleports and
-`NoInterpolation` samples still bypass projection.
+块总数不足以解释报告的一秒画面跳变。客户端现为每实体变换采样间隔记录固定 256 帧直方图，包含 P50/P95/P99 及最大值。历史块变换始终标记为稀疏轨迹观测，播放轨迹最多按速度投影六帧；瞬移及 `NoInterpolation` 采样仍跳过投影。
 
-The first fresh 1,000/ideal run used dense near and mid history but no far
-history:
+首个新 1,000/ideal 运行使用密集近处及中距历史，不含远处历史：
 
 ```text
 artifacts/shooter-unity-headless/20260824-130957-666
 ```
 
-It proved the remaining tail directly. Both clients reported transform sample
-P50/P95/P99/max of `1/3/30/30` frames. The authority was producing normally;
-the stable server window reached `28.41 Hz`, snapshot queues did not remain
-backed up, and client GC was `0 B/frame`. The one-second step was therefore a
-far-LOD presentation hole rather than a one-Hz simulation or transport stream.
+它直接证明了剩余长尾。两个客户端的变换采样 P50/P95/P99/最大值均为 `1/3/30/30` 帧。权威正常生产，稳定服务端窗口达 `28.41 Hz`，快照队列未持续积压，客户端 GC 为 `0 B/frame`。因此一秒跳变来自远 LOD 表现空洞，并非模拟或传输仅有 1 Hz。
 
-For unmetered environments, the newest historical frame now also contains far
-AOI transforms. `limitedbw` retains far-history stride zero and the 32-transform
-block cap. The immediate same-machine repeat is stored at:
+非受限环境的最新历史帧现也包含远处 AOI 变换。`limitedbw` 保留远处历史步幅零及每块 32 个变换上限。紧接着的同机重复位于：
 
 ```text
 artifacts/shooter-unity-headless/20260824-132818-421
 ```
 
-| Metric | Before owner/member | Far-history owner/member |
+| 指标 | 修改前房主/成员 | 加入远处历史后房主/成员 |
 |---|---:|---:|
-| Per-entity interval P99 | `30 / 30` frames | `3 / 3` frames |
-| Per-entity interval P95 | `3 / 3` frames | `3 / 3` frames |
-| Average payload | `9.5 / 10.3 KB` | `14.9 / 15.9 KB` |
-| Maximum historical block | `426 / 384` | `641 / 618` transforms |
-| Playback starvation | `11.26% / 7.60%` | `5.45% / 6.36%` |
-| Held playback | `9.70% / 6.62%` | `4.19% / 4.77%` |
-| Delta apply P99 | `8 / 16 ms` | `26 / 13 ms` |
-| Stable authority rate | `28.41 Hz` | `29.23 Hz` |
-| Client GC | `0 / 0 B/frame` | `0 / 0 B/frame` |
+| 每实体间隔 P99 | `30 / 30` 帧 | `3 / 3` 帧 |
+| 每实体间隔 P95 | `3 / 3` 帧 | `3 / 3` 帧 |
+| 平均载荷 | `9.5 / 10.3 KB` | `14.9 / 15.9 KB` |
+| 最大历史块 | `426 / 384` | `641 / 618` 个变换 |
+| 播放采样不足 | `11.26% / 7.60%` | `5.45% / 6.36%` |
+| 播放保持 | `9.70% / 6.62%` | `4.19% / 4.77%` |
+| 增量应用 P99 | `8 / 16 ms` | `26 / 13 ms` |
+| 稳定权威频率 | `28.41 Hz` | `29.23 Hz` |
+| 客户端 GC | `0 / 0 B/frame` | `0 / 0 B/frame` |
 
-This establishes the intended continuity tradeoff: the 30-frame tail moved to
-three frames and held/starved presentation decreased, at a roughly 55% average
-payload increase. It is not a clean latency A/B. A shared Unity source file was
-modified while the second pair was starting, forcing AssetDatabase re-import;
-that run also contains larger Editor and FullBaseline stalls. Arrival/apply
-outliers from the pair must not be attributed solely to far history.
+这证明了预期连续性取舍：30 帧长尾降为三帧，播放保持及采样不足减少，平均载荷约增加 55%。它不是干净的延迟 A/B：第二组配对启动时共享 Unity 源文件发生修改，触发 AssetDatabase 重新导入；该次还包含更大的 Editor 及 FullBaseline 停顿。不能将配对中的到达和应用异常完全归因于远处历史。
 
-The second artifact recorded a raw maximum interval of 90/102 frames even
-though P99 was three. Inspection found that the diagnostic retained an entity's
-last sample while it was outside AOI, then counted the invisible period when
-the entity re-entered. Full baselines and removals now terminate that entity's
-continuity segment. A focused lifecycle test proves that despawn-to-respawn time
-does not enter the interval histogram; the artifact itself predates this
-diagnostic correction.
+第二份产物记录原始最大间隔 90/102 帧，尽管 P99 为三帧。检查发现，实体离开 AOI 后诊断仍保留其最后采样，重新进入时将不可见期间也计入。完整基线及移除现终止该实体连续性片段。定向生命周期测试证明，销毁至重生间隔不进入直方图；该产物本身早于诊断修正。
 
-The Headless runner also separates compile warmup and client startup budgets
-from the multiplayer workflow timeout. Both Unity clients must publish startup
-state before the workflow stopwatch begins. This prevents a 170-250 second
-cold Asset Refresh from being reported as a synchronization timeout.
+无头运行器还将编译预热、客户端启动预算与多人工作流超时分开。两个 Unity 客户端都发布启动状态后，才开始工作流计时，防止将 170–250 秒冷 Asset Refresh 误报为同步超时。
 
-The next bandwidth optimization should preserve the three-frame endpoint while
-reducing its cost, preferably with a quantized transform delta or far-tier
-velocity segment rather than removing far history again. Validate that work at
-1,000 and 2,000 units with repeated clean runs, and gate per-entity P99 together
-with payload, delta-apply P99, queue wait, and achieved authority rate.
+下一项带宽优化应保留三帧端点并降低成本，优先采用量化变换增量或远层级速度段，避免再次移除远处历史。在 1,000 和 2,000 单位下重复干净运行验证，同时门禁检查每实体 P99、载荷、增量应用 P99、队列等待及权威实际频率。
 
-## 2026-08-24 pure-state v3 compressed history and 2,000-unit capacity evidence
+## 2026-08-24 纯状态 v3 压缩历史及 2,000 单位容量证据
 
-Pure-state schema version 3 keeps the three-frame trajectory endpoint while
-removing most of the raw historical-transform cost. The outer payload remains
-a 15-member line layout. Member 13, the v2 raw `TransformSamples` array, is
-empty; member 14 contains a compressed byte block with an encoding version,
-transform count, delta-coded entity IDs, and MemoryPack varints for entity
-kind, quantized position, quantized velocity, and flags. Decoding reconstructs
-the original `ShooterPureStateTransformSample[]` losslessly, so playback and
-interpolation do not need a separate v3 path.
+纯状态结构版本 3 保留三帧轨迹端点，移除大部分原始历史变换成本。外层载荷仍为 15 成员线性布局。成员 13（v2 原始 `TransformSamples` 数组）为空；成员 14 包含压缩字节块，存放编码版本、变换数、差分编码实体 ID，以及实体种类、量化位置、量化速度和标志的 MemoryPack 变长整数。解码无损重建原始 `ShooterPureStateTransformSample[]`，播放和插值无需单独的 v3 路径。
 
-Compatibility remains explicit rather than relying on serializer tolerance:
+兼容性仍显式定义，不依赖序列化器容错：
 
-- decoders continue to accept the legacy 11/12/14-member v1/v2 layouts;
-- the .NET authority writes the v3 compressed block;
-- the uncommon Unity send path may still write the 14-member raw layout;
-- the pure-state catalog advertises maximum schema version 3;
-- wire gates cover v2 raw compatibility, field-for-field v3 round trips,
-  1,000-transform warmed decode with zero allocation, and compression bounds.
+- 解码器继续接受旧版 11/12/14 成员的 v1/v2 布局；
+- .NET 权威端写入 v3 压缩块；
+- 不常用的 Unity 发送路径仍可写入 14 成员原始布局；
+- 纯状态目录声明最高结构版本为 3；
+- 传输门禁覆盖 v2 原始布局兼容、v3 逐字段往返、1,000 变换预热解码零分配及压缩界限。
 
-The synthetic density gates require a 256-transform v3 block to remain below
-80% of its raw layout and the 1,400-transform SmoothMassBattle fixture to remain
-below 55%. Protocol and compatibility tests passed `36/36`; Grains sampling,
-template, and runtime-adapter tests passed `44/44`; the ShooterSmoke runner
-contract passed `6/6`.
+合成密度门禁要求 256 变换的 v3 块低于原始布局大小的 80%，1,400 变换的 SmoothMassBattle 夹具低于 55%。协议和兼容性测试 `36/36` 通过；Grains 采样、模板及运行时适配器测试 `44/44` 通过；ShooterSmoke 运行器契约 `6/6` 通过。
 
-The first 1,000-unit run after compression is stored at:
+压缩后的首个 1,000 单位运行位于：
 
 ```text
 artifacts/shooter-unity-headless/20260824-171327-440
 ```
 
-Compared with the uncompressed far-history run
-`20260824-132818-421`, average owner/member payload fell from
-`14.9/15.9 KB` to `9.06/8.88 KB`, approximately `39%/44%`. Per-entity
-transform interval P99 remained `3/3` frames, maximum payload stayed below
-`18.8 KB`, and both clients reported `0 B/frame` GC. This confirms that the
-compression removes bandwidth without reopening the one-second far-LOD hole.
+相比未压缩远处历史运行 `20260824-132818-421`，房主及成员平均载荷从 `14.9/15.9 KB` 降至 `9.06/8.88 KB`，约减少 `39%/44%`。每实体变换间隔 P99 仍为 `3/3` 帧，最大载荷低于 `18.8 KB`，两个客户端均报告 GC 为 `0 B/frame`。这确认压缩可降低带宽，不重新引入远 LOD 的一秒空洞。
 
-A warmed 1,000-unit repetition is available at
-`20260824-172233-521`, but both 1,000-unit runs include Unity Initial Refresh,
-script compilation, or Domain Reload activity. Their payload size, decode
-success, per-entity interval, and zero-allocation results remain useful. Their
-client apply P95/P99 values are not a clean A/B comparison against the earlier
-artifact.
+预热后的 1,000 单位重复位于 `20260824-172233-521`，但两次 1,000 单位运行均包含 Unity 初始刷新、脚本编译或 Domain Reload。其载荷大小、解码成功、每实体间隔和零分配结果仍有价值；客户端应用 P95/P99 不能与较早产物构成干净 A/B。
 
-The 2,000-unit capacity run is stored at:
+2,000 单位容量运行位于：
 
 ```text
 artifacts/shooter-unity-headless/20260824-172623-481
 ```
 
-It completed the multiplayer and AOI lifecycle with zero decode failures, zero
-snapshot resyncs, and `0/0 B/frame` client GC. Average payload was
-`12.27/15.49 KB`, maximum payload `27.55/29.13 KB`, and per-entity
-P50/P95/P99 remained `3/3/3` frames. Nevertheless, starvation reached
-`51.21%/55.58%` because the authority's first active window sustained only
-`15.37 Hz`:
+它完成多人及 AOI 生命周期，解码失败和快照重同步均为零，客户端 GC 为 `0/0 B/frame`。平均载荷 `12.27/15.49 KB`，最大载荷 `27.55/29.13 KB`，每实体 P50/P95/P99 仍为 `3/3/3` 帧。但采样不足达到 `51.21%/55.58%`，因为权威首个活动窗口仅维持 `15.37 Hz`：
 
 ```text
 WorldTick                    34.427 ms
@@ -838,324 +444,110 @@ RvoSolve                     14.755 ms
 SnapshotBuildSerialize       6.805 ms
 ```
 
-This separates the current failure modes. The v3 transport still provides
-three-frame observations at 2,000 units; the client cannot render 30 fresh
-authority frames per second when server simulation produces about 15. The next
-priority order is therefore:
+这区分了当前失败模式。v3 传输在 2,000 单位时仍提供三帧观测；服务端每秒仅生产约 15 帧时，客户端无法渲染 30 个新的权威帧。因此后续优先级为：
 
-1. remove the small-player-set overhead in `EnemyMovementIntent`, then assess
-   whether its remaining per-enemy work merits server-only parallel execution;
-2. improve RVO neighbor collection and ORCA data layout without increasing the
-   current worker ceiling before multi-room fairness and allocation checks;
-3. restore a stable 30 Hz authority before deciding whether client apply needs
-   additional frame slicing;
-4. run at least three clean 1,000- and 2,000-unit repetitions with Unity asset
-   refresh disabled, and report median plus worst-case stage and presentation
-   metrics.
+1. 消除 `EnemyMovementIntent` 在小玩家集合上的开销，再评估剩余逐敌人工作是否值得仅服务端并行执行；
+2. 改善 RVO 邻居收集和 ORCA 数据布局，在多房间公平性及分配检查前不提高当前工作线程上限；
+3. 先恢复稳定 30 Hz 权威，再决定客户端应用是否需要进一步分帧；
+4. 关闭 Unity 资源刷新，对 1,000 和 2,000 单位各进行至少三次干净重复，报告阶段及表现指标的中位数和最差值。
 
-The Headless runner now detects UTF-16 LE/BE and UTF-8 server logs and aligns
-offsets before reading appended data. This fixes the prior zero-byte
-`server-performance.log` export caused by seeking into a UTF-16 stream and
-decoding it as UTF-8. The parser and runner contract are covered by tests; a
-fresh end-to-end run must still confirm non-empty export on the real launcher.
+无头运行器现检测 UTF-16 LE/BE 及 UTF-8 服务端日志，读取追加数据前对齐偏移。这修复了此前在 UTF-16 流中定位却按 UTF-8 解码、导致 `server-performance.log` 导出为零字节的问题。解析器及运行器契约已有测试覆盖；仍需新的端到端运行确认真实启动器可导出非空内容。
 
-## 2026-08-26 playable 512-unit validation and gate correction
+## 2026-08-26 可玩默认 512 单位验证及门禁修正
 
-The first fully green two-client Headless pass at the playable default
-(`mass-battle-lod-aoi-sample-block` + `ideal`, 512-unit budget) completed the
-complete lobby-to-battle-to-AI-lifecycle flow with the in-flight server fixes
-in the working tree:
+首个可玩默认配置（`mass-battle-lod-aoi-sample-block` + `ideal`，512 单位预算）的双客户端无头全绿运行，使用工作区内推进中的服务端修复，完成大厅、战斗及 AI 生命周期完整流程：
 
 ```text
 artifacts/shooter-unity-headless/20260825-170235-795
 ```
 
-Both clients reported zero playback starvation (owner 0.0%, member <=0.3%),
-per-entity transform sample intervals P50/P95/P99 = 1/3/3 frames, zero client
-GC, sync-frame P95 of 2.0-2.5 ms, and 18/18 accepted inputs with zero resync.
-The authority sustained 29.98-30.00 Hz across both observed windows
-(`WorldTick` mean 0.7-0.9 ms, `EnemyMovementIntent` mean 0.047-0.059 ms,
-`RvoSolve` mean 0.5 ms). The earlier 15 ms `EnemyMovementIntent` figure came
-from the dictionary-backed expanding-ring nearest-player query that ran per
-enemy before the direct-scan path landed; with it, intent is no longer a
-capacity factor.
+两个客户端报告播放采样不足近零（房主 0.0%，成员 <=0.3%），每实体变换采样间隔 P50/P95/P99 = 1/3/3 帧，客户端 GC 为零，同步帧 P95 为 2.0–2.5 ms，输入接纳 18/18，重同步为零。权威在两个观测窗口均维持 29.98–30.00 Hz（`WorldTick` 平均 0.7–0.9 ms，`EnemyMovementIntent` 平均 0.047–0.059 ms，`RvoSolve` 平均 0.5 ms）。此前 15 ms 的 `EnemyMovementIntent` 来自直接扫描路径落地前、每敌人执行的字典扩环最近玩家查询；使用直接扫描后，意图已不再是容量因素。
 
-Five stale tests were updated to the current intended semantics so the .NET
-suite is green again (579/579): bounded local-player correction now subtracts
-reachable prediction distance and shares one per-client-frame budget across
-same-frame authority snapshots, authority overrides and full baselines in the
-same world use bounded correction instead of hard snapping, and the default
-room template is `mass-battle-lod-aoi-sample-block` with the `ideal`
-environment. The hard-snap path remains covered by the world-change test.
+五项过期测试更新为当前预期语义，.NET 套件恢复全绿（579/579）：有界本地玩家校正扣除可达预测距离，同一客户端帧的权威快照共享预算；同世界权威覆盖及完整基线采用有界校正，不进行硬跳转；默认房间模板为 `mass-battle-lod-aoi-sample-block`，环境为 `ideal`。硬跳转仍由世界切换测试覆盖。
 
-The Headless performance gate previously compared a single mixed
-`p99BattlePushApplyMs` against the 25 ms delta budget. A pure-state room always
-applies one full baseline (50-58 ms at 512 units, dominated by bulk view
-creation) per `FullSnapshotIntervalFrames`, so the mixed metric failed a gate
-the delta path had actually satisfied (delta apply P99 5.0-7.5 ms). The gate
-now checks the steady-state delta P99 against 25 ms and gives the bulk paths
-separate budgets (`FullSnapshotApplyMaxThresholdMs` 120,
-`P99ReliableEventApplyThresholdMs` 60). The runner also auto-attaches to the
-newest `host-*.log` silo log when `-ServerLogPath` is not supplied, because
-`ServerPerformance` windows are emitted by `BattleLogicHostGrain` in the silo
-host log, not the TCP gateway log.
+无头性能门禁曾将混合的 `p99BattlePushApplyMs` 与 25 ms 增量预算比较。纯状态房间每 `FullSnapshotIntervalFrames` 应用一个完整基线（512 单位时 50–58 ms，主要为批量视图创建），使实际满足预算的增量路径（应用 P99 5.0–7.5 ms）被混合指标判失败。门禁现以稳态增量 P99 检查 25 ms，批量路径使用独立预算（`FullSnapshotApplyMaxThresholdMs` 为 120，`P99ReliableEventApplyThresholdMs` 为 60）。未提供 `-ServerLogPath` 时，运行器还自动附加最新 `host-*.log` Silo 日志，因为 `ServerPerformance` 窗口由 Silo 宿主日志内的 `BattleLogicHostGrain` 输出，不在 TCP 网关日志。
 
-A new `.NET`-only authority benchmark
-(`ShooterAuthorityStageBenchmarkTests`, scaled via
-`ABILITYKIT_SHOOTER_BENCH_UNIT_COUNTS` / `ABILITYKIT_SHOOTER_BENCH_FRAMES`)
-drives the runtime adapter directly with per-observer pure-state pushes and
-self-verifies load by counting alive enemies each 60 frames. Without that
-check the benchmark silently measured a collapsed load after the players
-died (enemies lose their target, preferred velocities stay zero, and RVO
-becomes trivial). Verified-load stable-window results on this tree:
+新增仅 .NET 的权威基准（`ShooterAuthorityStageBenchmarkTests`，通过 `ABILITYKIT_SHOOTER_BENCH_UNIT_COUNTS` / `ABILITYKIT_SHOOTER_BENCH_FRAMES` 调整规模）直接驱动运行时适配器，执行逐观察者纯状态推送，每 60 帧统计存活敌人以自证负载。若无该检查，玩家死亡后敌人失去目标、期望速度归零、RVO 变得简单，基准会静默测量已塌缩的负载。当前工作区的已验证负载稳定窗口结果为：
 
 ```text
-  512 units (380-454 alive): intent 0.092 ms, collect 0.308 ms, ORCA 0.282 ms, ~347 Hz sim-only
- 1000 units (856-932 alive): intent 0.172 ms, collect 0.847 ms, ORCA 0.691 ms, ~170 Hz sim-only
- 2000 units (1844-1928 alive): intent 0.088 ms, collect 0.813 ms, ORCA 0.194 ms, ~139 Hz sim-only
+  512 单位（380-454 存活）：意图 0.092 ms，收集 0.308 ms，ORCA 0.282 ms, ~347 Hz（仅模拟）
+ 1000 单位（856-932 存活）：意图 0.172 ms，收集 0.847 ms，ORCA 0.691 ms, ~170 Hz（仅模拟）
+ 2000 单位（1844-1928 存活）：意图 0.088 ms，收集 0.813 ms，ORCA 0.194 ms, ~139 Hz（仅模拟）
 ```
 
-Snapshot build plus serialize stays at or below ~0.8 ms mean (8.6-23.8 KB
-average per-observer payload). Under the pure-sim loop the whole authority
-tick is therefore 1.5-2.5 ms at every measured scale; the remaining
-end-to-end question is Orleans scheduling and delivery overhead, which the
-two-client Headless run at 2,000 units measures directly.
+快照构建及序列化平均不超过约 0.8 ms（每观察者平均载荷 8.6–23.8 KB）。因此纯模拟循环中，各测量规模的完整权威步进均为 1.5–2.5 ms；剩余端到端问题是 Orleans 调度及投递开销，由 2,000 单位双客户端无头运行直接测量。
 
-Known remaining rough edges observed in the 512 pass:
+512 单位通过运行中观察到的已知剩余问题：
 
-- the one-shot full-baseline apply (50-58 ms) is bulk view creation; slicing
-  baseline view spawns across frames is the follow-up if it becomes visible
-  in play;
-- a dead observer fails closed: the server cannot build an AOI scope, returns
-  empty pushes flagged `RequiresFullSnapshot`, and the client-side
-  `snapshotResyncNeededCount` grows while the player stays dead. A spectator
-  fallback scope (arena-center interest) would keep the world rendering;
-- `applyP99` for reliable-event batches can reach ~41 ms once per battle from
-  presentation-side effect work.
+- 单次完整基线应用（50–58 ms）为批量视图创建；若游戏中可见，应后续将基线视图生成分散到多帧；
+- 死亡观察者采取严格拒绝：服务端无法构建 AOI 作用域，返回带 `RequiresFullSnapshot` 标志的空推送，玩家死亡期间客户端 `snapshotResyncNeededCount` 增长。观战回退作用域（竞技场中心兴趣区）可保持世界渲染；
+- 表现侧效果工作可能使可靠事件批次的 `applyP99` 在每场战斗一次达到约 41 ms。
 
-That 2,000-unit two-client Headless run then completed green on the same tree:
+随后同一工作区的 2,000 单位双客户端无头运行全绿完成：
 
 ```text
 artifacts/shooter-unity-headless/20260825-170837-108
 ```
 
-Both clients held zero playback starvation with sample intervals P95/P99 =
-3/3 frames, delta apply P99 of 6.5-10.5 ms, zero GC, and the authority
-sustained 29.83-30.05 Hz with both observers attached (`WorldTick` mean
-4.1-4.7 ms). Compared with the 2026-08-24 2,000-unit run (15.37 Hz, 51-56%
-starvation), the server-side acceleration service injection plus the
-small-player-set scan removed the entire capacity gap: the earlier runs
-executed without the per-world neighbor-acceleration registration that now
-lives in the runtime adapter. Stable 30 Hz authority at the 2,000-unit budget
-is therefore demonstrated end to end; the earlier four-step priority list is
-resolved by these measurements except for multi-repetition medians, which
-remain good hygiene rather than a known gap.
+两个客户端播放采样不足均为零，采样间隔 P95/P99 = 3/3 帧，增量应用 P99 为 6.5–10.5 ms，GC 为零；连接两个观察者时，权威维持 29.83–30.05 Hz（`WorldTick` 平均 4.1–4.7 ms）。相比 2026-08-24 的 2,000 单位运行（15.37 Hz、51–56% 采样不足），服务端加速服务注入和小玩家集合扫描消除了整个容量差距：早期运行缺少现位于运行时适配器的每世界邻居加速注册。因此，2,000 单位预算下稳定 30 Hz 权威已得到端到端证明；前述四步优先列表已由测量解决，唯多次重复中位数仍属良好验证习惯，而非已知缺口。
 
-## 2026-08-26 client-path (local mode) measurement
+## 2026-08-26 客户端路径（本地模式）测量
 
-`ShooterWorldModule` registers the null neighbor-acceleration service, so the
-Unity client world — including pure local play — runs the serial managed RVO
-solver while only the server adapter injects the accelerated collector and
-parallel ORCA. A local-path benchmark
-(`ShooterLocalWorldStageBenchmarkTests`, scaled via
-`ABILITYKIT_SHOOTER_LOCAL_BENCH_UNITS`) drives that exact configuration with
-one player under maximum blob density (all enemies converge on a single
-target) and stacked concurrent waves so the enemy budget actually fills:
-at 2,000/2,000 alive units the whole simulation is ~4.2 ms per frame
-(RvoSolve 3.6 ms with managed collect 2.8 ms, simulation 0.66 ms, intent
-0.05 ms); at 500/500 it is ~2 ms. The shared workspace grid rewrite therefore
-carries the client as well, and the server-only acceleration is worth less
-than a millisecond at this scale. Historical local-mode 2,000-unit stutter
-was dominated by the pre-fix intent ring query plus the pre-rewrite managed
-RVO (30-40 ms+ on the main thread), compounded by local mode building views
-for every entity because observer AOI only exists on the push side. With the
-current tree the remaining local-mode cost at 2,000 units is dominated by the
-presentation layer (full-entity view creation and per-frame transform
-updates), not simulation.
+`ShooterWorldModule` 注册空邻居加速服务，因此包括纯本地玩法在内的 Unity 客户端世界使用串行托管 RVO，仅服务端适配器注入加速收集器及并行 ORCA。本地路径基准（`ShooterLocalWorldStageBenchmarkTests`，通过 `ABILITYKIT_SHOOTER_LOCAL_BENCH_UNITS` 调整规模）驱动这一精确配置：一个玩家、最大团簇密度（全部敌人汇聚至单一目标），叠加并发波次以填满敌人预算。存活 2,000/2,000 单位时，完整模拟约 4.2 ms/帧（RvoSolve 3.6 ms，其中托管收集 2.8 ms，模拟 0.66 ms，意图 0.05 ms）；500/500 时约 2 ms。共享工作区网格重写也改善客户端，该规模下服务端专用加速收益不足一毫秒。历史本地模式 2,000 单位卡顿主要来自修复前的意图环查询及重写前托管 RVO（主线程 30–40 ms 以上），同时本地模式为所有实体创建视图，观察者 AOI 只存在于推送侧。当前工作区 2,000 单位本地模式的剩余成本主要在表现层（全实体视图创建及每帧变换更新）。
 
-## 2026-08-26 editor local-mode 2K stutter root cause and RVO acceleration sink
+## 2026-08-26 编辑器本地 2K 模式卡顿根因及 RVO 加速落点
 
-The editor-local 2K-mode stutter (~10 FPS reported in Play mode, GPU
-instanced backend) was reproduced headlessly with a new editor benchmark
-(`ShooterLocalEditorPerfBenchCommand`, driven via Unity batchmode; splits
-simulation tick / presentation publish / end-to-end host frame costs and
-samples per-system stage timings inside the real editor Mono runtime). At a
-verified 2,048/2,048 alive enemies the local simulation tick cost 36 ms per
-frame: managed serial ORCA 16.0 ms, Burst-jobs hashmap neighbor collection
-10.5 ms, accelerated-output validation 2.5 ms, intent 2.8 ms. The GPU view
-backend itself was not the constraint (host frames averaged ~20 ms with tick
-dropping). The root cause was that the server's RVO acceleration (sorted-grid
-parallel collection + parallel ORCA) lived only in the Orleans assembly while
-every client world registered the null service.
+编辑器本地 2K 模式卡顿（报告在 Play 模式、GPU 实例化后端约 10 FPS）已用新编辑器基准无头复现：`ShooterLocalEditorPerfBenchCommand` 通过 Unity 批处理驱动，区分模拟步进、表现发布及端到端宿主帧成本，并在真实编辑器 Mono 运行时采样逐系统阶段耗时。确认存活 2,048/2,048 敌人时，本地模拟步进每帧 36 ms：托管串行 ORCA 16.0 ms、Burst Job 哈希表邻居收集 10.5 ms、加速输出验证 2.5 ms、意图 2.8 ms。GPU 视图后端本身不是限制（丢步时宿主帧平均约 20 ms）。根因是服务端 RVO 加速（排序网格并行收集及并行 ORCA）仅在 Orleans 程序集中，而所有客户端世界均注册空服务。
 
-Fixes, validated by rerunning the same benchmark:
+修复如下，并已重跑相同基准验证：
 
-1. The parallel acceleration implementation moved into the shared runtime
-   package (`ShooterParallelRvoAccelerationService`, platform-neutral
-   Parallel.For) and `ShooterWorldModule` registers it by default; the server
-   class became a thin subclass.
-2. The Burst jobs neighbor service now also implements the parallel
-   per-agent solve interface, but the play-mode factory no longer mounts the
-   jobs world module by default: measured head-to-head in the editor, the
-   shared parallel collector costs 3.8 ms/frame versus 10.8 ms/frame for the
-   Burst hashmap collector, and drops per-frame managed↔native copies and
-   pre-scan passes (GC 235 MB -> 23 MB over 8 s at 2,048 units). The jobs
-   module remains available for explicit composition.
-3. Accelerated-output validation is now sampled (default every 30th
-   accelerated collection, first included, configurable via
-   `ShooterRvoOptions.AcceleratedValidationInterval`; determinism contract
-   tests pin it to 1).
+1. 并行加速实现移入共享运行时包（`ShooterParallelRvoAccelerationService`，平台无关的 Parallel.For），`ShooterWorldModule` 默认注册；服务端类成为薄子类。
+2. Burst Job 邻居服务也实现逐代理并行求解接口，但 Play 模式工厂不再默认挂载 Job 世界模块：编辑器直接对照中，共享并行收集器为 3.8 ms/帧，Burst 哈希表收集器为 10.8 ms/帧，并减少每帧托管与原生复制及预扫描（2,048 单位、8 秒 GC 从 235 MB 降至 23 MB）。Job 模块仍可显式组合。
+3. 加速输出验证改为抽样（默认每 30 次加速收集验证一次，包含首次，由 `ShooterRvoOptions.AcceleratedValidationInterval` 配置；确定性契约测试固定为 1）。
 
-Result at 2,048 units in the editor: simulation tick 36 -> 18 ms with items
-1-2, and the sampled validation removes a further ~3 ms; end-to-end host
-frame 20.6 -> ~10 ms (98 FPS in the batch harness). Play-mode smoothness at
-2K in a real editor window is expected to land well above 30 FPS; a player
-build (IL2CPP + full Burst) will be faster still. Remaining editor-only
-costs are the Mono tax on intent/spawn/ORCA bodies, which the .NET-side
-numbers show at 0.09/0.02/0.7 ms in Release.
+编辑器 2,048 单位结果：第 1、2 项使模拟步进从 36 ms 降至 18 ms，抽样验证再减少约 3 ms；端到端宿主帧从 20.6 ms 降至约 10 ms（批处理测试框架为 98 FPS）。预计真实编辑器窗口中 2K Play 模式明显高于 30 FPS，Player 构建（IL2CPP + 完整 Burst）还会更快。剩余编辑器专用成本是 Mono 在意图、生成及 ORCA 函数体上的开销；.NET Release 侧对应为 0.09/0.02/0.7 ms。
 
-## 2026-08-26 remote pure-state composition: authority batch double-write
+## 2026-08-26 远程纯状态组合：权威批次重复写入
 
-Field reports from the two-client session described every remote entity being
-tugged back and forth and the controlled player freezing. A dedicated
-reproduction test (`ShooterRemotePureStateCompositionTests`, real cadence:
-60 fps render x 30 Hz simulation x one push every three frames) captured both
-defects in the composed render batch:
+双客户端会话报告所有远端实体反复拉扯、受控玩家冻结。专用复现测试 `ShooterRemotePureStateCompositionTests`（真实节奏：60 fps 渲染 × 30 Hz 模拟 × 每三帧推送一次）在组合渲染批次捕获两个缺陷：
 
-- On every push frame the same remote entity appeared twice at two different
-  positions: once from the interpolation playback and once raw from the
-  authority batch. `PublishPureStatePresentationFrame` sourced its "local"
-  side from `Presentation.ViewModel.Current`, which the authority apply
-  overwrites ten times per second (prediction-only batches overwrite it at
-  30 Hz), so between pushes the composition mixed a stale raw pose over the
-  interpolated one — the visible tug.
-- On the same push frames the controlled player vanished from the render
-  batch: the server omits the observer's own player from pure-state export,
-  so the authority batch carries no controlled-player transform, and the
-  composition lost the predicted pose until the next local tick republished.
+- 每个推送帧中，同一远端实体在两个不同位置出现两次：一次来自插值播放，一次直接来自权威批次。`PublishPureStatePresentationFrame` 从 `Presentation.ViewModel.Current` 获取“本地”侧，而权威应用每秒覆盖它十次（仅预测批次以 30 Hz 覆盖）。推送间隙的组合因此将过期原始姿态叠在插值姿态上，产生可见拉扯。
+- 同一推送帧中，受控玩家从渲染批次消失：服务端纯状态导出排除观察者自身玩家，权威批次不含受控玩家变换，组合丢失预测姿态，直到下一次本地步进重新发布。
 
-The fix gives the controller its own hold of the latest predicted-local batch
-(`_lastPureStatePredictedBatch`, captured after each local prediction publish
-and cleared with the pure-state reset paths); the composition's local side now
-always comes from that hold instead of the shared view model. The reproduction
-test asserts per render frame: at most one transform per remote entity, the
-controlled player present after its first predicted tick and never pulled
-behind its own prediction, and a non-empty playback so the assertions cannot
-pass trivially. Full runtime suite 581/581.
+修复让控制器自行保留最新本地预测批次（`_lastPureStatePredictedBatch`，每次本地预测发布后捕获，随纯状态重置清理）；组合本地侧始终来自该保留值。复现测试逐渲染帧断言：每远端实体最多一个变换；受控玩家在首次预测步进后始终存在，且不被拉到自身预测之后；播放非空，避免断言空洞通过。完整运行时套件 581/581。
 
-A related recovery hazard was observed while building the reproduction: a
-baseline-hash mismatch (or any `NeedsFullBaselineResync` condition) drives the
-frame-sync recovery machinery into catch-up/full-resync, which fast-forwards
-or resets the local prediction world — for a pure-state observer client whose
-remote state lives in the playback stream, that machinery treats the local
-prediction sandbox as if it had to track the server frame. The composition
-fix removes the visible artifact; keeping drift recovery inert for
-pure-state presentation clients remains a follow-up hardening item.
+构建复现时还观察到相关恢复风险：基线哈希不匹配或任意 `NeedsFullBaselineResync` 条件会驱动帧同步恢复进入追赶或完整重同步，快进或重置本地预测世界。纯状态观察者客户端的远端状态位于播放流中，但该机制将本地预测沙箱视为必须跟踪服务端帧。组合修复消除了可见伪影；让纯状态表现客户端不触发这类漂移恢复仍为后续加固项。
 
-## 2026-08-26 enemy tug root cause: sparse-LOD sample cadence and dead-observer freeze
+## 2026-08-26 敌人拉扯根因：稀疏 LOD 采样频率及死亡观察者冻结
 
-After the composition fix, a new pose-continuity probe
-(`ShooterRemotePoseContinuityProbe`, hooked at the per-render frame builder;
-optional sustained-input driver via `ABILITYKIT_SHOOTER_SUSTAINED_INPUT=1`)
-quantified the remaining field complaints under continuous play at 512 units.
-The probe's fingerprint was decisive: backward/forward jumps occurred as
-"same render frame, many entities, one uniform distance" (0.78/0.54/0.60 in
-different runs) — a batch event, not per-entity interpolation noise.
+组合修复后，新姿态连续性探针 `ShooterRemotePoseContinuityProbe`（接入逐渲染帧构造器，可用 `ABILITYKIT_SHOOTER_SUSTAINED_INPUT=1` 启用持续输入驱动）在 512 单位连续玩法中量化剩余问题。探针特征明确：前后跳变表现为“同一渲染帧、多个实体、相同距离”（不同运行为 0.78/0.54/0.60），属于批次事件。
 
-Two causes, both fixed:
+两个原因均已修复：
 
-1. **Dead-observer fail-closed freeze.** When a player died, the server could
-   no longer build that observer's AOI scope and returned empty pushes flagged
-   `RequiresFullBaselineResync`; that client's world froze while the other
-   kept playing — the dominant source of the perceived cross-client
-   desync, plus baseline-resync churn (owner 3 resyncs, member 0). The server
-   now falls back to an arena-center spectator scope for dead observers;
-   unresolved accounts keep the fail-closed path.
+1. **死亡观察者严格拒绝导致冻结。** 玩家死亡后，服务端无法构建其 AOI 作用域，返回带 `RequiresFullBaselineResync` 的空推送，该客户端世界冻结，另一端继续。这是跨客户端不同步感及基线重同步反复触发（房主 3 次，成员 0 次）的主要来源。服务端现对死亡观察者回退到竞技场中心观战作用域；无法解析账号时仍严格拒绝。
 
-2. **Sparse mid/far LOD cadence.** With mid=9 / far=30 frame sample intervals
-   and a six-frame extrapolation cap, low-cadence entities drifted to a held
-   pose and then jumped the accumulated distance when the next sample landed
-   — the uniform batch jumps. For unmetered environments (bandwidth 0) the
-   template now lifts mid/far cadence to the near cadence (3/3/3); metered
-   profiles keep 3/9/30 for the stress comparison. The full-baseline track
-   handling was also softened in the same round: baselines now prune tracks
-   to the baseline entity set instead of clearing all tracks, so a re-baseline
-   no longer restarts every entity's playback from the baseline pose.
+2. **稀疏中远 LOD 频率。** 中距 9 帧、远处 30 帧采样间隔及六帧外推上限，使低频实体漂移到保持姿态，再在下次采样到达时跳过累计距离，形成统一批次跳变。非受限环境（带宽为 0）现将中远频率提高至近处频率（3/3/3）；受限配置保留 3/9/30 供压力对照。同轮还缓和完整基线轨迹处理：按基线实体集合裁剪轨迹，不再清空全部轨迹，重新建立基线时不会让每个实体从基线姿态重新播放。
 
-Validated head-to-head with the same sustained-input scenario:
-enemy backward-tug events went from 50-92 per client to **0 on both clients**
-(fully symmetric), own-player backward pulls stayed 0 throughout, snapshots
-applied cleanly, zero GC. The client contract assertion in the Headless
-command now accepts both the metered (3/9/30) and unmetered (3/3/3) LOD
-cadence shapes.
+使用相同持续输入场景直接对照验证：敌人后拉事件从每客户端 50–92 次降至**两个客户端均为 0**（完全对称），自身玩家后拉始终为 0，快照应用正常，GC 为零。无头命令的客户端契约断言现同时接受受限（3/9/30）及非受限（3/3/3）LOD 形态。
 
-## 2026-08-27 control loss root cause: per-render-frame input flooding vs admission throttle
+## 2026-08-27 失控根因：逐渲染帧输入洪泛与接纳限流
 
-Field report after the tug fixes: the controlled player becomes uncontrollable
-after a while, and an idle player stutters in place once enemies swarm. The
-formal remote host loop called the input pump once per RENDER frame; with the
-submit queue's four-in-flight window draining in ~RTT on localhost, the
-effective gateway submission rate equals the editor frame rate (60-144/s).
-The battle input admission guard's token bucket (60/s sustained, burst 90)
-exhausts within about a second of continuous play, and the gateway mapped
-every rejection to `ShouldResync=true`. That drove the client into the
-frame-sync recovery state (`AwaitingFullSnapshot`), where `SubmitLocalInputs`
-returns zero — local prediction is blocked, inputs stop, control is lost;
-the repeated full-baseline re-application that follows is the in-place
-stutter. The headless runs never saw it because their movement probe submits
-at a low fixed rate.
+拉扯修复后的使用反馈：受控玩家一段时间后无法控制，空闲玩家在敌人围拢后原地卡顿。正式远程宿主循环每个渲染帧调用一次输入泵；提交队列四个在途窗口在本机约一个 RTT 内排空，实际网关提交频率等于编辑器帧率（60–144 次/秒）。战斗输入接纳令牌桶（持续 60 次/秒，突发 90 次）在连续玩法约一秒内耗尽，网关将每次拒绝映射为 `ShouldResync=true`，驱动客户端进入帧同步恢复状态 `AwaitingFullSnapshot`。此时 `SubmitLocalInputs` 返回零，本地预测阻塞、输入停止、控制丢失；后续完整基线反复应用造成原地卡顿。无头运行此前未发现，因为移动探针以固定低频提交。
 
-Fixes:
+修复：
 
-1. the formal host now samples and submits input at the simulation tick rate
-   (30 Hz) via an accumulator, matching what the sim consumes per tick;
-2. the gateway classifies rejection reasons: only genuine state divergence
-   (world mismatch, invalid payload/op-code/player, input-buffer rejection)
-   demands a client resync; transient throttling (rate-limited, duplicate,
-   sequence-too-old, not-initialized) drops the single input;
-3. the headless sustained-input driver now floods through the real gateway
-   submission path at render rate — worse than production — and logs every
-   rejected submit with its status, so the validation proves control survives
-   even under flooding.
+1. 正式宿主通过累加器按模拟步进频率（30 Hz）采集和提交输入，与每步实际消费一致；
+2. 网关分类拒绝原因：仅真实状态分歧（世界不匹配、载荷或操作码或玩家无效、输入缓冲拒绝）要求客户端重同步；暂时限流（频率受限、重复、序列过旧、未初始化）仅丢弃该次输入；
+3. 无头持续输入驱动现按渲染频率通过真实网关提交路径洪泛，压力高于生产，逐条记录拒绝状态，验证洪泛下仍保持控制。
 
-Headless validation under the flood driver: input submissions at render rate
-with zero control loss; rejection/resync counters reported in the
-`[PoseContinuity]` heartbeat lines.
+洪泛驱动下的无头验证：按渲染频率提交输入，控制丢失为零；拒绝及重同步计数在 `[PoseContinuity]` 心跳行报告。
 
-## 2026-08-27 persistent cross-client position divergence: frame-age tolerance absorbing real drift
+## 2026-08-27 跨客户端位置持续分歧：帧龄容差吸收真实漂移
 
-Field report: the controlled player stops around 10 units right locally while
-the other client (rendering authority) keeps it at 8 — a long-lived two-unit
-disagreement. Root cause: `ResolveControlledPlayerPosition` treated the raw
-frame-number gap between client and authority as "legally reachable
-prediction distance". That gap is dominated by join-anchor offset plus push
-pipeline latency (it stays permanently around a dozen frames), so the
-tolerance permanently absorbed 1-2+ units of genuine drift. Drift arises
-whenever the local prediction applies inputs the server never did (rejected
-submissions, queue merges) — the bounded correction never fired, and the two
-ends disagreed forever.
+使用反馈：受控玩家本地停在右侧约 10 单位，另一客户端渲染权威位置仍为 8，长期相差两单位。根因：`ResolveControlledPlayerPosition` 将客户端与权威的原始帧号差视为“合法可达预测距离”。该差值主要由加入锚点偏移及推送管线延迟构成，长期维持约十多帧，使容差永久吸收 1–2 单位以上真实漂移。本地预测执行服务端未执行的输入（提交被拒或队列合并）时就会产生漂移，但有界校正从未触发，两端永久分歧。
 
-Fix: legal prediction lead is exactly what the pending-input replay already
-applied to the correction target (target = authority + in-flight inputs, so a
-correct prediction yields zero error). The frame-age term is removed; any
-error beyond `SmallErrorTolerance` converges at the bounded budget per frame
-(0.25). Two regression tests pin the semantics: a 500-frame gap with no
-in-flight inputs must still correct (old behavior absorbed up to 20 units),
-and in-flight input count alone provides no extra exemption. The existing
-replay tests already expected zero-slack behavior and now pass unchanged.
-Full suite 583/583.
+修复：合法预测领先量就是待处理输入重演已应用到校正目标的量（目标 = 权威 + 在途输入，因此预测正确时误差为零）。移除帧龄项；超出 `SmallErrorTolerance` 的误差按每帧有界预算（0.25）收敛。两项回归固定语义：没有在途输入时，即使相差 500 帧也必须校正（旧行为可吸收最多 20 单位）；仅在途输入数量不能提供额外豁免。既有重演测试已预期零额外容差，无需修改即通过。完整套件 583/583。
 
-## 2026-08-27 no-prediction diagnostic mode
+## 2026-08-27 禁用预测的诊断模式
 
-To settle whether the remaining cross-client position disagreement lives in
-the prediction/reconciliation layer or in the sync pipeline itself, a
-diagnostic mode disables local prediction entirely via
-`ABILITYKIT_SHOOTER_DISABLE_LOCAL_PREDICTION=1`. The server already always
-exports the observer's own player (priority 1000, flagged `PredictedLocal`);
-the exclusion happens client-side. In this mode the client stops suppressing
-its own player's transforms from the interpolation playback (both the block
-samples and the flagged mapper transforms), renders the composition's local
-side as empty, and skips controlled-player reconciliation — both ends then
-render the identical server truth through their own playback delays. The
-pose probe heartbeat now includes the own player's position so the two
-clients' logs can be compared directly after a run.
+为判断剩余跨客户端位置分歧位于预测校正层还是同步管线，诊断模式通过 `ABILITYKIT_SHOOTER_DISABLE_LOCAL_PREDICTION=1` 完全禁用本地预测。服务端本已始终导出观察者自身玩家（优先级 1000，标记 `PredictedLocal`），排除发生在客户端。此模式中，客户端不再从插值播放排除自身玩家变换（包括块采样及带标志的映射器变换），组合本地侧为空，并跳过受控玩家校正。两端因此通过各自播放延迟渲染相同服务端真实状态。姿态探针心跳现包含自身玩家位置，便于运行后直接对照两个客户端日志。

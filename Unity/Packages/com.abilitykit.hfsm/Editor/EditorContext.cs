@@ -9,15 +9,14 @@ using AbilityKit.HFSM.Visualization;
 namespace AbilityKit.HFSM.Editor
 {
     /// <summary>
-    /// Editor context that manages the current state of the HFSM editor window.
-    /// This class is responsible for tracking selection, navigation, and editing state.
+    /// 管理 HFSM 编辑器窗口的当前状态，跟踪选择、导航和编辑状态。
     /// </summary>
     public class EditorContext
     {
         private GraphAsset _graphAsset;
 
         /// <summary>
-        /// The currently opened graph asset.
+        /// 当前打开的图资产。
         /// </summary>
         public GraphAsset GraphAsset
         {
@@ -33,7 +32,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// The currently active state machine being viewed/edited.
+        /// 当前正在查看或编辑的状态机。
         /// </summary>
         public StateMachineNode CurrentStateMachine { get; private set; }
 
@@ -44,18 +43,23 @@ namespace AbilityKit.HFSM.Editor
         private string _observedInstanceName;
         private FsmSnapshot _liveSnapshot;
 
-        /// <summary>Whether the canvas is currently bound to a live runtime instance.</summary>
+        /// <summary>
+        /// 画布当前是否已绑定到活动运行时实例。
+        /// </summary>
         public bool IsObserving => !string.IsNullOrEmpty(_observedInstanceName);
 
-        /// <summary>Name of the bound live instance; empty when not observing.</summary>
+        /// <summary>
+        /// 绑定的活动实例名称；未观察时为空。
+        /// </summary>
         public string ObservedInstanceName => _observedInstanceName;
 
-        /// <summary>The latest live snapshot, or null when not observing.</summary>
+        /// <summary>
+        /// 最新的实时快照；未观察时为 null。
+        /// </summary>
         public FsmSnapshot LiveSnapshot => _liveSnapshot;
 
         /// <summary>
-        /// Machine whose children the canvas currently shows. Live state paths are
-        /// "{machineId}/{stateId}", so a nested machine prefixes the node id with this.
+        /// 画布当前显示其子节点的状态机。实时状态路径为 "{machineId}/{stateId}"，嵌套状态机使用此值作为节点 ID 的前缀。
         /// </summary>
         public string CurrentMachineId =>
             CurrentStateMachine != null
@@ -72,18 +76,26 @@ namespace AbilityKit.HFSM.Editor
 
         public void SetLiveSnapshot(FsmSnapshot snapshot) => _liveSnapshot = snapshot;
 
-        /// <summary>True when the node sits on the live run stack.</summary>
+        /// <summary>
+        /// 节点位于实时运行栈上时返回 true。
+        /// </summary>
         public bool IsNodeActive(string nodeId) => LivePathsContain(_liveSnapshot?.activeStatePaths, nodeId);
 
-        /// <summary>True when the node is the pending target of a delayed transition.</summary>
+        /// <summary>
+        /// 节点是延迟转换的待进入目标时返回 true。
+        /// </summary>
         public bool IsNodeEntering(string nodeId) => LivePathsContain(_liveSnapshot?.pendingStatePaths, nodeId);
 
-        /// <summary>True when the node is waiting for its machine to approve exit.</summary>
+        /// <summary>
+        /// 节点正在等待所属状态机批准退出时返回 true。
+        /// </summary>
         public bool IsNodeExiting(string nodeId) => LivePathsContain(_liveSnapshot?.exitingStatePaths, nodeId);
 
         private bool LivePathsContain(List<string> paths, string nodeId)
         {
-            // Guard on the binding too: a stray snapshot must never color the canvas while unbound.
+            /*
+             * 同时检查绑定状态，防止未绑定时残留快照影响画布着色。
+             */
             if (!IsObserving || paths == null || string.IsNullOrEmpty(nodeId)) return false;
             var machineId = CurrentMachineId;
             if (string.IsNullOrEmpty(machineId)) return false;
@@ -91,67 +103,67 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Path of state machine nodes from root to current.
+        /// 从根状态机到当前状态机的节点路径。
         /// </summary>
         public List<StateMachineNode> StateMachinePath { get; } = new List<StateMachineNode>();
 
         /// <summary>
-        /// Currently selected nodes.
+        /// 当前选中的节点。
         /// </summary>
         public List<NodeBase> SelectedNodes { get; } = new List<NodeBase>();
 
         /// <summary>
-        /// Currently selected transition edge.
+        /// 当前选中的转换边。
         /// </summary>
         public TransitionEdge SelectedEdge { get; set; }
 
         /// <summary>
-        /// Child nodes of the current state machine to display.
+        /// 当前状态机中待显示的子节点。
         /// </summary>
         public List<NodeBase> CurrentChildNodes { get; } = new List<NodeBase>();
 
         /// <summary>
-        /// Transitions of the current state machine to display.
+        /// 当前状态机中待显示的转换。
         /// </summary>
         public List<TransitionEdge> CurrentTransitions { get; } = new List<TransitionEdge>();
 
         /// <summary>
-        /// Whether currently creating a transition preview.
+        /// 当前是否正在创建转换预览。
         /// </summary>
         public bool IsPreviewTransition { get; set; }
 
         /// <summary>
-        /// The source node when creating a transition.
+        /// 创建转换时的源节点。
         /// </summary>
         public NodeBase TransitionSourceNode { get; set; }
 
         /// <summary>
-        /// The target node when creating a transition.
+        /// 创建转换时的目标节点。
         /// </summary>
         public NodeBase TransitionTargetNode { get; set; }
 
         /// <summary>
-        /// Zoom factor for the graph view.
+        /// 图视图的缩放系数。
         /// </summary>
         public float ZoomFactor { get; set; } = 1.0f;
 
         /// <summary>
-        /// Pan offset for the graph view.
+        /// 图视图的平移偏移。
         /// </summary>
         public Vector2 PanOffset { get; set; } = Vector2.zero;
 
         /// <summary>
-        /// Event raised when the context changes.
+        /// 上下文变化时触发的事件。
         /// </summary>
         public event Action OnContextChanged;
 
         /// <summary>
-        /// Event raised when the current state machine changes.
+        /// 当前状态机变化时触发的事件。
         /// </summary>
         public event Action OnStateMachineChanged;
 
         /// <summary>
-        /// Event raised when selection changes.
+        /// 选择变化时触发的事件。
         /// </summary>
         public event Action OnSelectionChanged;
 
@@ -222,7 +234,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Resets the context to show the root state machine.
+        /// 重置上下文，显示根状态机。
         /// </summary>
         public void Reset()
         {
@@ -252,7 +264,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Navigates into a nested state machine.
+        /// 进入嵌套状态机。
         /// </summary>
         public void NavigateInto(StateMachineNode stateMachine)
         {
@@ -268,7 +280,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Navigates back to the parent state machine.
+        /// 返回父状态机。
         /// </summary>
         public void NavigateBack()
         {
@@ -284,7 +296,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Navigates to a specific state machine by path index.
+        /// 按路径索引导航到指定状态机。
         /// </summary>
         public void NavigateTo(int pathIndex)
         {
@@ -304,7 +316,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Gets the path string for breadcrumb display.
+        /// 获取用于面包屑导航显示的路径字符串。
         /// </summary>
         public string GetPathString()
         {
@@ -320,7 +332,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Starts creating a new transition from the specified node.
+        /// 从指定节点开始创建转换。
         /// </summary>
         public void StartTransitionPreview(NodeBase fromNode)
         {
@@ -333,7 +345,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Updates the transition preview target.
+        /// 更新转换预览的目标。
         /// </summary>
         public void UpdateTransitionPreviewTarget(NodeBase toNode)
         {
@@ -341,7 +353,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Completes the transition creation.
+        /// 完成转换创建。
         /// </summary>
         public TransitionEdge CompleteTransition()
         {
@@ -360,7 +372,9 @@ namespace AbilityKit.HFSM.Editor
             Undo.RecordObject(_graphAsset, "创建转换");
             var edge = _graphAsset.CreateTransition(TransitionSourceNode.Id, TransitionTargetNode.Id);
 
-            // Add transition to current state machine
+            /*
+             * 将转换加入当前状态机。
+             */
             CurrentStateMachine?.AddTransition(edge.Id);
 
             CancelTransition();
@@ -371,7 +385,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Cancels the current transition preview.
+        /// 取消当前转换预览。
         /// </summary>
         public void CancelTransition()
         {
@@ -381,7 +395,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Removes a node from the selection.
+        /// 从选择中移除节点。
         /// </summary>
         public void RemoveFromSelection(NodeBase node)
         {
@@ -392,7 +406,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Sets the selection to a single node.
+        /// 将选择设为单个节点。
         /// </summary>
         public void SetSelection(NodeBase node)
         {
@@ -406,7 +420,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Clears all selections.
+        /// 清除全部选择。
         /// </summary>
         public void ClearSelection()
         {
@@ -419,7 +433,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Selects a transition edge.
+        /// 选择转换边。
         /// </summary>
         public void SelectEdge(TransitionEdge edge)
         {
@@ -429,12 +443,12 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Gets whether any node is selected.
+        /// 获取是否存在选中节点或转换边。
         /// </summary>
         public bool HasSelection => SelectedNodes.Count > 0 || SelectedEdge != null;
 
         /// <summary>
-        /// Gets whether a specific node is selected.
+        /// 获取指定节点是否已选中。
         /// </summary>
         public bool IsSelected(NodeBase node)
         {
@@ -442,12 +456,12 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Gets the first selected node if any.
+        /// 获取首个选中节点；未选择节点时返回 null。
         /// </summary>
         public NodeBase FirstSelectedNode => SelectedNodes.Count > 0 ? SelectedNodes[0] : null;
 
         /// <summary>
-        /// Creates a new state in the current state machine.
+        /// 在当前状态机中创建状态。
         /// </summary>
         public StateNode CreateState(string name, Vector2 position)
         {
@@ -465,7 +479,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Creates a new state machine in the current state machine.
+        /// 在当前状态机中创建子状态机。
         /// </summary>
         public StateMachineNode CreateStateMachine(string name, Vector2 position)
         {
@@ -483,7 +497,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Centers the view on a specific node.
+        /// 将视图居中到指定节点。
         /// </summary>
         public void CenterViewOnNode(NodeBase node)
         {
@@ -495,9 +509,10 @@ namespace AbilityKit.HFSM.Editor
 
             Vector2 nodeCenter = node.Position + node.Size * 0.5f;
             Vector2 viewCenter = new Vector2(_viewBounds.width / 2, _viewBounds.height / 2);
-            // screenPos = contentPos + panOffset
-            // We want nodeCenter to be at viewCenter
-            // So: panOffset = viewCenter - nodeCenter
+            /*
+             * 由 screenPos = contentPos + panOffset，令 nodeCenter 对齐 viewCenter，
+             * 得到 panOffset = viewCenter - nodeCenter。
+             */
             PanOffset = viewCenter - nodeCenter;
             ZoomFactor = 1f;
             OnContextChanged?.Invoke();
@@ -507,7 +522,7 @@ namespace AbilityKit.HFSM.Editor
         private Rect _viewBounds;
 
         /// <summary>
-        /// Updates the view bounds for coordinate calculations.
+        /// 更新坐标计算使用的视图边界。
         /// </summary>
         public void UpdateViewBounds(Rect viewBounds)
         {
@@ -515,7 +530,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Deletes the specified node.
+        /// 删除指定节点。
         /// </summary>
         public void DeleteNode(NodeBase node)
         {
@@ -524,7 +539,9 @@ namespace AbilityKit.HFSM.Editor
 
             Undo.RecordObject(_graphAsset, "删除节点");
 
-            // Remove from parent state machine
+            /*
+             * 从父状态机移除。
+             */
             if (!string.IsNullOrEmpty(node.ParentStateMachineId))
             {
                 var parent = _graphAsset.GetNodeById<StateMachineNode>(node.ParentStateMachineId);
@@ -538,7 +555,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Deletes all selected nodes.
+        /// 删除全部选中节点。
         /// </summary>
         public void DeleteSelectedNodes()
         {
@@ -547,7 +564,9 @@ namespace AbilityKit.HFSM.Editor
 
             Undo.RecordObject(_graphAsset, "删除所选节点");
 
-            // Copy list to avoid modification during iteration
+            /*
+             * 复制列表，避免在遍历过程中修改原集合。
+             */
             var nodesToDelete = new List<NodeBase>(SelectedNodes);
             foreach (var node in nodesToDelete)
             {
@@ -566,7 +585,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Deletes the specified edge.
+        /// 删除指定转换边。
         /// </summary>
         public void DeleteEdge(TransitionEdge edge)
         {
@@ -575,7 +594,9 @@ namespace AbilityKit.HFSM.Editor
 
             Undo.RecordObject(_graphAsset, "删除转换");
 
-            // Remove from the owning machine even when the diagnostic navigated from another level.
+            /*
+             * 即使诊断从其他层级导航而来，也要从实际所属状态机移除。
+             */
             foreach (var machine in _graphAsset.GetNodesOfType<StateMachineNode>())
             {
                 machine.RemoveTransition(edge.Id);
@@ -594,7 +615,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Deletes the selected edge.
+        /// 删除选中的转换边。
         /// </summary>
         public void DeleteSelectedEdge()
         {
@@ -605,7 +626,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Sets the default state of the current state machine.
+        /// 设置当前状态机的默认状态。
         /// </summary>
         public void SetDefaultState(NodeBase state)
         {
@@ -614,7 +635,9 @@ namespace AbilityKit.HFSM.Editor
 
             Undo.RecordObject(_graphAsset, "设置默认状态");
 
-            // Clear previous default
+            /*
+             * 清除原默认状态。
+             */
             foreach (var child in CurrentChildNodes)
             {
                 child.isDefault = false;
@@ -626,12 +649,10 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Moves all selected nodes by a delta.
+        /// 按给定增量移动全部选中节点。
         /// </summary>
         /// <summary>
-        /// Records a single undo entry for a node-drag gesture. Call once when the drag starts; the
-        /// per-step <see cref="MoveSelectedNodes"/> calls then fold into that one entry instead of
-        /// stacking a new undo entry on every mouse-drag event.
+        /// 为一次节点拖动手势记录一条撤销。拖动开始时调用一次；后续逐步的 <see cref="MoveSelectedNodes"/> 调用合并到该记录，避免每次鼠标拖动事件都新增撤销。
         /// </summary>
         public void BeginNodeMove()
         {
@@ -669,7 +690,9 @@ namespace AbilityKit.HFSM.Editor
             if (_graphAsset == null || CurrentStateMachine == null)
                 return;
 
-            // Get child nodes
+            /*
+             * 获取子节点。
+             */
             foreach (var childId in CurrentStateMachine.ChildNodeIds)
             {
                 var node = _graphAsset.GetNodeById(childId);
@@ -679,7 +702,9 @@ namespace AbilityKit.HFSM.Editor
                 }
             }
 
-            // Get transitions
+            /*
+             * 获取转换。
+             */
             foreach (var transitionId in CurrentStateMachine.TransitionIds)
             {
                 var edge = _graphAsset.GetEdgeById(transitionId);
@@ -691,7 +716,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Gets child nodes that should be visible in the current view.
+        /// 刷新当前视图中应显示的子节点和转换。
         /// </summary>
         public void RefreshCurrentView()
         {
@@ -700,7 +725,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Gets the bounds of all visible nodes.
+        /// 获取全部可见节点的包围范围。
         /// </summary>
         public Rect GetNodesBounds()
         {

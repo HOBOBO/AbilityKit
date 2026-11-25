@@ -15,7 +15,9 @@ namespace AbilityKit.HFSM.Editor
         Hierarchy
     }
 
-    /// <summary>Pure editor layout helpers. Positions remain editor metadata on graph nodes.</summary>
+    /// <summary>
+    /// 仅用于编辑器的布局辅助方法；位置仍作为图节点的编辑器元数据保存。
+    /// </summary>
     public static class GraphLayoutUtility
     {
         public static void Apply(GraphAsset graph, IReadOnlyList<NodeBase> nodes,
@@ -98,7 +100,9 @@ namespace AbilityKit.HFSM.Editor
                     if (--incoming[target] == 0) queue.Enqueue(target);
                 }
             }
-            // Cycles and disconnected nodes are placed after the reachable DAG levels.
+            /*
+             * 环路和不连通节点放在可达有向无环图层级之后。
+             */
             int fallback = level.Count == 0 ? 0 : level.Values.Max() + 1;
             foreach (var node in nodes)
                 if (!visited.Contains(node.Id)) level[node.Id] = fallback;

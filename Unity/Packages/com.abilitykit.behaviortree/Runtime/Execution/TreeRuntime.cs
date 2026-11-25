@@ -93,7 +93,7 @@ namespace AbilityKit.BehaviorTree.Execution
         private int[] _relativeChildIndex = Array.Empty<int>();
         private int[] _parentCompositeIndex = Array.Empty<int>();
         private int[][] _childConditionalIndex = Array.Empty<int[]>(); // 组合节点有效
-        private NodeDebugStaticInfo[] _debugStaticInfos = Array.Empty<NodeDebugStaticInfo>();
+        private readonly TreeDebugProjection _debugProjection = new TreeDebugProjection();
 
         private readonly List<ConditionalReevaluate> _conditionalReevaluates = new();
         private readonly Dictionary<int, ConditionalReevaluate> _index2ConditionalReevaluate = new();
@@ -119,15 +119,7 @@ namespace AbilityKit.BehaviorTree.Execution
         private int[]? _lastDebugOnStack;
         private int[]? _lastDebugRunningChild;
 
-        private sealed class NodeDebugStaticInfo
-        {
-            public string NodeId = "";
-            public string Name = "";
-            public string TypeId = "";
-            public NodeKind Kind;
-            public int Depth;
-            public string? SourceTreeId;
-        }
+
 
         /// <summary>当前运行定义的只读语义副本；修改返回对象不会影响运行中的实例</summary>
         public TreeDefinition Definition => _definition.DeepClone();
@@ -201,7 +193,7 @@ namespace AbilityKit.BehaviorTree.Execution
             }
 
             BindTopology();
-            RebuildDebugStaticInfos();
+            _debugProjection.Rebuild(_flatDefinitions, _topology, _nodeSourceTree, _registry);
 
             if (!string.IsNullOrEmpty(_options.DebugName))
             {
@@ -238,7 +230,7 @@ namespace AbilityKit.BehaviorTree.Execution
                 _nodeSourceNode = expansion.NodeSourceNode,
                 _subtreeInstances = expansion.SubtreeInstances,
             };
-            runtime.RebuildDebugStaticInfos();
+            runtime._debugProjection.Rebuild(runtime._flatDefinitions, runtime._topology, runtime._nodeSourceTree, runtime._registry);
             return runtime;
         }
 
@@ -452,128 +444,6 @@ namespace AbilityKit.BehaviorTree.Execution
                 }
                 _childConditionalIndex[i] = conditionalChildren.ToArray();
             }
-        }
-
-        private void RebuildDebugStaticInfos()
-        {
-            _debugStaticInfos = new NodeDebugStaticInfo[_flatDefinitions.Length];
-            for (var i = 0; i < _flatDefinitions.Length; i++)
-            {
-                var definition = _flatDefinitions[i];
-                var sourceTree = _nodeSourceTree != null
-                    && _nodeSourceTree.TryGetValue(definition.Id, out var src)
-                    ? src
-                    : null;
-                _registry.TryGetDescriptor(definition.Type, out var descriptor);
-                _debugStaticInfos[i] = new NodeDebugStaticInfo
-                {
-                    NodeId = definition.Id,
-                    Name = descriptor != null ? descriptor.DisplayName : definition.Type,
-                    TypeId = definition.Type,
-                    Kind = descriptor != null ? descriptor.Kind : NodeKind.Action,
-                    Depth = _topology.Depth[i],
-                    SourceTreeId = sourceTree,
-                };
-            }
-        }
-
-        private void Flatten()
-        {
-            var flatNodes = new List<NodeBase>(_definition.Nodes.Count);
-            var flatDefinitions = new List<NodeDefinition>(_definition.Nodes.Count);
-            var parentIndex = new List<int>(_definition.Nodes.Count);
-            var relativeChildIndex = new List<int>(_definition.Nodes.Count);
-            var parentCompositeIndex = new List<int>(_definition.Nodes.Count);
-            var childrenIndex = new List<int[]>(_definition.Nodes.Count);
-
-            Visit(
-                _definition.RootNodeId,
-                parent: -1,
-                relativeIndex: -1,
-                parentComposite: -1,
-                flatNodes,
-                flatDefinitions,
-                parentIndex,
-                relativeChildIndex,
-                parentCompositeIndex,
-                childrenIndex);
-
-            _flatNodes = flatNodes.ToArray();
-            _flatDefinitions = flatDefinitions.ToArray();
-            _parentIndex = parentIndex.ToArray();
-            _relativeChildIndex = relativeChildIndex.ToArray();
-            _parentCompositeIndex = parentCompositeIndex.ToArray();
-            _childrenIndex = childrenIndex.ToArray();
-            _childConditionalIndex = new int[_flatNodes.Length][];
-
-            for (var i = 0; i < _flatNodes.Length; i++)
-            {
-                if (_flatNodes[i] is not CompositeNode)
-                {
-                    _childConditionalIndex[i] = Array.Empty<int>();
-                    continue;
-                }
-
-                var conditionalChildren = new List<int>();
-                foreach (var childIndex in _childrenIndex[i])
-                {
-                    if (_flatNodes[childIndex] is ConditionNodeBase)
-                    {
-                        conditionalChildren.Add(childIndex);
-                    }
-                }
-                _childConditionalIndex[i] = conditionalChildren.ToArray();
-            }
-        }
-
-        private void Visit(
-            string nodeId,
-            int parent,
-            int relativeIndex,
-            int parentComposite,
-            List<NodeBase> flatNodes,
-            List<NodeDefinition> flatDefinitions,
-            List<int> parentIndex,
-            List<int> relativeChildIndex,
-            List<int> parentCompositeIndex,
-            List<int[]> childrenIndex)
-        {
-            var index = flatNodes.Count;
-            flatNodes.Add(_nodesById[nodeId]);
-            flatDefinitions.Add(FindDefinition(nodeId));
-            parentIndex.Add(parent);
-            relativeChildIndex.Add(relativeIndex);
-            parentCompositeIndex.Add(parentComposite);
-
-            var definition = flatDefinitions[index];
-            var childIndexes = new int[definition.ChildIds.Count];
-            childrenIndex.Add(childIndexes);
-
-            for (var k = 0; k < definition.ChildIds.Count; k++)
-            {
-                // Child flat index equals the current number of flattened nodes.
-                childIndexes[k] = flatNodes.Count;
-                Visit(
-                    definition.ChildIds[k],
-                    index,
-                    k,
-                    flatNodes[index] is CompositeNode ? index : parentComposite,
-                    flatNodes,
-                    flatDefinitions,
-                    parentIndex,
-                    relativeChildIndex,
-                    parentCompositeIndex,
-                    childrenIndex);
-            }
-        }
-
-        private NodeDefinition FindDefinition(string nodeId)
-        {
-            foreach (var node in _definition.Nodes)
-            {
-                if (string.Equals(node.Id, nodeId, StringComparison.Ordinal)) return node;
-            }
-            throw new InvalidOperationException($"BT node '{nodeId}' not found in definition.");
         }
 
         /// <summary>推进一tick。frame/time 由宿主注入，节点内禁止其他时间源</summary>
@@ -1300,7 +1170,7 @@ namespace AbilityKit.BehaviorTree.Execution
         IReadOnlyList<SubtreeInstance> TreeDebugView.SubtreeInstances => _subtreeInstances;
 
         List<NodeDebugInfo> TreeDebugView.GetNodeStates()
-            => BuildNodeDebugInfos(full: true, null, null, null);
+            => _debugProjection.BuildNodeDebugInfos(_flatNodes, _runStacks, full: true, null, null, null);
 
         BlackboardValueSnapshot TreeDebugView.GetBlackboard() => _context.Blackboard.CaptureValues();
 
@@ -1309,8 +1179,8 @@ namespace AbilityKit.BehaviorTree.Execution
         TreeDebugDelta TreeDebugDeltaView.CaptureDebugDelta(long knownSequence, bool includeBlackboard)
         {
             var full = knownSequence == 0 || knownSequence != _lastDebugDeltaBaseSequence;
-            var nodes = BuildNodeDebugInfos(full, _lastDebugStates, _lastDebugOnStack, _lastDebugRunningChild);
-            CaptureDebugDynamicState(out _lastDebugStates, out _lastDebugOnStack, out _lastDebugRunningChild);
+            var nodes = _debugProjection.BuildNodeDebugInfos(_flatNodes, _runStacks, full, _lastDebugStates, _lastDebugOnStack, _lastDebugRunningChild);
+            TreeDebugProjection.CaptureDebugDynamicState(_flatNodes, _runStacks, out _lastDebugStates, out _lastDebugOnStack, out _lastDebugRunningChild);
             _lastDebugDeltaBaseSequence = _debugSequence;
             return new TreeDebugDelta
             {
@@ -1322,68 +1192,5 @@ namespace AbilityKit.BehaviorTree.Execution
             };
         }
 
-        private List<NodeDebugInfo> BuildNodeDebugInfos(
-            bool full,
-            NodeState[]? previousStates,
-            int[]? previousOnStack,
-            int[]? previousRunningChild)
-        {
-            CaptureDebugDynamicState(out var states, out var onStack, out var runningChild);
-            var result = new List<NodeDebugInfo>(full ? _flatNodes.Length : 0);
-            for (var i = 0; i < _flatNodes.Length; i++)
-            {
-                if (!full
-                    && previousStates != null
-                    && previousOnStack != null
-                    && previousRunningChild != null
-                    && previousStates.Length == _flatNodes.Length
-                    && previousOnStack.Length == _flatNodes.Length
-                    && previousRunningChild.Length == _flatNodes.Length
-                    && previousStates[i] == states[i]
-                    && previousOnStack[i] == onStack[i]
-                    && previousRunningChild[i] == runningChild[i])
-                {
-                    continue;
-                }
-
-                var info = _debugStaticInfos[i];
-                result.Add(new NodeDebugInfo(
-                    info.NodeId,
-                    info.Name,
-                    info.TypeId,
-                    info.Kind,
-                    states[i],
-                    info.Depth,
-                    onStack[i],
-                    runningChild[i],
-                    info.SourceTreeId));
-            }
-            return result;
-        }
-
-        private void CaptureDebugDynamicState(
-            out NodeState[] states,
-            out int[] onStack,
-            out int[] runningChild)
-        {
-            states = new NodeState[_flatNodes.Length];
-            onStack = new int[_flatNodes.Length];
-            runningChild = new int[_flatNodes.Length];
-            for (var i = 0; i < runningChild.Length; i++) runningChild[i] = -1;
-
-            foreach (var stack in _runStacks)
-            {
-                foreach (var index in stack)
-                {
-                    onStack[index]++;
-                }
-            }
-
-            for (var i = 0; i < _flatNodes.Length; i++)
-            {
-                states[i] = _flatNodes[i].State;
-                runningChild[i] = _flatNodes[i] is ParentNodeBase parent ? parent.CaptureRunningIndex() : -1;
-            }
-        }
     }
 }

@@ -15,6 +15,7 @@
     "AbilityKit.Protocol.Moba.SkillInputEvent",
     "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotPayload",
@@ -28,7 +29,8 @@
     "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload",
-    "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
+    "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayload"
   ],
   "generatedTypes": [
     "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomPlayerSnapshot",
@@ -46,6 +48,8 @@
     "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotEntry",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotEntry",
@@ -69,7 +73,8 @@
     "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload",
-    "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
+    "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayload"
   ],
   "generatedGroups": [
     {
@@ -105,6 +110,8 @@
         "AbilityKit.Protocol.Moba.StateSync.MobaActionAckPayload",
         "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotEntry",
         "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotPayload",
         "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotEntry",
         "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotPayload",
         "AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotEntry",
@@ -128,7 +135,8 @@
         "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
         "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotEntry",
         "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload",
-        "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
+        "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayload"
       ]
     }
   ],
@@ -138,6 +146,8 @@
     "MobaActionAckPayload.MemoryPack.g.cs",
     "MobaActorDespawnSnapshotEntry.MemoryPack.g.cs",
     "MobaActorDespawnSnapshotPayload.MemoryPack.g.cs",
+    "MobaActorIndicatorSnapshotEntry.MemoryPack.g.cs",
+    "MobaActorIndicatorSnapshotPayload.MemoryPack.g.cs",
     "MobaActorSpawnSnapshotEntry.MemoryPack.g.cs",
     "MobaActorSpawnSnapshotPayload.MemoryPack.g.cs",
     "MobaActorTransformSnapshotEntry.MemoryPack.g.cs",
@@ -164,6 +174,7 @@
     "MobaSkillStateSnapshotEntry.MemoryPack.g.cs",
     "MobaSkillStateSnapshotPayload.MemoryPack.g.cs",
     "MobaStateHashSnapshotPayload.MemoryPack.g.cs",
+    "MobaStateSyncOverheadPayload.MemoryPack.g.cs",
     "ProjectMemoryPackCodecs.g.cs",
     "ProtocolCatalogs.g.cs",
     "SkillInputEvent.MemoryPack.g.cs",

@@ -10,7 +10,7 @@
 
 该模块不得变成通用业务数据袋。新玩法逻辑应优先采用强类型载荷，仅在集成回退场景下使用键值管线上下文。
 
-Runtime Context 正式引用携带本地 ContextEntityReference（RegistryId/EntityId/Generation），与业务 Version 分离。阶段/事件载荷在生成时复制身份，不在读取时绑定当前代次；实时读取先解析一致属性视图，历史工具保存 ResolvedSnapshot 后使用精确 ReadSnapshot。旧 ID-only 入口仍是弱兼容路径，本地身份不进入权威恢复载荷/hash。
+Runtime Context 读取要求本地 `ContextEntityReference`（RegistryId/EntityId/Generation）和正数业务 Version，不再支持裸 ID。阶段和事件载荷在生成时冻结身份，不在读取时绑定当前代次。领域仍可查询同代 Buff 的最终快照；历史工具保存 `ResolvedSnapshot` 后使用精确 `ReadSnapshot`。本地身份不进入权威恢复载荷或 hash。
 
 ## 主要模型优先级
 

@@ -14,7 +14,8 @@ public interface IStateSyncObserverGrain : IGrainWithStringKey
     /// </summary>
     Task BindGatewayPushObserverAsync(
         string bindingId,
-        IStateSyncGatewayPushObserver observer);
+        IStateSyncGatewayPushObserver observer,
+        Guid connectionGeneration);
 
     /// <summary>
     /// 仅当 bindingId 仍是当前绑定时解除 Gateway 推送观察者。
@@ -29,7 +30,8 @@ public interface IStateSyncObserverGrain : IGrainWithStringKey
     /// <summary>
     /// 为该观察者订阅显式固定基线快照，保持可靠事件游标契约不变。
     /// </summary>
-    Task SubscribeFixedBaselineAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor);
+    Task SubscribeFixedBaselineAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor,
+        StateSyncPreparedRecipient? recipient = null);
 
     /// <summary>
     /// 取消订阅
@@ -64,7 +66,33 @@ public sealed record PreparedFixedBaselineSnapshot(
     [property: Id(0)] int Frame,
     [property: Id(1)] bool IsFullSnapshot,
     [property: Id(2)] string NetworkEnvironmentId,
-    [property: Id(3)] ImmutableArray<byte> Payload);
+    [property: Id(3)] ImmutableArray<byte> Payload)
+{
+    [Id(4)] public FixedBaselineSnapshotRevision Revision { get; init; }
+    [Id(5)] public StateSyncPreparedRecipient? Recipient { get; init; }
+}
+
+/// <summary>
+/// 服务端成功发布的固定基线版本，不表示客户端已导入或确认了输入。
+/// </summary>
+[GenerateSerializer, Immutable]
+public readonly record struct FixedBaselineSnapshotRevision(
+    [property: Id(0)] ulong WorldId,
+    [property: Id(1)] Guid StreamGeneration,
+    [property: Id(2)] long SnapshotId,
+    [property: Id(3)] long BaseSnapshotId);
+
+/// <summary>
+/// 单次固定基线订阅的接收身份。连接代际不等于客户端输入代际。
+/// </summary>
+[GenerateSerializer, Immutable]
+public readonly record struct StateSyncPreparedRecipient(
+    [property: Id(0)] string BindingId,
+    [property: Id(1)] Guid ConnectionGeneration,
+    [property: Id(2)] Guid SubscriptionGeneration = default,
+    [property: Id(3)] Guid InputGeneration = default,
+    [property: Id(4)] uint PlayerId = 0,
+    [property: Id(5)] bool ReceivesMovementProof = false);
 
 /// <summary>
 /// Gateway 进程内的状态同步推送观察者，通过 Orleans object reference 暴露给 Silo。
@@ -139,4 +167,5 @@ public sealed class StateSyncObserverInfo
     [Id(1)] public string AccountId { get; set; } = string.Empty;
     [Id(2)] public string RoomId { get; set; } = string.Empty;
     [Id(3)] public bool UsesFixedBaseline { get; set; }
+    [Id(4)] public StateSyncPreparedRecipient? PreparedRecipient { get; set; }
 }

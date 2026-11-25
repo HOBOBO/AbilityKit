@@ -33,6 +33,14 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int PerSecondBloodR { get; }
         public int PerSecondManaR { get; }
         public int ResilienceR { get; }
+        /// <summary>
+        /// 每秒固定回复法力的基础值。
+        /// </summary>
+        public float ManaRegenPerSecond { get; }
+        /// <summary>
+        /// 每个出生等级的固定回蓝成长。
+        /// </summary>
+        public float ManaRegenPerSecondGrowth { get; }
         public int HpGrowth { get; }
         public int MaxHpGrowth { get; }
         public int ExtraHpGrowth { get; }
@@ -87,6 +95,11 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             PerSecondBloodR = dto.PerSecondBloodR;
             PerSecondManaR = dto.PerSecondManaR;
             ResilienceR = dto.ResilienceR;
+            if (float.IsNaN(dto.ManaRegenPerSecond) || float.IsInfinity(dto.ManaRegenPerSecond) || dto.ManaRegenPerSecond < 0 ||
+                float.IsNaN(dto.ManaRegenPerSecondGrowth) || float.IsInfinity(dto.ManaRegenPerSecondGrowth) || dto.ManaRegenPerSecondGrowth < 0)
+                throw new ArgumentException("Resource regeneration base/growth must be finite and nonnegative.", nameof(dto));
+            ManaRegenPerSecond = dto.ManaRegenPerSecond;
+            ManaRegenPerSecondGrowth = dto.ManaRegenPerSecondGrowth;
             HpGrowth = dto.HpGrowth;
             MaxHpGrowth = dto.MaxHpGrowth;
             ExtraHpGrowth = dto.ExtraHpGrowth;

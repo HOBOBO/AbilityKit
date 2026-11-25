@@ -1,9 +1,8 @@
 # com.abilitykit.network.room
 
-## Connect without starting a room
+## 不启动房间的连接方式
 
-Use `RoomGatewayConnectionSession` when authentication is already handled by a
-starter or the player chooses room actions manually:
+认证已由启动器处理，或玩家手动选择房间操作时，使用 `RoomGatewayConnectionSession`：
 
 ```csharp
 using var connection = await RoomGatewayConnectionSession.ConnectAsync(
@@ -12,17 +11,9 @@ var rooms = connection.RoomClient;
 var flow = new RoomGatewaySessionFlow(rooms);
 ```
 
-The session owns the SDK client and Room client, including cleanup after a
-connection failure. It does not log in, create a room, or select a sync mode.
-Use `MultiplayerRoomSession.CreateAsync` for the existing automatic
-guest-login-to-battle flow.
+该会话拥有 SDK 客户端及房间客户端，负责连接失败后的清理；不执行登录、建房或同步模式选择。既有访客登录到战斗的自动流程使用 `MultiplayerRoomSession.CreateAsync`。
 
-`NetworkSdkClient` owns generic transport and request dispatch. `RoomGatewayWireSessionClient`
-owns the Room gateway protocol envelope: `GuestLoginAsync`, `AccountLoginAsync`,
-`SubmitBattleInputAsync`, and `StateSyncSnapshotReceived` use typed wire messages.
-Its default opcodes resolve from the generated `abilitykit.room` catalog, whose
-source is `Protocols/Catalogs/room.protocol.yaml`. Gameplay input payloads and
-snapshot interpretation remain with the project.
+`NetworkSdkClient` 负责通用传输及请求分发。`RoomGatewayWireSessionClient` 负责房间网关协议信封：`GuestLoginAsync`、`AccountLoginAsync`、`SubmitBattleInputAsync` 和 `StateSyncSnapshotReceived` 使用强类型传输消息。默认操作码来自生成的 `abilitykit.room` 目录，其源为 `Protocols/Catalogs/room.protocol.yaml`。玩法输入载荷及快照解释仍归项目负责。
 
 > AbilityKit 多人联网 SDK 的**房间会话能力包**。在 `NetworkSdkClient` 之上，提供"房间网关"的线协议客户端、8 阶段会话编排与断线恢复，是**玩法无关**（gameplay-agnostic）的通用层 —— shooter 与 moba 两个示例共用同一套。
 

@@ -1,5 +1,5 @@
-# 01 Logic
+# 01 逻辑
 
-This sample depends only on `com.abilitykit.demo.tiny.logic`. `TinyLogicExample.Run()` creates two players, advances a tick, restores a serialized checkpoint, then compares hashes for 40 further ticks. It throws on divergence and returns the final hash on success.
+此示例仅依赖 `com.abilitykit.demo.tiny.logic`。`TinyLogicExample.Run()` 创建两名玩家，推进一个步长，恢复序列化的检查点，再比较后续 40 个步长的哈希。出现分歧时抛出异常，成功时返回最终哈希。
 
-From the repository root, run `dotnet run --project src/AbilityKit.Demo.Tiny.Logic.Sample` to execute the same sample without Unity.
+从仓库根运行 `dotnet run --project src/AbilityKit.Demo.Tiny.Logic.Sample`，可在无 Unity 环境执行相同示例。

@@ -34,49 +34,49 @@ namespace AbilityKit.ProtocolEditor.UI
         [MenuItem("Tools/AbilityKit/Framework/Protocol/Migrate Legacy ProtocolDefinition (one-time)")]
         private static void Open()
         {
-            var window = GetWindow<LegacyProtocolDefinitionMigrationWindow>("Legacy ProtocolDefinition Migration");
+            var window = GetWindow<LegacyProtocolDefinitionMigrationWindow>("旧版 ProtocolDefinition 迁移");
             window.minSize = new Vector2(520f, 420f);
         }
 
         private void OnGUI()
         {
             EditorGUILayout.HelpBox(
-                "Legacy ScriptableObject protocol definitions and their code generator are FROZEN (superseded by the YAML Protocol Workspace). " +
-                "This one-time migration window only reads an existing ProtocolDefinition asset and writes it into a YAML protocol catalog via the official compiler. " +
-                "It never generates C# code (MemoryPack DTO / OpCodes generation has been removed).",
+                "旧版 ScriptableObject 协议定义及代码生成器已冻结，由 YAML 协议工作区替代。" +
+                "此一次性迁移窗口仅读取既有 ProtocolDefinition 资产，通过正式编译器写入 YAML 协议目录。" +
+                "此入口不生成 C# 代码，MemoryPack DTO 与操作码生成功能已移除。",
                 MessageType.Warning);
 
             _definition = (ProtocolDefinition)EditorGUILayout.ObjectField(
-                "Legacy Definition", _definition, typeof(ProtocolDefinition), false);
+                "旧版定义", _definition, typeof(ProtocolDefinition), false);
 
             if (_definition == null)
             {
-                if (GUILayout.Button("Open Protocol Workspace (official entry)")) OpenWorkspace();
+                if (GUILayout.Button("打开协议工作区（正式入口）")) OpenWorkspace();
                 return;
             }
 
             EditorGUILayout.LabelField("RegistryId", _definition.RegistryId);
             if (string.IsNullOrEmpty(_domain)) _domain = string.IsNullOrWhiteSpace(_definition.Domain) ? "legacy" : _definition.Domain.Trim();
-            _projectId = EditorGUILayout.TextField("Project ID", _projectId);
-            _domain = EditorGUILayout.TextField("Domain", _domain);
+            _projectId = EditorGUILayout.TextField("项目 ID", _projectId);
+            _domain = EditorGUILayout.TextField("业务域", _domain);
             if (string.IsNullOrWhiteSpace(_catalogId))
             {
                 _catalogId = string.IsNullOrWhiteSpace(_definition.RegistryId)
                     ? _projectId.Trim() + "." + _domain
                     : _definition.RegistryId.Trim();
             }
-            _catalogId = EditorGUILayout.TextField("Catalog ID", _catalogId);
+            _catalogId = EditorGUILayout.TextField("协议目录 ID", _catalogId);
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField($"Messages in asset: {SafeCount(_definition)}", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField($"资产消息数：{SafeCount(_definition)}", EditorStyles.miniLabel);
 
             using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(_projectId) || string.IsNullOrWhiteSpace(_domain)))
             {
-                if (GUILayout.Button("Migrate To YAML Catalog...", GUILayout.Height(28f))) Migrate();
+                if (GUILayout.Button("迁移到 YAML 协议目录……", GUILayout.Height(28f))) Migrate();
             }
 
             EditorGUILayout.Space(4f);
-            if (GUILayout.Button("Open Protocol Workspace (official entry)")) OpenWorkspace();
+            if (GUILayout.Button("打开协议工作区（正式入口）")) OpenWorkspace();
 
             if (!string.IsNullOrEmpty(_status))
             {
@@ -93,7 +93,7 @@ namespace AbilityKit.ProtocolEditor.UI
         private void Migrate()
         {
             var path = EditorUtility.SaveFilePanel(
-                "Migrate to YAML catalog",
+                "迁移到 YAML 协议目录",
                 Path.Combine(ProtocolCompilerBridge.RepositoryRoot, "Protocols", "Catalogs"),
                 (_projectId.Trim() + "." + _domain).Replace(' ', '_') + ".protocol",
                 "yaml");
@@ -106,7 +106,7 @@ namespace AbilityKit.ProtocolEditor.UI
             var (catalog, skipped) = BuildCatalog(path);
             if (catalog.messages.Length == 0 && skipped.Count > 0)
             {
-                _status = "No migratable messages (all were skipped):\n" + string.Join("\n", skipped);
+                _status = "没有可迁移消息（全部已跳过）：\n" + string.Join("\n", skipped);
                 _statusType = MessageType.Error;
                 return;
             }
@@ -114,16 +114,16 @@ namespace AbilityKit.ProtocolEditor.UI
             if (ProtocolCompilerBridge.WriteCatalog(catalog, out var status))
             {
                 AssetDatabase.Refresh();
-                _status = (string.IsNullOrWhiteSpace(status) ? "Catalog written." : status.Trim()) +
-                          "\nTarget: " + path +
-                          (skipped.Count > 0 ? "\nSkipped messages:\n" + string.Join("\n", skipped) : string.Empty) +
-                          "\nNext: open Protocol Workspace to review, then delete the legacy asset.";
+                _status = (string.IsNullOrWhiteSpace(status) ? "协议目录已写入。" : status.Trim()) +
+                          "\n目标：" + path +
+                          (skipped.Count > 0 ? "\n跳过的消息：\n" + string.Join("\n", skipped) : string.Empty) +
+                          "\n下一步：打开协议工作区检查，然后删除旧资产。";
                 _statusType = MessageType.Info;
             }
             else
             {
-                _status = (string.IsNullOrWhiteSpace(status) ? "Migration failed." : status.Trim()) +
-                          (skipped.Count > 0 ? "\nSkipped messages:\n" + string.Join("\n", skipped) : string.Empty);
+                _status = (string.IsNullOrWhiteSpace(status) ? "迁移失败。" : status.Trim()) +
+                          (skipped.Count > 0 ? "\n跳过的消息：\n" + string.Join("\n", skipped) : string.Empty);
                 _statusType = MessageType.Error;
             }
         }
@@ -214,7 +214,7 @@ namespace AbilityKit.ProtocolEditor.UI
 
     public sealed class ProtocolWorkspaceWindow : EditorWindow
     {
-        private static readonly string[] Tabs = { "Catalogs", "Wire Schemas", "Export" };
+        private static readonly string[] Tabs = { "协议目录", "线协议结构", "导出" };
         private static readonly string[] Directions = { "c2s", "s2c", "bidirectional" };
         private static readonly string[] Kinds = { "request", "response", "push", "event" };
         private static readonly string[] Reliabilities = { "reliable", "realtime" };
@@ -240,13 +240,13 @@ namespace AbilityKit.ProtocolEditor.UI
         private bool _includeUnreferenced;
         private bool _strictExport;
         private bool _dirty;
-        private string _status = "Workspace not loaded.";
+        private string _status = "工作区尚未加载。";
         private MessageType _statusType = MessageType.Info;
 
         [MenuItem("Tools/AbilityKit/Framework/Protocol/Protocol Workspace")]
         private static void OpenWorkspace()
         {
-            var window = GetWindow<ProtocolWorkspaceWindow>("Protocol Workspace");
+            var window = GetWindow<ProtocolWorkspaceWindow>("协议工作区");
             window.minSize = new Vector2(980f, 620f);
             window.Show();
         }
@@ -285,25 +285,25 @@ namespace AbilityKit.ProtocolEditor.UI
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                if (GUILayout.Button(new GUIContent(EditorGUIUtility.IconContent("Refresh").image, "Reload YAML workspace"),
+                if (GUILayout.Button(new GUIContent(EditorGUIUtility.IconContent("Refresh").image, "重新加载 YAML 工作区"),
                         EditorStyles.toolbarButton, GUILayout.Width(32f)))
                     Reload();
-                if (GUILayout.Button(new GUIContent(EditorGUIUtility.IconContent("SaveAs").image, "Save selected YAML document"),
+                if (GUILayout.Button(new GUIContent(EditorGUIUtility.IconContent("SaveAs").image, "保存所选 YAML 文档"),
                         EditorStyles.toolbarButton, GUILayout.Width(32f)))
                     SaveSelected();
-                if (GUILayout.Button("Compile Catalogs", EditorStyles.toolbarButton, GUILayout.Width(112f)))
+                if (GUILayout.Button("编译协议目录", EditorStyles.toolbarButton, GUILayout.Width(112f)))
                     CompileCatalogs();
                 GUILayout.Space(8f);
                 using (new EditorGUI.DisabledScope(_workspace == null || _workspace.diagnostics.Length == 0))
                 {
                     var diagnosticCount = _workspace == null ? 0 : _workspace.diagnostics.Length;
-                    if (GUILayout.Button("Diagnostics (" + diagnosticCount + ")", EditorStyles.toolbarButton, GUILayout.Width(110f)))
+                    if (GUILayout.Button("诊断 (" + diagnosticCount + ")", EditorStyles.toolbarButton, GUILayout.Width(110f)))
                         ShowDiagnostics();
                 }
                 GUILayout.Space(8f);
                 GUILayout.Label(WorkspaceSummary(), EditorStyles.miniLabel);
                 GUILayout.FlexibleSpace();
-                if (_dirty) GUILayout.Label("Modified", EditorStyles.miniBoldLabel);
+                if (_dirty) GUILayout.Label("已修改", EditorStyles.miniBoldLabel);
             }
         }
 
@@ -323,7 +323,7 @@ namespace AbilityKit.ProtocolEditor.UI
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    GUILayout.Label("Catalogs", EditorStyles.boldLabel);
+                    GUILayout.Label("协议目录", EditorStyles.boldLabel);
                     GUILayout.FlexibleSpace();
                     if (GUILayout.Button("+", GUILayout.Width(28f)) && CanSwitchDocument()) CreateCatalog();
                 }
@@ -351,7 +351,7 @@ namespace AbilityKit.ProtocolEditor.UI
             var catalog = SelectedCatalog();
             if (catalog == null)
             {
-                GUILayout.Label("No catalog selected.");
+                GUILayout.Label("尚未选择协议目录。");
                 return;
             }
 
@@ -359,28 +359,28 @@ namespace AbilityKit.ProtocolEditor.UI
             {
                 GUILayout.Label(catalog.catalogId, EditorStyles.boldLabel);
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Open YAML", GUILayout.Width(90f))) OpenSource(catalog.sourcePath);
-                if (GUILayout.Button("Save", GUILayout.Width(70f))) SaveCatalog(catalog);
+                if (GUILayout.Button("打开 YAML", GUILayout.Width(90f))) OpenSource(catalog.sourcePath);
+                if (GUILayout.Button("保存", GUILayout.Width(70f))) SaveCatalog(catalog);
             }
-            EditorGUILayout.LabelField("Source", catalog.sourcePath, EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("源文件", catalog.sourcePath, EditorStyles.miniLabel);
             EditorGUI.BeginChangeCheck();
-            catalog.catalogId = EditorGUILayout.TextField("Catalog ID", catalog.catalogId);
-            catalog.projectId = EditorGUILayout.TextField("Project ID", catalog.projectId);
-            catalog.domain = EditorGUILayout.TextField("Domain", catalog.domain);
-            catalog.revision = Mathf.Max(1, EditorGUILayout.IntField("Revision", catalog.revision));
-            catalog.defaultCodec = EditorGUILayout.TextField("Default Codec", catalog.defaultCodec);
+            catalog.catalogId = EditorGUILayout.TextField("协议目录 ID", catalog.catalogId);
+            catalog.projectId = EditorGUILayout.TextField("项目 ID", catalog.projectId);
+            catalog.domain = EditorGUILayout.TextField("业务域", catalog.domain);
+            catalog.revision = Mathf.Max(1, EditorGUILayout.IntField("修订号", catalog.revision));
+            catalog.defaultCodec = EditorGUILayout.TextField("默认编解码器", catalog.defaultCodec);
             if (EditorGUI.EndChangeCheck()) _dirty = true;
             EditorGUILayout.Space(6f);
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                GUILayout.Label("Messages", EditorStyles.boldLabel);
+                GUILayout.Label("消息列表", EditorStyles.boldLabel);
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Add", GUILayout.Width(56f))) AddMessage(catalog);
+                if (GUILayout.Button("添加", GUILayout.Width(56f))) AddMessage(catalog);
                 using (new EditorGUI.DisabledScope(catalog.messages.Length == 0))
                 {
-                    if (GUILayout.Button("Duplicate", GUILayout.Width(74f))) DuplicateMessage(catalog);
-                    if (GUILayout.Button("Delete", GUILayout.Width(56f))) DeleteMessage(catalog);
+                    if (GUILayout.Button("复制", GUILayout.Width(74f))) DuplicateMessage(catalog);
+                    if (GUILayout.Button("删除", GUILayout.Width(56f))) DeleteMessage(catalog);
                 }
             }
 
@@ -413,7 +413,7 @@ namespace AbilityKit.ProtocolEditor.UI
             if (catalog.messages.Length == 0) return;
             _messageIndex = Mathf.Clamp(_messageIndex, 0, catalog.messages.Length - 1);
             var message = catalog.messages[_messageIndex];
-            GUILayout.Label("Message", EditorStyles.boldLabel);
+            GUILayout.Label("消息", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();
             message.id = EditorGUILayout.TextField("ID", message.id);
             message.opCode = (uint)Math.Min(
@@ -421,20 +421,20 @@ namespace AbilityKit.ProtocolEditor.UI
                 Math.Max(1L, EditorGUILayout.LongField("OpCode", message.opCode)));
             message.direction = Popup("Direction", message.direction, Directions);
             message.kind = Popup("Kind", message.kind, Kinds);
-            message.payloadType = EditorGUILayout.TextField("Payload Type", message.payloadType);
-            message.codec = EditorGUILayout.TextField("Codec", message.codec);
+            message.payloadType = EditorGUILayout.TextField("载荷类型", message.payloadType);
+            message.codec = EditorGUILayout.TextField("编解码器", message.codec);
             message.reliability = Popup("Reliability", message.reliability, Reliabilities);
-            message.response = EditorGUILayout.TextField("Response", message.response);
+            message.response = EditorGUILayout.TextField("响应", message.response);
             message.minimumSchemaVersion = Mathf.Max(1,
-                EditorGUILayout.IntField("Min Schema", message.minimumSchemaVersion));
+                EditorGUILayout.IntField("最小结构版本", message.minimumSchemaVersion));
             message.maximumSchemaVersion = Mathf.Max(message.minimumSchemaVersion,
-                EditorGUILayout.IntField("Max Schema", message.maximumSchemaVersion));
+                EditorGUILayout.IntField("最大结构版本", message.maximumSchemaVersion));
             message.maximumPayloadBytes = Mathf.Max(1,
-                EditorGUILayout.IntField("Max Payload Bytes", message.maximumPayloadBytes));
+                EditorGUILayout.IntField("载荷字节上限", message.maximumPayloadBytes));
             message.captureSampleRate = EditorGUILayout.Slider(
-                "Capture Sample Rate", (float)message.captureSampleRate, 0f, 1f);
+                "采集采样率", (float)message.captureSampleRate, 0f, 1f);
             var sensitive = string.Join(", ", message.sensitiveFields ?? Array.Empty<string>());
-            var updated = EditorGUILayout.TextField("Sensitive Fields", sensitive);
+            var updated = EditorGUILayout.TextField("敏感字段", sensitive);
             if (!string.Equals(sensitive, updated, StringComparison.Ordinal))
                 message.sensitiveFields = SplitValues(updated);
             if (EditorGUI.EndChangeCheck()) _dirty = true;
@@ -456,11 +456,11 @@ namespace AbilityKit.ProtocolEditor.UI
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    GUILayout.Label("Wire Schemas", EditorStyles.boldLabel);
+                    GUILayout.Label("线协议结构", EditorStyles.boldLabel);
                     GUILayout.FlexibleSpace();
                     using (new EditorGUI.DisabledScope(SelectedWireSchema() == null))
                     {
-                        if (GUILayout.Button("Add Type", GUILayout.Width(72f)) && CanSwitchDocument())
+                        if (GUILayout.Button("添加类型", GUILayout.Width(72f)) && CanSwitchDocument())
                             AddWireSchemaType();
                     }
                     if (GUILayout.Button("+", GUILayout.Width(28f)) && CanSwitchDocument()) CreateWireSchema();
@@ -491,44 +491,44 @@ namespace AbilityKit.ProtocolEditor.UI
             var schema = SelectedWireSchema();
             if (schema == null)
             {
-                GUILayout.Label("No wire schema selected.");
+                GUILayout.Label("尚未选择线协议结构。");
                 return;
             }
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Label(schema.QualifiedType, EditorStyles.boldLabel);
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Open YAML", GUILayout.Width(90f))) OpenSource(schema.sourcePath);
-                if (GUILayout.Button("Save", GUILayout.Width(70f))) SaveWireSchema(schema);
+                if (GUILayout.Button("打开 YAML", GUILayout.Width(90f))) OpenSource(schema.sourcePath);
+                if (GUILayout.Button("保存", GUILayout.Width(70f))) SaveWireSchema(schema);
             }
-            EditorGUILayout.LabelField("Source", schema.sourcePath, EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("源文件", schema.sourcePath, EditorStyles.miniLabel);
             EditorGUILayout.HelpBox(
-                "Project ID, Group ID and namespace are shared by every type in this wire document.",
+                "此线协议文档中的全部类型共享项目 ID、分组 ID 和命名空间。",
                 MessageType.Info);
             EditorGUI.BeginChangeCheck();
             using (new EditorGUI.DisabledScope(File.Exists(schema.sourcePath)))
             {
-                schema.projectId = EditorGUILayout.TextField("Project ID", schema.projectId);
-                schema.groupId = EditorGUILayout.TextField("Group ID", schema.groupId);
-                schema.@namespace = EditorGUILayout.TextField("Namespace", schema.@namespace);
+                schema.projectId = EditorGUILayout.TextField("项目 ID", schema.projectId);
+                schema.groupId = EditorGUILayout.TextField("分组 ID", schema.groupId);
+                schema.@namespace = EditorGUILayout.TextField("命名空间", schema.@namespace);
             }
-            schema.type = EditorGUILayout.TextField("Type", schema.type);
-            schema.memoryPackMode = Popup("MemoryPack Mode", schema.memoryPackMode, MemoryPackModes);
-            schema.declaration = Popup("Declaration", schema.declaration, DeclarationKinds);
-            schema.memberStyle = Popup("Member Style", schema.memberStyle, MemberStyles);
+            schema.type = EditorGUILayout.TextField("类型", schema.type);
+            schema.memoryPackMode = Popup("MemoryPack 模式", schema.memoryPackMode, MemoryPackModes);
+            schema.declaration = Popup("声明形式", schema.declaration, DeclarationKinds);
+            schema.memberStyle = Popup("成员形式", schema.memberStyle, MemberStyles);
             schema.reservedIdsText = EditorGUILayout.TextField(
-                "Reserved IDs", schema.reservedIdsText ?? JoinIds(schema.reservedIds));
+                "保留 ID", schema.reservedIdsText ?? JoinIds(schema.reservedIds));
             if (EditorGUI.EndChangeCheck()) _dirty = true;
             EditorGUILayout.Space(6f);
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                GUILayout.Label("Fields", EditorStyles.boldLabel);
+                GUILayout.Label("字段列表", EditorStyles.boldLabel);
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Add", GUILayout.Width(56f))) AddWireField(schema);
+                if (GUILayout.Button("添加", GUILayout.Width(56f))) AddWireField(schema);
                 using (new EditorGUI.DisabledScope(schema.fields.Length == 0))
                 {
-                    if (GUILayout.Button("Delete", GUILayout.Width(56f))) DeleteWireField(schema);
+                    if (GUILayout.Button("删除", GUILayout.Width(56f))) DeleteWireField(schema);
                 }
             }
             using (new EditorGUILayout.HorizontalScope())
@@ -558,54 +558,54 @@ namespace AbilityKit.ProtocolEditor.UI
             if (schema.fields.Length == 0) return;
             _wireFieldIndex = Mathf.Clamp(_wireFieldIndex, 0, schema.fields.Length - 1);
             var field = schema.fields[_wireFieldIndex];
-            GUILayout.Label("Field", EditorStyles.boldLabel);
+            GUILayout.Label("字段", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();
             field.id = (uint)Math.Min(
                 uint.MaxValue,
                 Math.Max(0L, EditorGUILayout.LongField("ID", field.id)));
-            field.name = EditorGUILayout.TextField("Name", field.name);
+            field.name = EditorGUILayout.TextField("名称", field.name);
             var customType = !string.IsNullOrWhiteSpace(field.typeName);
-            var typeMode = EditorGUILayout.Popup("Type Mode", customType ? 1 : 0, new[] { "Scalar", "Custom" });
+            var typeMode = EditorGUILayout.Popup("类型模式", customType ? 1 : 0, new[] { "标量", "自定义" });
             if (typeMode == 0)
             {
                 if (customType) field.typeName = string.Empty;
                 field.external = false;
-                field.scalarType = Popup("Scalar Type", field.scalarType, ScalarTypes);
+                field.scalarType = Popup("标量类型", field.scalarType, ScalarTypes);
             }
             else
             {
                 if (!customType) field.typeName = "AbilityKit.Protocol.Generated.NestedPayload";
-                field.typeName = EditorGUILayout.TextField("Type Reference", field.typeName);
-                field.external = EditorGUILayout.Toggle("External Owner", field.external);
+                field.typeName = EditorGUILayout.TextField("类型引用", field.typeName);
+                field.external = EditorGUILayout.Toggle("外部归属", field.external);
             }
-            field.array = EditorGUILayout.Toggle("Array", field.array);
-            field.optional = EditorGUILayout.Toggle("Optional", field.optional);
+            field.array = EditorGUILayout.Toggle("数组", field.array);
+            field.optional = EditorGUILayout.Toggle("可选", field.optional);
             if (EditorGUI.EndChangeCheck()) _dirty = true;
         }
 
         private void DrawExport()
         {
-            GUILayout.Label("Project MemoryPack Export", EditorStyles.boldLabel);
+            GUILayout.Label("项目 MemoryPack 导出", EditorStyles.boldLabel);
             var projects = _workspace.projects ?? Array.Empty<string>();
             if (projects.Length == 0)
             {
-                EditorGUILayout.HelpBox("No project IDs are available.", MessageType.Warning);
+                EditorGUILayout.HelpBox("没有可用的项目 ID。", MessageType.Warning);
                 return;
             }
             _exportProjectIndex = Mathf.Clamp(_exportProjectIndex, 0, projects.Length - 1);
-            _exportProjectIndex = EditorGUILayout.Popup("Project", _exportProjectIndex, projects);
+            _exportProjectIndex = EditorGUILayout.Popup("项目", _exportProjectIndex, projects);
             using (new EditorGUILayout.HorizontalScope())
             {
-                _exportFolder = EditorGUILayout.TextField("Output Folder", _exportFolder);
-                if (GUILayout.Button("Browse", GUILayout.Width(70f)))
+                _exportFolder = EditorGUILayout.TextField("输出目录", _exportFolder);
+                if (GUILayout.Button("浏览", GUILayout.Width(70f)))
                 {
-                    var selected = EditorUtility.OpenFolderPanel("Protocol export folder", _exportFolder, "");
+                    var selected = EditorUtility.OpenFolderPanel("协议导出目录", _exportFolder, "");
                     if (!string.IsNullOrEmpty(selected)) _exportFolder = selected;
                 }
             }
-            _exportNamespace = EditorGUILayout.TextField("Catalog Namespace", _exportNamespace);
-            _includeUnreferenced = EditorGUILayout.Toggle("Include Unreferenced Schemas", _includeUnreferenced);
-            _strictExport = EditorGUILayout.Toggle("Fail On Missing Schemas", _strictExport);
+            _exportNamespace = EditorGUILayout.TextField("协议目录命名空间", _exportNamespace);
+            _includeUnreferenced = EditorGUILayout.Toggle("包含未引用结构", _includeUnreferenced);
+            _strictExport = EditorGUILayout.Toggle("缺失结构时失败", _strictExport);
             EditorGUILayout.Space(8f);
 
             var project = projects[_exportProjectIndex];
@@ -613,20 +613,20 @@ namespace AbilityKit.ProtocolEditor.UI
             var messages = _workspace.catalogs.Where(value => value.projectId == project)
                 .Sum(value => value.messages.Length);
             var schemas = _workspace.wireSchemas.Count(value => value.projectId == project);
-            EditorGUILayout.LabelField("Catalogs", catalogs.ToString());
-            EditorGUILayout.LabelField("Messages", messages.ToString());
-            EditorGUILayout.LabelField("Owned Wire Schemas", schemas.ToString());
+            EditorGUILayout.LabelField("协议目录", catalogs.ToString());
+            EditorGUILayout.LabelField("消息列表", messages.ToString());
+            EditorGUILayout.LabelField("本项目线协议结构数", schemas.ToString());
             EditorGUILayout.Space(8f);
             using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(_exportFolder)))
             {
-                if (GUILayout.Button("Export Project", GUILayout.Height(28f))) ExportProject(project);
+                if (GUILayout.Button("导出项目", GUILayout.Height(28f))) ExportProject(project);
             }
         }
 
         private void Reload()
         {
             if (_dirty && _workspace != null && !EditorUtility.DisplayDialog(
-                    "Reload Protocol Workspace", "Discard unsaved workspace edits?", "Reload", "Cancel"))
+                    "重新加载协议工作区", "丢弃工作区中未保存的修改？", "重新加载", "取消"))
                 return;
             if (ProtocolCompilerBridge.LoadWorkspace(out var workspace, out var status))
             {
@@ -681,7 +681,7 @@ namespace AbilityKit.ProtocolEditor.UI
         {
             if (_dirty)
             {
-                SetStatus("Save the selected YAML document before compiling catalogs.", MessageType.Warning);
+                SetStatus("请先保存所选 YAML 文档，再编译协议目录。", MessageType.Warning);
                 return;
             }
             if (ProtocolCompilerBridge.CompileCatalogs(out var status))
@@ -706,7 +706,7 @@ namespace AbilityKit.ProtocolEditor.UI
         private void CreateCatalog()
         {
             var path = EditorUtility.SaveFilePanel(
-                "New Protocol Catalog",
+                "新建协议目录",
                 Path.Combine(ProtocolCompilerBridge.RepositoryRoot, "Protocols", "Catalogs"),
                 "project.protocol",
                 "yaml");
@@ -729,7 +729,7 @@ namespace AbilityKit.ProtocolEditor.UI
         private void CreateWireSchema()
         {
             var path = EditorUtility.SaveFilePanel(
-                "New Wire Schema",
+                "新建线协议结构",
                 Path.Combine(ProtocolCompilerBridge.RepositoryRoot, "Protocols", "WireSchemas"),
                 "Payload.wire",
                 "yaml");
@@ -891,8 +891,8 @@ namespace AbilityKit.ProtocolEditor.UI
         }
 
         private string WorkspaceSummary() => _workspace == null
-            ? "No workspace"
-            : string.Format("{0} catalogs  {1} messages  {2} wire schemas  {3} diagnostics",
+            ? "无工作区"
+            : string.Format("{0} 个协议目录  {1} 条消息  {2} 个线协议结构  {3} 项诊断",
                 _workspace.catalogs.Length,
                 _workspace.catalogs.Sum(value => value.messages.Length),
                 _workspace.wireSchemas.Length,
@@ -913,7 +913,7 @@ namespace AbilityKit.ProtocolEditor.UI
                     message,
                     ToDiagnosticPath(diagnostic)));
             }
-            EditorDiagnosticsWindow.Show("Protocol Diagnostics", collection);
+            EditorDiagnosticsWindow.Show("协议诊断", collection);
         }
 
         private static EditorDiagnosticSeverity ToSeverity(string severity)
@@ -956,7 +956,7 @@ namespace AbilityKit.ProtocolEditor.UI
                 if (!uint.TryParse(item, out var id) || id == 0)
                 {
                     ids = Array.Empty<uint>();
-                    error = "Reserved IDs must be positive unsigned integers.";
+                    error = "保留 ID 必须为正的无符号整数。";
                     return false;
                 }
                 parsed.Add(id);
@@ -978,11 +978,11 @@ namespace AbilityKit.ProtocolEditor.UI
         {
             if (!_dirty) return true;
             var choice = EditorUtility.DisplayDialogComplex(
-                "Unsaved Protocol Changes",
-                "Save the current YAML document before switching?",
-                "Save",
-                "Cancel",
-                "Discard");
+                "协议修改尚未保存",
+                "切换前是否保存当前 YAML 文档？",
+                "保存",
+                "取消",
+                "丢弃");
             if (choice == 0)
             {
                 SaveSelected();
@@ -1004,7 +1004,7 @@ namespace AbilityKit.ProtocolEditor.UI
 
         private void SetStatus(string value, MessageType type)
         {
-            _status = string.IsNullOrWhiteSpace(value) ? "Completed." : value.Trim();
+            _status = string.IsNullOrWhiteSpace(value) ? "已完成。" : value.Trim();
             _statusType = type;
             Repaint();
         }

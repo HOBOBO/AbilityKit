@@ -5,12 +5,13 @@ using UnityEngine;
 namespace AbilityKit.Game.Battle.Hierarchy
 {
     /// <summary>
-    /// Pure C# manager that owns the categorized sub-root <see cref="Transform"/>
-    /// instances under a <see cref="BattleViewHierarchyRoot"/>. Pools, spawners and
-    /// factories ask the manager for the transform to parent their instances to,
-    /// so the Unity Hierarchy view remains organized and reusable across runs.
     ///
-    /// Threading: all methods must be called from the Unity main thread.
+    ///
+    /// 纯 C# 管理器，拥有 <see cref="BattleViewHierarchyRoot"/> 下分类子根节点的 <see cref="Transform"/> 实例。对象池、生成器及工厂向管理器请求实例父变换，让 Unity 层级视图保持有序，并可跨运行复用。
+    ///
+    /// 线程要求：所有方法必须在 Unity 主线程调用。
+    ///
+    ///
     /// </summary>
     public sealed class BattleViewHierarchyManager
     {
@@ -44,19 +45,20 @@ namespace AbilityKit.Game.Battle.Hierarchy
         };
 
         /// <summary>
-        /// Create a manager that owns children of <paramref name="root"/>.
+        /// 创建拥有 <paramref name="root"/> 子节点的管理器。
         /// </summary>
         public BattleViewHierarchyManager(BattleViewHierarchyRoot root)
         {
             _root = root ?? throw new ArgumentNullException(nameof(root));
         }
 
-        /// <summary>The hierarchy root that all category transforms are parented under.</summary>
+        /// <summary>
+        /// 所有分类变换的共同层级根节点。
+        /// </summary>
         public BattleViewHierarchyRoot Root => _root;
 
         /// <summary>
-        /// Creates the stable category directory layout up front so every supported
-        /// presentation type remains visible even before its first object is spawned.
+        /// 预先创建稳定分类目录，使每种支持的表现类型在首个对象生成前就可见。
         /// </summary>
         public void EnsureStandardLayout()
         {
@@ -67,8 +69,10 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Get-or-lazily-create the top-level category transform
+        ///
+        /// 获取或按需创建顶层分类变换。
         /// (e.g. <c>[Battle]/_Pool/_Shell</c>).
+        ///
         /// </summary>
         public Transform GetCategoryRoot(BattleViewCategory category)
         {
@@ -84,9 +88,10 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Get-or-lazily-create a per-bucket transform under the category root.
-        /// Used by pools to group inactive instances by template id
+        ///
+        /// 获取或按需创建分类根节点下的分桶变换，供对象池按模板 ID 组织非活动实例。
         /// (e.g. <c>[Battle]/_Pool/_Shell/model_42</c>).
+        ///
         /// </summary>
         public Transform GetBucketRoot(BattleViewCategory category, int bucketKey)
         {
@@ -104,8 +109,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Get-or-lazily-create a named sub-transform under the category root.
-        /// Used for grouping by enum kind (e.g. Model / Range / Vfx for area effects).
+        /// 获取或按需创建分类根节点下的具名子变换，用于按枚举种类分组，如区域效果的 Model / Range / Vfx。
         /// </summary>
         public Transform GetNamedRoot(BattleViewCategory category, string subName)
         {
@@ -127,8 +131,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Parents a GameObject directly under a category root without implying an
-        /// active or pooled lifecycle state.
+        /// 将 GameObject 直接挂到分类根节点，不隐含活动或池化生命周期状态。
         /// </summary>
         public void ParentToCategory(BattleViewCategory category, GameObject instance)
         {
@@ -141,8 +144,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Parent an active GameObject under the appropriate active-view category root.
-        /// Convenience overload that parents directly under the category root (not a bucket).
+        /// 将活动 GameObject 直接挂到对应活动视图分类根节点的便捷重载，不使用分桶。
         /// </summary>
         public void ParentActive(BattleViewCategory category, GameObject instance)
         {
@@ -150,9 +152,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Parent an active GameObject under a per-bucket active-view category root
-        /// (e.g. <c>[Battle]/_Active/_Projectile/tpl_42</c>). Useful when you want to
-        /// see one GameObject per active bucket in the hierarchy.
+        /// 将活动 GameObject 挂到活动视图分类的分桶根节点，如 <c>[Battle]/_Active/_Projectile/tpl_42</c>，便于在层级中按活动分桶查看 GameObject。
         /// </summary>
         public void ParentActive(BattleViewCategory category, int bucketKey, GameObject instance)
         {
@@ -165,8 +165,10 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Parent a pooled GameObject under the appropriate pool-bucket root
+        ///
+        /// 将池化 GameObject 挂到对应对象池分桶根节点。
         /// (e.g. <c>[Battle]/_Pool/_Shell/model_42</c>).
+        ///
         /// </summary>
         public void ParentPooled(BattleViewCategory category, int bucketKey, GameObject instance)
         {
@@ -179,9 +181,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Detach a GameObject from any hierarchy-managed parent and zero its local
-        /// transform. Used by pool <c>ResetInstance</c> to keep pooled objects tidy
-        /// when they are not actively held by the category root.
+        /// 将 GameObject 从层级管理的父节点脱离，并将局部变换归零。供对象池 <c>ResetInstance</c> 在分类根节点未持有对象时保持池对象整洁。
         /// </summary>
         public void DetachToCategory(BattleViewCategory category, int bucketKey, GameObject instance)
         {
@@ -198,9 +198,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Destroy every GameObject under all category transforms and clear
-        /// cached transform references. Called from the host's OnDetach to
-        /// guarantee no orphans are left when the battle tears down.
+        /// 销毁所有分类变换下的 GameObject，并清除缓存变换引用。由宿主 OnDetach 调用，确保战斗拆卸后无孤立对象。
         /// </summary>
         public void DestroyAll()
         {
@@ -245,10 +243,14 @@ namespace AbilityKit.Game.Battle.Hierarchy
             return $"id_{bucketKey}";
         }
 
-        /// <summary>Number of category roots currently tracked by the manager.</summary>
+        /// <summary>
+        /// 管理器当前跟踪的分类根节点数。
+        /// </summary>
         public int CategoryCount => _categoryRoots.Count;
 
-        /// <summary>Number of bucket sub-roots currently tracked by the manager.</summary>
+        /// <summary>
+        /// 管理器当前跟踪的分桶子根节点数。
+        /// </summary>
         public int BucketCount => _bucketRoots.Count;
     }
 }

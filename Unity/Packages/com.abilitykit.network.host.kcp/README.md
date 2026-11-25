@@ -1,8 +1,7 @@
 # com.abilitykit.network.host.kcp
 
-Optional KCP listener for `NetworkHost`. `KcpChannelListener` owns one UDP socket and
-creates one `KcpServerChannel` per remote endpoint. Configure the same conversation ID
-as the client transport:
+`NetworkHost` 的可选 KCP 监听器。`KcpChannelListener` 持有一个 UDP 套接字，
+为每个远端地址创建一个 `KcpServerChannel`。会话 ID 必须与客户端传输配置一致：
 
 ```csharp
 var listener = new KcpChannelListener(new KcpChannelListenerOptions
@@ -18,7 +17,6 @@ using var host = new NetworkHost(listener, new NetworkHostOptions
 host.Start();
 ```
 
-The listener validates the KCP conversation ID before creating a channel and leaves
-accepted channels to the `NetworkHost` owner. Stop closes the listener and all channels.
-The implementation uses the same ET-derived KCP core as the optional client package;
-its source license applies to redistribution.
+监听器在创建通道前验证 KCP 会话 ID，已接受的通道交由 `NetworkHost` 所有者管理。
+停止时关闭监听器及全部通道。实现与可选客户端包使用相同的 ET 派生 KCP 核心；
+再次分发受其源码许可证约束。

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Alias('GateId')]
     [string]$Gate,
     [string]$StepName,
@@ -165,8 +165,7 @@ function Invoke-DotNetStep {
 
     $previousErrorActionPreference = $ErrorActionPreference
     try {
-        # Windows PowerShell wraps native stderr as ErrorRecord objects. Preserve that output
-        # without allowing it to bypass exit-code and TRX result handling.
+        # Windows PowerShell 将原生命令标准错误包装为 ErrorRecord；保留输出，但不能让它绕过退出码及 TRX 结果处理。
         $ErrorActionPreference = 'Continue'
         if (-not [string]::IsNullOrWhiteSpace($LogFilePath)) {
             $null = New-Item -ItemType Directory -Force -Path (Split-Path $LogFilePath)

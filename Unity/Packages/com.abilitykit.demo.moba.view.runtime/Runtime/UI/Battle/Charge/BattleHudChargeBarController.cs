@@ -15,6 +15,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
         private readonly BattleHudCanvasProjector _projector;
         private readonly IBattleHudActorPositionResolver _positionResolver;
         private readonly BattleHudChargeBarFactory _factory;
+        public System.Func<int, RectTransform> PanelSlotResolver;
         private readonly Dictionary<int, BattleHudChargeBarHandle> _barsByActorId =
             new Dictionary<int, BattleHudChargeBarHandle>(8);
 
@@ -57,7 +58,8 @@ namespace AbilityKit.Game.Flow.Battle.Hud
 
                     var bar = Ensure(localActorId, entry.Slot);
                     if (bar == null) continue;
-                    if (bar.Fill != null) bar.Fill.fillAmount = entry.CastProgress;
+                    if (bar.Fill != null) BattleHudOverheadView.SetFill(bar.Fill, entry.CastProgress);
+                    bar.IsCharging = true;
                     bar.SetVisible(true);
                     found = true;
                     break;
@@ -65,7 +67,7 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             }
 
             if (!found && _barsByActorId.TryGetValue(localActorId, out var existing))
-                existing?.SetVisible(false);
+            { existing.IsCharging = false; existing.SetVisible(false); }
         }
 
         public void Tick()
@@ -73,7 +75,18 @@ namespace AbilityKit.Game.Flow.Battle.Hud
             foreach (var pair in _barsByActorId)
             {
                 var bar = pair.Value;
-                if (bar?.Root == null || !bar.Root.gameObject.activeSelf) continue;
+                if (bar?.Root == null || !bar.IsCharging) continue;
+                if (PanelSlotResolver != null)
+                {
+                    var slot = PanelSlotResolver(bar.ActorId);
+                    if (slot != null)
+                    {
+                        if (bar.Root.parent != slot) { bar.Root.SetParent(slot, false); bar.Root.anchoredPosition = Vector2.zero; }
+                        bar.SetVisible(true);
+                    }
+                    else bar.SetVisible(false);
+                    continue;
+                }
                 if (!_positionResolver.TryGetActorWorldPos(bar.ActorId, out var worldPos)) continue;
                 if (!_projector.TryProject(worldPos + bar.WorldOffset, out var local)) continue;
                 bar.Root.anchoredPosition = local;

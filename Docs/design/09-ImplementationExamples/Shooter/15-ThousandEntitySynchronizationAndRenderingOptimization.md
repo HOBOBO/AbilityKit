@@ -377,136 +377,65 @@ Release allocation gate 尚未形成有效结果：构建在 Shooter benchmark �
 5. 插值延迟根据 arrival jitter 自适应维持约 2 至 3 个快照样本，避免再次使用固定的大帧数掩盖抖动。
 6. 为 RVO 建立 64/128/512/2048 agent 的正式性能曲线，分别记录 Managed、Jobs 邻居收集、完整 Solve、GC 和主线程同步点。
 
-## 2026-08-21 follow-up: 1,000-unit E4 evidence and hot-path fixes
+## 2026-08-21 后续：1,000 单位 E4 证据及热路径修复
 
-The authoritative tick no longer calls the full `GetWorldDiagnostics()` path to
-produce its per-frame state hash. Shooter sessions implement a small
-`ComputeStateHash()` fast path; the diagnostic dictionary/entity lists remain
-available only through the explicit diagnostics API. This keeps inspection
-objects and formatted strings out of the 30 Hz hot path.
+权威步进不再调用完整 `GetWorldDiagnostics()` 生成每帧状态哈希。Shooter 会话实现精简的 `ComputeStateHash()` 快速路径，诊断字典和实体列表仅通过显式诊断 API 获取，避免将检查对象及格式化字符串带入 30 Hz 热路径。
 
-Shooter stage timing is installed once after runtime startup. The cached delegate
-and idempotent sink setter avoid per-tick delegate churn. The server window reports
-`WorldTick`, `EnemyMovementIntent`, `RvoSolve`, snapshot build/delivery, and the
-fixed 150-tick percentile summaries. A focused test verifies named stage mapping
-and the zero-allocation recording gate.
+Shooter 阶段计时在运行时启动后安装一次。缓存委托及幂等采集器设置避免每步委托抖动。服务端窗口报告 `WorldTick`、`EnemyMovementIntent`、`RvoSolve`、快照构建及投递，以及固定 150 步百分位摘要。定向测试验证命名阶段映射和零分配记录门禁。
 
-Two fresh ideal-network, 1,000-enemy observer runs are recorded below:
+以下记录两次理想网络、1,000 敌人的新观察者运行：
 
 ```text
 artifacts/shooter-worldtick-hash-stage-e4-1000-ideal/20260821-074940-426
 artifacts/shooter-worldtick-hash-stage-e4-1000-ideal-repeat/20260821-080113-258
 ```
 
-The first run is a failed acceptance artifact: member input was delayed during
-cold startup and the member left before the requested frame was accepted. It is
-useful failure evidence, not a performance pass. The repeat passed the structural
-AOI/LOD acceptance. Its stable server window reached `28.77 Hz` (the other
-window reached `29.52 Hz`), with `RvoSolve` about `2.21-3.00 ms` and
-`EnemyMovementIntent` about `1.62-1.87 ms`. Both clients reported `0 B/frame`
-GC, zero unexplained backward movement, and no resync request. P95/P99 snapshot
-gaps were approximately `220-245/374 ms`; playback starvation remained about
-`23-25%`. This validates bounded correction and continuity, but does not claim a
-stable 30 Hz authority or solved starvation.
+首次运行是失败验收产物：冷启动期间成员输入延迟，成员在请求帧被接纳前离开。它是有效失败证据，不能作为性能通过。重复运行通过结构 AOI/LOD 验收，稳定服务端窗口达到 `28.77 Hz`（另一窗口 `29.52 Hz`），`RvoSolve` 约 `2.21-3.00 ms`，`EnemyMovementIntent` 约 `1.62-1.87 ms`。两个客户端 GC 均为 `0 B/frame`，无法解释的后退及重同步请求均为零。P95/P99 快照间隔约 `220-245/374 ms`，播放采样不足仍约 `23-25%`。这验证了有界校正和连续性，尚不能宣称稳定 30 Hz 权威或解决采样不足。
 
-The transport adapter now forwards caller timeout/cancellation to
-`NetworkTransport.SendInputAsync`. Non-cancellation failures return a typed
-`TransportError` result with the exception message instead of an indistinguishable
-empty response. This makes cold-start authentication and disconnected-input cases
-visible in headless artifacts and avoids treating them as authoritative rejections.
+传输适配器现向 `NetworkTransport.SendInputAsync` 转发调用方超时及取消参数。非取消失败返回带异常消息的强类型 `TransportError` 结果，替代无法区分的空响应，使冷启动认证及断线输入问题在无头产物中可见，避免误判为权威拒绝。
 
-The next gate is a repeated pre-warmed run, followed by sample-block playback
-tuning. Compare starvation against arrival-gap and server-window fields; do not
-increase interpolation delay solely to make a single run pass.
+下一项门禁是重复预热运行，再调整采样块播放。应联合对照采样不足、到达间隔及服务端窗口字段，不能仅为单次通过而增加插值延迟。
 
-Additional repeats exposed the difference between structural acceptance and a
-strict client performance gate:
+更多重复运行揭示结构验收与严格客户端性能门禁的区别：
 
 ```text
 artifacts/shooter-worldtick-hash-stage-e4-1000-ideal-r3/20260821-082518-175
 artifacts/shooter-worldtick-hash-stage-e4-1000-ideal-r3-tuned/20260821-082737-192
 ```
 
-Both completed the AOI lifecycle and accepted all 18/18 inputs. The first had
-`0.24-0.55%` playback starvation but a single `39.5 ms` P99 apply spike. The
-second had `0.73-1.30%` starvation, up to `49 ms` P99 apply, and a queue peak
-of `18`; it failed
-the default peak-depth gate while still reporting `0 B/frame` GC and no resync.
-Those are intermittent client scheduling/queue outliers, not evidence that the
-multi-sample stream is continuously starving. Keep the default gates strict and
-report these artifacts as diagnostic failures until repeated runs establish the
-cause.
+两次均完成 AOI 生命周期，18/18 输入全部接纳。第一次播放采样不足为 `0.24-0.55%`，但有一次 `39.5 ms` P99 应用尖峰；第二次采样不足为 `0.73-1.30%`、P99 应用最多 `49 ms`、队列峰值 `18`，默认深度峰值门禁失败，同时 GC 仍为 `0 B/frame`，无重同步。这些属于间歇性客户端调度或队列异常，不能证明多采样流持续缺少采样。应保持默认门禁严格，在重复运行建立原因前，将这些产物报告为诊断失败。
 
-## 2026-08-21 follow-up: push decode and reliable-event allocation path
+## 2026-08-21 后续：推送解码及可靠事件分配路径
 
-The live client push path now decodes a state snapshot exactly once. `ShooterClientSession`
-maps the wire envelope to `ShooterGatewaySnapshot`, including `EventWatermark`, then passes
-the decoded value to the selected synchronization controller. The controller retains its
-payload-based API for compatibility, but the session no longer deserializes the same full or
-delta snapshot once for recovery metadata and again for state application. The payload bytes
-are retained only for diagnostics that need to reproduce an import mismatch.
+在线客户端推送路径现只解码一次状态快照。`ShooterClientSession` 将传输信封映射为包含 `EventWatermark` 的 `ShooterGatewaySnapshot`，再将解码值交给选定同步控制器。控制器保留基于载荷的 API 以兼容，但会话不再为恢复元数据和状态应用分别反序列化同一完整或增量快照。载荷字节仅为需要复现导入不匹配的诊断保留。
 
-Reliable-event delivery has a matching fast path. The production session uses
-`ConsumeAndDispatch`, which invokes the event sink without allocating a
-`CommittedEvents` list for every push. The existing `Consume` API still collects and returns
-the committed list for tests, replay, and tooling, so the observable contract for those
-callers is unchanged. Headless artifacts now expose reliable-event apply `P50/P95/P99/max`
-alongside the existing count, allowing a one-off JIT or scheduling spike to be distinguished
-from a persistent per-batch cost.
+可靠事件投递也有对应快速路径。生产会话使用 `ConsumeAndDispatch` 调用事件接收器，无需每次推送分配 `CommittedEvents` 列表。既有 `Consume` API 仍为测试、回放和工具收集并返回已提交列表，保留这些调用方可观察契约。无头产物现除原有计数外，还公开可靠事件应用 `P50/P95/P99/max`，便于区分一次性 JIT 或调度尖峰与持续逐批次成本。
 
-Focused regression coverage verifies event dispatch without list materialization and preserves
-the snapshot event watermark. The next 1,000-unit run should compare the new reliable-event
-percentiles with `FullBaseline` and `Delta` apply histograms; a lower aggregate P99 with
-unchanged delta P99 indicates that the removed duplicate decode/allocation was the source of
-the discrete client spikes.
+定向回归验证不构造列表即可分发事件，并保留快照事件水位。下一次 1,000 单位运行应对照新的可靠事件百分位与 `FullBaseline`、`Delta` 应用直方图；若聚合 P99 降低而增量 P99 不变，则离散客户端尖峰来自已移除的重复解码或分配。
 
-The first post-change 1,000-unit ideal-network run completed the AOI lifecycle and accepted
-all inputs:
+改动后的首次 1,000 单位理想网络运行完成 AOI 生命周期，全部输入接纳：
 
 ```text
 artifacts/shooter-push-kind-diagnostics-e5-single-decode/20260821-093120-978
 ```
 
-Both observers remained at `0 B/frame` GC and reported no unexplained backward movement or
-resync at completion. Continuous delta apply remained low (`P95=3.5 ms`, `P99=5.0-7.0 ms`,
-max `6.8-7.7 ms`), while the aggregate apply P99 was `50.5-55.5 ms` because of discrete
-full-baseline/reliable-event samples and queue wait (`P99=148.0-251.5 ms`). The new reliable
-event histogram was `P50=1.0-1.5 ms`, `P95/P99=50.5-55.5 ms`, max `50.2-55.0 ms`; this
-shows that removing the per-batch committed-list allocation is correct but does not eliminate
-the remaining cold-start/event decode scheduling spike. Server window `150-299` achieved
-`29.60 Hz`; `WorldTick` averaged `3.93 ms` and `RvoSolve` `1.88 ms` (max `4.47 ms`).
-The next investigation is therefore the reliable-event decode/dispatch sample itself and the
-main-thread queue wait, rather than the steady-state delta decoder.
+两个观察者 GC 均保持 `0 B/frame`，结束时无无法解释的后退或重同步。持续增量应用仍低（`P95=3.5 ms`、`P99=5.0-7.0 ms`、最大 `6.8-7.7 ms`），但离散完整基线或可靠事件采样及队列等待（`P99=148.0-251.5 ms`）使聚合应用 P99 达 `50.5-55.5 ms`。新可靠事件直方图为 `P50=1.0-1.5 ms`、`P95/P99=50.5-55.5 ms`、最大 `50.2-55.0 ms`，说明移除逐批次已提交列表分配正确，但未消除剩余冷启动或事件解码调度尖峰。服务端 `150-299` 窗口达 `29.60 Hz`，`WorldTick` 平均 `3.93 ms`，`RvoSolve` 平均 `1.88 ms`（最大 `4.47 ms`）。后续应调查可靠事件解码及分发采样本身和主线程队列等待。
 
-After adding the reusable reliable-event envelope decoder, the repeat artifact was:
+加入可复用可靠事件信封解码器后，重复产物为：
 
 ```text
 artifacts/shooter-push-kind-diagnostics-e6-reusable-event-decode/20260821-093722-787
 ```
 
-The run passed the same two-observer AOI lifecycle with `0 B/frame` GC and no resync. Owner
-aggregate apply P99/max improved to `34.5/34.1 ms` and reliable-event P95/P99 to
-`31.5/34.5 ms`; member measured `50.5/50.1 ms`, so the member-side scheduling outlier is
-still present. Delta remained bounded (`P95/P99=2.5/4.0 ms` owner and `4.0/7.5 ms` member),
-confirming that ordinary state delta decode is not the source of the spike. The server stayed
-near target in both windows (`29.79 Hz` and `29.75 Hz`, second-window `WorldTick` mean
-`4.07 ms`). Keep the reusable decoder and continue profiling the remaining reliable-event
-payload decode plus client queue wait separately.
+该次通过相同双观察者 AOI 生命周期，GC 为 `0 B/frame`，无重同步。房主聚合应用 P99/最大值改善至 `34.5/34.1 ms`，可靠事件 P95/P99 为 `31.5/34.5 ms`；成员为 `50.5/50.1 ms`，成员侧调度异常仍在。增量保持有界（房主 `P95/P99=2.5/4.0 ms`，成员 `4.0/7.5 ms`），确认普通状态增量解码不是尖峰来源。服务端两个窗口均接近目标（`29.79 Hz`、`29.75 Hz`，第二窗口 `WorldTick` 平均 `4.07 ms`）。保留可复用解码器，继续分别分析剩余可靠事件载荷解码及客户端队列等待。
 
-The final post-ordering-fix verification artifact is:
+顺序修复后的最终验证产物为：
 
 ```text
 artifacts/shooter-push-kind-diagnostics-e7-final/20260821-094541-304
 ```
 
-It again passed AOI lifecycle, `18/18` inputs per observer, zero resync, and `0 B/frame` GC.
-Owner reliable-event P50/P95/P99 was `1.0/34.0/34.0 ms` with aggregate apply P99 `34.0 ms`;
-member ordinary Delta P99 was only `4.5 ms`, but a member-side reliable-event scheduling
-sample reached `96.0 ms` (aggregate apply P99 `44.0 ms`, queue-wait P99 `212.0 ms`). The
-service windows remained close to 30 Hz (`29.14` and `29.67 Hz`) with second-window
-`WorldTick` mean `4.01 ms`. This confirms the hot path changes are stable and narrows the
-remaining intermittent hitch to client-side reliable-event/push scheduling, not the 1,000-unit
-state delta decoder or server RVO cost.
+它再次通过 AOI 生命周期，每观察者输入 `18/18`、重同步为零、GC 为 `0 B/frame`。房主可靠事件 P50/P95/P99 为 `1.0/34.0/34.0 ms`，聚合应用 P99 为 `34.0 ms`；成员普通 Delta P99 仅 `4.5 ms`，但一次成员侧可靠事件调度采样达 `96.0 ms`（聚合应用 P99 `44.0 ms`，队列等待 P99 `212.0 ms`）。服务端窗口仍接近 30 Hz（`29.14`、`29.67 Hz`），第二窗口 `WorldTick` 平均 `4.01 ms`。这确认热路径改动稳定，将剩余间歇性卡顿范围缩小到客户端可靠事件及推送调度。
 
 ---
 

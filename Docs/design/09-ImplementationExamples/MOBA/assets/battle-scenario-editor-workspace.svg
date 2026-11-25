@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Battle Scenario 编辑器工作区方向原型</title>
+  <desc id="desc">深色 Unity 风格的 Battle Scenario 编辑器窗口，展示场景树、时间线、Arena、Inspector、断言结果和回放证据。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171b25"/><stop offset="1" stop-color="#10131b"/></linearGradient>
+    <linearGradient id="toolbar" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#252b38"/><stop offset="1" stop-color="#1b202b"/></linearGradient>
+    <linearGradient id="arena" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#182c35"/><stop offset="1" stop-color="#10202b"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000" flood-opacity=".35"/></filter>
+    <style>
+      .ui{font-family:"Segoe UI","Microsoft YaHei",sans-serif;fill:#d9e0ed;font-size:13px}
+      .small{font-size:11px;fill:#9ca8bb}.tiny{font-size:10px;fill:#8793a7}.title{font-size:16px;font-weight:600;fill:#f4f7fb}
+      .panel{fill:#1b202b;stroke:#313949;stroke-width:1}.subpanel{fill:#202735;stroke:#374153;stroke-width:1}
+      .header{fill:#252c39}.line{stroke:#3a4454;stroke-width:1}.muted{fill:#77849a}.blue{fill:#59a9ff}.bluebg{fill:#214765;stroke:#4e9ce8}.purple{fill:#c58cff}.purplebg{fill:#3d285a;stroke:#a86ee8}.green{fill:#76d69b}.greenbg{fill:#1f4a3d;stroke:#50bd87}.red{fill:#ff7883}.redbg{fill:#552d37;stroke:#e45a69}.yellow{fill:#f2c96d}.yellowbg{fill:#564525;stroke:#d6ac51}.cyan{fill:#54d6d0}.orange{fill:#ffab62}
+      .round{rx:5;ry:5}.bold{font-weight:600}.center{text-anchor:middle}.right{text-anchor:end}
+    </style>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <!-- window chrome -->
+  <rect x="18" y="18" width="1564" height="964" rx="8" fill="#11151d" stroke="#3d4656" filter="url(#shadow)"/>
+  <rect x="19" y="19" width="1562" height="56" rx="8" fill="url(#toolbar)"/>
+  <circle cx="42" cy="47" r="7" fill="#e86c74"/><circle cx="65" cy="47" r="7" fill="#e1b85c"/><circle cx="88" cy="47" r="7" fill="#69c58c"/>
+  <text x="116" y="42" class="ui title">Battle Scenario Workspace</text><text x="116" y="60" class="small">Jhin E/W Skill Acceptance  ·  场景作者视图</text>
+  <rect x="458" y="30" width="150" height="32" class="subpanel round"/><text x="473" y="50" class="ui">保存  Ctrl+S</text><text x="591" y="50" class="green">●</text>
+  <rect x="618" y="30" width="94" height="32" class="bluebg round"/><text x="665" y="50" class="ui center bold">▶ 运行</text>
+  <rect x="720" y="30" width="112" height="32" class="subpanel round"/><text x="776" y="50" class="ui center">▣ 批量运行</text>
+  <rect x="840" y="30" width="80" height="32" class="subpanel round"/><text x="880" y="50" class="ui center">■ 停止</text>
+  <rect x="934" y="30" width="138" height="32" class="yellowbg round"/><text x="1003" y="50" class="ui center">● 录制 / 回放</text>
+  <text x="1090" y="42" class="small">后端</text><rect x="1127" y="30" width="128" height="32" class="subpanel round"/><text x="1142" y="50" class="ui">Headless ▾</text>
+  <text x="1280" y="42" class="small">状态</text><text x="1280" y="59" class="green bold">● 已保存 · 可运行</text>
+
+  <!-- left hierarchy -->
+  <rect x="30" y="88" width="260" height="630" class="panel"/>
+  <rect x="30" y="88" width="260" height="42" class="header"/><text x="48" y="114" class="ui bold">场景结构</text><text x="264" y="114" class="blue right">＋</text>
+  <rect x="42" y="143" width="236" height="30" fill="#2c3d55" stroke="#4f92d1" class="round"/><text x="57" y="163" class="ui bold">◆ Jhin E/W Skill Acceptance</text>
+  <text x="53" y="193" class="blue">⌄</text><text x="73" y="193" class="ui">▣ Environment</text><text x="258" y="193" class="small right">1</text>
+  <text x="53" y="224" class="blue">⌄</text><text x="73" y="224" class="ui">♙ Actors</text><text x="258" y="224" class="small right">2</text>
+  <rect x="65" y="235" width="198" height="27" fill="#29344a" class="round"/><circle cx="78" cy="248" r="5" fill="#59a9ff"/><text x="92" y="252" class="ui">caster · 烬</text><text x="258" y="252" class="small right">T1</text>
+  <rect x="65" y="267" width="198" height="27" fill="#29344a" class="round"/><circle cx="78" cy="280" r="5" fill="#e87587"/><text x="92" y="284" class="ui">enemy_01 · 目标</text><text x="258" y="284" class="small right">T2</text>
+  <text x="53" y="318" class="blue">⌄</text><text x="73" y="318" class="ui">⚙ Setup</text><text x="258" y="318" class="small right">3</text>
+  <text x="53" y="350" class="blue">⌄</text><text x="73" y="350" class="ui bold">▤ Timeline</text><text x="258" y="350" class="small right">6</text>
+  <text x="73" y="380" class="ui">↳ 准备站位</text><text x="258" y="380" class="small right">0 ms</text>
+  <text x="73" y="408" class="ui">↳ W 瞄准 / 释放</text><text x="258" y="408" class="small right">100 ms</text>
+  <text x="73" y="436" class="ui">↳ E 地面落点</text><text x="258" y="436" class="small right">850 ms</text>
+  <text x="73" y="464" class="ui">↳ 等待结算</text><text x="258" y="464" class="small right">2.2 s</text>
+  <text x="53" y="500" class="blue">⌄</text><text x="73" y="500" class="ui">✓ Assertions</text><text x="258" y="500" class="green right">4/4</text>
+  <text x="73" y="530" class="small">Trace · State · Context · Relation</text>
+  <text x="53" y="564" class="blue">⌄</text><text x="73" y="564" class="ui">▣ Evidence / Replay</text><text x="258" y="564" class="yellow right">3</text>
+  <text x="73" y="594" class="small">input.jsonl · trace.jsonl · recording.mp4</text>
+  <line x1="42" y1="625" x2="278" y2="625" class="line"/><text x="48" y="650" class="small">校验</text><text x="48" y="674" class="green">✓ 别名唯一</text><text x="143" y="674" class="green">✓ 引用有效</text><text x="48" y="697" class="green">✓ 有执行上限</text>
+
+  <!-- center workspace -->
+  <rect x="304" y="88" width="846" height="630" class="panel"/>
+  <rect x="304" y="88" width="846" height="44" class="header"/>
+  <rect x="320" y="98" width="94" height="28" class="bluebg round"/><text x="367" y="117" class="ui center bold">Timeline</text>
+  <text x="454" y="117" class="ui muted">Arena</text><text x="522" y="117" class="ui muted">Assertions</text><text x="614" y="117" class="ui muted">Replay</text><text x="680" y="117" class="ui muted">DSL / JSON</text>
+  <text x="1120" y="117" class="small right">缩放 100%  −  ＋</text>
+  <!-- timeline ruler -->
+  <rect x="320" y="148" width="814" height="38" fill="#171c25"/><text x="337" y="171" class="small">泳道 / 时间</text>
+  <line x1="480" y1="148" x2="480" y2="688" class="line"/><line x1="620" y1="148" x2="620" y2="688" class="line"/><line x1="760" y1="148" x2="760" y2="688" class="line"/><line x1="900" y1="148" x2="900" y2="688" class="line"/><line x1="1040" y1="148" x2="1040" y2="688" class="line"/>
+  <text x="490" y="171" class="small">0.5 s</text><text x="630" y="171" class="small">1.0 s</text><text x="770" y="171" class="small">1.5 s</text><text x="910" y="171" class="small">2.0 s</text><text x="1050" y="171" class="small">2.5 s</text>
+  <!-- timeline rows -->
+  <rect x="320" y="186" width="814" height="90" fill="#1c2630"/><text x="337" y="211" class="ui bold">caster · 烬</text><text x="337" y="232" class="small">T1 / Player 1</text>
+  <rect x="490" y="201" width="80" height="38" class="bluebg round"/><text x="530" y="217" class="ui center bold">AimStart</text><text x="530" y="231" class="tiny center">W · slot 2</text>
+  <rect x="585" y="201" width="112" height="38" class="bluebg round"/><text x="641" y="217" class="ui center bold">Release</text><text x="641" y="231" class="tiny center">target: enemy_01</text>
+  <rect x="782" y="201" width="118" height="38" class="purplebg round"/><text x="841" y="217" class="ui center bold">Projectile</text><text x="841" y="231" class="tiny center">SkillCast → W</text>
+  <rect x="918" y="201" width="92" height="38" class="yellowbg round"/><text x="964" y="217" class="ui center bold">录像段</text><text x="964" y="231" class="tiny center">1.0–1.8 s</text>
+  <rect x="320" y="276" width="814" height="90" fill="#19232c"/><text x="337" y="301" class="ui bold">enemy_01 · 目标</text><text x="337" y="322" class="small">T2 / HP 1000 → 620</text>
+  <rect x="782" y="291" width="100" height="38" class="purplebg round"/><text x="832" y="307" class="ui center bold">Hit</text><text x="832" y="321" class="tiny center">DamageApply</text>
+  <rect x="891" y="291" width="112" height="38" class="greenbg round"/><text x="947" y="307" class="ui center bold">Assert ✓</text><text x="947" y="321" class="tiny center">hp &lt; 1000</text>
+  <rect x="320" y="366" width="814" height="90" fill="#1c2630"/><text x="337" y="391" class="ui bold">caster · 烬</text><text x="337" y="412" class="small">E · ground position</text>
+  <rect x="724" y="381" width="116" height="38" class="bluebg round"/><text x="782" y="397" class="ui center bold">落点提交</text><text x="782" y="411" class="tiny center">x: 4.2  z: 1.0</text>
+  <rect x="848" y="381" width="116" height="38" class="purplebg round"/><text x="906" y="397" class="ui center bold">AreaSpawn</text><text x="906" y="411" class="tiny center">E / trap_area</text>
+  <rect x="982" y="381" width="112" height="38" class="greenbg round"/><text x="1038" y="397" class="ui center bold">Cleanup ✓</text><text x="1038" y="411" class="tiny center">duration 3 s</text>
+  <rect x="320" y="456" width="814" height="90" fill="#19232c"/><text x="337" y="481" class="ui bold">Assertions</text><text x="337" y="502" class="small">可见的预期结果，不隐藏在脚本里</text>
+  <rect x="490" y="471" width="132" height="38" class="greenbg round"/><text x="556" y="487" class="ui center bold">Trace ✓</text><text x="556" y="501" class="tiny center">SkillCast / Damage</text>
+  <rect x="636" y="471" width="132" height="38" class="greenbg round"/><text x="702" y="487" class="ui center bold">State ✓</text><text x="702" y="501" class="tiny center">target.hp &lt; 1000</text>
+  <rect x="782" y="471" width="132" height="38" class="greenbg round"/><text x="848" y="487" class="ui center bold">Context ✓</text><text x="848" y="501" class="tiny center">commit_snapshot</text>
+  <rect x="928" y="471" width="132" height="38" class="greenbg round"/><text x="994" y="487" class="ui center bold">Relation ✓</text><text x="994" y="501" class="tiny center">Skill → Area</text>
+  <!-- playhead -->
+  <line x1="816" y1="148" x2="816" y2="688" stroke="#ff7883" stroke-width="2"/><path d="M808 148 l8 -9 l8 9z" fill="#ff7883"/><text x="828" y="570" class="red">当前 1.62 s · AreaSpawn</text>
+  <rect x="320" y="565" width="814" height="123" fill="#17202a"/><text x="337" y="590" class="small bold">交互提示</text><text x="337" y="614" class="ui">拖动事件调整时间；从 Arena 拖动落点会回写 Timeline。</text><text x="337" y="638" class="small">单击 Trace 节点可定位父技能；双击失败断言可打开 Inspector。</text><rect x="968" y="604" width="142" height="34" class="subpanel round"/><text x="1039" y="625" class="ui center">＋ 添加时间线节点</text>
+
+  <!-- right inspector -->
+  <rect x="1164" y="88" width="396" height="630" class="panel"/>
+  <rect x="1164" y="88" width="396" height="42" class="header"/><text x="1182" y="114" class="ui bold">Inspector</text><text x="1540" y="114" class="small right">Timeline / Release</text>
+  <text x="1182" y="157" class="small">节点 ID</text><text x="1370" y="157" class="ui right">timeline.release.02</text>
+  <line x1="1180" y1="170" x2="1544" y2="170" class="line"/>
+  <text x="1182" y="195" class="small">时间 (ms)</text><rect x="1320" y="178" width="224" height="28" class="subpanel round"/><text x="1332" y="197" class="ui">100</text>
+  <text x="1182" y="231" class="small">Action</text><rect x="1320" y="214" width="224" height="28" class="subpanel round"/><text x="1332" y="233" class="ui">cast_skill ▾</text>
+  <text x="1182" y="267" class="small">Actor</text><rect x="1320" y="250" width="224" height="28" class="subpanel round"/><text x="1332" y="269" class="ui">caster · 烬 ▾</text>
+  <text x="1182" y="303" class="small">目标</text><rect x="1320" y="286" width="224" height="28" class="subpanel round"/><text x="1332" y="305" class="ui">enemy_01 · 目标 ▾</text>
+  <text x="1182" y="339" class="small">技能槽位</text><rect x="1320" y="322" width="224" height="28" class="subpanel round"/><text x="1332" y="341" class="ui">2 · Curtain Call W ▾</text>
+  <text x="1182" y="375" class="small">释放快照</text><rect x="1320" y="358" width="224" height="28" class="bluebg round"/><text x="1332" y="377" class="ui">AimPosition / Direction</text>
+  <line x1="1180" y1="400" x2="1544" y2="400" class="line"/><text x="1182" y="425" class="small bold">关联断言</text>
+  <rect x="1180" y="439" width="364" height="42" class="greenbg round"/><text x="1194" y="457" class="ui bold">✓ SkillCast 必须出现</text><text x="1528" y="472" class="tiny right">Trace</text>
+  <rect x="1180" y="489" width="364" height="42" class="greenbg round"/><text x="1194" y="507" class="ui bold">✓ ProjectileLaunch → W</text><text x="1528" y="522" class="tiny right">Relation</text>
+  <rect x="1180" y="539" width="364" height="42" class="redbg round"/><text x="1194" y="557" class="ui bold">× 禁止错误目标命中</text><text x="1528" y="572" class="tiny right">MustNot</text>
+  <text x="1182" y="620" class="small bold">快捷操作</text><text x="1182" y="646" class="ui">从 Trace 生成候选断言</text><text x="1528" y="646" class="blue right">生成</text><text x="1182" y="672" class="ui">打开原始 DSL / JSON</text><text x="1528" y="672" class="blue right">打开</text>
+
+  <!-- bottom run panel -->
+  <rect x="30" y="738" width="1530" height="224" class="panel"/>
+  <rect x="30" y="738" width="1530" height="42" class="header"/><text x="48" y="764" class="ui bold">运行与证据</text><text x="310" y="764" class="green bold">✓ PASSED</text><text x="410" y="764" class="small">caseId: jhin_e_w_acceptance · runId: 20261103-1422</text><text x="1538" y="764" class="yellow right">● 可打开录像段</text>
+  <rect x="48" y="797" width="218" height="35" class="greenbg round"/><text x="157" y="819" class="ui center bold">运行完成 · 2.84 s</text>
+  <rect x="280" y="797" width="220" height="35" class="subpanel round"/><text x="390" y="819" class="ui center">Headless · Tick 30</text>
+  <rect x="514" y="797" width="232" height="35" class="subpanel round"/><text x="630" y="819" class="ui center">Trace 节点 18 · 断言 4/4</text>
+  <rect x="760" y="797" width="262" height="35" class="subpanel round"/><text x="891" y="819" class="ui center">fingerprint 8A31…F04C</text>
+  <text x="48" y="861" class="small bold">结果页</text><text x="124" y="861" class="ui purple">Trace</text><text x="185" y="861" class="ui">State</text><text x="240" y="861" class="ui">Context</text><text x="315" y="861" class="ui">Relation</text><text x="395" y="861" class="ui">Replay</text>
+  <line x1="48" y1="875" x2="1518" y2="875" class="line"/>
+  <circle cx="61" cy="898" r="5" fill="#c58cff"/><text x="76" y="902" class="ui">[1.00s] SkillCast / W</text><text x="305" y="902" class="small">→ timeline.release.02</text><text x="620" y="902" class="green">通过</text>
+  <circle cx="61" cy="924" r="5" fill="#c58cff"/><text x="76" y="928" class="ui">[1.62s] AreaSpawn / E</text><text x="305" y="928" class="small">→ timeline.area.03</text><text x="620" y="928" class="green">通过</text>
+  <text x="860" y="902" class="small">artifact</text><text x="920" y="902" class="blue">artifacts/moba/jhin/jhin_e_w_acceptance/</text>
+  <text x="860" y="928" class="small">回放段</text><text x="920" y="928" class="yellow">recording.mp4 · 00:01.0–00:02.2</text>
+  <text x="48" y="951" class="tiny">颜色图例：</text><rect x="112" y="943" width="12" height="12" fill="#214765"/><text x="130" y="953" class="tiny">场景编辑</text><rect x="190" y="943" width="12" height="12" fill="#3d285a"/><text x="208" y="953" class="tiny">运行结果</text><rect x="268" y="943" width="12" height="12" fill="#1f4a3d"/><text x="286" y="953" class="tiny">通过</text><rect x="330" y="943" width="12" height="12" fill="#552d37"/><text x="348" y="953" class="tiny">失败</text><rect x="392" y="943" width="12" height="12" fill="#564525"/><text x="410" y="953" class="tiny">录像/回放</text>
+</svg>

@@ -6,7 +6,7 @@ internal readonly record struct BattleTickDeadlineSchedule(
     long SkippedDeadlineCount);
 
 /// <summary>
-/// Advances an absolute battle-clock deadline without attempting an unbounded catch-up burst.
+/// 推进战斗时钟绝对截止点，避免无界突发追赶。
 /// </summary>
 internal static class BattleTickDeadlineScheduler
 {

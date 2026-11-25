@@ -5,6 +5,7 @@
   "variant": "without-proof",
   "tickRate": 30,
   "positionLabel": "MOBA 世界 Z 轴（每 1000 格 = 1 世界单位）",
+  "actorModelId": 3005,
   "checkpoints": [
     {
       "command": "旧预测（正式世界）",
@@ -25,6 +26,15 @@
       "publishedPosition": null,
       "authority": null,
       "prediction": 1354,
+      "predictionPose": {
+        "x": 7.0,
+        "y": 0.0,
+        "z": 1.3541017,
+        "qx": 0.0,
+        "qy": 0.0,
+        "qz": 0.0,
+        "qw": 1.0
+      },
       "pending": [
         1,
         2
@@ -51,6 +61,15 @@
       "publishedPosition": -2000,
       "authority": -2000,
       "prediction": null,
+      "authorityPose": {
+        "x": 7.0,
+        "y": 0.0,
+        "z": -2.0,
+        "qx": 0.0,
+        "qy": 0.0,
+        "qz": 0.0,
+        "qw": 1.0
+      },
       "pending": [
         1,
         2

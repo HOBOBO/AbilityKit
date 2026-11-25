@@ -8,22 +8,34 @@
         "Type": 4,
         "PhaseId": "skill_30010301_release",
         "RulePlan": {
-          "TriggerIds": [
-            900101011
-          ],
+          "TriggerIds": [900101011],
           "AbortOnFailure": true,
           "FailReason": "skill_release_failed"
         }
       },
       {
-        "Type": 4,
+        "Type": 19,
+        "PhaseId": "skill_30010301_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 2,
+          "ChargeRecoveryMs": 18000,
+          "StartSkillCooldown": true,
+          "UseResolvedSkillCooldown": true,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 18,
         "PhaseId": "skill_30010301_commit",
-        "RulePlan": {
-          "TriggerIds": [
-            900101012
-          ],
-          "AbortOnFailure": true,
-          "FailReason": "skill_commit_failed"
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
         }
       },
       {

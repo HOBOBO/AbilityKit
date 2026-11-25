@@ -4,10 +4,7 @@ using YamlDotNet.Serialization.NamingConventions;
 namespace AbilityKit.Protocol.CatalogCompiler.Ir;
 
 /// <summary>
-/// Minimal YAML-backed <see cref="IProtocolSourceParser"/>. It deserializes the
-/// <c>*.protocol.yaml</c> document shape and folds it into the codec-neutral IR, applying
-/// per-message defaults (catalog codec, schema versions, payload budget, sampling) here so
-/// that everything downstream sees a fully resolved node.
+/// 最小 YAML <see cref="IProtocolSourceParser"/> 实现。反序列化 <c>*.protocol.yaml</c> 文档并转换为编解码无关中间表示，在此应用各消息默认值（目录编解码器、结构版本、载荷预算、采样），使下游均收到完全解析的节点。
 /// </summary>
 public sealed class YamlProtocolSourceParser : IProtocolSourceParser
 {

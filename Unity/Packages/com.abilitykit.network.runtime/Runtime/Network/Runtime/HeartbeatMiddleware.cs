@@ -4,7 +4,9 @@ using AbilityKit.Network.Protocol;
 
 namespace AbilityKit.Network.Runtime
 {
-    /// <summary>Middleware contract used by the connection runtime to observe heartbeat traffic.</summary>
+    /// <summary>
+    /// 连接运行时观测心跳流量的中间件契约。
+    /// </summary>
     public interface INetworkHeartbeatMiddleware : INetworkMiddleware
     {
         event Action HeartbeatReceived;

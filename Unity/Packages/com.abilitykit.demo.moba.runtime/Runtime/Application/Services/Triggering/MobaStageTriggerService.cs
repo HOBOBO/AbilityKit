@@ -163,7 +163,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
 
             try
             {
-                ReportProjectileCue(MobaPresentationCueStage.Executed, projectile.OnHitVfxId, projectile, evt.Projectile, sourceActorId, hitActorId, evt.Frame, evt.Point, in sourceContext, EventProjectileHit, evt.HitCount);
+                ReportProjectileCue(MobaPresentationCueStage.Executed, projectile.ResolveHitVfxId(evt.HitCount), projectile, evt.Projectile, sourceActorId, hitActorId, evt.Frame, evt.Point, in sourceContext, EventProjectileHit, evt.HitCount);
 
                 if (_triggers == null) return;
 

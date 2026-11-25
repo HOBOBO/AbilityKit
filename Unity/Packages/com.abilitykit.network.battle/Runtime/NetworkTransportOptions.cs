@@ -23,6 +23,10 @@ namespace AbilityKit.Network.Battle
         public string SessionToken;
         public Func<string, ArraySegment<byte>> SerializeRenewSession;
         public uint OpPostAuthentication;
+        /// <summary>
+        /// 此传输选用的状态同步输入代际；空值表示使用原输入与订阅入口。
+        /// </summary>
+        public Guid StateSyncInputGeneration;
         public Func<ArraySegment<byte>> SerializePostAuthentication;
         public Func<string, long, ArraySegment<byte>> SerializePostAuthenticationWithReliableEventCursor;
         /// <summary>

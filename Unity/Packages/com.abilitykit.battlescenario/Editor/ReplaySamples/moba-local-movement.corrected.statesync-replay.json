@@ -1,0 +1,235 @@
+{
+  "format": "abilitykit.local-statesync-replay",
+  "version": 2,
+  "caseId": "moba-local-movement",
+  "variant": "corrected",
+  "tickRate": 20,
+  "positionLabel": "Z · 1/1000 世界单位",
+  "actorModelId": 3005,
+  "checkpoints": [
+    {
+      "command": "预测 Tick 1 · 向后移动（权威拒绝 #1）",
+      "deliveryTick": 1,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": 7625,
+      "predictionPose": {
+        "x": 3.0,
+        "y": 0.0,
+        "z": 7.625,
+        "qx": 0.0,
+        "qy": 0.0,
+        "qz": 0.0,
+        "qw": 1.0
+      },
+      "pending": [
+        1
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "预测 Tick 2 · 向前移动 #2",
+      "deliveryTick": 2,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": 8000,
+      "predictionPose": {
+        "x": 3.0,
+        "y": 0.0,
+        "z": 8.0,
+        "qx": 0.0,
+        "qy": 0.0,
+        "qz": 0.0,
+        "qw": 1.0
+      },
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "预测 Tick 3 · 无新输入，延续移动",
+      "deliveryTick": 3,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": 8375,
+      "predictionPose": {
+        "x": 3.0,
+        "y": 0.0,
+        "z": 8.375,
+        "qx": 0.0,
+        "qy": 0.0,
+        "qz": 0.0,
+        "qw": 1.0
+      },
+      "pending": [
+        1,
+        2
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    },
+    {
+      "command": "交付 Tick 1 权威快照 · 终结 #1，从锚点重演至 Tick 3",
+      "deliveryTick": 3,
+      "generation": 1,
+      "admission": "AppliedFullBaseline",
+      "validation": null,
+      "reconciliation": "Predicted",
+      "sequence": 101,
+      "appliedTick": 1,
+      "baselineTick": 1,
+      "publishedRevision": 101,
+      "reconciledRevision": 101,
+      "terminalSequence": 1,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 1,
+      "publishedPosition": 8000,
+      "authority": 8000,
+      "prediction": 8750,
+      "comparisonTick": 1,
+      "authorityPose": {
+        "x": 3.0,
+        "y": 0.0,
+        "z": 8.0,
+        "qx": 0.0,
+        "qy": 0.0,
+        "qz": 0.0,
+        "qw": 1.0
+      },
+      "predictionPose": {
+        "x": 3.0,
+        "y": 0.0,
+        "z": 8.75,
+        "qx": 0.0,
+        "qy": 0.0,
+        "qz": 0.0,
+        "qw": 1.0
+      },
+      "pending": [
+        2
+      ],
+      "replayTicks": [
+        2,
+        3
+      ],
+      "replaySteps": [
+        {
+          "tick": 2,
+          "before": 8000,
+          "after": 8375,
+          "afterPose": {
+            "x": 3.0,
+            "y": 0.0,
+            "z": 8.375,
+            "qx": 0.0,
+            "qy": 0.0,
+            "qz": 0.0,
+            "qw": 1.0
+          }
+        },
+        {
+          "tick": 3,
+          "before": 8375,
+          "after": 8750,
+          "afterPose": {
+            "x": 3.0,
+            "y": 0.0,
+            "z": 8.75,
+            "qx": 0.0,
+            "qy": 0.0,
+            "qz": 0.0,
+            "qw": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "command": "追平后继续预测 Tick 4 · 接收斜向移动 #3",
+      "deliveryTick": 4,
+      "generation": 1,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 101,
+      "appliedTick": 1,
+      "baselineTick": 1,
+      "publishedRevision": 101,
+      "reconciledRevision": 101,
+      "terminalSequence": 1,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 1,
+      "publishedPosition": 8000,
+      "authority": 8000,
+      "prediction": 9015,
+      "authorityPose": {
+        "x": 3.0,
+        "y": 0.0,
+        "z": 8.0,
+        "qx": 0.0,
+        "qy": 0.0,
+        "qz": 0.0,
+        "qw": 1.0
+      },
+      "predictionPose": {
+        "x": 3.265165,
+        "y": 0.0,
+        "z": 9.015165,
+        "qx": 0.0,
+        "qy": 0.0,
+        "qz": 0.0,
+        "qw": 1.0
+      },
+      "pending": [
+        2,
+        3
+      ],
+      "replayTicks": [],
+      "replaySteps": []
+    }
+  ]
+}

@@ -7,7 +7,7 @@ namespace AbilityKit.Ability.FrameSync
     /// 帧时钟。累计时刻以 Q32.32 定点（raw long 整数累加，无精度漂移）；
     /// float 成员是表现/接口边界的单次换算视图。
     /// </summary>
-    public sealed class FrameTime : IFrameTime
+    public sealed class FrameTime : IFrameTimeAligner
     {
         private Fixed64 _fixedDelta;
         private Fixed64 _time;

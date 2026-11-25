@@ -167,6 +167,8 @@ namespace AbilityKit.Game.Flow
             float fixedDeltaSeconds,
             int lastServerAckFrame)
         {
+            if (plan.UsesStateSyncAuthority) return;
+
             var tickOptions = new RemoteDrivenWorldTickOptions(
                 plan,
                 RemoteDriven,

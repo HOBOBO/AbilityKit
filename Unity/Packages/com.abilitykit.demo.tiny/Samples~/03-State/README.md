@@ -1,5 +1,5 @@
-# 03 State
+# 03 状态同步
 
-`TinyStateExample.RequireStateCapability` negotiates the server's authoritative State profile, `SubscribeAsync` subscribes through the public Room API, and `ReadActor` reads a typed actor from a snapshot after the caller has accepted a full baseline. The caller owns the Gateway connection, frame cursor, and presentation updates; the formal flow is `TinyBattleSession.TryGetNewSnapshot` and `TinyActorViewModule`.
+`TinyStateExample.RequireStateCapability` 协商服务器权威的状态同步配置，`SubscribeAsync` 通过公开房间 API 订阅，`ReadActor` 在调用方接受完整基线后，从快照读取强类型角色。调用方负责 Gateway 连接、帧游标和表现更新；正式流程使用 `TinyBattleSession.TryGetNewSnapshot` 和 `TinyActorViewModule`。
 
-The same sample source is compiled into `src/AbilityKit.Demo.Tiny.StateSample` and `src/AbilityKit.Demo.Tiny.Client`. Run `./tools/verify-tiny-starter.ps1 -SkipUnity` from the repository root. Inspect `state-sample.log` for the full baseline and two-client authoritative result. Reconnect is covered separately by `state.log` and `session-state.log`.
+同一份示例源码编译进 `src/AbilityKit.Demo.Tiny.StateSample` 和 `src/AbilityKit.Demo.Tiny.Client`。从仓库根运行 `./tools/verify-tiny-starter.ps1 -SkipUnity`。查看 `state-sample.log` 中的完整基线和双客户端权威结果；重连由 `state.log` 和 `session-state.log` 单独覆盖。

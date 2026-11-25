@@ -877,13 +877,13 @@ namespace AbilityKit.Game.Tests
                 {
                     harness.Tick(1);
                     attackSlotTwo = CaptureAction(harness, actorId);
-                    if (attackSlotTwo.Path.EndsWith("action/attack.slot.2",
+                    if (attackSlotTwo.Path.EndsWith("action/idle",
                             System.StringComparison.Ordinal) &&
                         attackSlotTwo.CastInstanceId == 0)
                         break;
                 }
-                StringAssert.EndsWith("action/attack.slot.2", attackSlotTwo.Path,
-                    "The first shot must advance the selected normal-attack action to slot 2.");
+                StringAssert.EndsWith("action/idle", attackSlotTwo.Path,
+                    "The first shot must return to idle while the magazine selects round two.");
 
                 var targetId = HeroSkillHeadlessContract.SpawnEnemyHero(
                     harness, "skill_after_attack_target", 9701, x: 0f, z: 4f);
@@ -927,14 +927,14 @@ namespace AbilityKit.Game.Tests
                     {
                         harness.Tick(1);
                         resumed = CaptureAction(harness, actorId);
-                        if (resumed.Path.EndsWith("action/attack.slot.2",
+                        if (resumed.Path.EndsWith("action/idle",
                                 System.StringComparison.Ordinal) &&
                             resumed.CastInstanceId == 0)
                             break;
                     }
 
-                    StringAssert.EndsWith("action/attack.slot.2", resumed.Path,
-                        "After Q ends, AttackSlot must drive the HFSM back to the next normal-attack group.");
+                    StringAssert.EndsWith("action/idle", resumed.Path,
+                        "After Q ends, the next round must not take over the action graph.");
                     Assert.AreEqual(2f, harness.World.Services
                         .Resolve<MobaCharacterHfsmParameterService>()
                         .Resolve(actorId, MobaCharacterHfsmTestFixture.AttackSlot));
@@ -976,10 +976,10 @@ namespace AbilityKit.Game.Tests
                 {
                     harness.Tick(1);
                     selectedSlot = CaptureAction(harness, actorId);
-                    if (selectedSlot.Path.EndsWith("action/attack.slot.2", System.StringComparison.Ordinal) &&
+                    if (selectedSlot.Path.EndsWith("action/idle", System.StringComparison.Ordinal) &&
                         selectedSlot.CastInstanceId == 0) break;
                 }
-                StringAssert.EndsWith("action/attack.slot.2", selectedSlot.Path);
+                StringAssert.EndsWith("action/idle", selectedSlot.Path);
 
                 var activeSkills = new[] { (slot: 2, id: 30010201), (slot: 3, id: 30010301) };
                 foreach (var skill in activeSkills)
@@ -1007,11 +1007,11 @@ namespace AbilityKit.Game.Tests
                     {
                         harness.Tick(1);
                         resumed = CaptureAction(harness, actorId);
-                        if (resumed.Path.EndsWith("action/attack.slot.2", System.StringComparison.Ordinal) &&
+                        if (resumed.Path.EndsWith("action/idle", System.StringComparison.Ordinal) &&
                             resumed.CastInstanceId == 0) break;
                     }
-                    StringAssert.EndsWith("action/attack.slot.2", resumed.Path,
-                        $"Skill {skill.id} must resume the HFSM-selected normal-attack group.");
+                    StringAssert.EndsWith("action/idle", resumed.Path,
+                        $"Skill {skill.id} must return to idle without selecting an attack action.");
                     Assert.AreEqual(2f, parameters.Resolve(actorId,
                             MobaCharacterHfsmTestFixture.AttackSlot),
                         $"Skill {skill.id} must preserve the source-owned next-attack slot.");
@@ -1145,12 +1145,12 @@ namespace AbilityKit.Game.Tests
                             {
                                 harness.Tick(1);
                                 next = CaptureAction(harness, actorId);
-                                if (string.Equals(next.Path, expectedPaths[shotIndex + 1],
-                                        System.StringComparison.Ordinal))
+                                if (next.Path.EndsWith("action/idle", System.StringComparison.Ordinal))
                                     break;
                             }
-                            Assert.AreEqual(expectedPaths[shotIndex + 1], next.Path,
-                                "The launch counter must drive the next HFSM attack slot.");
+                            StringAssert.EndsWith("action/idle", next.Path,
+                                "The next round must not leave the action graph in an attack slot.");
+                            harness.AssertSlotSkill(5, expectedSkills[shotIndex + 1]);
                             Assert.AreEqual(0, next.CastInstanceId,
                                 "A new slot must not inherit the prior short-flow CastInstanceId.");
                             component.ApplyPresentation(next);
@@ -1160,7 +1160,7 @@ namespace AbilityKit.Game.Tests
                                 animator.GetCurrentAnimatorStateInfo(0).shortNameHash,
                                 $"After shot {shotIndex + 1}, the next magazine slot is ready but has no cast.");
                             Assert.IsTrue(currentVfx == null,
-                                "Entering the next attack slot must stop the old timeline VFX.");
+                                "Returning to idle must stop the old timeline VFX.");
                         }
                     }
 

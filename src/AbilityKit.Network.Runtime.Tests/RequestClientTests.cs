@@ -130,6 +130,26 @@ public sealed class RequestClientTests
     }
 
     [Fact]
+    public async Task Reopen_DoesNotReusePendingRequestsFromDisconnectedConnection()
+    {
+        var connection = new TestConnection();
+        using var client = new RequestClient(connection);
+        var previous = client.SendRequestAsync(410, default);
+        var previousSend = Assert.Single(connection.Sends);
+
+        connection.RaiseDisconnected();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => previous.WaitAsync(TimeSpan.FromSeconds(5)));
+        connection.Open("loopback", 1);
+
+        var current = client.SendRequestAsync(410, default);
+        var currentSend = connection.Sends.Last();
+        connection.RaisePacket(previousSend.OpCode, previousSend.Seq, Bytes(1));
+        Assert.False(current.IsCompleted);
+        connection.RaisePacket(currentSend.OpCode, currentSend.Seq, Bytes(2));
+        Assert.Equal(new byte[] { 2 }, (await current.WaitAsync(TimeSpan.FromSeconds(5))).ToArray());
+    }
+
+    [Fact]
     public async Task ConnectionError_FailsAllPendingRequestsWithOriginalException()
     {
         var connection = new TestConnection();
@@ -178,6 +198,23 @@ public sealed class RequestClientTests
     }
 
     [Fact]
+    public async Task DisconnectDuringSend_WinsOverSubsequentSendFailure()
+    {
+        var connection = new TestConnection();
+        connection.OnSend = () =>
+        {
+            connection.RaiseDisconnected();
+            throw new IOException("send failed after disconnect");
+        };
+        using var client = new RequestClient(connection);
+
+        var request = client.SendRequestAsync(710, default);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => request.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal("Connection disconnected.", error.Message);
+    }
+
+    [Fact]
     public async Task Dispose_FailsPendingRequestAndRejectsNewRequests()
     {
         var connection = new TestConnection();
@@ -191,6 +228,35 @@ public sealed class RequestClientTests
         {
             _ = client.SendRequestAsync(802, default);
         });
+    }
+
+    [Fact]
+    public async Task Dispose_DoesNotWaitForAnInFlightSendOrCloseTheBorrowedConnection()
+    {
+        var sendEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var finishSend = new ManualResetEventSlim();
+        var connection = new TestConnection
+        {
+            OnSend = () =>
+            {
+                sendEntered.SetResult();
+                Assert.True(finishSend.Wait(TimeSpan.FromSeconds(5)));
+            }
+        };
+        using var client = new RequestClient(connection);
+        var request = Task.Run(() => client.SendRequestAsync(810, default));
+        try
+        {
+            await sendEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.Run(client.Dispose).WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(connection.IsConnected);
+        }
+        finally
+        {
+            finishSend.Set();
+        }
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => request.WaitAsync(TimeSpan.FromSeconds(5)));
     }
 
     private static ArraySegment<byte> Bytes(params byte[] bytes) => new(bytes);
@@ -208,6 +274,7 @@ public sealed class RequestClientTests
         public readonly ConcurrentQueue<SendRecord> Sends = new();
 
         public Exception? SendException { get; init; }
+        public Action? OnSend { get; set; }
         public ConnectionState State { get; private set; } = ConnectionState.Connected;
         public bool IsConnected => State == ConnectionState.Connected;
 
@@ -243,6 +310,7 @@ public sealed class RequestClientTests
 
             var bytes = payload.Array == null ? Array.Empty<byte>() : payload.ToArray();
             Sends.Enqueue(new SendRecord(opCode, seq, flags, bytes));
+            OnSend?.Invoke();
         }
 
         public void RaisePacket(uint opCode, uint seq, ArraySegment<byte> payload) =>

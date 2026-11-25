@@ -309,6 +309,12 @@ Pipeline 或 Config 可实现 `IPipelineDebugGraphLayoutProvider`。该接口只
   - 设置合理的 `PhaseId`
   - 在 `Reset()` 恢复可复用状态
 
+有运行状态且允许多个 Run 重叠执行时，还须实现 `IAbilityPipelinePhaseInstanceFactory<TCtx>`，在 `CreateRunPhase()` 中创建独立阶段。复制不可变规则、稳定标识和必要的无状态依赖，不共享计时器、计数器或可变子阶段列表。框架创建 Run 后会对返回实例调用 `Reset()`；未实现工厂的旧阶段保持复用原对象的兼容行为，不能据此假定状态隔离。
+
+业务进度通过 `PipelineExecutionProgress<TCtx, TNode>` 的三个回调接入：捕获返回独立节点和值载荷，校验检查字段形状、范围及一致性，写回直接恢复业务字段与完成标记。校验回调返回 `true` 表示业务载荷已经由扩展负责校验；无效载荷应抛错，返回 `false` 会交回内置校验。`Restore` 在全树校验后才调用准备与写回回调，但不补偿写回期间的异常。恢复已有执行位置可通过 `AttachRun` 完成，不重放 `OnEnter` / `OnExecute` 或普通启动事件；宿主仍负责配置版本、上下文和外部依赖的匹配。
+
+仓库内 `src/AbilityKit.Pipeline.Tests/PipelineExternalPhaseContractTests.cs` 从独立程序集仅使用公开 API，覆盖自定义计数阶段的重叠运行、暂停／取消隔离、进度独立捕获、静默挂接恢复和非法业务载荷的写前拒绝。该证据只覆盖测试中的扩展协议，不代表任意业务阶段自动支持恢复。
+
 ### 新增一个复合阶段（Composite）
 
 - 实现 `IsComposite == true` 与 `SubPhases`

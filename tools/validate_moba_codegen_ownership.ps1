@@ -1,4 +1,4 @@
-param()
+﻿param()
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -26,8 +26,8 @@ function Test-Contract {
     $failures.Add("${Name}: $Failure")
 }
 
-# NOTE: com.abilitykit.codegen (framework source generator) was removed in a9e5e0b2.
-# Only the analyzer remains on the framework side; collect existing roots dynamically.
+# 注意：框架源码生成器 com.abilitykit.codegen 已在 a9e5e0b2 移除。
+# 框架侧仅保留分析器，因此动态收集实际存在的根目录。
 $frameworkSourceRoots = @(
     'Unity/Packages/com.abilitykit.analyzer/DotNet~/AbilityKit.Analyzer'
 ) | Where-Object { Test-Path (Resolve-RepoPath $_) }
@@ -170,5 +170,5 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-Write-Host 'MOBA CodeGen ownership validation passed.' -ForegroundColor Cyan
+Write-Host 'MOBA 代码生成归属验证通过。' -ForegroundColor Cyan
 exit 0

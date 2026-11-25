@@ -64,6 +64,8 @@ namespace AbilityKit.Game.Flow
             var inputObservedFrame = SessionSimRuntimeTuning.ResolveInputObservedFrame(
                 _ctx.LastFrame, confirmedFrame, predictedFrame, in plan,
                 _ctx.SettledFrames?.Receiver?.MaxReceivedFrame ?? 0);
+            if (plan.UsesStateSyncAuthority && _ctx.Session?.StateSyncMovement is { } movement)
+                inputObservedFrame = System.Math.Max(inputObservedFrame, movement.InputObservedTick);
             var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(inputObservedFrame, in plan);
             InputTargetFrame = nextFrame;
             var inputRuntime = _ctx.InputRuntime;
@@ -82,7 +84,8 @@ namespace AbilityKit.Game.Flow
             {
                 var moveCmd = BattleInputCommandFactory.CreateMove(nextFrame, playerId, submitDx, submitDz);
                 MoveSubmitAttemptCount++;
-                if (submitter.Submit(in moveCmd)) MoveSubmitSuccessCount++;
+                if (inputRuntime != null && inputRuntime.Submit(in moveCmd, playerId, worldId, (submitDx, submitDz)))
+                    MoveSubmitSuccessCount++;
             }
             else
             {

@@ -7,6 +7,10 @@
 - **不负责**：房间接入、快照准入与固定基线重建、逻辑世界对象创建或销毁、表现插值、帧同步检查点、输入确认。状态同步与帧同步可共享世界状态和执行规则，但各自拥有权威游标。
 
 ```csharp
+using AbilityKit.Ability.StateSync;
+using AbilityKit.Ability.StateSync.Buffer;
+
+// 接入片段：entity 须由调用方实现 IRollbackable，simulationFrame 是宿主模拟帧。
 var history = new SnapshotBuffer(maxBufferSize: 128);
 var checkpoints = new StateManager(history);
 checkpoints.RegisterRollbackable(entity); // 由业务实现 IRollbackable

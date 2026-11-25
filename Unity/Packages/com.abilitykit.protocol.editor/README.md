@@ -1,19 +1,19 @@
 # com.abilitykit.protocol.editor
 
-Unity editor tooling for the repository-owned protocol YAML workspace.
+用于仓库自有协议 YAML 工作区的 Unity 编辑器工具。
 
-Open `Tools/AbilityKit/Framework/Protocol/Protocol Workspace` to edit and validate Catalog and grouped Wire Schema documents, inspect project/message/type coverage, and export one project's generated MemoryPack DTOs and Catalog source.
+打开 `Tools/AbilityKit/Framework/Protocol/Protocol Workspace`，可编辑并验证协议目录及分组线协议结构文档，检查项目、消息和类型覆盖，并导出单个项目的 MemoryPack DTO 与协议目录源码。
 
-New schemas default to version-tolerant classes with properties. Existing positional MemoryPack contracts can select `sequential`, `struct`, and field members; sequential field IDs must stay contiguous from zero. Project export follows custom-type references and includes the complete owned schema dependency closure.
+新结构默认采用带属性的版本容忍类。既有按位置序列化的 MemoryPack 契约可选择 `sequential`、`struct` 和字段成员；顺序模式的字段 ID 必须从零连续编号。项目导出会沿自定义类型引用纳入完整的自有结构依赖闭包。
 
-YAML remains the source of truth. The editor invokes `AbilityKit.Protocol.CatalogCompiler` for parsing, validation, canonical writes, and export, so CLI, CI, and Unity share one implementation.
+YAML 是权威来源。编辑器调用 `AbilityKit.Protocol.CatalogCompiler` 解析、验证、规范化写入及导出，使 CLI、CI 和 Unity 共用一套实现。
 
-Wire Schema v2 is edited as a group document. Select any type from a group and use **Add Type** to stage another type in the same YAML file; saving appends it while preserving the group's other types and document ownership. The `+` button creates a new group document. Existing types can be renamed, and the compiler rejects duplicate names or ownership changes. The inspector shows effective per-type generation settings; document-level defaults and ownership metadata remain source-controlled YAML so changing one type cannot silently rewrite its siblings.
+线协议结构 v2 按分组文档编辑。选择组内任意类型后，使用 **添加类型** 暂存同一 YAML 文件中的新类型；保存时追加，并保留组内其他类型及文档归属。`+` 按钮创建新分组文档。既有类型可重命名，编译器会拒绝重名和归属变更。检查器显示每个类型的最终有效生成设置；文档级默认值及归属元数据仍由版本管理中的 YAML 维护，防止修改单个类型时静默改写同组其他类型。
 
-## Legacy ScriptableObject track — FROZEN (superseded, 2026-08)
+## 旧版 ScriptableObject 路径已冻结（2026-08 被替代）
 
-The old dual-entry track — `ProtocolDefinition` ScriptableObject assets plus `ProtocolCodeGenerator` — is **frozen and removed as an authoring/generation path**. The YAML Protocol Workspace is the only official entry.
+旧的双入口路径——`ProtocolDefinition` ScriptableObject 资产与 `ProtocolCodeGenerator`——已冻结，并已退出编辑和生成流程。YAML 协议工作区是唯一正式入口。
 
-- `[CreateAssetMenu]` was removed from `ProtocolDefinition`; the schema type is marked `[Obsolete]` and kept **read-only** so existing `.asset` files still deserialize.
-- The legacy generator (MemoryPack DTO / `OpCodes.g.cs` / snapshot-routing glue / codec backend stubs) and the SnapshotRouting importer were **deleted**. The package no longer emits any C# code outside the official compiler export.
-- One clearly marked one-time migration entry remains: `Tools/AbilityKit/Framework/Protocol/Migrate Legacy ProtocolDefinition (one-time)`. It only *reads* a legacy `ProtocolDefinition` asset and writes it into a YAML catalog through the same `AbilityKit.Protocol.CatalogCompiler` validation/write path used by the workspace. After migrating, delete the legacy asset.
+- `ProtocolDefinition` 的 `[CreateAssetMenu]` 已移除；结构类型标记为 `[Obsolete]`，仅以只读形式保留，确保既有 `.asset` 仍能反序列化。
+- 旧版生成器（MemoryPack DTO、`OpCodes.g.cs`、快照路由衔接代码、编解码后端桩）和快照路由导入器已删除。除正式编译器导出外，本包不再生成 C# 代码。
+- 保留一个明确标记的一次性迁移入口：`Tools/AbilityKit/Framework/Protocol/Migrate Legacy ProtocolDefinition (one-time)`。它只读取旧 `ProtocolDefinition` 资产，通过与工作区相同的 `AbilityKit.Protocol.CatalogCompiler` 验证及写入路径生成 YAML 协议目录。迁移后应删除旧资产。

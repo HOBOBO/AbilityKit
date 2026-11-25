@@ -6,7 +6,7 @@
       "catalogId": "abilitykit.moba.battle",
       "projectId": "abilitykit.moba",
       "domain": "battle",
-      "revision": 4,
+      "revision": 6,
       "defaultCodec": "memorypack",
       "messages": [
         {
@@ -37,19 +37,6 @@
           "captureSampleRate": 0.1
         },
         {
-          "id": "frame-sync-catch-up.request",
-          "opCode": 2002,
-          "direction": "c2s",
-          "kind": "request",
-          "payloadType": "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireCatchUpRequest",
-          "codec": "custom-binary",
-          "reliability": "reliable",
-          "minimumSchemaVersion": 1,
-          "maximumSchemaVersion": 1,
-          "maximumPayloadBytes": 4096,
-          "captureSampleRate": 1
-        },
-        {
           "id": "frame-sync-metrics.request",
           "opCode": 2003,
           "direction": "c2s",
@@ -77,57 +64,71 @@
           "captureSampleRate": 1
         },
         {
-          "id": "frame-sync-spectator-subscribe.request",
-          "opCode": 2004,
+          "id": "settled-frame-subscribe.request",
+          "opCode": 2005,
           "direction": "c2s",
           "kind": "request",
-          "payloadType": "System.UInt64",
-          "codec": "custom-binary",
+          "payloadType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeRequest",
+          "codec": "memorypack",
           "reliability": "reliable",
-          "response": "frame-sync-spectator-subscribe.response",
+          "response": "settled-frame-subscribe.response",
           "minimumSchemaVersion": 1,
           "maximumSchemaVersion": 1,
           "maximumPayloadBytes": 4096,
           "captureSampleRate": 1
         },
         {
-          "id": "frame-sync-spectator-subscribe.response",
-          "opCode": 2004,
+          "id": "settled-frame-subscribe.response",
+          "opCode": 2005,
           "direction": "s2c",
           "kind": "response",
-          "payloadType": "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireSpectatorSubscribeRes",
-          "codec": "custom-binary",
+          "payloadType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeResponse",
+          "codec": "memorypack",
           "reliability": "reliable",
           "minimumSchemaVersion": 1,
           "maximumSchemaVersion": 1,
-          "maximumPayloadBytes": 16384,
+          "maximumPayloadBytes": 4096,
           "captureSampleRate": 1
         },
         {
-          "id": "frame-sync-frame.push",
-          "opCode": 9001,
-          "direction": "s2c",
-          "kind": "push",
-          "payloadType": "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireFramePushedPush",
-          "codec": "custom-binary",
-          "reliability": "realtime",
+          "id": "settled-frame-catch-up.request",
+          "opCode": 2006,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpRequest",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "response": "settled-frame-catch-up.response",
           "minimumSchemaVersion": 1,
           "maximumSchemaVersion": 1,
-          "maximumPayloadBytes": 4194304,
-          "captureSampleRate": 0.05
+          "maximumPayloadBytes": 4096,
+          "captureSampleRate": 1
         },
         {
-          "id": "frame-sync-catch-up.push",
-          "opCode": 9010,
+          "id": "settled-frame-catch-up.response",
+          "opCode": 2006,
           "direction": "s2c",
-          "kind": "push",
-          "payloadType": "AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireCatchUpPayloadPush",
-          "codec": "custom-binary",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpResponse",
+          "codec": "memorypack",
           "reliability": "reliable",
           "minimumSchemaVersion": 1,
           "maximumSchemaVersion": 1,
           "maximumPayloadBytes": 4194304,
-          "captureSampleRate": 0.25
+          "captureSampleRate": 1
+        },
+        {
+          "id": "settled-frame.push",
+          "opCode": 9020,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4194304,
+          "captureSampleRate": 1
         },
         {
           "id": "move-input.event",
@@ -254,8 +255,8 @@
           "payloadType": "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload",
           "codec": "memorypack",
           "reliability": "realtime",
-          "minimumSchemaVersion": 1,
-          "maximumSchemaVersion": 1,
+          "minimumSchemaVersion": 2,
+          "maximumSchemaVersion": 2,
           "maximumPayloadBytes": 1048576,
           "captureSampleRate": 0.25
         },
@@ -349,6 +350,45 @@
           "maximumSchemaVersion": 1,
           "maximumPayloadBytes": 262144,
           "captureSampleRate": 1
+        },
+        {
+          "id": "shield-state.push",
+          "opCode": 4015,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 0.25
+        },
+        {
+          "id": "actor-indicator-state.push",
+          "opCode": 4020,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotPayload",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 0.25
+        },
+        {
+          "id": "state-sync-overhead.push",
+          "opCode": 4021,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayload",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4194304,
+          "captureSampleRate": 0.25
         }
       ]
     },
@@ -742,6 +782,36 @@
           "sensitiveFields": [
             "sessionToken"
           ]
+        },
+        {
+          "id": "subscribe-fixed-baseline-state-sync.request",
+          "opCode": 123,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Room.WireSubscribeStateSyncReq",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "response": "subscribe-fixed-baseline-state-sync.response",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 1,
+          "sensitiveFields": [
+            "sessionToken"
+          ]
+        },
+        {
+          "id": "subscribe-fixed-baseline-state-sync.response",
+          "opCode": 123,
+          "direction": "s2c",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Room.WireSubscribeStateSyncRes",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 1
         },
         {
           "id": "request-full-state-sync.response",
@@ -1496,6 +1566,382 @@
       ]
     },
     {
+      "qualifiedType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpRequest",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "identity",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledIdentity",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "fromFrameExclusive",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "toFrameInclusive",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCatchUpResponse",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "frames",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame",
+          "isArray": true,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCommand",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "ordinal",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "disposition",
+          "scalarType": "uint8",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "playerId",
+          "scalarType": "uint32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "opCode",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "executedPayload",
+          "scalarType": "uint8",
+          "typeName": "",
+          "isArray": true,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledDecision",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "ordinal",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "actorId",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "entityVersion",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "predictionKey",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "skillId",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 5,
+          "name": "accepted",
+          "scalarType": "bool",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 6,
+          "name": "authoritativeFrame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 7,
+          "name": "reason",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 8,
+          "name": "interruptEpoch",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 9,
+          "name": "authoritySequence",
+          "scalarType": "int64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledFrame",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "identity",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledIdentity",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "frame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "initialCheckpoint",
+          "scalarType": "bool",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "commands",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledCommand",
+          "isArray": true,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "decisions",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledDecision",
+          "isArray": true,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledIdentity",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "version",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "roomId",
+          "scalarType": "uint64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "worldId",
+          "scalarType": "uint64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "battleId",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "runtimeGeneration",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeRequest",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "version",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "roomId",
+          "scalarType": "uint64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "worldId",
+          "scalarType": "uint64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "battleId",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "spectator",
+          "scalarType": "bool",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledSubscribeResponse",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "property",
+      "fields": [
+        {
+          "id": 0,
+          "name": "identity",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.SettledFrames.WireSettledIdentity",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "tickRate",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "lastSettledFrame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
       "qualifiedType": "AbilityKit.Protocol.Moba.SkillInputEvent",
       "projectId": "abilitykit.moba",
       "memoryPackMode": "sequential",
@@ -1747,6 +2193,98 @@
           "name": "entries",
           "scalarType": "",
           "typeName": "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotEntry",
+          "isArray": true,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotEntry",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "field",
+      "fields": [
+        {
+          "id": 0,
+          "name": "actorId",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "layoutId",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "indicatorId",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "current",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "max",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 5,
+          "name": "hasMax",
+          "scalarType": "bool",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 6,
+          "name": "ready",
+          "scalarType": "bool",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 7,
+          "name": "availability",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotPayload",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "field",
+      "fields": [
+        {
+          "id": 0,
+          "name": "entries",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotEntry",
           "isArray": true,
           "isOptional": false
         }
@@ -2334,6 +2872,96 @@
       "reservedIds": []
     },
     {
+      "qualifiedType": "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueParameter",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "field",
+      "fields": [
+        {
+          "id": 0,
+          "name": "key",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "valueKind",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "integerValue",
+          "scalarType": "int64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "floatValue",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "stringValue",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 5,
+          "name": "boolValue",
+          "scalarType": "bool",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 6,
+          "name": "vectorX",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 7,
+          "name": "vectorY",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 8,
+          "name": "vectorZ",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 9,
+          "name": "vectorW",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
       "qualifiedType": "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotEntry",
       "projectId": "abilitykit.moba",
       "memoryPackMode": "sequential",
@@ -2811,6 +3439,94 @@
           "typeName": "",
           "isArray": false,
           "isOptional": false
+        },
+        {
+          "id": 59,
+          "name": "lifetime",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 60,
+          "name": "domain",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 61,
+          "name": "parameterSchemaVersion",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 62,
+          "name": "snapshotKind",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 63,
+          "name": "worldId",
+          "scalarType": "int64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 64,
+          "name": "generation",
+          "scalarType": "int64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 65,
+          "name": "sourceFrame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 66,
+          "name": "sequence",
+          "scalarType": "int64",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 67,
+          "name": "revision",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 68,
+          "name": "parameters",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueParameter",
+          "isArray": true,
+          "isOptional": false
+        },
+        {
+          "id": 69,
+          "name": "eventKey",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
         }
       ],
       "reservedIds": []
@@ -2959,6 +3675,62 @@
           "typeName": "",
           "isArray": false,
           "isOptional": false
+        },
+        {
+          "id": 15,
+          "name": "actorVersion",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 16,
+          "name": "profileId",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": true
+        },
+        {
+          "id": 17,
+          "name": "statePath",
+          "scalarType": "string",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": true
+        },
+        {
+          "id": 18,
+          "name": "phaseInstance",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 19,
+          "name": "enteredFrame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 20,
+          "name": "snapshotFrame",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 21,
+          "name": "localSeconds",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
         }
       ],
       "reservedIds": []
@@ -2975,6 +3747,98 @@
           "name": "entries",
           "scalarType": "",
           "typeName": "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry",
+          "isArray": true,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "version",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotEntry",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "field",
+      "fields": [
+        {
+          "id": 0,
+          "name": "actorId",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "currentShield",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "capacity",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "personalShield",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "sharedShield",
+          "scalarType": "float",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 5,
+          "name": "activeLayerCount",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 6,
+          "name": "hasShared",
+          "scalarType": "bool",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotPayload",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "field",
+      "fields": [
+        {
+          "id": 0,
+          "name": "entries",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.StateSync.MobaShieldStateSnapshotEntry",
           "isArray": true,
           "isOptional": false
         }
@@ -3107,6 +3971,46 @@
           "typeName": "",
           "isArray": false,
           "isOptional": false
+        },
+        {
+          "id": 15,
+          "name": "castingState",
+          "scalarType": "",
+          "typeName": "AbilityKit.Protocol.Moba.StateSync.MobaSkillCastingState",
+          "isArray": false,
+          "isOptional": true
+        },
+        {
+          "id": 16,
+          "name": "castElapsedMs",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": true
+        },
+        {
+          "id": 17,
+          "name": "castTotalMs",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": true
+        },
+        {
+          "id": 18,
+          "name": "castTier",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": true
+        },
+        {
+          "id": 19,
+          "name": "castMaxTier",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": true
         }
       ],
       "reservedIds": []
@@ -3156,6 +4060,56 @@
           "id": 2,
           "name": "hash",
           "scalarType": "uint32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        }
+      ],
+      "reservedIds": []
+    },
+    {
+      "qualifiedType": "AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayload",
+      "projectId": "abilitykit.moba",
+      "memoryPackMode": "sequential",
+      "declarationKind": "struct",
+      "memberStyle": "field",
+      "fields": [
+        {
+          "id": 0,
+          "name": "projectionOpCode",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 1,
+          "name": "projectionSchemaVersion",
+          "scalarType": "int32",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 2,
+          "name": "projection",
+          "scalarType": "bytes",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 3,
+          "name": "indicators",
+          "scalarType": "bytes",
+          "typeName": "",
+          "isArray": false,
+          "isOptional": false
+        },
+        {
+          "id": 4,
+          "name": "shields",
+          "scalarType": "bytes",
           "typeName": "",
           "isArray": false,
           "isOptional": false

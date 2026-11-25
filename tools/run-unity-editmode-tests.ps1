@@ -1,4 +1,4 @@
-﻿# Runs Unity EditMode tests for a test assembly in the AbilityKit Unity project.
+﻿# 在 AbilityKit Unity 项目中运行指定测试程序集的 EditMode 测试。
 # 前置：Unity 工程不能被其它 Unity 实例占用（Temp/UnityLockfile 存在时会直接报错）。
 # 用法：powershell -ExecutionPolicy Bypass -File tools/run-unity-editmode-tests.ps1
 #       powershell -ExecutionPolicy Bypass -File tools/run-unity-editmode-tests.ps1 -TestAssembly AbilityKit.Ability.Editor.Tests
@@ -21,16 +21,16 @@ $logPath = Join-Path $repoRoot "local\Logs\unity-editmode-run.log"
 New-Item -ItemType Directory -Force (Split-Path -Parent $ResultsPath) | Out-Null
 
 if (Test-Path (Join-Path $projectPath "Temp\UnityLockfile")) {
-    Write-Error "Unity project is locked by another editor instance. Close it first: $projectPath"
+    Write-Error "Unity 项目已被其他编辑器实例占用，请先关闭： $projectPath"
 }
 
 if (-not (Test-Path $UnityExe)) {
-    Write-Error "Unity editor not found at '$UnityExe'. Pass -UnityExe with the full path."
+    Write-Error "未找到 Unity 编辑器 '$UnityExe'，请通过 -UnityExe 指定完整路径。"
 }
 
-Write-Host "Running EditMode tests for '$TestAssembly' ..."
-Write-Host "Project: $projectPath"
-Write-Host "Results: $ResultsPath"
+Write-Host "正在运行 '$TestAssembly' 的 EditMode 测试……"
+Write-Host "项目：$projectPath"
+Write-Host "结果：$ResultsPath"
 
 $arguments = @(
     "-batchmode",
@@ -49,6 +49,6 @@ $process = Start-Process -FilePath $UnityExe -ArgumentList $arguments -Wait -Pas
 $exitCode = $process.ExitCode
 
 Write-Host "Unity exit code: $exitCode"
-Write-Host "Results: $ResultsPath"
+Write-Host "结果：$ResultsPath"
 Write-Host "Log:     $logPath"
 exit $exitCode

@@ -24,8 +24,7 @@ public sealed record ReportAssetsLoadedRequest(
     [property: Id(4)] string? CommandId = null);
 
 /// <summary>
-/// Reports monotonic loading progress for the active launch generation.
-/// Progress is observable room state; ReportAssetsLoaded remains the final manifest confirmation.
+/// 报告当前启动代际单调递增的加载进度。进度是可观察房间状态；最终资源清单确认仍由 ReportAssetsLoaded 完成。
 /// </summary>
 [GenerateSerializer]
 public sealed record ReportLoadingProgressRequest(

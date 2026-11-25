@@ -25,6 +25,13 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public MobaInputSubmitResult Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
+            => SubmitObserved(frame, inputs, null);
+
+        /// <summary>
+        /// 用正常端口提交输入，并可选观察权威派发结果；该观察不代表世界已提交。
+        /// </summary>
+        public MobaInputSubmitResult SubmitObserved(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs,
+            Action<int, MobaFrameInputDisposition> observe)
         {
             if (_input == null)
             {
@@ -48,7 +55,9 @@ namespace AbilityKit.Demo.Moba.Services
                 nameof(MobaBattleIOPort),
                 () => $"Submit: Frame={frame.Value}, Count={inputs.Count}, FirstPlayer={first.Player.Value}, FirstOp={first.OpCode}");
 
-            LogicWorldInputSubmitResult result = _input.TrySubmit(frame, inputs);
+            LogicWorldInputSubmitResult result = observe != null && _input is MobaInputCoordinator coordinator
+                ? coordinator.TrySubmitWithAuthorityObservation(frame, inputs, observe)
+                : _input.TrySubmit(frame, inputs);
             if (!result.Succeeded)
             {
                 return MobaInputSubmitResult.Fail(MapFailureCode(result.FailureCode), result.Message);

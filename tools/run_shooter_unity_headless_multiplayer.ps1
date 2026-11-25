@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$OwnerProject,
     [string]$MemberProject,
@@ -20,10 +20,9 @@ param(
     [int]$SevereLatencyThresholdMs = 2000,
     [ValidateRange(1, 1000)]
     [double]$P95SyncFrameThresholdMs = 50,
-    # Delta pushes ride the steady-state cadence (every SnapshotIntervalFrames) and own the
-    # 25 ms smoothness budget. Full baselines (once per FullSnapshotIntervalFrames plus resync)
-    # and reliable-event batches are bulk paths with separate budgets; folding their rare
-    # 40-60 ms spikes into the same p99 made pure-state rooms fail a gate designed for deltas.
+    # 增量推送按稳态节奏执行（每 SnapshotIntervalFrames 帧），使用 25 ms 平滑度预算。
+    # 完整基线（每 FullSnapshotIntervalFrames 帧及重新同步时）和可靠事件批次属于批量路径，预算独立；
+    # 将其偶发的 40–60 ms 尖峰计入同一 p99，会使纯状态房间误触为增量设计的门禁。
     [ValidateRange(1, 1000)]
     [double]$P99PushApplyThresholdMs = 25,
     [ValidateRange(1, 5000)]
@@ -99,9 +98,8 @@ $memberCompileLogPath = Join-Path $runDirectory 'member-compile.log'
 $serverPerformanceLogPath = Join-Path $runDirectory 'server-performance.log'
 $serverLogOffset = 0L
 if ([string]::IsNullOrWhiteSpace($ServerLogPath)) {
-    # ServerPerformance windows are emitted by BattleLogicHostGrain inside the silo host log
-    # (host-Shared-*.log); the TCP gateway log only carries connection traffic. Auto-attach to
-    # the newest silo log so server stage data lands in the artifact without manual plumbing.
+    # ServerPerformance 窗口由 BattleLogicHostGrain 写入 silo 宿主日志（host-Shared-*.log）；TCP 网关日志仅包含连接流量。
+    # 自动关联最新 silo 日志，使服务器阶段数据无需手工接线即可进入产物。
     $devLogDirectory = Join-Path $PSScriptRoot '..\Server\Orleans\logs\dev'
     if (Test-Path $devLogDirectory -PathType Container) {
         $candidate = Get-ChildItem -LiteralPath $devLogDirectory -Filter 'host-*.log' -File -ErrorAction SilentlyContinue |

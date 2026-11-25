@@ -4,8 +4,7 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.Deterministic",
-    "MemoryPack",
-    "AbilityKit.Attributes"
+    "MemoryPack"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

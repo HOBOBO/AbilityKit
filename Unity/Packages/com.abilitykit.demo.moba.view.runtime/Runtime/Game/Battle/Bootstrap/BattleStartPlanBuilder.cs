@@ -31,11 +31,13 @@ namespace AbilityKit.Game.Flow
     public sealed class BattleStartPlanBuilder
     {
         private readonly BattleStartPlanRequiredData _required;
+        private bool _enableTraceDiagnostics;
 
         private BattleHostMode _hostMode = BattleHostMode.Local;
         private BattleSyncMode _syncMode = BattleSyncMode.Lockstep;
         private BattleViewEventSourceMode _viewEventSourceMode = BattleViewEventSourceMode.SnapshotOnly;
         private bool _enableClientPrediction = true;
+        private bool _enableStateSyncMovementPrediction;
         private bool _enableConfirmedAuthorityWorld;
         private string[] _enabledSnapshotRegistryIds;
 
@@ -120,6 +122,15 @@ namespace AbilityKit.Game.Flow
         {
             _enableClientPrediction = enableClientPrediction;
             _enableConfirmedAuthorityWorld = enableConfirmedAuthorityWorld;
+            return this;
+        }
+
+        /// <summary>
+        /// 显式启用状态同步移动预测；还需在网关选项中启用作用域输入。
+        /// </summary>
+        public BattleStartPlanBuilder WithStateSyncMovementPrediction(bool enabled = true)
+        {
+            _enableStateSyncMovementPrediction = enabled;
             return this;
         }
 
@@ -223,6 +234,15 @@ namespace AbilityKit.Game.Flow
             return this;
         }
 
+        /// <summary>
+        /// 为本次启动显式启用或关闭 Trace 诊断。
+        /// </summary>
+        public BattleStartPlanBuilder WithTraceDiagnostics(bool enabled = true)
+        {
+            _enableTraceDiagnostics = enabled;
+            return this;
+        }
+
         public BattleStartPlanOptions ToOptions()
         {
             var world = new BattleStartPlanWorldOptions(
@@ -231,9 +251,11 @@ namespace AbilityKit.Game.Flow
                 _required.ClientId,
                 _required.PlayerId,
                 _required.TickRate,
-                _required.InputDelayFrames);
+                _required.InputDelayFrames,
+                _enableTraceDiagnostics);
             var sync = new BattleStartPlanSyncOptions(_syncMode, _viewEventSourceMode, _enabledSnapshotRegistryIds);
-            var authority = new BattleStartPlanAuthorityOptions(_enableClientPrediction, _enableConfirmedAuthorityWorld);
+            var authority = new BattleStartPlanAuthorityOptions(_enableClientPrediction, _enableConfirmedAuthorityWorld,
+                _enableStateSyncMovementPrediction);
             var options = new BattleStartPlanOptions(
                 in world,
                 _hostMode,

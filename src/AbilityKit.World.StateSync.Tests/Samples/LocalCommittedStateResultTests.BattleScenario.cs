@@ -34,8 +34,10 @@ public sealed partial class LocalCommittedStateResultTests
             }, [Stage.Import, Stage.CommitAdmission, Stage.CommitBaseline, Stage.Publish], [2], [2, 3, 4]));
         Assert.Equal<CommitReplayStep>([new(2, 14, 21), new(3, 21, 21), new(4, 21, 21)], trace[^1].ReplaySteps);
         var replay = CreateCommitReplay(scenario, trace);
-        var anchor = Assert.Single(replay.BuildTimeline().Frames, frame => frame.Phase == LocalStateSyncReplay.FramePhase.Anchor);
-        Assert.Equal(20, anchor.PreviousPrediction);
+        var frames = replay.BuildTimeline().Frames;
+        var comparison = Assert.Single(frames, frame => frame.Phase == LocalStateSyncReplay.FramePhase.Compare);
+        Assert.Equal(20, comparison.PreviousPrediction);
+        var anchor = Assert.Single(frames, frame => frame.Phase == LocalStateSyncReplay.FramePhase.Anchor);
         Assert.Equal(14, anchor.Position);
         LocalReplaySample.VerifyAndExport("import-failure", replay);
     }

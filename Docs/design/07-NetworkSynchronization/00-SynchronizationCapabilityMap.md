@@ -6,6 +6,8 @@
 >
 > **适用范围：** 同步 Profile、帧/状态同步、预测回滚、会话协调、可靠事件与回放能力的选型入口。
 
+> **局部核校：2026-11-25**，新增第 1.3 节的核心包消费路径并限定第 8.1 节的测试证据；其余业务拓扑和历史示例未在本批全篇重核。
+
 > 本文从源码角度梳理 AbilityKit 的网络同步能力边界。它不是单一“帧同步类”或“状态同步类”，而是由输入帧、快照信封、阶段化 Room 控制面、业务数据面、Room/Battle 服务端 Grain、回放记录和 Demo 接入层共同组成。源码入口以 `Unity/Packages` 为准，`src` 中还包含 Console Demo 的实验性同步实现，不能反推为通用 Package 能力。
 
 ---
@@ -80,6 +82,23 @@ Room 侧把最终模板/Profile 的 `SyncCapabilities` 写入 commit、持久化
 因此，“Shooter 代码包含预测回滚控制器”不等于默认房间使用 PredictRollback；MOBA 虽已注册 StateSync 模板，也不等于每名成员可以独立选择同步模式。项目能力可以比默认路线更丰富，但开战时必须以服务端最终 commit 的模板和能力声明为准。
 
 ---
+
+### 1.3 核心包消费路径与恢复所有权（2026-11-25）
+
+包 README 和 `Documentation~/` 持有各自使用契约；本节只解释交接边界，不在仓库再维护第二份 API 教程。
+
+| 层次 | 当前消费入口 | 所有权与恢复边界 |
+| --- | --- | --- |
+| 世界与实体 | [World DI](../../../Unity/Packages/com.abilitykit.world.di/Documentation~/README.md)、[轻量 ECS](../../../Unity/Packages/com.abilitykit.world.ecs/Documentation~/README.md) | IWorld 由世界管理器登记和释放；轻量 EntityWorld 是实体容器，不自动拥有组件资源或模拟时钟 |
+| 宿主装配 | [Host](../../../Unity/Packages/com.abilitykit.host/Documentation~/README.md)、[Host Extensions](../../../Unity/Packages/com.abilitykit.host.extension/Documentation~/README.md) | 组合根选择唯一模拟时钟、模块及关闭次序；Host Tick 返回不等于世界提交成功 |
+| 帧数据与快照路由 | [Network Fragments](../../../Unity/Packages/com.abilitykit.world.networkfragments/Documentation~/README.md)、[Snapshot](../../../Unity/Packages/com.abilitykit.world.snapshot/Documentation~/README.md) | 先隔离世界/会话，缓冲不证明连续帧；派发不证明权威状态已导入，注册表不是事务 |
+| 帧同步恢复 | [FrameSync](../../../Unity/Packages/com.abilitykit.world.framesync/Documentation~/Usage.md) | 权威输入帧驱动；完整帧末 N 检查点恢复后从 N+1 重演，Provider 预检、导入失败和历史完整性分别处理 |
+| 状态同步恢复 | [StateSync](../../../Unity/Packages/com.abilitykit.world.statesync/Documentation~/README.md) | 所属会话先验证固定基线、重建并成功导入，再提交接收位置；本地 StateManager 不提供完整在线恢复 |
+| 记录与协议 | [Record](../../../Unity/Packages/com.abilitykit.record/Documentation~/README.md)、[Protocol](../../../Unity/Packages/com.abilitykit.protocol/Documentation~/README.md)、[Network Runtime](../../../Unity/Packages/com.abilitykit.network.runtime/Documentation~/README.md) | 记录格式、消息布局和连接生命周期各有所有者；记录可读、目录注册或连接恢复都不自动授予世界恢复资格 |
+
+两条同步链复用固定步长、实体生命周期和玩法执行能力。会话选择权威来源、输入路线和恢复策略；Snapshot ID、可靠事件水位、帧同步确认帧和状态同步输入终结互不代替。帧同步可附带状态推送，但不能据此让推送接管帧时钟。详细恢复设计仍由[帧/状态预测回滚专题](03.2-FrameStatePredictionRollback.md)持有。
+
+本轮只修正文档，没有改变共享世界或任何单链实现。两链均运行各自现有 .NET 选定测试，不能据此推导真实服务端/客户端组合或任意玩法 Provider 的完整恢复；范围、失败项和未覆盖环境见[D3 核心批次记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#9-d3-核心世界同步与网络包核校记录2026-11-25)。SDK、Room/Battle、服务端监听和可选传输适配留到后续 D3 批次。
 
 ## 2. 同步能力分层
 
@@ -476,7 +495,7 @@ Room 维护成员身份、在线状态、准备、恢复、晚加入和开战入
 | E0 | 类型、配置或协议存在 | Profile、builder、codec、策略枚举 |
 | E1 | 有明确装配点或消费者 | Shooter/MOBA 同步 session builder，Console/Host 会话门面 |
 | E2 | 进入可运行的项目主链 | Room 能力声明、两连接数据面、业务预测/回滚控制器 |
-| E3 | 单元或契约测试 | 本轮 FrameSync 18、StateSync 12、Snapshot 7、Record 23、Network SDK 96、Network Room 36 |
+| E3 | 单元或契约测试 | 旧版所列数量属于历史局部运行，不代表当前全量通过。2026-11-25 核心包选定步骤、协议文档断言失败和未覆盖项见 D3 批次记录；SDK/Room 未在本批重跑 |
 | E4 | 可留档的 Smoke/多进程 artifact | Shooter/MOBA/Console 对应 smoke 产物；需逐次核对日期与配置 |
 | E5 | CI 发布或合并门禁 | `tools/test-gates.json` 与 workflow 实际接线；不能由本地测试通过反推 |
 
@@ -494,4 +513,6 @@ Room 维护成员身份、在线状态、准备、恢复、晚加入和开战入
 
 ---
 
-*文档版本：v3.1 | 最后更新：2026-08-16 | 文档类型：能力地图*
+文档类型：能力地图 | 事实基线：主体 2026-08-16，第 1.3/8.1 节局部核校 2026-11-25 | 证据等级：E0–E3 按具体范围，旧 Smoke/CI 不作为本轮结果。
+
+*文档版本：v3.2 | 最后更新：2026-11-25 | 文档类型：能力地图*

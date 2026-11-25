@@ -6,7 +6,7 @@ namespace AbilityKit.Game.Flow
     {
         public static readonly BattleHudConfig Default = new BattleHudConfig();
 
-        public string HpBarPrefabPath = "ui/battle/hud_hpbar";
+        public string HpBarPrefabPath = "ui/battle/hud_overhead";
 
         public Vector3 HpBarWorldOffset = new Vector3(0f, 2.2f, 0f);
 

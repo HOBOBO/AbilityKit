@@ -1,0 +1,177 @@
+[
+  {
+    "Id": 1,
+    "Name": "基础生命",
+    "Width": 132,
+    "Spacing": 2,
+    "WorldOffsetY": 2.2,
+    "Rows": [
+      {
+        "IndicatorId": 1,
+        "Renderer": 1,
+        "Slot": 0,
+        "Height": 10,
+        "LocalOnly": false,
+        "Style": "health",
+        "Label": "生命",
+        "EmptyLabel": "-"
+      }
+    ]
+  },
+  {
+    "Id": 2,
+    "Name": "生命法力",
+    "Width": 132,
+    "Spacing": 2,
+    "WorldOffsetY": 2.2,
+    "Rows": [
+      {
+        "IndicatorId": 1,
+        "Renderer": 1,
+        "Slot": 0,
+        "Height": 10,
+        "LocalOnly": false,
+        "Style": "health",
+        "Label": "生命",
+        "EmptyLabel": "-"
+      },
+      {
+        "IndicatorId": 2,
+        "Renderer": 1,
+        "Slot": 1,
+        "Height": 4,
+        "LocalOnly": false,
+        "Style": "mana",
+        "Label": "法力",
+        "EmptyLabel": "-"
+      }
+    ]
+  },
+  {
+    "Id": 3,
+    "Name": "弹药布局",
+    "Width": 132,
+    "Spacing": 2,
+    "WorldOffsetY": 2.2,
+    "Rows": [
+      {
+        "IndicatorId": 1,
+        "Renderer": 1,
+        "Slot": 0,
+        "Height": 10,
+        "LocalOnly": false,
+        "Style": "health",
+        "Label": "生命",
+        "EmptyLabel": "-"
+      },
+      {
+        "IndicatorId": 2,
+        "Renderer": 1,
+        "Slot": 1,
+        "Height": 4,
+        "LocalOnly": false,
+        "Style": "mana",
+        "Label": "法力",
+        "EmptyLabel": "-"
+      },
+      {
+        "IndicatorId": 10,
+        "Renderer": 2,
+        "Slot": 2,
+        "Height": 5,
+        "LocalOnly": true,
+        "Style": "ammo",
+        "Label": "弹药",
+        "EmptyLabel": "换弹"
+      },
+      {
+        "IndicatorId": 11,
+        "Renderer": 2,
+        "Slot": 2,
+        "Height": 5,
+        "LocalOnly": true,
+        "Style": "ammo",
+        "Label": "大招",
+        "EmptyLabel": "-"
+      }
+    ]
+  },
+  {
+    "Id": 4,
+    "Name": "被动四格",
+    "Width": 132,
+    "Spacing": 2,
+    "WorldOffsetY": 2.2,
+    "Rows": [
+      {
+        "IndicatorId": 1,
+        "Renderer": 1,
+        "Slot": 0,
+        "Height": 10,
+        "LocalOnly": false,
+        "Style": "health",
+        "Label": "生命",
+        "EmptyLabel": "-"
+      },
+      {
+        "IndicatorId": 2,
+        "Renderer": 1,
+        "Slot": 1,
+        "Height": 4,
+        "LocalOnly": false,
+        "Style": "mana",
+        "Label": "法力",
+        "EmptyLabel": "-"
+      },
+      {
+        "IndicatorId": 12,
+        "Renderer": 2,
+        "Slot": 2,
+        "Height": 5,
+        "LocalOnly": true,
+        "Style": "counter",
+        "Label": "嗜火",
+        "EmptyLabel": "-"
+      }
+    ]
+  },
+  {
+    "Id": 5,
+    "Name": "成长数字",
+    "Width": 132,
+    "Spacing": 2,
+    "WorldOffsetY": 2.2,
+    "Rows": [
+      {
+        "IndicatorId": 1,
+        "Renderer": 1,
+        "Slot": 0,
+        "Height": 10,
+        "LocalOnly": false,
+        "Style": "health",
+        "Label": "生命",
+        "EmptyLabel": "-"
+      },
+      {
+        "IndicatorId": 2,
+        "Renderer": 1,
+        "Slot": 1,
+        "Height": 4,
+        "LocalOnly": false,
+        "Style": "mana",
+        "Label": "法力",
+        "EmptyLabel": "-"
+      },
+      {
+        "IndicatorId": 13,
+        "Renderer": 3,
+        "Slot": 2,
+        "Height": 14,
+        "LocalOnly": true,
+        "Style": "counter",
+        "Label": "邪力",
+        "EmptyLabel": "-"
+      }
+    ]
+  }
+]

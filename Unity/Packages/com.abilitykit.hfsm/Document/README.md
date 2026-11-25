@@ -1,5 +1,7 @@
 # HFSM — 分层有限状态机
 
+> 历史 API 参考：下方 `StateMachine/StateBase/Transition` 内容对应兼容模型，不是当前 Definition → RuntimeBindings 接入方式。请先阅读[包入口](../README.md)与[当前使用契约](../Documentation~/Usage.md)。
+
 ## 可编辑展示场景
 
 在 Package Manager 导入 `Complete HFSM Showcase`，执行菜单 `AbilityKit/HFSM/Samples/Create Complete Showcase Scene`。两份 GraphAsset 可在图编辑器中编辑并导出，场景内三个代理可修改事实输入、单步、恢复快照，在 Runtime Monitor 中查看活动层级和转移记录。详细步骤见 Sample 的 `README.md`。

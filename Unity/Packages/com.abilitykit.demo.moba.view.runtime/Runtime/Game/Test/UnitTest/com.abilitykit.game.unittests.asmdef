@@ -40,6 +40,7 @@
         "AbilityKit.Host.Extensions.Moba",
         "AbilityKit.Game.Flow.Core",
         "AbilityKit.Game.Battle.Runtime",
+        "AbilityKit.Network.Battle.Config",
         "AbilityKit.Game.Battle.Shared.Logging",
         "AbilityKit.Game.Battle.Shared.Time",
         "AbilityKit.Network.Battle",

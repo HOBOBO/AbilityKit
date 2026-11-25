@@ -19,10 +19,15 @@ namespace AbilityKit.Network.Battle.Config
     {
         public readonly SubmitInputRequest Request;
         public readonly ulong CommandSequence;
-        public SequencedInput(in SubmitInputRequest request, ulong commandSequence)
+        /// <summary>
+        /// 分配该命令编号的状态同步输入代际，旧入口为空。
+        /// </summary>
+        public readonly Guid InputGeneration;
+        public SequencedInput(in SubmitInputRequest request, ulong commandSequence, Guid inputGeneration = default)
         {
             Request = request;
             CommandSequence = commandSequence;
+            InputGeneration = inputGeneration;
         }
     }
 
@@ -41,7 +46,10 @@ namespace AbilityKit.Network.Battle.Config
         };
 
         private long _nextCommandSequence;
+        private Guid _stateSyncInputGeneration;
         private bool _protocolPresetApplied;
+        private string _roomGatewayBattleId;
+        private string _roomGatewayRoomId;
 
         // ============== Common ==============
 
@@ -155,6 +163,8 @@ namespace AbilityKit.Network.Battle.Config
         /// </summary>
         public NetworkBattleConfig UseRoomGatewayProtocol(string battleId, string roomId = "")
         {
+            _roomGatewayBattleId = battleId;
+            _roomGatewayRoomId = roomId;
             // Opcodes
             _o.OpSubmitInput = RoomGatewayOpCodes.SubmitBattleInput;
             _o.OpSnapshotPushed = RoomGatewayOpCodes.SnapshotPushed;
@@ -223,7 +233,8 @@ namespace AbilityKit.Network.Battle.Config
             {
                 if (requestObj is not SubmitInputRequest req)
                     throw new ArgumentException("Expected SubmitInputRequest.", nameof(requestObj));
-                return new SequencedInput(req, unchecked((ulong)Interlocked.Increment(ref _nextCommandSequence)));
+                return new SequencedInput(req, unchecked((ulong)Interlocked.Increment(ref _nextCommandSequence)),
+                    _stateSyncInputGeneration);
             };
             _o.RewriteSubmitInputFrame = (requestObj, frame) =>
             {
@@ -235,7 +246,7 @@ namespace AbilityKit.Network.Battle.Config
                         new AbilityKit.Ability.Host.PlayerInputCommand(
                             new AbilityKit.Ability.FrameSync.FrameIndex(frame),
                             r.Input.Player, r.Input.OpCode, r.Input.Payload)),
-                    seq.CommandSequence);
+                    seq.CommandSequence, seq.InputGeneration);
             };
 
             _protocolPresetApplied = true;
@@ -265,6 +276,8 @@ namespace AbilityKit.Network.Battle.Config
                 serializeSubmitInput: requestObj =>
                 {
                     if (requestObj is not SequencedInput sequenced) return default;
+                    if (sequenced.InputGeneration != _stateSyncInputGeneration)
+                        throw new InvalidOperationException("Input belongs to a different command producer.");
                     var req = sequenced.Request;
                     var wire = new WireSubmitBattleInputReq
                     {
@@ -277,7 +290,13 @@ namespace AbilityKit.Network.Battle.Config
                         Payload = req.Input.Payload ?? Array.Empty<byte>(),
                         CommandSequence = sequenced.CommandSequence
                     };
-                    return WireRoomGatewayBinary.Serialize(in wire);
+                    if (sequenced.InputGeneration == Guid.Empty)
+                        return WireRoomGatewayBinary.Serialize(in wire);
+                    return WireRoomGatewayBinary.Serialize(new WireSubmitScopedStateSyncInputReq
+                    {
+                        Input = wire,
+                        InputGeneration = sequenced.InputGeneration
+                    });
                 },
                 deserializeSubmitInputResponse: payload =>
                 {
@@ -335,6 +354,54 @@ namespace AbilityKit.Network.Battle.Config
         public NetworkBattleConfig UseFixedBaselineStateSyncSubscription()
         {
             _o.OpPostAuthentication = RoomGatewayOpCodes.SubscribeFixedBaselineStateSync;
+            return this;
+        }
+
+        /// <summary>
+        /// 在双方支持时显式启用成对的状态同步入口，同一输入生产者在重订阅和重试时保留代际。
+        /// 必须在标准固定基线订阅和状态同步输入配置之后调用。
+        /// </summary>
+        public NetworkBattleConfig UseScopedStateSyncInput(ulong worldId, uint playerId) =>
+            UseScopedStateSyncInput(worldId, playerId, Guid.NewGuid(), receivesMovementProof: false);
+
+        /// <summary>
+        /// 绑定会话的输入生产者，并在调用方能消费移动证明时选择相应订阅入口。
+        /// </summary>
+        public NetworkBattleConfig UseScopedStateSyncInput(ulong worldId, uint playerId, Guid generation,
+            bool receivesMovementProof)
+        {
+            if (_o.OpPostAuthentication != RoomGatewayOpCodes.SubscribeFixedBaselineStateSync ||
+                _o.OpSubmitInput != RoomGatewayOpCodes.SubmitBattleInput || _o.SerializeSubmitInput == null)
+                throw new InvalidOperationException("Scoped input requires the room StateSync input and fixed baseline presets.");
+            if (worldId == 0) throw new ArgumentOutOfRangeException(nameof(worldId));
+            if (playerId == 0) throw new ArgumentOutOfRangeException(nameof(playerId));
+
+            if (generation == Guid.Empty) throw new ArgumentOutOfRangeException(nameof(generation));
+            _stateSyncInputGeneration = generation;
+            _o.StateSyncInputGeneration = generation;
+            _o.OpPostAuthentication = receivesMovementProof
+                ? RoomGatewayOpCodes.SubscribeStateSyncMovementProof : RoomGatewayOpCodes.SubscribeScopedStateSync;
+            _o.OpSubmitInput = RoomGatewayOpCodes.SubmitScopedStateSyncInput;
+            _o.ValidatePostAuthenticationResponse = payload =>
+            {
+                if (!WireRoomGatewayBinary.Deserialize<WireSubscribeStateSyncRes>(payload).Success)
+                    throw new InvalidOperationException("Scoped StateSync subscription was not accepted.");
+            };
+            _o.SerializePostAuthenticationWithReliableEventCursor = (epoch, lastAck) => WireRoomGatewayBinary.Serialize(
+                new WireSubscribeScopedStateSyncReq
+                {
+                    Subscription = new WireSubscribeStateSyncReq
+                    {
+                        SessionToken = _o.SessionToken,
+                        BattleId = _roomGatewayBattleId,
+                        RoomId = _roomGatewayRoomId,
+                        EventEpoch = epoch ?? string.Empty,
+                        LastEventAck = Math.Max(0L, lastAck)
+                    },
+                    WorldId = worldId,
+                    PlayerId = playerId,
+                    InputGeneration = generation
+                });
             return this;
         }
 

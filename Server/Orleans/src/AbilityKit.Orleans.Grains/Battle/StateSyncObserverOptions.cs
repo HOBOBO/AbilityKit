@@ -72,10 +72,9 @@ public static class StateSyncObserverOptionsMapper
             return configured;
         }
 
-        // Bandwidth conditioning is applied by the selected transport profile.
-        // Do not apply the legacy 128 Kbps observer default a second time on
-        // ideal/latency-only profiles, otherwise pure-state deltas are dropped
-        // before they can reach the client's multi-frame playback buffer.
+        /*
+         * 所选传输配置负责带宽模拟。理想或仅延迟配置不得再次应用旧版观察者默认 128 Kbps 限制，否则纯状态增量会在到达客户端多帧播放缓冲前被丢弃。
+         */
         return new SnapshotSendQueuePolicy(
             bytesPerSecond: 0,
             burstBytes: Math.Max(configured.BurstBytes, 256 * 1024),

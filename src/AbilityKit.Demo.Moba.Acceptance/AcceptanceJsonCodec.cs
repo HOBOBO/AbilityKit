@@ -36,13 +36,26 @@ public static class AcceptanceJsonCodec
 
     public static MobaAcceptanceTraceRecord[] LoadTraceRecords(string jsonlPath)
     {
-        var lines = File.ReadAllLines(jsonlPath);
-        var records = new List<MobaAcceptanceTraceRecord>(lines.Length);
-        foreach (var line in lines)
+        using var reader = File.OpenText(jsonlPath);
+        return ReadTraceRecords(reader, allowPartial: false, out _);
+    }
+
+    internal static MobaAcceptanceTraceRecord[] ReadTraceRecords(TextReader reader, bool allowPartial, out bool malformed)
+    {
+        malformed = false;
+        var records = new List<MobaAcceptanceTraceRecord>();
+        while (reader.ReadLine() is { } line)
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
-            records.Add(JsonSerializer.Deserialize<MobaAcceptanceTraceRecord>(line, Options)
-                        ?? throw new InvalidDataException("failed to deserialize trace record"));
+            try
+            {
+                records.Add(JsonSerializer.Deserialize<MobaAcceptanceTraceRecord>(line, Options)
+                            ?? throw new InvalidDataException("failed to deserialize trace record"));
+            }
+            catch (Exception exception) when (allowPartial && exception is (JsonException or InvalidDataException))
+            {
+                malformed = true;
+            }
         }
         return records.ToArray();
     }

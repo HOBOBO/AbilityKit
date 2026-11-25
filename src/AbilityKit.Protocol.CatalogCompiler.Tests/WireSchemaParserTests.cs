@@ -301,8 +301,8 @@ public sealed class WireSchemaParserTests
             .OrderBy(MemoryPackExportPlanner.QualifiedType, StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(31, schemas.Length);
-        Assert.Equal(new[] { "input", "room", "state-sync" },
+        Assert.Equal(42, schemas.Length);
+        Assert.Equal(new[] { "input", "room", "settled-frames", "state-sync" },
             schemas.Select(schema => schema.GroupId).Distinct().OrderBy(value => value, StringComparer.Ordinal));
 
         var generatedDirectory = Path.Combine(

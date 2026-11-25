@@ -313,6 +313,7 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 AssertConfigChain(harness, expectation);
 
+                using var traceCapture = new MobaAcceptanceTraceCapture(harness.Trace, harness.FrameTime);
                 harness.EnterGameAndWarmup(reason: "moba acceptance " + expectation.caseId);
                 harness.AssertSlotSkill(expectation.input.slot, expectation.config.skillId);
 
@@ -324,8 +325,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.AssertSkillCastTrace(expectation.config.skillId);
                 AssertRuntimeEffects(harness, expectation, effectTrace.RootId);
 
-                var records = MobaAcceptanceTraceExporter.CaptureTraceRecords(harness, expectation.caseId);
-                var summary = MobaAcceptanceTraceExporter.BuildSummary(harness, expectation, records, tracePath, traceTextPath, summaryPath);
+                var records = traceCapture.Capture(expectation.caseId, out var evidence);
+                MobaAcceptanceTraceExporter.AddDisplayLabels(harness, records);
+                var summary = MobaAcceptanceTraceExporter.BuildSummary(harness, expectation, records, tracePath, traceTextPath, summaryPath, evidence);
                 summary.expectationPath = NormalizePath(string.IsNullOrEmpty(expectationPath) ? string.Empty : ResolveProjectRelativePath(expectationPath));
 
                 if (exportArtifacts || exportTraceText)
@@ -334,7 +336,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 }
                 if (exportArtifacts) MobaAcceptanceArtifactV1Adapter.ExportCase(MobaAcceptanceTraceExporter.ResolveArtifactDirectory(artifactDirectory), runId, startedAt.ToString("O"), runStopwatch.ElapsedMilliseconds, summary, records);
 
-                MobaAcceptanceExpectationAssert.AssertMatches(expectation, records, harness);
+                MobaAcceptanceExpectationAssert.AssertMatches(expectation, records, harness, evidence);
                 return summary;
             }
         }
@@ -348,14 +350,16 @@ namespace AbilityKit.Game.Test.UnitTest
                     AssertConfigChain(harness, expectation);
                 }
 
+                using var traceCapture = new MobaAcceptanceTraceCapture(harness.Trace, harness.FrameTime);
                 harness.EnterGameAndWarmup(reason: "moba acceptance scenario " + expectation.caseId);
                 AssertScenarioSlotSkills(harness, expectation);
                 ExecuteSetupActions(harness, GetSetupActions(expectation));
                 ExecuteTimeline(harness, GetTimeline(expectation));
                 TickScenarioTail(harness, expectation);
 
-                var records = MobaAcceptanceTraceExporter.CaptureTraceRecords(harness, expectation.caseId);
-                var summary = MobaAcceptanceTraceExporter.BuildSummary(harness, expectation, records, tracePath, traceTextPath, summaryPath);
+                var records = traceCapture.Capture(expectation.caseId, out var evidence);
+                MobaAcceptanceTraceExporter.AddDisplayLabels(harness, records);
+                var summary = MobaAcceptanceTraceExporter.BuildSummary(harness, expectation, records, tracePath, traceTextPath, summaryPath, evidence);
                 summary.expectationPath = NormalizePath(string.IsNullOrEmpty(expectationPath) ? string.Empty : ResolveProjectRelativePath(expectationPath));
 
                 if (exportArtifacts || exportTraceText)
@@ -364,7 +368,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 }
                 if (exportArtifacts) MobaAcceptanceArtifactV1Adapter.ExportCase(MobaAcceptanceTraceExporter.ResolveArtifactDirectory(artifactDirectory), runId, startedAt.ToString("O"), runStopwatch.ElapsedMilliseconds, summary, records);
 
-                MobaAcceptanceExpectationAssert.AssertMatches(expectation, records, harness);
+                MobaAcceptanceExpectationAssert.AssertMatches(expectation, records, harness, evidence);
                 MobaAcceptanceExpectationAssert.AssertStateMatches(expectation, records, harness);
                 return summary;
             }

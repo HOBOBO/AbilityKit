@@ -627,6 +627,7 @@ MonoBehaviour:
     RequiredBuffQualificationId: 0
     Phases:
     - rid: 277261807049244772
+    - rid: 66600030010301
     - rid: 277261807049244773
     - rid: 277261807049244774
   - Id: 30010401
@@ -2461,13 +2462,35 @@ MonoBehaviour:
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
+    - rid: 66600030010301
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010301_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 2
+        ChargeRecoveryMs: 18000
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup:
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: skill_economy_reserve_failed
     - rid: 277261807049244773
-      type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: skill_30010301_commit
-        TriggerIds: 9473a635
-        AbortOnFailure: 1
-        FailReason: skill_commit_failed
+        CommitId: cast
+        RequireEconomyReservation: 1
     - rid: 277261807049244774
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:

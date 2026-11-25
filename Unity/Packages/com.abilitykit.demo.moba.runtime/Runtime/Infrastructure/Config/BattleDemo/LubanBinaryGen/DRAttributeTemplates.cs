@@ -64,6 +64,8 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
         PerSecondBloodRGrowth = _buf.ReadInt();
         PerSecondManaRGrowth = _buf.ReadInt();
         ResilienceRGrowth = _buf.ReadInt();
+        ManaRegenPerSecond = _buf.ReadFloat();
+        ManaRegenPerSecondGrowth = _buf.ReadFloat();
     }
 
     public static DRAttributeTemplates DeserializeDRAttributeTemplates(ByteBuf _buf)
@@ -263,6 +265,14 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
     /// Per-level growth; final value = base + growth * (level - 1). Zero disables growth for the attribute.
     /// </summary>
     public readonly int ResilienceRGrowth;
+    /// <summary>
+    /// 每秒固定回复法力；公开每5秒量除以5，保留小数。
+    /// </summary>
+    public readonly float ManaRegenPerSecond;
+    /// <summary>
+    /// 每级固定回蓝成长；最终=基础+成长&#215;(等级-1)。
+    /// </summary>
+    public readonly float ManaRegenPerSecondGrowth;
    
     public const int __ID__ = 1407018283;
     public override int GetTypeId() => __ID__;
@@ -322,6 +332,8 @@ public sealed partial class DRAttributeTemplates : Luban.BeanBase
         + "PerSecondBloodRGrowth:" + PerSecondBloodRGrowth + ","
         + "PerSecondManaRGrowth:" + PerSecondManaRGrowth + ","
         + "ResilienceRGrowth:" + ResilienceRGrowth + ","
+        + "ManaRegenPerSecond:" + ManaRegenPerSecond + ","
+        + "ManaRegenPerSecondGrowth:" + ManaRegenPerSecondGrowth + ","
         + "}";
     }
 }

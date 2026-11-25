@@ -4,12 +4,7 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 namespace AbilityKit.Protocol.CatalogCompiler.Compatibility;
 
 /// <summary>
-/// Compares the current protocol catalogs and wire schemas against a committed baseline and
-/// classifies every difference. Wire layout facts (opcode, direction, kind, payload, codec,
-/// request-response pairing, wire fields, reserved ids) are breaking when a peer built against
-/// the baseline can no longer interoperate; purely additive or observational changes are
-/// compatible. Classification never depends on the codec backend except through the wire schema's
-/// own MemoryPack mode, which is itself a classified fact.
+/// 比较当前协议目录、线协议结构与入库基线，并分类全部差异。当基于基线构建的对端无法互操作时，操作码、方向、消息种类、载荷、编解码器、请求响应配对、字段及保留 ID 等线协议事实变化属于破坏性变更；纯新增或观测变化兼容。分类仅通过线协议自身的 MemoryPack 模式依赖编解码后端，该模式本身也是分类事实。
 /// </summary>
 public static class ProtocolCompatibilityDiff
 {

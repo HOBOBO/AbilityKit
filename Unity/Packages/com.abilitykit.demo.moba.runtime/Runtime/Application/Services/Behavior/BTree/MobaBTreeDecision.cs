@@ -83,8 +83,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             // Dispose 时自动注销
             var options = new TreeRunOptions
             {
-                // Derive an isolated tree stream from the same match seed used by the world random
-                // service. Node streams remain independent, while all runtimes share one algorithm.
+                /*
+                 * 从世界随机服务使用的相同对局种子派生隔离树随机流。节点流保持独立，所有运行时共享同一算法。
+                 */
                 Seed = DeterministicRandom.DeriveSeed(randomSeed, randomScope),
                 DebugName = string.IsNullOrEmpty(debugName) ? null : debugName,
                 DebugOwnerLabel = debugOwnerLabel,

@@ -45,11 +45,15 @@ namespace AbilityKit.Demo.Moba.Events.Buff
         public long RuntimeContextVersion;
         public AbilityKit.Context.ContextEntityReference RuntimeContextIdentity;
 
+        /// <summary>
+        /// 读取事件发布时冻结的身份与版本，不从当前运行时补全。
+        /// </summary>
         public bool TryGetRuntimeContext(out AbilityKit.Demo.Moba.Services.MobaRuntimeContextReference reference)
         {
-            reference = AbilityKit.Demo.Moba.Services.MobaRuntimeContextReference.FromIdentityOrLegacy(
-                RuntimeContextId, RuntimeContextVersion, RuntimeContextIdentity);
-            return reference.IsValid;
+            reference = new AbilityKit.Demo.Moba.Services.MobaRuntimeContextReference(RuntimeContextIdentity, RuntimeContextVersion);
+            if (reference.IsValid && reference.ContextId == RuntimeContextId) return true;
+            reference = default;
+            return false;
         }
 
         /// <summary>Buff 运行时</summary>

@@ -7,8 +7,7 @@ using System.Globalization;
 namespace AbilityKit.Network.Runtime.Conditioning
 {
     /// <summary>
-    /// Immutable precompiled network plan. Phase commands configure the link before playback;
-    /// the remaining commands are executed by <see cref="VirtualNetworkScenarioPlayer"/>.
+    /// 不可变的预编译网络计划。阶段命令在播放前配置链路，其余命令由 <see cref="VirtualNetworkScenarioPlayer"/> 执行。
     /// </summary>
     public sealed class VirtualNetworkScenarioPlan
     {

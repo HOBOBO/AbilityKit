@@ -56,7 +56,7 @@ public interface IBattleFrameSyncGrain : IGrainWithStringKey
     Task<int> AdjustTickRateAsync(int targetTickRate);
 
     /// <summary>
-    /// Stops frame progression and releases all runtime state for the battle.
+    /// 停止帧推进，释放本场战斗全部运行时状态。
     /// </summary>
     Task DestroyAsync();
 }

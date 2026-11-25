@@ -29,8 +29,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
     }
 
     /// <summary>
-    /// Versioned encoder shared by offline training and live actor-brain inference.
-    /// Entity order is supplied by the caller and is part of the observation contract.
+    /// 离线训练与在线角色大脑推理共享的版本化编码器。实体顺序由调用方提供，属于观测契约。
     /// </summary>
     public sealed class MobaBrainObservationEncoder
     {
@@ -126,7 +125,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.AI
     }
 
     /// <summary>
-    /// Canonical action space shared by model training and live inference.
+    /// 模型训练及在线推理共享的规范动作空间。
     /// </summary>
     public static class MobaBrainActionCodec
     {

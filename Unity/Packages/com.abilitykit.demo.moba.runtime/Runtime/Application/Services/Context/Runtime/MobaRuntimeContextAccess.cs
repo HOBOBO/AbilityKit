@@ -2,37 +2,36 @@ using AbilityKit.Context;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    /// <summary>
+    /// 在当前上下文服务中定位指定代际与业务版本。
+    /// </summary>
     public readonly struct MobaRuntimeContextReference
     {
-        public MobaRuntimeContextReference(long contextId, long version)
-        {
-            ContextId = contextId;
-            Version = version;
-            Identity = default;
-        }
-
+        /// <summary>
+        /// 保存本地实体身份及正数业务版本；不补全缺失的身份。
+        /// </summary>
         public MobaRuntimeContextReference(in ContextEntityReference identity, long version)
-            : this(identity.EntityId, version, identity)
         {
-        }
-
-        private MobaRuntimeContextReference(long contextId, long version, in ContextEntityReference identity)
-        {
-            ContextId = contextId;
             Version = version;
             Identity = identity;
         }
 
-        public long ContextId { get; }
+        /// <summary>
+        /// 实体身份中的本地上下文编号。
+        /// </summary>
+        public long ContextId => Identity.EntityId;
+        /// <summary>
+        /// 读取时必须匹配的业务版本。
+        /// </summary>
         public long Version { get; }
+        /// <summary>
+        /// 包含注册表、实体编号和代际的本地身份。
+        /// </summary>
         public ContextEntityReference Identity { get; }
-        public bool HasIdentity => Identity.RegistryId != System.Guid.Empty || Identity.EntityId != 0L || Identity.Generation != 0L;
-        public bool IsValid => ContextId > 0L && (!HasIdentity || (Identity.IsValid && Identity.EntityId == ContextId && Version > 0L));
-
-        public static MobaRuntimeContextReference FromIdentityOrLegacy(long contextId, long version, in ContextEntityReference identity)
-        {
-            return new MobaRuntimeContextReference(contextId, version, identity);
-        }
+        /// <summary>
+        /// 引用具有完整身份与正数业务版本；不代表实体仍可读。
+        /// </summary>
+        public bool IsValid => Identity.IsValid && Version > 0L;
     }
 
     public enum MobaRuntimeContextValueFailure
@@ -47,7 +46,6 @@ namespace AbilityKit.Demo.Moba.Services
         ValueMissing = 7,
         IdentityMismatch = 8,
         ContextServiceDisposed = 9,
-        InvalidReadMode = 10,
         ContextUnavailable = 11,
         SnapshotUnavailable = 12
     }
@@ -82,7 +80,6 @@ namespace AbilityKit.Demo.Moba.Services
         public long ExpectedVersion { get; }
         public long ActualVersion { get; }
         public ContextSnapshotReference ResolvedSnapshot { get; }
-        public bool IsIdentityChecked => Found && Reference.HasIdentity;
         public bool IsVersionChecked => ExpectedVersion > 0L;
 
         public static MobaRuntimeContextValueResult<TValue> Success(TValue value, ContextValueSource source, in MobaRuntimeContextReference reference, long actualVersion,
@@ -130,11 +127,25 @@ namespace AbilityKit.Demo.Moba.Services
             return false;
         }
 
-        public static MobaRuntimeContextValueResult<TValue> GetRuntimeContextValue<TValue, TProperty>(
-            this object payload,
+        /// <summary>
+        /// 读取指定身份和业务版本的实时属性，不读取退场记录。
+        /// </summary>
+        public static MobaRuntimeContextValueResult<TValue> ReadRealtimeContextValue<TValue, TProperty>(
+            this object payload, MobaRuntimeContextService contexts, string key)
+            where TProperty : class, IProperty => ReadValue<TValue, TProperty>(payload, contexts, key, false);
+
+        /// <summary>
+        /// 读取同代 Buff 的退场最终值，不读取实时属性或任意事件快照。
+        /// </summary>
+        public static MobaRuntimeContextValueResult<TValue> ReadFinalBuffContextValue<TValue>(
+            this object payload, MobaRuntimeContextService contexts, string key) =>
+            ReadValue<TValue, MobaBuffContextProperty>(payload, contexts, key, true);
+
+        private static MobaRuntimeContextValueResult<TValue> ReadValue<TValue, TProperty>(
+            object payload,
             MobaRuntimeContextService contexts,
             string key,
-            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            bool finalBuff)
             where TProperty : class, IProperty
         {
             if (contexts == null)
@@ -150,25 +161,25 @@ namespace AbilityKit.Demo.Moba.Services
             if (!reference.IsValid)
                 return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.InvalidRuntimeContext, in reference);
 
-            var failure = contexts.ResolveRuntimeContext<TProperty>(reference, mode, out var provider, out var source, out var snapshot);
+            ContextSnapshotReference snapshot = default;
+            var source = finalBuff ? ContextValueSource.Snapshot : ContextValueSource.Realtime;
+            var failure = finalBuff
+                ? contexts.ResolveFinalBuffContext(reference, out var provider, out snapshot)
+                : contexts.ResolveRealtimeContext<TProperty>(reference, out provider);
             if (failure != MobaRuntimeContextValueFailure.None)
                 return MobaRuntimeContextValueResult<TValue>.Fail(failure, reference, reference.Version);
-            var actualVersion = 0L;
-            if (reference.Version > 0L)
-            {
-                if (!provider.TryGetValue(MobaRuntimeContextKeys.Version, out actualVersion))
-                    return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.VersionUnavailable, in reference, reference.Version);
+            if (!provider.TryGetValue(MobaRuntimeContextKeys.Version, out long actualVersion))
+                return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.VersionUnavailable, in reference, reference.Version);
 
-                if (actualVersion != reference.Version)
-                    return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.VersionMismatch, in reference, reference.Version, actualVersion);
-            }
+            if (actualVersion != reference.Version)
+                return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.VersionMismatch, in reference, reference.Version, actualVersion);
 
             var found = provider.TryGetValue(key, out TValue value);
             if (contexts.IsDisposed)
                 return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.ContextServiceDisposed, reference, reference.Version, actualVersion);
-            if (reference.HasIdentity && source == ContextValueSource.Realtime && contexts.Registry.Query(reference.Identity) != ContextEntityQueryStatus.Found)
+            if (source == ContextValueSource.Realtime && contexts.Registry.Query(reference.Identity) != ContextEntityQueryStatus.Found)
                 return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.IdentityMismatch, reference, reference.Version, actualVersion);
-            if (reference.HasIdentity && source == ContextValueSource.Snapshot && contexts.SnapshotReader.Query(snapshot, out _) != ContextSnapshotQueryStatus.Found)
+            if (source == ContextValueSource.Snapshot && contexts.SnapshotReader.Query(snapshot, out _) != ContextSnapshotQueryStatus.Found)
                 return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.SnapshotUnavailable, reference, reference.Version, actualVersion);
             if (found)
                 return MobaRuntimeContextValueResult<TValue>.Success(value, source, in reference, actualVersion, snapshot);
@@ -176,17 +187,5 @@ namespace AbilityKit.Demo.Moba.Services
             return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.ValueMissing, in reference, reference.Version, actualVersion);
         }
 
-        public static bool TryGetRuntimeContextValue<TValue, TProperty>(
-            this object payload,
-            MobaRuntimeContextService contexts,
-            string key,
-            out TValue value,
-            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
-            where TProperty : class, IProperty
-        {
-            var result = payload.GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
-            value = result.Value;
-            return result.Found;
-        }
     }
 }

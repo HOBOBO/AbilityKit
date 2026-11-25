@@ -99,11 +99,10 @@ namespace AbilityKit.Editor.Platform.Core
                         ["abilitykit.editor.hub.section.registeredModules"] = "Registered Modules",
                         ["abilitykit.editor.hub.section.registeredMenus"] = "Registered Menus",
                         ["abilitykit.editor.hub.section.registeredPanels"] = "Registered Panels",
-                        ["abilitykit.editor.hub.section.discovered"] = "Scattered Windows (Pending Migration)",
+                        ["abilitykit.editor.hub.section.discovered"] = "Migration inventory (read-only)",
                         ["abilitykit.editor.hub.open"] = "Open",
                         ["abilitykit.editor.hub.empty"] = "No items",
-                        ["abilitykit.editor.hub.status"] = "Modules {0} · Menus {1} · Panels {2} · Commands {3} · Discovered {4}",
-                        ["abilitykit.editor.hub.discoveredNote"] = "Windows registered directly via [MenuItem] and not yet migrated to IEditorModule.",
+                        ["abilitykit.editor.hub.discoveredNote"] = "These menu paths are not approved for Hub navigation. The inventory lists paths only and cannot run them.",
                         ["abilitykit.editor.hub.language"] = "Language"
                     },
                     ["zh-CN"] = new Dictionary<string, string>
@@ -139,11 +138,10 @@ namespace AbilityKit.Editor.Platform.Core
                         ["abilitykit.editor.hub.section.registeredModules"] = "已注册模块",
                         ["abilitykit.editor.hub.section.registeredMenus"] = "已注册菜单",
                         ["abilitykit.editor.hub.section.registeredPanels"] = "已注册面板",
-                        ["abilitykit.editor.hub.section.discovered"] = "散落窗口（待迁移）",
+                        ["abilitykit.editor.hub.section.discovered"] = "迁移清单（只读）",
                         ["abilitykit.editor.hub.open"] = "打开",
                         ["abilitykit.editor.hub.empty"] = "无条目",
-                        ["abilitykit.editor.hub.status"] = "模块 {0} · 菜单 {1} · 面板 {2} · 命令 {3} · 散落 {4}",
-                        ["abilitykit.editor.hub.discoveredNote"] = "直接通过 [MenuItem] 注册、尚未迁移到 IEditorModule 的窗口。",
+                        ["abilitykit.editor.hub.discoveredNote"] = "这些菜单未获准进入 Hub 正式导航。此处只列出路径，不执行任何操作。",
                         ["abilitykit.editor.hub.language"] = "语言"
                     }
                 });

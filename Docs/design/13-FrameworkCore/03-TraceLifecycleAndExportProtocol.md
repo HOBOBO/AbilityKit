@@ -1,8 +1,8 @@
-# Trace 生命周期与导出协议
+# Trace 生命周期与诊断快照
 
 > 文档类型：FrameworkCore canonical
-> 事实基线：2026-09-22
-> 文档版本：v4.0
+> 事实基线：2026-11-24
+> 文档版本：v4.1
 >
 ## 一、文档定位
 
@@ -10,7 +10,7 @@ Trace 包提供一棵按因果关系组织的运行时树。一个根节点代�
 
 本文讨论通用 Trace 注册表，不展开 MOBA 技能、Effect 和伤害的业务链路。MOBA 的生产接入与字段映射见 [MOBA Trace、Context 与 Effect 执行深潜](../09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md)。
 
-当前实现位于 `com.abilitykit.trace`，核心代码不依赖 UnityEngine。Editor 包提供树窗口和节点详情插件，但编辑器展示不是本文定义的持久化协议。
+当前实现位于 `com.abilitykit.trace`，核心代码不依赖 UnityEngine。Editor 包提供树窗口和节点详情插件；通用 Trace 包不定义持久化协议。
 
 ## 二、核心模型
 
@@ -50,8 +50,8 @@ flowchart TB
 每个根保存 `ActiveCount`、`ExternalRefCount` 和 `LastTouchedFrame`：
 
 - `ActiveCount` 是树中尚未结束的节点数。创建根时为 `1`，创建子节点加一，每个节点首次结束时减一。
-- `ExternalRefCount` 表示树外仍有持有者。`RetainRoot()` 增加计数，`ReleaseRoot()` 减少计数并钳制到零。
-- `LastTouchedFrame` 在创建根、创建子节点、结束节点和命中 `EnsureRoot()` 时更新。
+- `ExternalRefCount` 表示树外仍有持有者。`RetainRoot()` 增加计数，`ReleaseRoot()` 减少计数；计数已为零时不变更、不发事件。
+- `LastTouchedFrame` 在创建或结束节点、命中 `EnsureRoot()`、恢复生命周期或撤销活动预测节点时更新；若最后一个外部引用在整树结束后才释放，也会刷新该帧。
 
 节点结束与根可回收是两个不同条件。`ActiveCount == 0` 说明整棵树没有活动节点；只有外部引用也为零，并满足保留帧策略时，`Purge()` 才会删除根及其数据。
 
@@ -66,7 +66,9 @@ flowchart TB
 | `BeginRoot()` | `CreateRoot()` 后调用 `RetainRoot()` | 根引用加一 |
 | `BeginChild()` | `CreateChild()` 后对所属根调用 `RetainRoot()` | 根引用加一 |
 | `CreateRootScope()` | 返回 `TraceRootScope` | Dispose 时释放根引用 |
-| `CreateChildScope()` | 返回 `TraceTreeScope` | Dispose 时结束子节点 |
+| `CreateChildScope()` | 返回 `TraceTreeScope` | End/Dispose 时结束子节点并释放自身持有的根引用 |
+
+内部生成 ID 与显式提供 ID 的建树入口共用提交路径：先验证身份并准备、写入元数据，再提交树结构、子索引和根计数，最后推进分配游标并通知。元数据工厂失败或遵守接口契约的存储拒绝写入时，不留下节点、不推进游标、不发事件。自定义工厂与存储不得重入注册表写操作；存储抛异常时必须保留原有映射。
 
 创建子节点要求父节点存在，否则抛出 `ArgumentException`。当前实现允许在已经结束的父节点下继续创建子节点，也允许只结束父节点而让子节点继续活动；通用注册表没有强制结构状态机。领域接入若需要更严格的树约束，应在查询或提交边界增加显式校验。MOBA 的 `ValidateChainDetailed()` 已检查根身份、RootId 一致性、父节点存在性、跨根父子关系、环和子节点计数，但该校验不会自动阻止通用注册表写入。
 
@@ -116,40 +118,29 @@ sequenceDiagram
 
 `TraceRootScope.Dispose()` 只执行 `ReleaseRoot()`，不会自动调用 `EndRoot()`。调用方需要明确区分“当前持有者不再保留树”和“业务链路已经结束”。
 
-`TraceTreeScope.Dispose()` 只执行 `End(contextId)`。当前 `BeginChild()` 会先增加根外部引用，但 `TraceTreeScope.Dispose()` 不会执行对应的 `ReleaseRoot()`。因此 `CreateChildScope()` 在现有实现中会留下根引用，阻止后续 `Purge()`。在该问题修复并补充回归测试前，生产代码不应把 child scope 视为完整的 retain/release RAII；可以改用 `CreateChild()` 配合 `End()`，或由接入层显式成对释放根引用。
+`TraceTreeScope.End()` / `Dispose()` 结束子节点并释放作用域取得的根引用，作用域副本共享同一个持有状态，不会重复释放。直接使用 `BeginChild()` 而不经作用域时，调用方仍须手动配对 `ReleaseRoot()`。
 
-## 四、清理协议
+## 四、回收契约
 
 ### 4.1 Purge 条件
 
-`Purge(currentFrame, keepEndedFrames)` 逐个检查根：
+`Purge(currentFrame, keepEndedFrames)` 只回收满足全部条件的真根：根节点已结束、`ActiveCount == 0`、`ExternalRefCount == 0`。启用正值保留窗口时，还须满足 `currentFrame - LastTouchedFrame >= keepEndedFrames`；不能只从根节点的 `EndedFrame` 起算，否则长尾子节点刚结束就可能被回收。`currentFrame` 须与注册表使用同一帧时钟；非正保留帧表示不等待。批量清理在删除每棵树前复检条件，返回实际删除的根数。
 
-```mermaid
-flowchart TD
-    Start[检查一个根] --> Active{ActiveCount 大于 0}
-    Active -- 是 --> Keep[保留]
-    Active -- 否 --> Ref{ExternalRefCount 大于 0}
-    Ref -- 是 --> Keep
-    Ref -- 否 --> Window{keepEndedFrames 大于 0}
-    Window -- 否 --> Purge[PurgeRoot]
-    Window -- 是 --> RootEnded{根节点已结束}
-    RootEnded -- 否 --> Keep
-    RootEnded -- 是 --> Age{currentFrame - EndedFrame<br/>达到保留帧数}
-    Age -- 否 --> Keep
-    Age -- 是 --> Purge
-```
+`TryPurgeRoot(rootId)` 对单棵树执行同样的资格检查，但不等待窗口；缺失 ID、子节点 ID、活动或仍被持有的根返回 `false`，不发通知。`PurgeRoot(rootId)` 保留原签名，执行相同的保护，只是不返回结果。
 
-`PurgeRoot()` 删除该根下的结构记录、父子索引、业务元数据和叶子数据，并发布 `RootPurged`。保留窗口读取根节点自身的 `EndedFrame`，所以只结束全部子节点但未结束根节点时，即使活动计数意外归零，也不会在启用保留窗口时被清理。
+回收先删除整棵树的结构、父子索引、业务元数据和叶子数据，再按子节点先于父节点的顺序逐节点发布兼容事件 `RootPurged`。事件的 `ContextId` 标识被移除节点，`RootId` 标识实际所属根，诊断消费者可按 `ContextId` 淘汰自己的附加数据。
 
-`Clear()` 是注册表级重置：清空全部树，重置 ID 生成器并发布 `RegistryCleared`。`Dispose()` 先从 `TraceRegistryDirectory` 注销，再调用 `Clear()`。注册表不是跨进程 ID 服务，清空后 ID 可以从 `1` 重新开始，导出结果若需要跨会话关联必须另带 session 标识。
+回收时机由启用 Trace 的宿主决定；普通释放、读取或导出不会隐式清理，MOBA 适配器也不自动调度。宿主接入周期回收前，应明确诊断保留窗口及消费时机。回收只移除诊断投影，不删除 Context；后续 Context 对账仍可能重建投影。
+
+`Clear()` 是注册表级重置：清空全部树和归属数据，发布 `RegistryCleared`，不回绕内部 ID 分配器。`Dispose()` 先从 `TraceRegistryDirectory` 注销，再调用 `Clear()`。ID 只在注册表及会话语境内有意义，不能脱离会话持久化为全局身份。
 
 ### 4.2 Revision 与事件
 
-每次 `Publish()` 都会让 `Revision` 加一。事件包括根和子节点创建、节点和根结束、根 retain/release、根清理以及注册表清空。观察者可以用 Revision 判断查询视图是否变化，但当前事件委托由调用线程同步执行，注册表没有捕获订阅者异常，也没有线程同步保护。
+每次 `Publish()` 都会让 `Revision` 加一。事件包括根和子节点创建、节点和根结束、根 retain/release、根清理以及注册表清空。观察者可以用 Revision 判断查询视图是否变化。事件由调用线程同步执行，注册表逐个隔离订阅者异常，但不提供线程同步保护。
 
 因此：
 
-- 订阅者异常会向创建、结束或清理调用方传播。
+- 订阅者异常不回滚已经提交的变更，也不会阻断其他订阅者；可通过 `ObserverException` 观察失败。
 - 订阅回调中的重入修改需要由接入层约束。
 - 注册表应由逻辑线程单线程访问；当前 API 不构成并发容器。
 
@@ -163,7 +154,7 @@ flowchart TD
 - 节点视图：`TryGetNodeSnapshot()`、`GetNodesByRoot()`、`GetNodesByKind()` 和 `TryGetChildren()`。
 - 结构统计：`TryBuildChain()` 与 `TryGetRootStats()`。
 
-这些接口返回快照或枚举，不承诺在枚举期间允许修改注册表。`TryBuildChain()` 的顺序是目标节点到根节点；需要根到叶顺序时由调用方反转结果。
+这些接口返回快照或枚举，不承诺在枚举期间允许修改注册表。`TryGetChildren()` 返回按创建顺序排列的只读实时视图，不暴露可写子索引，也不复制子列表；移除父节点或清理注册表后应重新查询。`TryBuildChain()` 的顺序是目标节点到根节点；需要根到叶顺序时由调用方反转结果。
 
 ### 5.2 导出选项
 
@@ -179,7 +170,7 @@ flowchart TD
 | `MaxDepth` | 大于零时过滤深度超过上限的节点，根深度为零 |
 | `Order` | 按 `ContextId` 或树前序排列 |
 
-`ActiveOnly` 只过滤根，不会过滤活动根中的已结束节点。若需要“树内只输出活动节点”，当前导出协议没有对应选项。
+`ActiveOnly` 只过滤根，不会过滤活动根中的已结束节点。若需要“树内只输出活动节点”，当前诊断导出没有对应选项。
 
 树前序会先按 `ContextId` 排序兄弟节点，再从根递归遍历；无法从根到达的节点会按 `ContextId` 追加。`Truncated` 在节点上限或深度上限省略内容时为 `true`。它只表示本次导出不完整，不说明原树是否仍在运行。
 
@@ -194,11 +185,17 @@ flowchart LR
     Limits --> Flag[Truncated]
 ```
 
-### 5.3 导出不是稳定序列化格式
+### 5.3 导出仅供诊断
 
-导出 DTO 仍包含 `object Metadata`，包内也没有固定 JSON Schema、字段版本或反序列化协议。它适合编辑器、诊断聚合器和一次性分析视图，不应直接作为长期存档或网络协议。
+导出 DTO 只用于编辑器、调试和测试验收，不是权威状态、存档格式、网络同步协议或预测回滚检查点。`object Metadata` 可包含业务对象引用，并未深拷贝或脱敏；包也不保证字段兼容、固定 JSON Schema 或可逆导入。长期证据或跨进程交换应由消费者投影到独立、版本化且明确允许公开的格式。
+
+导出不会增加外部引用计数。节点和深度上限限制的是输出，不是运行开销：当前仍需先收集整棵树再裁剪，不宜在高频逻辑路径上当作低成本查询。
 
 需要跨版本留存时，应由上层投影到带 Schema 版本的分析产物。Diagnostics 的 Analysis Artifact 已提供 Trace section，可作为稳定工程证据的承载层；该主题见 `10-EngineeringQuality/07-AnalysisArtifactAndRuntimeEvidence.md`。
+
+MOBA 验收的 Unity 和 Console 共用节点投影，节点帧来自 Trace，时间由世界帧时钟换算。分析界面和 Smoke 导出可以读保留节点，但这类诊断快照不证明某个事件未发生。
+
+`mustNotContain` 只接受场景执行前开启、执行后读取的完整采集窗口；窗口内回收、清空、预测撤回或投影失败都会使证据不完整。离线回读还需配套的 `_summary.json`，用例标识、帧范围、记录数和 JSONL 的 SHA-256 必须一致。旧快照或截断文件仍可用来确认实际观察到的节点，不能证明不存在。指定 `underEffectId` 时，还须观察到该效果所属的根树。
 
 ## 六、生产接入
 
@@ -224,23 +221,22 @@ Observer 失败由 Context 注册表逐个隔离，不能否决或回滚已提�
 
 2026-08-15 聚焦验证结果为：Trace fixture 15/15、ownership fixture 9/9、Effect diagnostics fixture 15/15。这些结果证明 MOBA 接入契约，不替代下列通用包专项测试：
 
-| 优先级 | 测试 |
+| 优先级 | 测试与覆盖现状 |
 |---|---|
 | P0 | `CreateRoot/CreateChild/End/EndRoot` 对 ActiveCount 的变化与幂等性 |
-| P0 | `BeginChild/CreateChildScope` 的 retain/release 对称性，修复当前引用泄漏 |
-| P0 | `Purge()` 在活动节点、外部引用和保留窗口组合下的行为 |
-| P1 | `PurgeRoot()` 是否完整清除结构、metadata、leaf data 和子索引 |
+| P0 | `TraceScopeLifecycleTests` 已覆盖子 Scope 配对、活动/持有拒绝、保留窗口与批量复检 |
+| P1 | `TraceScopeLifecycleTests` 已覆盖整树清除和通知顺序；诊断测试覆盖逐节点附加数据随之淘汰 |
 | P1 | 两种导出顺序、MaxDepth、MaxNodes 与 `Truncated` |
 | P1 | 事件顺序、Revision 单调性、订阅者异常和重入边界 |
 | P2 | Editor ViewModel 对大树和持续变化注册表的刷新成本 |
 
 ## 八、当前边界
 
-- 注册表按实例维护单调 ID，`Clear()` 后会复用 ID 区间；ID 不能脱离 session 单独持久化。
+- 注册表内部自增 ID 在 `Clear()` 后不回绕；ID 不能脱离 session 单独持久化。
 - API 没有锁，事件同步执行，当前设计面向单逻辑线程。
 - 可以在已结束父节点下创建子节点；严格结构校验由领域查询层显式执行，MOBA 校验不属于通用包写入门禁。
-- `TraceRootScope.Dispose()` 不结束树；`TraceTreeScope.Dispose()` 不释放 `BeginChild()` 增加的根引用。
-- `ReleaseRoot()` 对多余释放静默钳制为零，无法直接发现引用配对错误；MOBA 用一次性 retention handle 和 stale-root 扫描补强，但没有改变通用契约。
+- `TraceRootScope.Dispose()` 不结束树；`TraceTreeScope.Dispose()` 结束节点并释放自身持有的根引用。
+- `ReleaseRoot()` 对多余释放不执行操作；MOBA 用一次性 retention handle 和 stale-root 扫描补强。
 - `OwnerContextId`、Context entity 与 Trace lifecycle ownership 是不同概念，不能互相推导。
 - `ActiveOnly` 只筛选根，导出活动树时仍包含其中的已结束节点。
 - 导出 DTO 的 metadata 是 `object`，没有稳定 Schema；长期证据应投影到版本化产物。
@@ -265,8 +261,8 @@ Observer 失败由 Context 注册表逐个隔离，不能否决或回滚已提�
 
 ## 十、结论
 
-Trace 的核心契约是一棵带帧状态和业务元数据的因果投影树。创建、结束、外部持有和清理分别由不同 API 管理，但 MOBA 的业务身份、生命周期与 rollback 真值只属于 Context。Trace Adapter 负责观察和增强，不得成为主链路依赖。child scope 引用配对、并发与事件异常、稳定序列化协议和通用包专项测试仍是明确工程边界。
+Trace 是带帧状态和业务元数据的因果诊断树。MOBA 的业务身份、生命周期和回滚真值只属于 Context。Trace 不接管玩法、同步、恢复或持久化；宿主选择保留时长和回收时机。
 
 ---
 
-*文档版本：v4.0 | 最后更新：2026-09-22 | 正式边界：Context 是 MOBA 权威状态，Trace 是可选 observer 投影*
+*文档版本：v4.1 | 最后更新：2026-11-24 | 正式边界：Context 是 MOBA 权威状态，Trace 是可选诊断投影*

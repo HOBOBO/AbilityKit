@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Captures real MOBA acceptance traces into the dotnet acceptance verdict baseline dir.
 
@@ -79,7 +79,7 @@ $process = Start-Process -FilePath $UnityEditorPath -ArgumentList $arguments -Wa
 $endedAt = [DateTime]::UtcNow
 $unityExitCode = $process.ExitCode
 
-# Collect every emitted trace (independent of verdict: failing cases that reached Export emit too).
+# 收集所有已导出的追踪，不依赖测试结论；执行到 Export 的失败用例也会导出。
 $traceFiles = @(Get-ChildItem -LiteralPath $outputPath -Filter '*_trace.jsonl' -File -ErrorAction SilentlyContinue)
 $capturedCaseIds = @()
 foreach ($f in $traceFiles) {

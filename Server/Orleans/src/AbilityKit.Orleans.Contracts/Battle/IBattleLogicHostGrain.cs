@@ -228,9 +228,19 @@ public class BattleInputItem
     [Id(2)] public byte[]? Payload { get; set; }
 
     /// <summary>
-    /// Per-player monotonically increasing command sequence. Zero denotes a legacy caller.
+    /// 每玩家单调递增的命令序列。零表示旧版调用方。
     /// </summary>
     [Id(3)] public ulong CommandSequence { get; set; }
+
+    /// <summary>
+    /// 通过鉴权的网关连接来源，由网关填入，不取自客户端请求。
+    /// 空值表示来源未知；此字段不等于客户端输入代际，也不参与输入准入。
+    /// </summary>
+    [Id(4)] public Guid SourceConnectionGeneration { get; set; }
+    /// <summary>
+    /// 分配命令序号的状态同步输入代际；旧入口为空，不作为准入或速率限制键。
+    /// </summary>
+    [Id(5)] public Guid InputGeneration { get; set; }
 }
 
 [GenerateSerializer]
@@ -399,8 +409,7 @@ public class StateSyncPush
     [Id(11)] public string EventEpoch { get; set; } = string.Empty;
 
     /// <summary>
-    /// Network conditioning profile selected for this battle. This is internal
-    /// metadata used by the observer delivery budget and is not sent on the wire.
+    /// 本场战斗选择的网络模拟配置。它是观察者投递预算使用的内部元数据，不经网络发送。
     /// </summary>
     [Id(12)] public string NetworkEnvironmentId { get; set; } = string.Empty;
 }

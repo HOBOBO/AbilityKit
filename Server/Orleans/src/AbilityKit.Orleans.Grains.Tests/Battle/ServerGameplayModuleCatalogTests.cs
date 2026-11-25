@@ -256,6 +256,122 @@ public sealed class ServerGameplayModuleCatalogTests
     }
 
     [Fact]
+    public void MobaStateSyncClock_PublishesOnlyTheCompletedAuthorityTick()
+    {
+        const string battleId = "moba-statesync-committed-tick";
+        const int tickRate = 30;
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new MobaBattleRuntimeAdapter(worldManager, DefaultOrleansBattleProtocolMapper.Instance);
+        using var session = adapter.CreateSession(battleId);
+        var init = CreateMobaWorldInitParams();
+        init.SyncOptions = new BattleSyncStartOptions(ServerGameplayDescriptors.MobaStateSyncTemplate,
+            0, null, null, true, true, 0);
+        var result = session.Start(init);
+        Assert.True(result.Succeeded, result.Error);
+        var clock = Assert.IsAssignableFrom<IBattleRuntimeStateSyncClock>(session);
+        var movement = Assert.IsAssignableFrom<IMobaStateSyncMovementSource>(session);
+        var frames = Assert.IsAssignableFrom<IBattleRuntimeFrameCompletion>(session);
+
+        var connection = Guid.NewGuid();
+        Assert.False(movement.TryCaptureCommittedMovement(0, 1, connection, out _));
+        Assert.False(clock.TryBeginStateSyncTick(1, tickRate));
+        Assert.True(clock.TryBeginStateSyncTick(0, tickRate));
+        Assert.False(movement.TryCaptureCommittedMovement(0, 1, connection, out _));
+        Assert.True(session.Tick(0, tickRate, 1f / tickRate));
+        Assert.True(movement.TryCaptureCommittedMovement(0, 1, connection, out var committed));
+        Assert.Equal(0, committed.Tick);
+        Assert.True(committed.Anchor.EntityVersion > 0);
+        Assert.Null(committed.TerminalThrough);
+        Assert.Equal(Guid.Empty, committed.SourceConnectionGeneration);
+        Assert.False(frames.CanFinalizeFrame(0));
+
+        Assert.True(clock.TryBeginStateSyncTick(1, tickRate));
+        Assert.False(movement.TryCaptureCommittedMovement(0, 1, connection, out _));
+        Assert.True(session.Tick(1, tickRate, 1f / tickRate));
+        Assert.True(movement.TryCaptureCommittedMovement(1, 1, connection, out var next));
+        Assert.Equal(committed.Anchor.EntityVersion, next.Anchor.EntityVersion);
+    }
+
+    [Fact]
+    public void MobaStateSyncClock_OnlyMatchingConnectionReadsCommittedTerminalPrefix()
+    {
+        const int tickRate = 30;
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new MobaBattleRuntimeAdapter(worldManager, DefaultOrleansBattleProtocolMapper.Instance);
+        using var session = adapter.CreateSession("moba-statesync-input-connection");
+        var init = CreateMobaWorldInitParams();
+        init.SyncOptions = new BattleSyncStartOptions(ServerGameplayDescriptors.MobaStateSyncTemplate,
+            0, null, null, true, true, 0);
+        var start = session.Start(init);
+        Assert.True(start.Succeeded, start.Error);
+        var clock = Assert.IsAssignableFrom<IBattleRuntimeStateSyncClock>(session);
+        var movement = Assert.IsAssignableFrom<IMobaStateSyncMovementSource>(session);
+        var original = Guid.NewGuid();
+        var reconnect = Guid.NewGuid();
+        var inputGeneration = Guid.NewGuid();
+
+        CommitMissingIntent(0, original, 1);
+        Assert.True(movement.TryCaptureCommittedMovement(0, 1, original, out var committed, inputGeneration));
+        Assert.Equal(1L, committed.TerminalThrough);
+        Assert.Equal(original, committed.SourceConnectionGeneration);
+        Assert.Equal(inputGeneration, committed.InputGeneration);
+        var recipient = new StateSyncPreparedRecipient("binding", original, Guid.NewGuid(), inputGeneration, 1,
+            ReceivesMovementProof: true);
+        var prepared = new PreparedFixedBaselineSnapshot(0, true, "local", default)
+        {
+            Recipient = recipient,
+            Revision = new FixedBaselineSnapshotRevision(committed.WorldId, Guid.NewGuid(), 3, 0)
+        };
+        Assert.True(BattleLogicHostGrain.TryBindMovementProof(committed.BattleId, prepared, recipient, movement, out var proof));
+        Assert.Equal(3L, proof.SnapshotId);
+        Assert.Equal(prepared.Revision.StreamGeneration, proof.StreamGeneration);
+        Assert.Equal(1L, proof.TerminalThrough);
+        Assert.Equal(committed.Anchor.EntityVersion, proof.EntityVersion);
+        Assert.Equal(committed.Anchor.Pose.Position.X, proof.X);
+        Assert.Equal(committed.Anchor.MoveX, proof.MoveX);
+        Assert.False(BattleLogicHostGrain.TryBindMovementProof("other-battle", prepared, recipient, movement, out _));
+        Assert.False(BattleLogicHostGrain.TryBindMovementProof(committed.BattleId, prepared with { Frame = 1 },
+            recipient, movement, out _));
+        var stale = recipient with { ConnectionGeneration = reconnect };
+        Assert.False(BattleLogicHostGrain.TryBindMovementProof(committed.BattleId, prepared with { Recipient = stale },
+            stale, movement, out _));
+        var legacy = recipient with { ReceivesMovementProof = false };
+        Assert.False(BattleLogicHostGrain.TryBindMovementProof(committed.BattleId, prepared with { Recipient = legacy },
+            legacy, movement, out _));
+        Assert.True(movement.TryCaptureCommittedMovement(0, 1, original, out var oldProtocol));
+        Assert.Null(oldProtocol.TerminalThrough);
+        Assert.True(movement.TryCaptureCommittedMovement(0, 1, reconnect, out var notOwned, inputGeneration));
+        Assert.Null(notOwned.TerminalThrough);
+        Assert.Equal(Guid.Empty, notOwned.SourceConnectionGeneration);
+
+        CommitMissingIntent(1, reconnect, 2);
+        Assert.True(movement.TryCaptureCommittedMovement(1, 1, reconnect, out var newScope, inputGeneration));
+        Assert.Null(newScope.TerminalThrough);
+        Assert.True(movement.TryCaptureCommittedMovement(1, 1, original, out var oldScope, inputGeneration));
+        Assert.Null(oldScope.TerminalThrough);
+        Assert.False(BattleLogicHostGrain.TryBindMovementProof(committed.BattleId, prepared with { Frame = 1 },
+            recipient, movement, out _));
+
+        void CommitMissingIntent(int tick, Guid connection, ulong sequence)
+        {
+            Assert.True(clock.TryBeginStateSyncTick(tick, tickRate));
+            session.SubmitInputs(tick,
+            [
+                new BattleInputItem
+                {
+                    PlayerId = 1,
+                    OpCode = MobaOpCodes.Input.SkillInput,
+                    CommandSequence = sequence,
+                    SourceConnectionGeneration = connection,
+                    InputGeneration = inputGeneration
+                }
+            ]);
+            Assert.False(movement.TryCaptureCommittedMovement(tick, 1, connection, out _));
+            Assert.True(session.Tick(tick, tickRate, 1f / tickRate));
+        }
+    }
+
+    [Fact]
     public void MobaExternalFrameClock_DrivesPublishedSummonExpiryAtTheExpectedFrame()
     {
         const string battleId = "moba-runtime-external-frame-clock";

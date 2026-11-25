@@ -379,6 +379,111 @@ public sealed class TraceScopeLifecycleTests
     }
 
     [Fact]
+    public void Purge_rejects_child_missing_active_and_retained_roots_without_mutation()
+    {
+        using var registry = new TestRegistry();
+        var root = registry.CreateRoot(1);
+        var child = registry.CreateChild(root, 2);
+        var revision = registry.Revision;
+        registry.PurgeRoot(child);
+        Assert.False(registry.TryPurgeRoot(child));
+        Assert.False(registry.TryPurgeRoot(long.MaxValue));
+        Assert.False(registry.TryPurgeRoot(root));
+        Assert.Equal(0, registry.Purge(100));
+        Assert.Equal(revision, registry.Revision);
+        Assert.True(registry.TryGetChildren(root, out var children));
+        Assert.Equal(child, Assert.Single(children));
+        Assert.True(registry.Contains(child));
+        Assert.Equal(2, State(registry, root).ActiveCount);
+
+        registry.End(root);
+        Assert.False(registry.TryPurgeRoot(root));
+        registry.RetainRoot(root);
+        registry.End(child);
+        Assert.False(registry.TryPurgeRoot(root));
+        Assert.Equal(0, registry.Purge(100));
+        Assert.Equal(1, State(registry, root).ExternalRefCount);
+        registry.ReleaseRoot(root);
+        Assert.True(registry.TryPurgeRoot(root));
+        Assert.False(registry.TryPurgeRoot(root));
+    }
+
+    [Theory]
+    [InlineData(false, 20)]
+    [InlineData(true, 30)]
+    public void Purge_waits_from_last_end_or_final_release(bool retained, int eligibleFrame)
+    {
+        using var registry = new TestRegistry();
+        var root = registry.CreateRoot(1);
+        var child = registry.CreateChild(root, 2);
+        if (retained) registry.RetainRoot(root);
+        registry.EndAtFrame(root, 0, 5);
+        registry.EndAtFrame(child, 0, 20);
+        if (retained)
+        {
+            Assert.Equal(0, registry.Purge(100, 10));
+            registry.CurrentFrame = 30;
+            registry.ReleaseRoot(root);
+        }
+
+        registry.CurrentFrame = eligibleFrame + 9;
+        var revision = registry.Revision;
+        registry.ReleaseRoot(root);
+        Assert.Equal(revision, registry.Revision);
+        Assert.Equal(eligibleFrame, State(registry, root).LastTouchedFrame);
+        Assert.Equal(0, registry.Purge(eligibleFrame + 9, 10));
+        Assert.Equal(1, registry.Purge(eligibleFrame + 10, 10));
+    }
+
+    [Fact]
+    public void Purge_notifies_each_removed_node_after_clearing_the_whole_tree()
+    {
+        var metadata = new DictionaryTraceMetadataStore<TestMetadata>();
+        var leaves = new DictionaryTraceLeafDataStore();
+        using var registry = new TestRegistry(metadata, leaves);
+        var root = registry.CreateRoot(1);
+        var child = registry.CreateChild(root, 2);
+        var leaf = registry.CreateChild(child, 3);
+        registry.SetLeafData(leaf, new object());
+        registry.EndRoot(root);
+
+        var notifications = new List<(long Id, long Root, long Parent, bool Cleared)>();
+        registry.RegistryEvent += evt =>
+        {
+            if (evt.Kind != TraceRegistryEventKind.RootPurged) return;
+            notifications.Add((evt.ContextId, evt.RootId, evt.ParentId,
+                registry.TotalNodeCount == 0 && !registry.TryGetRootState(root, out _)
+                && !registry.TryGetChildren(root, out _) && !registry.TryGetChildren(child, out _)
+                && !metadata.TryGetMetadata(root, out _) && !metadata.TryGetMetadata(child, out _)
+                && !metadata.TryGetMetadata(leaf, out _) && !leaves.TryGet(leaf, out _)));
+        };
+
+        Assert.True(registry.TryPurgeRoot(root));
+        Assert.Equal(new[] { (leaf, root, child, true), (child, root, root, true), (root, root, 0L, true) }, notifications);
+    }
+
+    [Fact]
+    public void Batch_purge_rechecks_roots_that_a_notification_retains()
+    {
+        using var registry = new TestRegistry();
+        var first = registry.CreateRoot(1);
+        var second = registry.CreateRoot(1);
+        registry.End(first);
+        registry.End(second);
+        registry.RegistryEvent += evt =>
+        {
+            if (evt.Kind == TraceRegistryEventKind.RootPurged)
+                registry.RetainRoot(evt.RootId == first ? second : first);
+        };
+
+        Assert.Equal(1, registry.Purge(100));
+        var remaining = Assert.Single(registry.GetRootStates());
+        Assert.Equal(1, remaining.ExternalRefCount);
+        registry.ReleaseRoot(remaining.RootId);
+        Assert.Equal(1, registry.Purge(100));
+    }
+
+    [Fact]
     public void Id_exhaustion_fails_without_wrapping_or_creating_nodes()
     {
         using var registry = new TestRegistry();
@@ -397,7 +502,119 @@ public sealed class TraceScopeLifecycleTests
         return state;
     }
 
-    private sealed class TestMetadata : TraceMetadata { }
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(true, true, true)]
+    public void Metadata_failure_does_not_commit_creation(bool child, bool externalId, bool storeFailure)
+    {
+        var store = new FailingMetadataStore();
+        using var registry = new TestRegistry(store, new DictionaryTraceLeafDataStore()) { CurrentFrame = 10 };
+        var root = registry.CreateRoot(1);
+        var cursor = registry.NextContextId;
+        var attemptedId = externalId ? 500 : cursor;
+        var revision = registry.Revision;
+        var notifications = new List<(long Id, TraceRegistryEventKind Kind, bool Complete)>();
+        registry.RegistryEvent += evt => notifications.Add((evt.ContextId, evt.Kind,
+            registry.TryGetNodeSnapshot(evt.ContextId, out var snapshot) && snapshot.Metadata != null
+            && registry.TryGetChildren(evt.ContextId, out _)
+            && State(registry, evt.RootId).ActiveCount == (child ? 2 : 1)
+            && (!child || registry.TryGetChildren(root, out var siblings) && siblings.Contains(evt.ContextId))
+            && registry.NextContextId == attemptedId + 1));
+        registry.FailMetadataCreation = !storeFailure;
+        store.FailWrite = storeFailure;
+        registry.CurrentFrame = 20;
+
+        long Create() => (child, externalId) switch
+        {
+            (true, true) => registry.CreateChildWithId(attemptedId, root, 2, createdFrame: 30),
+            (true, false) => registry.CreateChild(root, 2),
+            (false, true) => registry.CreateRootWithId(attemptedId, 2, createdFrame: 30),
+            _ => registry.CreateRoot(2),
+        };
+
+        Assert.Throws<InvalidOperationException>(() => Create());
+        Assert.Equal(cursor, registry.NextContextId);
+        Assert.Equal(revision, registry.Revision);
+        Assert.Empty(notifications);
+        Assert.Equal(1, registry.TotalNodeCount);
+        Assert.Single(registry.GetRootStates());
+        Assert.Equal(1, State(registry, root).ActiveCount);
+        Assert.Equal(10, State(registry, root).LastTouchedFrame);
+        Assert.False(registry.Contains(attemptedId));
+        Assert.False(registry.TryGetChildren(attemptedId, out _));
+        Assert.False(store.TryGetMetadata(attemptedId, out _));
+        Assert.True(registry.TryGetChildren(root, out var children));
+        Assert.Empty(children);
+
+        registry.FailMetadataCreation = false;
+        store.FailWrite = false;
+        Assert.Equal(attemptedId, Create());
+        Assert.Equal((attemptedId, child ? TraceRegistryEventKind.ChildCreated : TraceRegistryEventKind.RootCreated, true),
+            Assert.Single(notifications));
+        Assert.Equal(externalId ? 30 : 20, registry.TryGetSnapshot(attemptedId).CreatedFrame);
+        Assert.Equal(child && externalId ? root : attemptedId, registry.TryGetSnapshot(attemptedId).Metadata.FactoryId);
+    }
+
+    [Fact]
+    public void Child_view_does_not_expose_writable_collection_and_tracks_registry_updates()
+    {
+        using var registry = new TestRegistry();
+        var root = registry.CreateRoot(1);
+        Assert.True(registry.TryGetChildren(root, out var children));
+        Assert.Empty(children);
+        Assert.False(children is IList<long>);
+        Assert.False(children is System.Collections.ICollection);
+
+        var firstChild = registry.CreateChild(root, 2);
+        var boundary = registry.NextContextId;
+        var secondChild = registry.CreateChild(root, 2);
+        Assert.Equal(new[] { firstChild, secondChild }, children);
+        Assert.True(registry.TryGetChildren(root, out var sameView));
+        Assert.Same(children, sameView);
+        Assert.Equal(1, registry.RetractPrediction(boundary));
+        Assert.Equal(firstChild, Assert.Single(children));
+    }
+
+    [Fact]
+    public void Local_creation_does_not_overwrite_an_external_id_at_the_cursor()
+    {
+        using var registry = new TestRegistry();
+        var externalId = registry.NextContextId;
+        registry.CreateRootWithId(externalId, 1, advanceAllocationFloor: false);
+        Assert.Equal(externalId, registry.NextContextId);
+
+        var localId = registry.CreateChild(externalId, 2);
+        Assert.NotEqual(externalId, localId);
+        Assert.Equal(1, registry.TryGetSnapshot(externalId).Kind);
+        Assert.Equal(externalId, registry.TryGetSnapshot(localId).ParentId);
+        Assert.Equal(localId + 1, registry.NextContextId);
+    }
+
+    private sealed class TestMetadata : TraceMetadata
+    {
+        public long FactoryId { get; init; }
+    }
+
+    private sealed class FailingMetadataStore : ITraceMetadataStore<TestMetadata>
+    {
+        private readonly DictionaryTraceMetadataStore<TestMetadata> _store = new();
+        public bool FailWrite { get; set; }
+
+        public void SetMetadata(long contextId, TestMetadata metadata)
+        {
+            if (FailWrite) throw new InvalidOperationException("metadata write failed");
+            _store.SetMetadata(contextId, metadata);
+        }
+
+        public bool TryGetMetadata(long contextId, out TestMetadata metadata) => _store.TryGetMetadata(contextId, out metadata);
+        public void Clear(long contextId) => _store.Clear(contextId);
+    }
 
     private sealed class TestRegistry : TraceTreeRegistry<TestMetadata>
     {
@@ -406,8 +623,17 @@ public sealed class TraceScopeLifecycleTests
         public TestRegistry(ITraceMetadataStore<TestMetadata> metadata, ITraceLeafDataStore leaves)
             : base(metadata, leafDataStore: leaves) { }
 
+        public int CurrentFrame { get; set; }
+        public bool FailMetadataCreation { get; set; }
+
+        protected override int Frame => CurrentFrame;
+
         protected override TestMetadata CreateMetadata(
             long rootId, int kind, long sourceActorId, long targetActorId,
-            long originId, string originDisplay, long targetId, string targetDisplay, int configId) => new();
+            long originId, string originDisplay, long targetId, string targetDisplay, int configId)
+        {
+            if (FailMetadataCreation) throw new InvalidOperationException("metadata factory failed");
+            return new TestMetadata { FactoryId = rootId };
+        }
     }
 }

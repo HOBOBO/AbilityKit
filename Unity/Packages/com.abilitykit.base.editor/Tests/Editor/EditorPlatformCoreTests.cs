@@ -18,6 +18,37 @@ namespace AbilityKit.Editor.Platform.Tests
 {
     public sealed class EditorPlatformCoreTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public void HubNavigation_RequiresExplicitOptIn(bool optIn)
+        {
+            var module = optIn
+                ? new EditorModuleDescriptor("module", "module.title", showInHub: true)
+                : new EditorModuleDescriptor("module", "module.title");
+            var menu = optIn
+                ? new EditorMenuContribution("menu", "Window/AbilityKit/Test", () => { }, showInHub: true)
+                : new EditorMenuContribution("menu", "Window/AbilityKit/Test", () => { });
+            var panel = optIn
+                ? new EditorPanelContribution("panel", "panel.title", showInHub: true, createVisualElement: () => new VisualElement())
+                : new EditorPanelContribution("panel", "panel.title", createVisualElement: () => new VisualElement());
+
+            Assert.That(module.ShowInHub, Is.EqualTo(optIn));
+            Assert.That(menu.ShowInHub, Is.EqualTo(optIn));
+            Assert.That(panel.ShowInHub, Is.EqualTo(optIn));
+        }
+
+        [Test]
+        public void MenuDiscovery_SupportsExcludingAnExplicitNavigationPath()
+        {
+            const string hubPath = "Window/AbilityKit/Hub";
+            var inventory = EditorMenuItemDiscovery.Discover(
+                new[] { typeof(EditorHubWindow).Assembly }, EditorMenuItemDiscovery.DefaultRoots);
+            Assert.That(inventory, Has.Some.Matches<EditorMenuItemInfo>(item => item.Path == hubPath));
+
+            var afterExclusion = EditorMenuItemDiscovery.Exclude(inventory, new[] { hubPath });
+            Assert.That(afterExclusion, Has.None.Matches<EditorMenuItemInfo>(item => item.Path == hubPath));
+        }
+
         [Test]
         public void ServiceRegistry_RejectsDuplicateRegistration_AndResolvesService()
         {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Acceptance;
 using AbilityKit.Demo.Moba.Acceptance.LiveSim;
 using AbilityKit.Scenario;
@@ -8,7 +9,6 @@ using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Test.UnitTest;
-using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
 
@@ -53,6 +53,10 @@ public sealed class LiveSimAcceptanceScenarioRunner
         behaviorBinder ??= NoopBehaviorProfileBinder.Instance;
 
         using var bootstrapper = Boot();
+        var services = bootstrapper.RuntimeServices!;
+        services.TryResolve<MobaTraceRegistry>(out var trace);
+        services.TryResolve<IFrameTime>(out var frameClock);
+        using var traceCapture = new MobaAcceptanceTraceCapture(trace, frameClock);
         var executor = new LiveSimSetupActionExecutor(bootstrapper);
 
         AssembleActors(executor, PickActors(expectation), DefaultAnchor);
@@ -68,10 +72,10 @@ public sealed class LiveSimAcceptanceScenarioRunner
         // 结算尾巴（镜像 TickScenarioTail 的作用；timeline 自带的 wait 已推进主时段）
         executor.TickMilliseconds(500);
 
-        var records = CaptureRecords(bootstrapper, expectation.caseId);
+        var records = traceCapture.Capture(expectation.caseId, out var traceEvidence);
         var observations = ((IAcceptanceObservationSource)executor).Capture(scenario);
         observations = MergeBehaviorObservations(observations, behaviorBinder.CaptureSnapshots());
-        return AcceptanceVerifier.VerifyWithObservations(expectation, records, observations);
+        return AcceptanceVerifier.VerifyWithObservations(expectation, records, observations, traceEvidence: traceEvidence);
         }
         finally
         {
@@ -209,57 +213,6 @@ public sealed class LiveSimAcceptanceScenarioRunner
             }
             executor.Execute(action);
         }
-    }
-
-    // —— trace 采集：镜像 MobaAcceptanceTraceExporter.CaptureTraceRecords 的核心（无 label 富化，判定不依赖）——
-
-    private static MobaAcceptanceTraceRecord[] CaptureRecords(ConsoleBattleBootstrapper bootstrapper, string caseId)
-    {
-        var services = bootstrapper.RuntimeServices;
-        Assert.NotNull(services);
-        Assert.True(services!.TryResolve<MobaTraceRegistry>(out var trace) && trace != null,
-            "MobaTraceRegistry must be resolvable from the console world.");
-
-        var records = new List<MobaAcceptanceTraceRecord>(64);
-        var seen = new HashSet<long>();
-        foreach (MobaExecutionKind kind in Enum.GetValues(typeof(MobaExecutionKind)))
-        {
-            if (kind == MobaExecutionKind.None) continue;
-            foreach (var node in trace!.GetNodesByKind((int)kind))
-            {
-                if (!node.IsValid || !seen.Add(node.ContextId)) continue;
-                var metadata = node.Metadata;
-                var frame = node.CreatedFrame;
-                records.Add(new MobaAcceptanceTraceRecord
-                {
-                    caseId = caseId,
-                    frame = frame,
-                    timeMs = (int)Math.Round(frame * (1000f / 30f)),
-                    rootId = node.RootId,
-                    parentId = node.ParentId,
-                    nodeId = node.ContextId,
-                    kind = kind.ToString(),
-                    kindValue = node.Kind,
-                    configId = metadata != null ? metadata.ConfigId : 0,
-                    sourceActorId = metadata != null ? metadata.SourceActorId : 0,
-                    targetActorId = metadata != null ? metadata.TargetActorId : 0,
-                    sourceId = metadata != null ? metadata.SourceId : 0,
-                    targetId = metadata != null ? metadata.TargetId : 0,
-                    isRoot = node.IsRoot,
-                    isEnded = node.IsEnded,
-                    endedFrame = node.EndedFrame,
-                    endReason = node.EndReason,
-                    childCount = node.ChildCount,
-                });
-            }
-        }
-
-        records.Sort((x, y) =>
-        {
-            var c = x.rootId.CompareTo(y.rootId);
-            return c != 0 ? c : x.nodeId.CompareTo(y.nodeId);
-        });
-        return records.ToArray();
     }
 
     private static ConsoleBattleBootstrapper Boot()

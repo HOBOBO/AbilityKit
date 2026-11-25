@@ -7,8 +7,7 @@ using Orleans;
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
-/// Removes the authenticated account from the authoritative room membership.
-/// RoomGrain owns owner transfer, loading rollback, room closing, and mapping cleanup.
+/// 从权威房间成员中移除已认证账号。RoomGrain 负责房主转移、加载回滚、房间关闭及映射清理。
 /// </summary>
 [Core.GatewayHandler(RoomGatewayOpCodes.LeaveRoom)]
 public sealed partial class LeaveRoomHandler : GatewayRequestHandlerBase

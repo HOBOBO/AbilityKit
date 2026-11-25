@@ -192,7 +192,8 @@ namespace AbilityKit.Game.Flow
             WorldId worldId) =>
             Submit(in command, playerId, worldId);
 
-        internal bool Submit(in PlayerInputCommand command, PlayerId playerId, WorldId worldId)
+        internal bool Submit(in PlayerInputCommand command, PlayerId playerId, WorldId worldId,
+            (float X, float Z)? movement = null)
         {
             var context = _context;
             if (context == null || !context.CanSubmitGameplayInput || context.Session == null)
@@ -203,7 +204,7 @@ namespace AbilityKit.Game.Flow
 
             context.InputRecordWriter?.Append(in command);
             context.BattleCapture?.RecordInputCommand(in command, true);
-            context.Session.SubmitInput(new SubmitInputRequest(worldId, command));
+            context.Session.SubmitInput(new SubmitInputRequest(worldId, command), movement);
             LocalInputQueue.Enqueue(new LocalPlayerInputEvent(
                 command.Frame,
                 playerId,

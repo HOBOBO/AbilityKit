@@ -445,6 +445,38 @@ namespace AbilityKit.Protocol.Generated
                 0.25d,
                 null),
             new ProtocolMessageMetadata(
+                "abilitykit.moba.battle",
+                "actor-indicator-state.push",
+                4020u,
+                ProtocolDirection.ServerToClient,
+                ProtocolPacketKind.Push,
+                "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotPayload",
+                "memorypack",
+                ProtocolReliability.Reliable,
+                null,
+                "moba.protocol.yaml",
+                1,
+                1,
+                1048576,
+                0.25d,
+                null),
+            new ProtocolMessageMetadata(
+                "abilitykit.moba.battle",
+                "state-sync-overhead.push",
+                4021u,
+                ProtocolDirection.ServerToClient,
+                ProtocolPacketKind.Push,
+                "AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayload",
+                "memorypack",
+                ProtocolReliability.Reliable,
+                null,
+                "moba.protocol.yaml",
+                1,
+                1,
+                4194304,
+                0.25d,
+                null),
+            new ProtocolMessageMetadata(
                 "abilitykit.room",
                 "guest-login.request",
                 100u,
@@ -883,6 +915,38 @@ namespace AbilityKit.Protocol.Generated
                 ProtocolDirection.ServerToClient,
                 ProtocolPacketKind.Response,
                 "AbilityKit.Protocol.Room.WireRequestFullStateSyncRes",
+                "memorypack",
+                ProtocolReliability.Reliable,
+                null,
+                "room.protocol.yaml",
+                1,
+                1,
+                1048576,
+                1d,
+                null),
+            new ProtocolMessageMetadata(
+                "abilitykit.room",
+                "subscribe-state-sync-movement-proof.request",
+                126u,
+                ProtocolDirection.ClientToServer,
+                ProtocolPacketKind.Request,
+                "AbilityKit.Protocol.Room.WireSubscribeScopedStateSyncReq",
+                "memorypack",
+                ProtocolReliability.Reliable,
+                "subscribe-state-sync-movement-proof.response",
+                "room.protocol.yaml",
+                1,
+                1,
+                1048576,
+                1d,
+                new[] { "sessionToken" }),
+            new ProtocolMessageMetadata(
+                "abilitykit.room",
+                "subscribe-state-sync-movement-proof.response",
+                126u,
+                ProtocolDirection.ServerToClient,
+                ProtocolPacketKind.Response,
+                "AbilityKit.Protocol.Room.WireSubscribeStateSyncRes",
                 "memorypack",
                 ProtocolReliability.Reliable,
                 null,
@@ -1499,6 +1563,8 @@ namespace AbilityKit.Protocol.Generated
             public const uint abilitykit_moba_battle_player_hero_changed_push = 4012u;
             public const uint abilitykit_moba_battle_action_ack_push = 4013u;
             public const uint abilitykit_moba_battle_shield_state_push = 4015u;
+            public const uint abilitykit_moba_battle_actor_indicator_state_push = 4020u;
+            public const uint abilitykit_moba_battle_state_sync_overhead_push = 4021u;
             public const uint abilitykit_room_guest_login_request = 100u;
             public const uint abilitykit_room_guest_login_response = 100u;
             public const uint abilitykit_room_account_login_request = 111u;
@@ -1527,6 +1593,8 @@ namespace AbilityKit.Protocol.Generated
             public const uint abilitykit_room_subscribe_fixed_baseline_state_sync_request = 123u;
             public const uint abilitykit_room_subscribe_fixed_baseline_state_sync_response = 123u;
             public const uint abilitykit_room_request_full_state_sync_response = 108u;
+            public const uint abilitykit_room_subscribe_state_sync_movement_proof_request = 126u;
+            public const uint abilitykit_room_subscribe_state_sync_movement_proof_response = 126u;
             public const uint abilitykit_room_state_sync_metrics_request = 117u;
             public const uint abilitykit_room_state_sync_metrics_response = 117u;
             public const uint abilitykit_room_begin_loading_request = 112u;
@@ -1595,6 +1663,8 @@ namespace AbilityKit.Protocol.Generated
                 ["abilitykit.moba.battle/player-hero-changed.push"] = "moba.protocol.yaml",
                 ["abilitykit.moba.battle/action-ack.push"] = "moba.protocol.yaml",
                 ["abilitykit.moba.battle/shield-state.push"] = "moba.protocol.yaml",
+                ["abilitykit.moba.battle/actor-indicator-state.push"] = "moba.protocol.yaml",
+                ["abilitykit.moba.battle/state-sync-overhead.push"] = "moba.protocol.yaml",
                 ["abilitykit.room/guest-login.request"] = "room.protocol.yaml",
                 ["abilitykit.room/guest-login.response"] = "room.protocol.yaml",
                 ["abilitykit.room/account-login.request"] = "room.protocol.yaml",
@@ -1623,6 +1693,8 @@ namespace AbilityKit.Protocol.Generated
                 ["abilitykit.room/subscribe-fixed-baseline-state-sync.request"] = "room.protocol.yaml",
                 ["abilitykit.room/subscribe-fixed-baseline-state-sync.response"] = "room.protocol.yaml",
                 ["abilitykit.room/request-full-state-sync.response"] = "room.protocol.yaml",
+                ["abilitykit.room/subscribe-state-sync-movement-proof.request"] = "room.protocol.yaml",
+                ["abilitykit.room/subscribe-state-sync-movement-proof.response"] = "room.protocol.yaml",
                 ["abilitykit.room/state-sync-metrics.request"] = "room.protocol.yaml",
                 ["abilitykit.room/state-sync-metrics.response"] = "room.protocol.yaml",
                 ["abilitykit.room/begin-loading.request"] = "room.protocol.yaml",

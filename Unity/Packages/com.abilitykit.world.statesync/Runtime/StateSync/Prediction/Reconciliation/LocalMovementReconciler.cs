@@ -23,6 +23,8 @@ namespace AbilityKit.Ability.StateSync.Prediction.Reconciliation
         private long _uncoveredSequence;
         private int _uncoveredTick = -1;
         private int _latestSealedTick = -1;
+        private int _predictionTick;
+        private bool _hasTerminalProof;
         private bool _waitingForFull;
         private bool _stepping;
 
@@ -75,6 +77,7 @@ namespace AbilityKit.Ability.StateSync.Prediction.Reconciliation
             _uncoveredSequence = 0;
             _uncoveredTick = -1;
             _latestSealedTick = -1;
+            _hasTerminalProof = false;
             _waitingForFull = false;
         }
 
@@ -88,6 +91,18 @@ namespace AbilityKit.Ability.StateSync.Prediction.Reconciliation
 
             _waitingForFull = true;
             _prediction = null;
+            _hasTerminalProof = false;
+        }
+
+        /// <summary>
+        /// 已编号的输入不能由移动步进器解释。等待权威同时覆盖其终结序号与计划 Tick。
+        /// </summary>
+        internal void RecordUnsupportedInput(ReconciliationScope scope, long sequence, int tick)
+        {
+            EnsureNotStepping();
+            if (!_scope.Matches(scope) || sequence <= _terminalSequence) return;
+            _latestInput = Math.Max(_latestInput, sequence);
+            RecordCoverageLoss(sequence, tick);
         }
 
         /// <summary>
@@ -131,7 +146,8 @@ namespace AbilityKit.Ability.StateSync.Prediction.Reconciliation
         /// <summary>
         /// 接收已提交的权威截面，再尝试重演到目标 Tick；预测失败不撤销权威锚点或可信的输入终结。
         /// </summary>
-        internal ReconciliationResult Reconcile(in CommittedMovement<TState> sample, InputTerminalProof? terminalProof, int targetTick)
+        internal ReconciliationResult Reconcile(in CommittedMovement<TState> sample, InputTerminalProof? terminalProof,
+            int targetTick, bool sameTickStateMatches = false)
         {
             EnsureNotStepping();
             if (!_scope.Matches(sample.Scope) || sample.Revision <= AcceptedRevision || sample.Tick < 0 ||
@@ -141,16 +157,49 @@ namespace AbilityKit.Ability.StateSync.Prediction.Reconciliation
             if (_waitingForFull && !sample.IsFullBaseline)
                 return new ReconciliationResult(ReconciliationStatus.WaitingForFullBaseline);
 
+            var previous = _prediction;
             _waitingForFull = false;
             _anchor = sample;
             _prediction = null;
+            _hasTerminalProof = false;
 
             if (!terminalProof.HasValue || !terminalProof.Value.Matches(_scope, sample.Revision, sample.Tick) ||
                 terminalProof.Value.ThroughSequence < _terminalSequence)
                 return new ReconciliationResult(ReconciliationStatus.InvalidTerminalProof);
 
             _terminalSequence = terminalProof.Value.ThroughSequence;
+            _hasTerminalProof = true;
+            if (sameTickStateMatches && previous.HasValue && _predictionTick == targetTick &&
+                _uncoveredSequence == 0 && !TerminalPrefixChangesFuture(sample.Tick))
+                _prediction = previous;
             TrimTerminalInputs();
+            return PredictTo(targetTick);
+        }
+
+        private bool TerminalPrefixChangesFuture(int authoritativeTick)
+        {
+            foreach (var input in _pending)
+            {
+                if (input.Sequence > _terminalSequence) break;
+                if (input.Tick > authoritativeTick) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 继续使用已确认的截面和终结证明推进本地时钟，不变更权威修订。
+        /// </summary>
+        internal ReconciliationResult PredictTo(int targetTick)
+        {
+            EnsureNotStepping();
+            if (_waitingForFull || !_anchor.HasValue)
+                return new ReconciliationResult(ReconciliationStatus.WaitingForFullBaseline);
+            if (!_hasTerminalProof)
+                return new ReconciliationResult(ReconciliationStatus.InvalidTerminalProof);
+
+            var sample = _anchor.Value;
+            var previous = _prediction;
+            _prediction = null;
             if (_uncoveredSequence > _terminalSequence || _uncoveredTick > sample.Tick)
                 return new ReconciliationResult(ReconciliationStatus.UncoveredInput);
 
@@ -164,11 +213,13 @@ namespace AbilityKit.Ability.StateSync.Prediction.Reconciliation
             if (ticks <= 0) return new ReconciliationResult(ReconciliationStatus.AuthoritativeOnly);
             if (ticks > _coverage.Length) return new ReconciliationResult(ReconciliationStatus.ReplayLimitExceeded);
 
-            for (var offset = 1; offset <= ticks; offset++)
-                if (!IsSealed(sample.Tick + offset))
+            var resume = previous.HasValue && _predictionTick <= targetTick;
+            var from = resume ? _predictionTick : sample.Tick;
+            for (var offset = 1; offset <= targetTick - from; offset++)
+                if (!IsSealed(from + offset))
                     return new ReconciliationResult(ReconciliationStatus.MissingTickCoverage);
 
-            return Replay(sample.State, sample.Tick, (int)ticks);
+            return Replay(resume ? previous.Value : sample.State, from, targetTick - from);
         }
 
         private ReconciliationResult Replay(TState candidate, int anchorTick, int ticks)
@@ -199,6 +250,7 @@ namespace AbilityKit.Ability.StateSync.Prediction.Reconciliation
             }
 
             _prediction = candidate;
+            _predictionTick = anchorTick + ticks;
             return new ReconciliationResult(ReconciliationStatus.Predicted, attempts);
         }
 

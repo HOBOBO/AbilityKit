@@ -8,33 +8,36 @@ using AbilityKit.Triggering.Runtime.Plan;
 namespace AbilityKit.Triggering.Runtime.Plan.Json
 {
     /// <summary>
-    /// 负责触发计划执行树的反序列化与执行节点展开，避免 TriggerPlanConverter 同时承担值转换和执行树装配。
+    /// 展开单条记录的执行节点引用并构造执行树；值与模板解释由记录级转换器提供。
     /// </summary>
     internal sealed class TriggerPlanExecutionNodeConverter
     {
-        private readonly TriggerPlanConverter _context;
-        private readonly TriggerPlanExecutionNodeReferenceResolver _referenceResolver = new TriggerPlanExecutionNodeReferenceResolver();
+        private readonly TriggerPlanJsonValueConverter _values;
+        private readonly TriggerPlanExecutionNodeReferenceResolver _referenceResolver;
         private static readonly Dictionary<ETriggerPlanExecutableKind, ExecutionNodeConverterBase> _executionNodeConverters = BuildExecutionNodeConverters();
 
-        public TriggerPlanExecutionNodeConverter(TriggerPlanConverter context)
+        private TriggerPlanExecutionNodeConverter(
+            in TriggerPlanJsonValueConverter values, TriggerPlanExecutionNodeReferenceCatalog referenceCatalog)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _values = values;
+            _referenceResolver = new TriggerPlanExecutionNodeReferenceResolver(referenceCatalog);
         }
 
-        public ITriggerPlanExecutable ConvertExecutionRoot(TriggerPlanJsonDatabase.TriggerPlanDto dto, TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+        /// <summary>
+        /// 按需为显式执行树取文档引用索引；只有扁平动作时不读取索引。
+        /// </summary>
+        internal static ITriggerPlanExecutable ConvertExecutionRoot(
+            TriggerPlanJsonDatabase.TriggerPlanDto dto,
+            in TriggerPlanJsonValueConverter values,
+            Lazy<TriggerPlanExecutionNodeReferenceCatalog> referenceCatalog)
         {
-            if (dto == null)
+            if (dto.ExecutionRoot != null)
             {
-                return null;
+                var converter = new TriggerPlanExecutionNodeConverter(in values, referenceCatalog.Value);
+                return converter.ConvertExecutionNode(dto.ExecutionRoot);
             }
 
-            var explicitRoot = ConvertExecutionNode(dto.ExecutionRoot, databaseDto);
-            if (explicitRoot != null)
-            {
-                return explicitRoot;
-            }
-
-            var actions = _context.ConvertActions(dto.Actions);
+            var actions = TriggerPlanJsonActionConverter.ConvertActions(dto.Actions, in values);
             if (actions.Length == 0)
             {
                 return null;
@@ -49,17 +52,17 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             return new SequenceTriggerPlanExecutable(children);
         }
 
-        private ITriggerPlanExecutable ConvertExecutionNode(TriggerPlanJsonDatabase.ExecutionNodeDto dto, TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+        private ITriggerPlanExecutable ConvertExecutionNode(TriggerPlanJsonDatabase.ExecutionNodeDto dto)
         {
             if (dto == null)
             {
                 return null;
             }
 
-            var resolvingKeys = new List<string>();
-            dto = _referenceResolver.Resolve(dto, databaseDto, resolvingKeys);
+            var pathDepth = _referenceResolver.PathDepth;
             try
             {
+                dto = _referenceResolver.Resolve(dto);
                 if (!Enum.TryParse<ETriggerPlanExecutableKind>(NormalizeKind(dto.Kind), true, out var kind))
                 {
                     throw new InvalidOperationException($"Execution node kind not supported: {dto.Kind}");
@@ -70,15 +73,15 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     throw new InvalidOperationException($"Execution node kind not supported: {kind}");
                 }
 
-                return converter.Convert(this, dto, databaseDto);
+                return converter.Convert(this, dto);
             }
             finally
             {
-                _referenceResolver.EndResolve(resolvingKeys);
+                _referenceResolver.RestorePath(pathDepth);
             }
         }
 
-        private ITriggerPlanExecutable[] ConvertExecutionNodes(List<TriggerPlanJsonDatabase.ExecutionNodeDto> dtos, TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+        private ITriggerPlanExecutable[] ConvertExecutionNodes(List<TriggerPlanJsonDatabase.ExecutionNodeDto> dtos)
         {
             if (dtos == null || dtos.Count == 0)
             {
@@ -88,7 +91,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             var nodes = new ITriggerPlanExecutable[dtos.Count];
             for (int i = 0; i < dtos.Count; i++)
             {
-                nodes[i] = ConvertExecutionNode(dtos[i], databaseDto);
+                nodes[i] = ConvertExecutionNode(dtos[i]);
             }
 
             return nodes;
@@ -202,22 +205,20 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public abstract ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto);
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto);
 
             protected static ITriggerPlanCondition Condition(
                 TriggerPlanExecutionNodeConverter context,
                 TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                return context._context.ConvertCondition(dto.Condition);
+                return TriggerPlanJsonPredicateConverter.ConvertCondition(dto.Condition, in context._values);
             }
 
             protected static ITriggerPlanExecutable[] Children(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                return context.ConvertExecutionNodes(dto.Children, databaseDto);
+                return context.ConvertExecutionNodes(dto.Children);
             }
 
             protected static ITriggerPlanExecutable Branch(ITriggerPlanExecutable[] children)
@@ -230,8 +231,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
                 if (dto.Action == null)
                 {
@@ -239,7 +239,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 }
 
                 return new ActionCallTriggerPlanExecutable(
-                    context._context.ConvertAction(dto.Action),
+                    TriggerPlanJsonActionConverter.ConvertAction(dto.Action, in context._values),
                     originalActionIndex: -1,
                     condition: Condition(context, dto),
                     weight: dto.Weight);
@@ -250,10 +250,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                return new SequenceTriggerPlanExecutable(Children(context, dto, databaseDto), Condition(context, dto), dto.Weight);
+                return new SequenceTriggerPlanExecutable(Children(context, dto), Condition(context, dto), dto.Weight);
             }
         }
 
@@ -261,10 +260,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                return new SelectorTriggerPlanExecutable(Children(context, dto, databaseDto), Condition(context, dto), dto.Weight);
+                return new SelectorTriggerPlanExecutable(Children(context, dto), Condition(context, dto), dto.Weight);
             }
         }
 
@@ -272,10 +270,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                return new RandomTriggerPlanExecutable(Children(context, dto, databaseDto), Condition(context, dto), dto.Weight);
+                return new RandomTriggerPlanExecutable(Children(context, dto), Condition(context, dto), dto.Weight);
             }
         }
 
@@ -283,10 +280,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                return new ParallelTriggerPlanExecutable(Children(context, dto, databaseDto), Condition(context, dto), dto.Weight);
+                return new ParallelTriggerPlanExecutable(Children(context, dto), Condition(context, dto), dto.Weight);
             }
         }
 
@@ -294,13 +290,12 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
                 return new IfTriggerPlanExecutable(
                     Condition(context, dto),
-                    Branch(Children(context, dto, databaseDto)),
-                    Branch(context.ConvertExecutionNodes(dto.ElseChildren, databaseDto)),
+                    Branch(Children(context, dto)),
+                    Branch(context.ConvertExecutionNodes(dto.ElseChildren)),
                     guardCondition: null,
                     weight: dto.Weight);
             }
@@ -310,10 +305,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                return new RepeatTriggerPlanExecutable(Branch(Children(context, dto, databaseDto)), dto.Count, Condition(context, dto), dto.Weight);
+                return new RepeatTriggerPlanExecutable(Branch(Children(context, dto)), dto.Count, Condition(context, dto), dto.Weight);
             }
         }
 
@@ -321,12 +315,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
                 return new UntilTriggerPlanExecutable(
-                    Branch(Children(context, dto, databaseDto)),
-                    context._context.ConvertCondition(dto.UntilCondition),
+                    Branch(Children(context, dto)),
+                    TriggerPlanJsonPredicateConverter.ConvertCondition(dto.UntilCondition, in context._values),
                     dto.MaxIterations,
                     Condition(context, dto),
                     dto.Weight);
@@ -337,14 +330,13 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                var target = context._context.ConvertExecutionBlackboardTarget(dto.ItemTarget, "itemTarget");
+                var target = context._values.ConvertBlackboardTarget(dto.ItemTarget, "itemTarget");
                 return new ForEachTriggerPlanExecutable(
-                    context._context.ConvertExecutionNumericValue(dto.Collection),
+                    context._values.ConvertNumeric(dto.Collection),
                     in target,
-                    Branch(Children(context, dto, databaseDto)),
+                    Branch(Children(context, dto)),
                     dto.MaxIterations,
                     Condition(context, dto),
                     dto.Weight);
@@ -355,10 +347,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                return new InvertTriggerPlanExecutable(Branch(Children(context, dto, databaseDto)), Condition(context, dto), dto.Weight);
+                return new InvertTriggerPlanExecutable(Branch(Children(context, dto)), Condition(context, dto), dto.Weight);
             }
         }
 
@@ -366,10 +357,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                return new SucceedTriggerPlanExecutable(Branch(Children(context, dto, databaseDto)), Condition(context, dto), dto.Weight);
+                return new SucceedTriggerPlanExecutable(Branch(Children(context, dto)), Condition(context, dto), dto.Weight);
             }
         }
 
@@ -377,10 +367,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
-                return new FailTriggerPlanExecutable(Branch(Children(context, dto, databaseDto)), dto.Reason, Condition(context, dto), dto.Weight);
+                return new FailTriggerPlanExecutable(Branch(Children(context, dto)), dto.Reason, Condition(context, dto), dto.Weight);
             }
         }
 
@@ -388,12 +377,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
                 var metadataKind = ParseMetadataKind(dto);
                 return new MetadataTriggerPlanExecutable(
-                    Branch(Children(context, dto, databaseDto)),
+                    Branch(Children(context, dto)),
                     metadataKind,
                     dto.Values,
                     Condition(context, dto),
@@ -438,8 +426,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             public override ITriggerPlanExecutable Convert(
                 TriggerPlanExecutionNodeConverter context,
-                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
                 var modeText = dto.ScheduleMode;
                 if (string.IsNullOrWhiteSpace(modeText))
@@ -448,7 +435,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     throw new InvalidOperationException($"Scheduled execution node mode not supported: {modeText}");
 
                 return new ScheduledTriggerPlanExecutable(
-                    Branch(Children(context, dto, databaseDto)),
+                    Branch(Children(context, dto)),
                     mode,
                     dto.IntervalMs,
                     dto.MaxExecutions,

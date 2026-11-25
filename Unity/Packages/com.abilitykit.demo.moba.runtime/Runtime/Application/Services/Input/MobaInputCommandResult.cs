@@ -4,6 +4,17 @@ using AbilityKit.Ability.Host;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    /// <summary>
+    /// 正常权威派发的结果类别，既不是输入入队回执，也不证明世界已提交。
+    /// </summary>
+    public enum MobaFrameInputDisposition : byte
+    {
+        Unknown,
+        Executed,
+        Rejected,
+        Duplicate
+    }
+
     public enum MobaInputCommandFailureCode
     {
         None = 0,
@@ -40,6 +51,25 @@ namespace AbilityKit.Demo.Moba.Services
         public readonly int TargetActorId;
         public readonly MobaSkillCastRuntimeHandle SkillRuntimeHandle;
         internal readonly bool IsDuplicate;
+
+        internal MobaFrameInputDisposition ClassifyAuthorityDisposition()
+        {
+            if (IsDuplicate) return MobaFrameInputDisposition.Duplicate;
+            if (Succeeded) return MobaFrameInputDisposition.Executed;
+            switch (FailureCode)
+            {
+                case MobaInputCommandFailureCode.AuthorityRejected:
+                case MobaInputCommandFailureCode.FramePolicyRejected:
+                case MobaInputCommandFailureCode.PredictionIdentityRejected:
+                case MobaInputCommandFailureCode.InputSequenceRejected:
+                case MobaInputCommandFailureCode.InterruptEpochRejected:
+                case MobaInputCommandFailureCode.PayloadInvalid:
+                case MobaInputCommandFailureCode.PayloadMissing:
+                    return MobaFrameInputDisposition.Rejected;
+                default:
+                    return MobaFrameInputDisposition.Unknown;
+            }
+        }
 
         public MobaInputCommandResult(
             bool succeeded,

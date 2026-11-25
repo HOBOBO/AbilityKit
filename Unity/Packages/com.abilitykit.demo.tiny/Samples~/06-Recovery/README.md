@@ -1,7 +1,7 @@
-# 06 Recovery
+# 06 恢复
 
-`TinyRecoveryExample.Run()` intentionally exhausts frame history, observes `NeedsFullSnapshot`, restores an authoritative state, and verifies that frame prediction resumes with the same hash. It uses only the public Tiny rule and frame-sync APIs.
+`TinyRecoveryExample.Run()` 主动耗尽帧历史，观察 `NeedsFullSnapshot`，恢复权威状态，并验证帧预测恢复后哈希一致。它只使用公开的 Tiny 规则和帧同步 API。
 
-The Unity battle session also keeps a pending create command ID across a timeout and an empty room restore. A retry with the original sync mode addresses the same server room even when the first response was lost. A restored active room clears the pending create attempt; a closed room rejects replay of its old create ID.
+Unity 战斗会话还会在超时和空房间恢复后保留待处理的创建命令 ID。使用原同步模式重试，即使首次响应丢失，也会定位同一个服务器房间。恢复到活动房间后会清除待处理的创建尝试；已关闭房间会拒绝重放其旧创建 ID。
 
-From the repository root, run `dotnet run --project src/AbilityKit.Demo.Tiny.ChapterSamples` for the importable example. The independent `RecoverySample` can run `history`, `overflow`, or `mismatch` separately without a server. Run `./tools/verify-tiny-starter.ps1 -SkipUnity` for the complete chapter: `recovery-sample.log` records all three local faults and a two-client disconnect and full restore. The overflow and mismatch drivers reuse the production Room and Tiny replication sources; the disconnect driver uses the production battle session.
+从仓库根运行 `dotnet run --project src/AbilityKit.Demo.Tiny.ChapterSamples` 可执行可导入示例。独立的 `RecoverySample` 无需服务器即可分别运行 `history`、`overflow` 或 `mismatch`。运行 `./tools/verify-tiny-starter.ps1 -SkipUnity` 可验证完整章节：`recovery-sample.log` 记录三类本地故障，以及双客户端断线和完整恢复。溢出与不匹配驱动复用正式房间及 Tiny 复制源码；断线驱动使用正式战斗会话。

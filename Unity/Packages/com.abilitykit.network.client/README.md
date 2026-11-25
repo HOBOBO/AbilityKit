@@ -32,7 +32,9 @@ client.Dispose();
 - **一次性会话**：断线重连 = 新建宿主（或用 `Room.RoomClient` 自己走 staged restore）。
 - `attachBattle: true` 时 `Room.Result.Subscribed` 为 `false` 是刻意的（战斗面独占订阅）。
 - `Tick` 只认真实墙钟时间（心跳/重连计时直接累加该 delta）。
-- Dispose 不发 LeaveRoom（服务端靠断连检测回收房间）；先释放战斗面再释放房间面。
+- 一站式 `EnterAsync()` 在交付会话前检查取消；房间流程完成后取消或挂接失败时，释放已取得的连接。取消不是已经交付的会话的停止信号。
+- 分步装配时，构造成功后会话持有传入的房间连接；`AttachBattle()` 成功后由会话持有战斗连接，失败不会释放房间连接。直接调用 `CreateBattleTransport()` 时，成功返回的连接由调用方持有。
+- `Dispose()` 不发送 `LeaveRoom`；先尝试释放战斗面，再尝试释放房间面，即使第一步抛错。单个异常原样传播，两个异常通过 `AggregateException` 一并报告；同一会话不会重复尝试释放。不支持并发调用会话操作。
 
 ## 依赖
 

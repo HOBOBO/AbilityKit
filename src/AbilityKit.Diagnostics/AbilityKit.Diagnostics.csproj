@@ -10,9 +10,10 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <!-- 引用 Packages 目录下的源码 (只包含 Runtime 部分) -->
+  <!-- 复用平台无关的运行时代码，不编译 Unity 采样适配。 -->
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.diagnostics/Runtime/**/*.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.diagnostics/Runtime/**/*.cs"
+             Exclude="../../Unity/Packages/com.abilitykit.diagnostics/Runtime/Unity/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

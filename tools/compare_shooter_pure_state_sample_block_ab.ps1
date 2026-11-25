@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [string]$BaselineOwnerResultPath,
@@ -238,9 +238,9 @@ $summary = [pscustomobject]@{
 $resolvedOutput = [System.IO.Path]::GetFullPath($OutputPath)
 New-Item -ItemType Directory -Path (Split-Path -Parent $resolvedOutput) -Force | Out-Null
 $summary | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $resolvedOutput -Encoding utf8
-Write-Host "Shooter PureState sample-block A/B report: $resolvedOutput"
-Write-Host "Payload avg bytes: $($baseline.averagePayloadBytes) -> $($candidate.averagePayloadBytes) (x$payloadRatio)"
-Write-Host "Starvation/held delta: $($deltas.starvationRatio) / $($deltas.heldRatio)"
+Write-Host "Shooter PureState 采样块 A/B 报告： $resolvedOutput"
+Write-Host "载荷平均字节数： $($baseline.averagePayloadBytes) -> $($candidate.averagePayloadBytes) (x$payloadRatio)"
+Write-Host "断供与保持占比差值： $($deltas.starvationRatio) / $($deltas.heldRatio)"
 
 if ($contractFailures.Count -gt 0) {
     throw "Shooter PureState A/B contract failed: $($contractFailures.name -join ', ')."

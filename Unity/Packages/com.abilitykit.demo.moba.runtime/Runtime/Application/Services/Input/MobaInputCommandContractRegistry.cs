@@ -340,12 +340,18 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
+    /// <summary>
+    /// 通过正式 Actor 创建链在主控附近增加同阵营或对立阵营英雄，不改变玩家控制映射。
+    /// </summary>
     [MobaInputCommandHandler(MobaOpCodes.Input.DebugSpawnUnit)]
     public sealed class MobaDebugSpawnUnitInputCommandHandler : IMobaInputCommandHandler
     {
         private const float SpawnForwardOffset = 2f;
         private const float SpawnSideOffset = 1.25f;
 
+        /// <summary>
+        /// 消费单位生成输入，并将出生快照交给既有表现输出链。
+        /// </summary>
         public bool Handle(
             MobaInputCommandContext context,
             FrameIndex frame,
@@ -400,7 +406,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (!TryResolveDependencies(
                     context,
-                    out var startSpecs,
+                    out var actors,
                     out var actorSpawn,
                     out var initializer,
                     out var spawnSnapshots,
@@ -414,10 +420,8 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            if (!startSpecs.TryGet(out var startSpec) ||
-                !TryResolveTemplate(
-                    startSpec.EnterReq.Players,
-                    command.Player,
+            if (!TryResolveTemplate(
+                    actors,
                     sourceActor,
                     relation,
                     out var template,
@@ -432,7 +436,17 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var spawnPosition = ResolveSpawnPosition(sourceActor, relation);
-            var loadout = CreateUnitLoadout(in template, command.Player, teamId, in spawnPosition);
+            var heroId = template.skillLoadout.HeroId;
+            var level = template.hasChampionLevel ? template.championLevel.Value : 1;
+
+            context.Services.TryResolve<MobaConfigDatabase>(out var config);
+            if (!MobaHeroLoadoutResolver.TryResolve(config, command.Player, teamId, heroId, level,
+                    spawnIndex: 0, in spawnPosition, out var loadout, out var loadoutError))
+            {
+                result = MobaInputCommandResult.Rejected(command, MobaInputCommandFailureCode.HandlerRejected,
+                    loadoutError, sourceActorId);
+                return false;
+            }
             var spec = MobaConverter.ToActorBuildSpec(actorId: 0, in loadout);
             var request = MobaActorSpawnRequest.FromSpec(in spec);
             request.AllocateActorIdIfMissing = true;
@@ -448,8 +462,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            if (!context.Services.TryResolve<MobaActorRegistry>(out var actors) || actors == null ||
-                !spawnSnapshots.TryEnqueueActorSpawn(
+            if (!spawnSnapshots.TryEnqueueActorSpawn(
                     actors,
                     spawnResult.ActorId,
                     SpawnEntityKind.Character,
@@ -467,13 +480,13 @@ namespace AbilityKit.Demo.Moba.Services
 
         private static bool TryResolveDependencies(
             MobaInputCommandContext context,
-            out MobaGameStartSpecService startSpecs,
+            out MobaActorRegistry actors,
             out IMobaActorSpawnService actorSpawn,
             out ActorEntityInitPipeline initializer,
             out MobaActorSpawnSnapshotService spawnSnapshots,
             out string error)
         {
-            startSpecs = null;
+            actors = null;
             actorSpawn = null;
             initializer = null;
             spawnSnapshots = null;
@@ -486,9 +499,9 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            if (!services.TryResolve(out startSpecs) || startSpecs == null)
+            if (!services.TryResolve(out actors) || actors == null)
             {
-                error = "game start spec service is unavailable";
+                error = "actor registry is unavailable";
                 return false;
             }
 
@@ -514,39 +527,30 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         private static bool TryResolveTemplate(
-            MobaPlayerLoadout[] players,
-            PlayerId commandPlayer,
+            MobaActorRegistry actors,
             global::ActorEntity sourceActor,
             MobaDebugSpawnUnitRelation relation,
-            out MobaPlayerLoadout template,
+            out global::ActorEntity template,
             out int teamId)
         {
-            template = default;
+            template = sourceActor;
             teamId = sourceActor.hasTeam ? (int)sourceActor.team.Value : 0;
-            if (players == null || players.Length == 0 || teamId <= 0) return false;
-
-            var hasCommandTemplate = false;
-            for (var i = 0; i < players.Length; i++)
-            {
-                var candidate = players[i];
-                if (candidate.PlayerId.Equals(commandPlayer))
-                {
-                    template = candidate;
-                    hasCommandTemplate = true;
-                }
-
-                var candidateIsEnemy = candidate.TeamId > 0 && candidate.TeamId != teamId;
-                if (relation == MobaDebugSpawnUnitRelation.Enemy && candidateIsEnemy)
-                {
-                    template = candidate;
-                    teamId = candidate.TeamId;
-                    return true;
-                }
-            }
-
-            if (!hasCommandTemplate) return false;
+            if (teamId <= 0 || !sourceActor.hasSkillLoadout) return false;
             if (relation == MobaDebugSpawnUnitRelation.Enemy)
             {
+                /* 开局临时规格会在启动完成后清空；只从当前世界查询英雄，按稳定身份定序。 */
+                var ids = actors.CopyActorIdsInOrder();
+                for (var i = 0; i < ids.Count; i++)
+                {
+                    if (!actors.TryGet(ids[i], out var candidate) || candidate == null || !candidate.isEnabled ||
+                        candidate.hasActorDespawnRequest || !candidate.hasTeam || (int)candidate.team.Value <= 0 ||
+                        candidate.team.Value == sourceActor.team.Value || !candidate.hasUnitSubType ||
+                        candidate.unitSubType.Value != UnitSubType.Hero || !candidate.hasSkillLoadout)
+                        continue;
+                    template = candidate;
+                    teamId = (int)candidate.team.Value;
+                    return true;
+                }
                 teamId = teamId == (int)Team.Team1 ? (int)Team.Team2 : (int)Team.Team1;
             }
 
@@ -562,29 +566,6 @@ namespace AbilityKit.Demo.Moba.Services
                 ? SpawnSideOffset
                 : -SpawnSideOffset;
             return basePosition + new Vec3(side, 0f, SpawnForwardOffset);
-        }
-
-        private static MobaPlayerLoadout CreateUnitLoadout(
-            in MobaPlayerLoadout template,
-            PlayerId ownerPlayer,
-            int teamId,
-            in Vec3 spawnPosition)
-        {
-            return new MobaPlayerLoadout(
-                ownerPlayer,
-                teamId,
-                template.HeroId,
-                template.AttributeTemplateId,
-                template.Level,
-                template.BasicAttackSkillId,
-                template.SkillIds,
-                template.SpawnIndex,
-                (int)UnitSubType.Minion,
-                (int)EntityMainType.Unit,
-                hasSpawnPosition: 1,
-                spawnX: spawnPosition.X,
-                spawnY: spawnPosition.Y,
-                spawnZ: spawnPosition.Z);
         }
 
         private static void InitializeLoadoutOrThrow(

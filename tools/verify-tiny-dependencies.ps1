@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param()
 
 $ErrorActionPreference = 'Stop'
@@ -60,4 +60,4 @@ if (($turnDependencies -join ',') -ne ($expectedTurnDependencies -join ',') -or
     $dependencies -contains 'com.abilitykit.demo.tiny.turn') {
     throw 'Optional Tiny Turn package dependency boundary changed.'
 }
-Write-Host 'Tiny dependency tiers passed: Logic, Room, State, Frame/Hybrid, optional Turn and samples'
+Write-Host 'Tiny 依赖分层检查通过：逻辑、房间、状态同步、帧同步与混合同步、可选回合制及示例'

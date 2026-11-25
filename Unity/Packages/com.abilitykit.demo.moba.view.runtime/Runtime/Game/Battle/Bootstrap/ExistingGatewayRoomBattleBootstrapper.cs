@@ -126,7 +126,8 @@ namespace AbilityKit.Game.Flow
             var createWorldPayload = launchSpec.ToCreateWorldInitPayload();
             var worldOptions = new BattleStartPlanWorldOptions(
                 _worldId.ToString(CultureInfo.InvariantCulture), world.WorldType, world.ClientId,
-                _localPlayerId.ToString(CultureInfo.InvariantCulture), world.TickRate, world.InputDelayFrames);
+                _localPlayerId.ToString(CultureInfo.InvariantCulture), world.TickRate, world.InputDelayFrames,
+                world.EnableTraceDiagnostics);
             var gatewayOptions = new BattleStartPlanGatewayOptions(
                 true, _gatewayHost, _gatewayPort, _numericRoomId, _sessionToken,
                 _gatewayRegion, _gatewayServerId, false, false, _roomId,

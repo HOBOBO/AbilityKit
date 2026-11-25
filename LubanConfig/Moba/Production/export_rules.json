@@ -1,8 +1,10 @@
 {
   "rules": [
     "business.actors",
+    "business.resource_regeneration",
     "business.skills",
     "business.buffs",
+    "business.overhead",
     "business.projectiles",
     "business.summons",
     "business.presentation",

@@ -22,6 +22,7 @@ namespace AbilityKit.Game.Flow
             if (canvas == null) return false;
 
             var screen = _camera.WorldToScreenPoint(worldPos);
+            if (screen.z <= 0 || screen.x < 0 || screen.x > Screen.width || screen.y < 0 || screen.y > Screen.height) return false;
             var uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : _camera;
             return RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, screen, uiCamera, out local);
         }

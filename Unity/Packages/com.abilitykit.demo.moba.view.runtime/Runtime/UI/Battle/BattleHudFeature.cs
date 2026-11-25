@@ -218,7 +218,13 @@ namespace AbilityKit.Game.Flow
             if (_snapshotController == null || _snapshotController.IsBoundTo(_ctx)) return;
 
             _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot,
-                OnSkillStateSnapshot, OnShieldStateSnapshot, OnPresentationCueSnapshot);
+                OnSkillStateSnapshot, null, OnPresentationCueSnapshot);
+            _binder?.ResetOverheadBaseline();
+            _snapshotController.BindOverhead(_ctx,
+                (frame, data) => _binder?.OnActorIndicators(frame, data, _session.LocalActorId),
+                (frame, data) => _binder?.OnActorSpawns(frame, data),
+                (frame, data) => _binder?.OnActorDespawns(frame, data),
+                (frame, data) => _binder?.OnShieldStates(frame, data));
             RequestPresentationBaseline();
         }
 

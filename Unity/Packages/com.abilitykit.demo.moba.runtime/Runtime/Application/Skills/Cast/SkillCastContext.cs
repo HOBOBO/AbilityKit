@@ -23,6 +23,10 @@ namespace AbilityKit.Demo.Moba.Services
         public long RuntimeId;
         public long SourceContextId;
         public long DiagnosticCommandId;
+        /// <summary>
+        /// Prepare 时解析到的激活来源身份；提交前验证仍为同一原 Cast。
+        /// </summary>
+        public long LevelSourceRootContextId;
 
         public string FailReason;
 
@@ -112,6 +116,7 @@ namespace AbilityKit.Demo.Moba.Services
             RuntimeId = 0L;
             SourceContextId = 0L;
             DiagnosticCommandId = 0L;
+            LevelSourceRootContextId = 0L;
             FailReason = null;
             CasterActorId = casterActorId;
             TargetActorId = targetActorId;
@@ -125,6 +130,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Reset()
         {
+            LevelSourceRootContextId = 0L;
             SkillId = 0;
             SkillSlot = 0;
             SkillLevel = 0;

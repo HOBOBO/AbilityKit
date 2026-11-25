@@ -1,33 +1,25 @@
-# MOBA Trigger Authoring Test IDs
+# MOBA 触发器编辑测试 ID
 
-The JSON fixtures in this directory are callable Trigger Plans, so their `id`
-field is a trigger ID rather than a row in the Skill config table.
+本目录中的 JSON 夹具是可调用的触发计划，因此 `id` 字段是触发器 ID，而非技能配置表行号。
 
-MOBA trigger authoring fixtures reserve `99,100,000-99,199,999`. These IDs are
-test-only and must never be exported into the formal MOBA runtime database.
-Future tests that require real Skill config rows reserve
-`99,200,000-99,299,999`; that range is intentionally unused by this batch.
+MOBA 触发器编辑夹具预留 `99,100,000-99,199,999`。这些 ID 仅用于测试，禁止导出到正式 MOBA 运行时数据库。
+后续需要真实技能配置行的测试预留 `99,200,000-99,299,999`；本批次有意不使用该范围。
 
-These fixtures are Trigger Authoring integration smoke tests. They verify that
-source JSON exports and delegates to the existing MOBA runtime; they do not
-replace the behavioral acceptance tests owned by Buff, projectile, movement,
-targeting, shield, resource, or Area systems. Add another fixture only when it
-proves an authoring/export/composition contract that those system tests cannot.
+这些夹具是触发器编辑集成冒烟测试，验证源 JSON 导出并委托给现有 MOBA 运行时的路径，
+不替代 Buff、投射物、移动、目标选择、护盾、资源或区域系统的行为验收测试。
+仅当新夹具能证明这些系统测试无法覆盖的编辑、导出或装配契约时才添加。
 
-| Range | Purpose |
+| 范围 | 用途 |
 | --- | --- |
-| `99,100,000-99,109,999` | Authoring infrastructure and control flow |
-| `99,110,000-99,119,999` | Target search and combat effects |
-| `99,120,000-99,129,999` | Buffs and status interactions |
-| `99,130,000-99,139,999` | Projectiles |
-| `99,140,000-99,149,999` | Movement and displacement |
-| `99,190,000-99,199,999` | Cross-system composite scenarios |
+| `99,100,000-99,109,999` | 编辑基础设施与控制流 |
+| `99,110,000-99,119,999` | 目标搜索与战斗效果 |
+| `99,120,000-99,129,999` | Buff 与状态交互 |
+| `99,130,000-99,139,999` | 投射物 |
+| `99,140,000-99,149,999` | 移动与位移 |
+| `99,190,000-99,199,999` | 跨系统组合场景 |
 
-Current composite fixtures use `99,190,001` for shield plus resource gain,
-`99,190,002` for bounded group pull, `99,190,003` for an Area Runtime-owned
-persistent area, and `99,190,004` for owner-bound overheal-to-shield event
-composition. Cast phases and charge state remain responsibilities of the skill
-pipeline rather than Trigger Plan nodes.
+当前组合夹具中，`99,190,001` 用于护盾与资源获取，`99,190,002` 用于有界群体牵引，
+`99,190,003` 用于区域运行时管理的持续区域，`99,190,004` 用于绑定所有者的溢出治疗转护盾事件组合。
+施法阶段和充能状态仍由技能管线负责，不由触发计划节点承担。
 
-The matching constants and range assertions live in
-`Tests/TriggerAuthoring/MobaTriggerAuthoringTestIds.cs`.
+对应常量和范围断言位于 `Tests/TriggerAuthoring/MobaTriggerAuthoringTestIds.cs`。

@@ -47,8 +47,30 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (!TryGetState(actor, type, out var current) || !ReferenceEquals(current, state))
                 throw new System.InvalidOperationException("Resource mutations cannot directly write health or a detached resource.");
+            var before = state.Current;
             state.Current = DeterministicMath.Max(Fixed64.Zero, value);
-            MobaResourceAttributeContextProjector.Refresh(actor);
+            try { MobaResourceAttributeContextProjector.Refresh(actor); }
+            catch { state.Current = before; throw; }
+        }
+
+        /// <summary>
+        /// 固定量回复只补充不足部分；动态上限失效时不得回退旧 LastMax。
+        /// </summary>
+        public static void Regenerate(global::ActorEntity actor, ResourceType type, ResourceState state, Fixed64 amount)
+        {
+            if (amount <= Fixed64.Zero || !TryGetState(actor, type, out var current) || !ReferenceEquals(current, state)) return;
+            var max = state.LastMax;
+            if (state.MaxAttribute.IsValid)
+            {
+                if (!actor.hasAttributeGroup || actor.attributeGroup.Group == null) return;
+                var value = actor.attributeGroup.Group.GetValue(state.MaxAttribute);
+                if (float.IsNaN(value) || float.IsInfinity(value))
+                    throw new System.InvalidOperationException("Resource maximum must be finite.");
+                max = MobaResourceFixedConvert.ToFixed(value);
+            }
+            if (max <= Fixed64.Zero || state.Current >= max) return;
+            var missing = max - state.Current;
+            Set(actor, type, state, state.Current + DeterministicMath.Min(amount, missing));
         }
     }
 }

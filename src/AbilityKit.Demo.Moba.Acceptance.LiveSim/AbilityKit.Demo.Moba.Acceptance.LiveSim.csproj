@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="AbilityKit.Demo.Moba.BattleScenario.Runner" />
+    <InternalsVisibleTo Include="AbilityKit.Demo.Moba.Tests" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Console\AbilityKit.Demo.Moba.Console.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Trace.Adapter\AbilityKit.Demo.Moba.Trace.Adapter.csproj" />
@@ -29,6 +30,10 @@
     <ProjectReference Include="..\AbilityKit.Demo.Moba.View.Runtime\AbilityKit.Demo.Moba.View.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
     <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Infrastructure/MobaAcceptanceTraceCapture.cs" Link="Linked/MobaAcceptanceTraceCapture.cs" />
   </ItemGroup>
 
 </Project>

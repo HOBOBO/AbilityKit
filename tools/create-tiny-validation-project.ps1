@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$OutputPath = '',
     [switch]$Standalone,
@@ -174,6 +174,6 @@ $turnScene
 [System.IO.File]::WriteAllText((Join-Path $projectSettings 'EditorBuildSettings.asset'),
     $buildSettings, $utf8)
 
-Write-Host "Tiny validation project: $projectRoot"
+Write-Host "Tiny 验证项目：$projectRoot"
 Write-Host "Mode: $(if ($Standalone) { 'standalone consumer' } else { 'Starter' })"
-Write-Host "Local packages: $(@($dependencies.Keys | Where-Object { $available.ContainsKey($_) }).Count)"
+Write-Host "本地包： $(@($dependencies.Keys | Where-Object { $available.ContainsKey($_) }).Count)"

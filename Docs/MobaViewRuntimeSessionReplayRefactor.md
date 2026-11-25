@@ -1,69 +1,69 @@
-# MOBA View Runtime Session and Replay Refactor
+# MOBA 表现运行时会话与回放重构
 
-## Scope
+## 范围
 
-This document records the completed P0-P3 refactor of MOBA view-runtime session lifecycle, replication timeline authority, deterministic checkpoints, and isolated replay ownership. The implementation preserves the live session contract while separating lifecycle resources, connection timelines, checkpoint state, and replay-owned runtime state.
+本文记录已完成的 P0–P3 重构，涵盖 MOBA 表现运行时会话生命周期、复制时间轴权威、确定性检查点及隔离回放所有权。实现保留在线会话契约，并分离生命周期资源、连接时间轴、检查点状态和回放自有运行时状态。
 
-## P0: Session Ownership and Lifecycle
+## P0：会话所有权与生命周期
 
-`BattleSessionFeature` owns an injected `IBattleLogicSessionRegistry`; the legacy static session host is no longer the production feature's active session owner. `BattleSessionState` exposes created, starting, running, stopping, stopped, and faulted states and increments its lifecycle `Generation` for each start attempt.
+`BattleSessionFeature` 拥有注入的 `IBattleLogicSessionRegistry`，旧静态会话宿主不再是生产功能的活动会话所有者。`BattleSessionState` 公开创建、启动中、运行、停止中、已停止和故障状态，每次启动尝试递增生命周期 `Generation`。
 
-`SessionOrchestrator` starts transactionally and cleans up in reverse ownership order. Its cleanup bitmask records each successful step, continues after individual cleanup failures, and retries only unfinished steps on a later stop. Stop is idempotent, a failed start converges through cleanup, and a fully cleaned faulted session can start again. Session handles are reset only after their owning cleanup action succeeds, so retryable resources are not lost before disposal.
+`SessionOrchestrator` 以事务方式启动，按所有权逆序清理。清理位掩码记录各成功步骤，单步失败后继续清理，后续停止仅重试未完成步骤。停止幂等，启动失败通过清理收敛，完全清理后的故障会话可再次启动。所属清理成功后才重置会话句柄，防止释放前丢失可重试资源。
 
-`DefaultBattleLogicSessionRegistry` owns its `DefaultBattleDebugFacade`. It clears the global facade only when the published reference belongs to that registry and supports `publishDebugFacade: false` for isolated background and replay sessions.
+`DefaultBattleLogicSessionRegistry` 拥有自己的 `DefaultBattleDebugFacade`，仅在全局发布引用属于自身时清除，并支持 `publishDebugFacade: false`，用于隔离后台及回放会话。
 
-## P1: Replication Timeline and Diagnostics
+## P1：复制时间轴与诊断
 
-`MobaClientReplicationPipeline` owns common synchronization observations: submitted input, monotonic acknowledgements, remote samples, ticks, and diagnostics. Gateway authoritative interpolation uses the pipeline. `ResetDiagnostics` clears pipeline-owned observations without implicitly resetting a concrete synchronization strategy.
+`MobaClientReplicationPipeline` 负责共享同步观测：已提交输入、单调确认、远端采样、步进及诊断。Gateway 权威插值使用此管线。`ResetDiagnostics` 仅清除管线拥有的观测，不隐式重置具体同步策略。
 
-Reliable-event timeline authority is represented by the cursor epoch and cursor instance identity. An event batch from a different epoch is rejected until an authoritative snapshot adopts that epoch and watermark. Retention gaps request a full resynchronization; after baseline adoption, replay continues from the authoritative watermark. Asynchronous acknowledgements are accepted only when both the cursor instance and epoch still match, and confirmed sequence numbers never move backward.
+可靠事件时间轴权威由游标纪元和游标实例身份表示。在权威快照接纳新纪元及水位前，拒绝其他纪元的事件批次。保留缺口请求完整重同步；接纳基线后，从权威水位继续重放。异步确认仅在游标实例和纪元仍匹配时接受，确认序号绝不倒退。
 
-This transport epoch is intentionally separate from `BattleSessionState.Generation`: the epoch identifies server reliable-event history, while the generation identifies a local session lifecycle attempt. Reconnection resets pipeline-owned diagnostics and uses authoritative baseline adoption instead of treating a local lifecycle generation as a network timeline identifier. Synchronization health uses sustained-pressure thresholds, immediate critical escalation, recovery hysteresis, reset defaults, and counter-reset protection.
+传输纪元与 `BattleSessionState.Generation` 分开：前者标识服务器可靠事件历史，后者标识本地会话生命周期尝试。重连重置管线诊断并接纳权威基线，不以本地生命周期代际充当网络时间轴标识。同步健康采用持续压力阈值、严重问题立即升级、恢复滞回、重置默认值及计数器重置保护。
 
-## P2: Deterministic Checkpoints
+## P2：确定性检查点
 
-The deterministic checkpoint coordinator captures a header containing world identity, world type, tick rate, frame, provider entries, and a stable state hash. Provider entries are ordered by provider key before hashing, making equivalent captures independent of registration order.
+确定性检查点协调器捕获世界身份、世界类型、步进频率、帧号、Provider 条目及稳定状态哈希。计算哈希前按 Provider 键排序，使等价捕获不依赖注册顺序。
 
-Restore validates checkpoint identity before importing provider state. Import is transactional: if any provider fails, every touched provider is restored to its pre-import state. A successful restore reproduces the captured provider hash.
+恢复在导入 Provider 状态前验证检查点身份。导入具有事务性：任一 Provider 失败时，全部已触及 Provider 恢复到导入前状态。成功恢复后应重现捕获的 Provider 哈希。
 
-`FrameRecordChunkIndex` remains a seek anchor index rather than a restorable world checkpoint. `BattleReplaySessionOwner` now consumes an explicit optional replay-runtime checkpoint capability: it captures runtime-owned opaque tokens at frame 0 and every 30 frames, restores the nearest checkpoint not newer than a backward-seek target, and replays only the remaining recorded input. Tokens have explicit release ownership. The owner retains at most 64 checkpoints, preserves the frame-0 baseline while evicting old non-baseline tokens, invalidates and releases future-branch tokens after a backward restore, and releases every retained token before disposing the runtime. Cleanup attempts all releases and runtime disposal in deterministic order; one failure is propagated unchanged and multiple failures are aggregated. Runtime disposal remains the final reclamation boundary for tokens whose explicit release failed.
+`FrameRecordChunkIndex` 仍仅是定位锚点索引，不是可恢复世界检查点。`BattleReplaySessionOwner` 消费显式可选的回放运行时检查点能力：在第 0 帧及之后每 30 帧捕获运行时拥有的不透明令牌，向后定位时恢复不晚于目标的最近检查点，仅重演剩余记录输入。令牌有明确释放所有权。最多保留 64 个检查点，淘汰旧非基线令牌时保留第 0 帧基线；向后恢复后作废并释放未来分支令牌；释放运行时前释放全部保留令牌。清理按确定顺序尝试所有令牌释放和运行时释放；单个失败原样传播，多个失败聚合。显式释放失败的令牌，最终由运行时释放负责回收。
 
-The default production replay runtime does not declare checkpoint capability because its complete deterministic recovery-provider registry has not yet been established. It retains the isolated-runtime restart and replay fallback rather than exposing a partial checkpoint implementation as deterministic recovery.
+默认生产回放运行时未声明检查点能力，因为完整确定性恢复 Provider 注册表尚未建立。它保留隔离运行时重启及重演回退，不将局部检查点实现暴露为确定性恢复。
 
-## P3: Replay Ownership
+## P3：回放所有权
 
-`BattleReplayManifest` validates replay schema, world identity, world type, effective tick rate, frame range, and sorted seek anchors before startup.
+`BattleReplayManifest` 在启动前验证回放结构版本、世界身份及类型、有效步进频率、帧范围和已排序定位锚点。
 
-`BattleReplaySessionOwner` receives testable runtime/session creation boundaries and owns a separate local `BattleLogicSession`, replay driver, fixed-step accumulator, and `IBattleLogicSessionRegistry`. Startup failure rolls back partially created resources. Backward seek uses the nearest runtime checkpoint when the optional capability is available and otherwise recreates only the owner runtime before replaying to the target. Checkpoint capture, restore, release, pump, or runtime-disposal failure follows the stop convergence path and is exposed through the owner's most recent terminal-failure diagnostic. A successfully established replacement session clears that diagnostic.
+`BattleReplaySessionOwner` 接收可测试的运行时及会话创建边界，独立拥有本地 `BattleLogicSession`、回放驱动器、固定步长累加器和 `IBattleLogicSessionRegistry`。启动失败回退部分创建的资源。向后定位在可选能力可用时使用最近运行时检查点，否则仅重建自有运行时再重演到目标。检查点捕获、恢复、释放、推进或运行时释放失败均进入停止收敛路径，并通过最近终态失败诊断公开；成功建立替代会话后清除诊断。
 
-Continuous playback is budgeted to at most eight simulation frames per Unity tick and buffers at most 30 frames of playback debt, preventing a large render delta from causing an unbounded main-thread loop. NaN and infinity deltas contribute no time, and non-finite playback speeds normalize to 1x. Synchronous explicit seek remains an immediate operation and should not be used as an unbounded per-frame workload by presentation code.
+连续播放每次 Unity 步进最多推进八个模拟帧，最多积压 30 帧播放时间，防止较大渲染增量造成主线程无界循环。NaN 和无穷增量不累计时间，非有限播放速度归一为 1 倍。同步显式定位仍立即执行，表现代码不应将其作为每帧无界工作。
 
-`FrameReplayDriver` snapshots the input list during construction, removes null entries, orders records by frame, and preserves source order among records from the same frame. Binary seek therefore operates on a stable ordered data set, and later mutation of the deserialized source list cannot alter an active replay.
+`FrameReplayDriver` 在构造时复制输入列表，移除 null 条目，按帧排序，并保留同帧记录的源顺序。二分定位基于稳定有序数据；后续修改反序列化源列表不会改变活动回放。
 
-The owner uses a non-publishing registry, so replay startup and shutdown cannot replace or clear the live battle debug facade. Loading replay through `BattleSessionFeature` does not mutate the live start plan, handles, registry, world resources, or shared `BattleContext`. A `Replay` start plan starts the isolated owner directly and does not start the live pipeline.
+所有者使用不发布全局调试入口的注册表，回放启停不会替换或清除在线战斗调试外观。通过 `BattleSessionFeature` 加载回放不改变在线启动计划、句柄、注册表、世界资源或共享 `BattleContext`。`Replay` 启动计划直接启动隔离所有者，不启动在线管线。
 
-`BattleSessionRuntime` now stably owns one `BattleReplayRuntime`. That runtime composes `BattleReplaySessionOwner` for isolated replay algorithms and separately owns the live `IFrameRecordWriter`. `BattleContext.InputRecordWriter` is only a non-owning hot-path mirror. Writer publication is commit-on-success: replacement first disposes the current writer, reclaims an unpublished candidate if that cleanup fails, and aggregates current/candidate cleanup failures in ownership order. References and Context mirrors are cleared only after successful disposal and only when reference identity still matches, preserving stale-generation isolation and orchestrator retry.
+`BattleSessionRuntime` 稳定拥有一个 `BattleReplayRuntime`。后者组合 `BattleReplaySessionOwner` 承担隔离回放算法，并独立拥有在线 `IFrameRecordWriter`。`BattleContext.InputRecordWriter` 仅为不持有所有权的热路径镜像。记录器按成功后提交：替换先释放当前记录器，失败时回收未发布候选，按所有权顺序聚合当前及候选清理失败。只有释放成功且引用身份仍匹配时，才清除引用及 Context 镜像，保留过时代际隔离及编排器重试能力。
 
-The live replay subfeature is record-only: it may create a `FrameRecordWriter` in `Record` mode and publish it through `BattleReplayRuntime`, but cannot assign a replay driver to live `BattleSessionHandles`. The obsolete handles replay driver has been removed; replay drivers and record writers are runtime-owner resources.
+在线回放子功能仅记录：可在 `Record` 模式创建 `FrameRecordWriter` 并通过 `BattleReplayRuntime` 发布，不能向在线 `BattleSessionHandles` 分配回放驱动器。旧句柄回放驱动器已移除；驱动器及记录器归运行时所有者管理。
 
-## Teardown Failure Contract
+## 拆卸失败契约
 
-Concrete session teardown runs independent cleanup steps best-effort and preserves execution-order failure aggregation. Confirmed-view feature and context handles use commit-on-success ownership clearing: detach, entity-tree cleanup, lookup clearing, and pool return must complete before the owning handle is cleared. A failed context cleanup does not return the context to the pool while it is still owner-reachable. Session-owned input, snapshot, and view-event runtime handles propagate disposal failures and clear their references only after successful disposal, allowing the orchestrator to retry unfinished cleanup work.
+具体会话拆卸对独立步骤尽力清理，按执行顺序聚合失败。已确认视图功能及上下文句柄仅在卸载、实体树清理、查找清除和归池全部成功后清除所有权。上下文仍可由所有者访问时，清理失败不得归池。会话自有输入、快照及表现事件运行时句柄传播释放失败，仅在成功后清除引用，使编排器能重试未完成工作。
 
-## Presentation Boundary
+## 表现边界
 
-The current replay owner is logic-only. `TryLoad(path, renderPresentation: true, ...)` is rejected because the view runtime still has one shared `BattleContext` and presentation resource set. Isolated replay rendering requires a separate context/presentation factory and explicit output routing; it must not stop the live session or rebind the live context.
+当前回放所有者仅处理逻辑。`TryLoad(path, renderPresentation: true, ...)` 被拒绝，因为表现运行时仍仅有一套共享 `BattleContext` 及表现资源。隔离回放渲染需要独立上下文及表现工厂和明确输出路由，不得停止在线会话或重新绑定在线上下文。
 
-## Verification
+## 验证
 
-The runtime and runtime-test .NET projects previously built successfully with single-node MSBuild. Single-node execution is required in this workspace because a parallel build previously lost an MSBuild child node with `MSB4166`; that earlier source compilation reported no errors.
+运行时及运行时测试 .NET 项目此前以单节点 MSBuild 成功构建。本工作区要求单节点执行，因为此前并行构建曾以 `MSB4166` 丢失 MSBuild 子节点；当时源码编译未报告错误。
 
-Focused .NET verification passed 13 of 13 P1 tests covering replication diagnostics/reset, reliable-event epoch behavior, retention gaps, monotonic acknowledgements, health hysteresis/reset, and replay manifest contracts. The deterministic checkpoint suite passed 4 of 4 P2 tests covering ordered capture/stable hash, equivalent restore, transactional rollback, and world-identity rejection.
+.NET 定向验证中，13/13 项 P1 测试通过，覆盖复制诊断及重置、可靠事件纪元、保留缺口、单调确认、健康滞回及重置、回放清单契约。确定性检查点套件 4/4 项 P2 测试通过，覆盖有序捕获与稳定哈希、等价恢复、事务回退和世界身份拒绝。
 
-The earlier focused XML evidence records 10 of 10 P0 lifecycle tests and 5 of 5 P3 owner tests. Those results predate the optional replay-checkpoint and concrete world-disposal tests described below and are retained only as historical context.
+较早定向 XML 证据记录 P0 生命周期 10/10 和 P3 所有者 5/5 通过。这些结果早于下述可选回放检查点及具体世界释放测试，仅保留为历史背景。
 
-The remaining-logic change adds owner contract tests for checkpoint selection, residual replay, bounded retention, branch invalidation, explicit release ordering, capture/pump/release/dispose failures, cleanup aggregation, playback budgets, non-finite timing, and diagnostic recovery. Driver tests cover non-finite speed, unordered/null source data, source-list mutation isolation, and stable same-frame command order. The formalized runtime tests additionally cover writer replacement, stale Context mirrors, idempotent disposal, retry after failed cleanup, ordered dual-failure aggregation, and isolation between two runtime instances. Orchestrator coverage records the writer as the first cleanup step and verifies that a failed writer cleanup retries without repeating completed teardown. Concrete teardown tests prove best-effort execution, unchanged single-failure propagation, and deterministic multi-failure aggregation. End-to-end injection through sealed gateway/world implementations remains outside this test boundary.
+剩余逻辑改动补充所有者契约测试：检查点选择、剩余重演、有界保留、分支作废、显式释放顺序、捕获及推进及释放失败、清理聚合、播放预算、非有限时间和诊断恢复。驱动器测试覆盖非有限速度、无序及 null 源数据、源列表修改隔离、稳定同帧命令顺序。正式运行时测试另覆盖记录器替换、过期 Context 镜像、幂等释放、失败清理重试、有序双失败聚合及两运行时隔离。编排器覆盖记录器为首清理步骤，验证失败后重试且不重复已完成拆卸。具体拆卸测试证明尽力执行、单失败原样传播及确定的多失败聚合。通过密封网关或世界实现进行端到端注入仍不在测试边界内。
 
-After the Replay runtime formalization, `AbilityKit.Game.Battle.Runtime.csproj` builds with 34 warnings and zero errors, and `AbilityKit.Game.UnitTests.csproj` builds with 137 warnings and zero errors. The warnings are existing Unity assembly-conflict and unused/nullability diagnostics. Static ownership searches report no obsolete handles replay runtime or driver references, and `git diff --check` reports no whitespace errors. The newly added NUnit cases have been compiled but have not been executed by Unity Test Runner in this batch.
+回放运行时正式化后，`AbilityKit.Game.Battle.Runtime.csproj` 构建为 34 个警告、零错误，`AbilityKit.Game.UnitTests.csproj` 为 137 个警告、零错误。警告为既有 Unity 程序集冲突、未使用及可空性诊断。静态所有权搜索未发现旧句柄回放运行时或驱动器引用，`git diff --check` 无空白错误。本批新增 NUnit 用例已编译，但未通过 Unity Test Runner 执行。
 
-The current exclusive Unity 2022.3.62f1 EditMode gate produced `Unity/artifacts/moba-session-replay-p0-p3-integration-results.xml`, a non-empty 17,543-byte NUnit result. Its root result is `Passed`, with 20 total tests, 20 passed, zero failed, and zero skipped. The gate covers `SessionOrchestratorLifecycleTests`, `BattleReplaySessionOwnerTests`, `FrameReplayDriverTests`, and `BattleLogicSessionRegistryIsolationTests`, including the newly added checkpoint, deterministic-input, diagnostic-recovery, and teardown failure-contract cases. The repository Unity batch process exited after writing the result; the only subsequently observed Unity editor process belonged to a different project and was not modified by this verification.
+当时独占的 Unity 2022.3.62f1 EditMode 门禁生成 `Unity/artifacts/moba-session-replay-p0-p3-integration-results.xml`，为非空、17,543 字节的 NUnit 结果。根结果 `Passed`，20 项全部通过，失败和跳过均为零。覆盖 `SessionOrchestratorLifecycleTests`、`BattleReplaySessionOwnerTests`、`FrameReplayDriverTests` 和 `BattleLogicSessionRegistryIsolationTests`，包括新增检查点、确定性输入、诊断恢复及拆卸失败契约。仓库 Unity 批处理写出结果后退出；随后观察到的唯一 Unity 编辑器属于其他项目，本次验证未修改它。

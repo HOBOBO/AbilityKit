@@ -120,12 +120,15 @@ namespace AbilityKit.Trace
 
     /// <summary>
     /// 溯源元数据存储接口（泛型）
-    /// 负责按 rootId 存取 TraceMetadata 实例
-    /// 业务层可注入自己的实现（如接入数据库、对象池等）
+    /// 按节点 ContextId 存取 Trace 元数据，调用方可以注入自己的存储实现。
     /// </summary>
     public interface ITraceMetadataStore<T>
         where T : TraceMetadata
     {
+        /// <summary>
+        /// 写入指定节点的元数据。创建节点时该方法先于树结构提交执行；
+        /// 实现若抛出异常，须保持该 ID 原有映射不变，且不得重入注册表写操作。
+        /// </summary>
         void SetMetadata(long rootId, T metadata);
         bool TryGetMetadata(long rootId, out T metadata);
         void Clear(long rootId);

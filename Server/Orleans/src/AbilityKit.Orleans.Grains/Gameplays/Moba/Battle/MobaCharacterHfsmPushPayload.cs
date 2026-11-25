@@ -14,7 +14,9 @@ internal static class MobaCharacterHfsmPushPayload
         ArgumentNullException.ThrowIfNull(push);
         ArgumentNullException.ThrowIfNull(registry);
 
-        // A live machine must never be published as a snapshot of another frame.
+        /*
+         * 绝不能将活动状态机发布为另一帧的快照。
+         */
         foreach (var id in registry.CopyActorIdsInOrder())
             if (registry.TryGet(id, out var actor) && actor.hasCharacterHfsm &&
                 actor.characterHfsm.Runtime.Frame != frame) return push;

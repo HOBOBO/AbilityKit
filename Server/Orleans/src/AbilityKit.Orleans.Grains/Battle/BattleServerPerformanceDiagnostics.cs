@@ -51,9 +51,7 @@ internal readonly record struct BattleServerPerformanceSnapshot(
 }
 
 /// <summary>
-/// Fixed-memory timing window for the authoritative battle clock. Histograms are
-/// deliberately coarse: their purpose is to identify the stage responsible for
-/// a frame-time order-of-magnitude change without allocating per tick.
+/// 权威战斗时钟的固定内存计时窗口。直方图有意采用粗粒度，在每步不分配内存的前提下，定位导致帧耗时数量级变化的阶段。
 /// </summary>
 internal sealed class BattleServerPerformanceDiagnostics
 {
@@ -296,7 +294,9 @@ internal sealed class BattleServerPerformanceDiagnostics
 
     private sealed class BattleTimingHistogram
     {
-        // Millisecond upper bounds. The final bucket represents values above 2 s.
+        /*
+         * 以毫秒表示的桶上界。最后一个桶表示超过 2 秒的值。
+         */
         private static readonly double[] UpperBounds =
         {
             0.05d, 0.1d, 0.25d, 0.5d, 1d, 2d, 4d, 8d,

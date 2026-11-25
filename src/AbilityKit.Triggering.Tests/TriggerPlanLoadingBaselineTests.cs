@@ -1,4 +1,5 @@
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using Xunit;
 
@@ -6,6 +7,53 @@ namespace AbilityKit.Triggering.Tests;
 
 public sealed class TriggerPlanLoadingBaselineTests
 {
+    [Fact]
+    public void Template_bindings_are_local_to_each_record_and_shared_by_flat_and_tree_conversion()
+    {
+        var database = new TriggerPlanJsonDatabase();
+        database.LoadFromJson("""
+            { "FormatVersion": 1, "Triggers": [
+                { "TriggerId": 101, "Template": { "Bindings": {
+                    "alias": { "Kind": "TemplateParam", "Key": "AMOUNT" },
+                    "amount": { "Kind": "Const", "ConstValue": 17 } } },
+                  "Actions": [{ "ActionId": 1, "Arity": 1, "Arg0": { "Kind": "TemplateParam", "Key": "Alias" } }],
+                  "Predicate": { "Kind": "expr", "Nodes": [{ "Kind": "Function", "FunctionId": 7,
+                    "FunctionArity": 1, "Left": { "Kind": "TemplateParam", "Key": "amount" } }] },
+                  "ExecutionRoot": { "Kind": "Action", "Action": { "ActionId": 2, "Arity": 1,
+                    "Arg0": { "Kind": "TemplateParam", "Key": "alias" } } } },
+                { "TriggerId": 102, "Template": { "Bindings": {
+                    "amount": { "Kind": "Const", "ConstValue": 39 } } },
+                  "Actions": [{ "ActionId": 3, "Args": {
+                    "size": { "Kind": "TemplateParam", "Key": "amount" } } }] }
+            ] }
+            """);
+
+        var first = database.Records[0];
+        Assert.Equal(17d, Assert.Single(first.Plan.Actions).Arg0.ConstValue);
+        Assert.Equal(17d, Assert.Single(first.Plan.PredicateExpr.Nodes).Left.ConstValue);
+        Assert.Equal(17d, Assert.IsType<ActionCallTriggerPlanExecutable>(first.ExecutionRoot).Action.Arg0.ConstValue);
+        Assert.Equal(39d, Assert.Single(database.Records[1].Plan.Actions).Args["size"].Ref.ConstValue);
+    }
+
+    [Theory]
+    [InlineData("missing", "Template parameter is not bound: missing")]
+    [InlineData("LOOP", "Cyclic template parameter binding detected")]
+    public void Invalid_template_values_preserve_existing_database(string key, string expectedError)
+    {
+        var database = new TriggerPlanJsonDatabase();
+        database.LoadFromJson(Plan(7));
+        var previousRecords = database.Records;
+        var error = Assert.Throws<InvalidOperationException>(() => database.LoadFromJson($$"""
+            { "FormatVersion": 1, "Triggers": [{ "TriggerId": 101,
+                "Template": { "Bindings": { "loop": { "Kind": "TemplateParam", "Key": "loop" } } },
+                "ExecutionRoot": { "Kind": "Action", "Action": { "ActionId": 2, "Arity": 1,
+                    "Arg0": { "Kind": "TemplateParam", "Key": "{{key}}" } } } }] }
+            """));
+
+        Assert.Contains(expectedError, error.Message);
+        Assert.Same(previousRecords, database.Records);
+    }
+
     [Fact]
     public void Aggregate_compiler_is_owned_by_authoring_without_runtime_dependency()
     {

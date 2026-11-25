@@ -28,6 +28,7 @@ public readonly record struct BattleStateSyncObserverContext(
 {
     public BattleCommandAcknowledgement[]? AcknowledgedCommands { get; init; }
     public bool UsesFixedBaseline { get; init; }
+    internal StateSyncPreparedRecipient? PreparedRecipient { get; init; }
 }
 
 public interface IBattleRuntimeSession : IDisposable
@@ -54,10 +55,7 @@ public interface IBattleRuntimeSession : IDisposable
 }
 
 /// <summary>
-/// Optional fast path for the per-tick response hash. Full world diagnostics are
-/// intentionally kept behind GetWorldDiagnostics because they materialize a
-/// complete inspection model and are not suitable for the authoritative tick
-/// hot path.
+/// 每步响应哈希的可选快速路径。完整世界诊断会构造完整检查模型，不适合权威步进热路径，因此仅通过 GetWorldDiagnostics 获取。
 /// </summary>
 public interface IBattleRuntimeStateHashProvider
 {
@@ -79,6 +77,14 @@ public interface IBattleRuntimeExternalFrameClock
     bool HasInitialFrameCheckpoint => false;
 
     bool TryPrepareExternalFrame(int frame, float fixedDeltaTime);
+}
+
+/// <summary>
+/// 仅状态同步定时宿主在派发输入前调用；不接受结算帧或客户端 Tick。
+/// </summary>
+internal interface IBattleRuntimeStateSyncClock
+{
+    bool TryBeginStateSyncTick(int tick, int tickRate);
 }
 
 /// <summary>可选：阶段耗时诊断，供服务端性能观测消费。</summary>

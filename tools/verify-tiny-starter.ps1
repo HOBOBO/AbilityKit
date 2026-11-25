@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [switch]$SkipUnity,
     [switch]$FocusTurnRecord,
@@ -584,7 +584,7 @@ try {
 
         if ($FocusChapter -eq '01') {
             Write-Phase 'tcp' 'skipped'
-            Write-Host "Tiny chapter 01 passed. Evidence: $outputRoot"
+            Write-Host "Tiny 第 01 章通过。证据：$outputRoot"
             return
         }
 
@@ -761,7 +761,7 @@ try {
                 }).Count -gt 0) {
                 throw "Tiny Unity network mode evidence is incomplete: $networkEvidencePath"
             }
-            Write-Host "Tiny Unity network PlayMode passed: $($networkRun.passed)/$($networkRun.total)"
+            Write-Host "Tiny Unity 网络 PlayMode 验证通过： $($networkRun.passed)/$($networkRun.total)"
             Write-Phase 'unity-network-playmode' 'passed'
             } else {
                 Write-Phase 'unity-network-playmode' 'skipped'
@@ -951,7 +951,7 @@ if (-not $SkipUnity -and -not $FocusTurnRecord -and -not $FocusChapter) {
         [int]$run.passed -ne [int]$run.total) {
         throw "Tiny Unity EditMode tests did not all pass: $resultPath"
     }
-    Write-Host "Tiny Unity EditMode tests passed: $($run.passed)/$($run.total)"
+    Write-Host "Tiny Unity EditMode 测试通过： $($run.passed)/$($run.total)"
     Write-Phase 'unity-editmode' 'passed'
 
     Write-Phase 'unity-playmode' 'running'
@@ -972,7 +972,7 @@ if (-not $SkipUnity -and -not $FocusTurnRecord -and -not $FocusChapter) {
         [int]$playModeSummary.passed -ne [int]$playModeSummary.total) {
         throw "Tiny Unity PlayMode tests did not all pass: $playModeResults"
     }
-    Write-Host "Tiny Unity PlayMode tests passed: $($playModeSummary.passed)/$($playModeSummary.total)"
+    Write-Host "Tiny Unity PlayMode 测试通过： $($playModeSummary.passed)/$($playModeSummary.total)"
     Write-Phase 'unity-playmode' 'passed'
 
     Write-Phase 'unity-consumer-playmode' 'running'
@@ -1002,7 +1002,7 @@ if (-not $SkipUnity -and -not $FocusTurnRecord -and -not $FocusChapter) {
         [int]$consumerRun.passed -ne [int]$consumerRun.total) {
         throw "Tiny consumer Unity PlayMode tests did not all pass: $consumerResults"
     }
-    Write-Host "Tiny consumer Unity PlayMode tests passed: $($consumerRun.passed)/$($consumerRun.total)"
+    Write-Host "Tiny 消费项目 Unity PlayMode 测试通过： $($consumerRun.passed)/$($consumerRun.total)"
     Write-Phase 'unity-consumer-playmode' 'passed'
 
     Write-Phase 'unity-logic-editmode' 'running'
@@ -1028,7 +1028,7 @@ if (-not $SkipUnity -and -not $FocusTurnRecord -and -not $FocusChapter) {
         [int]$logicRun.passed -ne [int]$logicRun.total) {
         throw "Tiny Logic Unity EditMode tests did not all pass: $logicResults"
     }
-    Write-Host "Tiny Logic Unity EditMode tests passed: $($logicRun.passed)/$($logicRun.total)"
+    Write-Host "Tiny 逻辑 Unity EditMode 测试通过： $($logicRun.passed)/$($logicRun.total)"
     Write-Phase 'unity-logic-editmode' 'passed'
 } else {
     if ($SkipUnity) {
@@ -1043,5 +1043,5 @@ if (-not $SkipUnity -and -not $FocusTurnRecord -and -not $FocusChapter) {
     Write-Phase 'unity-logic-editmode' 'skipped'
 }
 
-Write-Host "Tiny starter verification passed. Evidence: $outputRoot"
+Write-Host "Tiny 入门项目验证通过。证据：$outputRoot"
 exit 0

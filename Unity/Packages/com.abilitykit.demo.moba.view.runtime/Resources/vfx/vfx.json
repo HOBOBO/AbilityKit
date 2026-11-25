@@ -202,7 +202,7 @@
   {
     "Id": 90013004,
     "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Cast",
-    "DurationMs": 1800
+    "DurationMs": 400
   },
   {
     "Id": 90013005,
@@ -758,5 +758,35 @@
     "Id": 90033017,
     "Resource": "ChampionVfx/14.Void_Annie/Void_Annie_AA_Hit",
     "DurationMs": 1000
+  },
+  {
+    "Id": 90013022,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_2",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90013023,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_3",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90013024,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q_Hit_4",
+    "DurationMs": 700
+  },
+  {
+    "Id": 90031010,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Last_Cast",
+    "DurationMs": 400
+  },
+  {
+    "Id": 90032001,
+    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_AA_Minigun_Cast",
+    "DurationMs": 400
+  },
+  {
+    "Id": 90032003,
+    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_AA_Rocket_Cast",
+    "DurationMs": 400
   }
 ]

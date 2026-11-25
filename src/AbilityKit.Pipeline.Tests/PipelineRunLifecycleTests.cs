@@ -217,6 +217,84 @@ public sealed class PipelineRunLifecycleTests
         Assert.Empty(fixture.Pipeline.ReleasedContexts);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Registry_change_keeps_existing_runs_owned_by_their_original_registry(bool discard)
+    {
+        var fixture = new RunFixture();
+        var run = fixture.Start();
+        var replacement = new RecordingRegistry(new List<string>());
+        fixture.Pipeline.Runtime.SetRegistry(replacement);
+        var next = fixture.Start();
+
+        if (discard) run.Release();
+        else run.Tick(0f);
+
+        Assert.Empty(fixture.Registry.GetActiveOwners());
+        Assert.Same(next, Assert.Single(replacement.GetActiveOwners()));
+        next.Release();
+        Assert.Empty(replacement.GetActiveOwners());
+    }
+
+    [Fact]
+    public void Startup_callback_can_select_the_registry_before_registration()
+    {
+        var fixture = new RunFixture();
+        var replacement = new RecordingRegistry(new List<string>());
+        fixture.Pipeline.Events.OnPipelineStart += _ => fixture.Pipeline.Runtime.SetRegistry(replacement);
+        var run = fixture.Start();
+        Assert.Empty(fixture.Registry.GetActiveOwners());
+        Assert.Same(run, Assert.Single(replacement.GetActiveOwners()));
+        run.Release();
+        Assert.Empty(replacement.GetActiveOwners());
+    }
+
+    [Theory]
+    [InlineData("factory")]
+    [InlineData("reset")]
+    [InlineData("start")]
+    [InlineData("trace")]
+    public void Failed_start_returns_the_phase_list_and_preserves_the_original_error(string stage)
+    {
+        var fixture = new RunFixture();
+        var failure = new InvalidOperationException(stage);
+        fixture.Pipeline.AddPhase(new StartupFailurePhase(stage, failure));
+        if (stage == "start") fixture.Pipeline.Events.OnPipelineStart += _ => throw failure;
+        if (stage == "trace") fixture.Pipeline.Runtime.SetTraceRecorder(new ThrowingTrace(failure));
+        var marker = Pooling.PipelinePools.RentRunPhaseList<TestContext>();
+        Pooling.PipelinePools.ReleaseRunPhaseList(marker);
+
+        Assert.Same(failure, Assert.Throws<InvalidOperationException>(() => fixture.Start()));
+        Assert.Empty(fixture.Registry.GetActiveOwners());
+        Assert.Empty(fixture.Pipeline.ReleasedContexts);
+        var returned = Pooling.PipelinePools.RentRunPhaseList<TestContext>();
+        try { Assert.Same(marker, returned); }
+        finally { Pooling.PipelinePools.ReleaseRunPhaseList(returned); }
+    }
+
+    private sealed class StartupFailurePhase(string stage, Exception failure)
+        : AbilityPipelinePhaseBase<TestContext>(new AbilityPipelinePhaseId("startup")),
+            IAbilityPipelinePhaseInstanceFactory<TestContext>
+    {
+        protected override void OnExecute(TestContext context) { }
+        public override void Reset()
+        {
+            if (stage == "reset") throw failure;
+            base.Reset();
+        }
+        public IAbilityPipelinePhase<TestContext> CreateRunPhase() =>
+            stage == "factory" ? throw failure : new StartupFailurePhase(stage, failure);
+    }
+
+    private sealed class ThrowingTrace(Exception failure) : IPipelineTraceRecorder
+    {
+        public bool IsEnabled => true;
+        public void Record(IPipelineLifeOwner owner, PipelineTraceData data) => throw failure;
+        public IPipelineRunTrace? GetTrace(int ownerId) => throw new NotSupportedException();
+        public IReadOnlyList<PipelineTraceEvent> GetSnapshot(int ownerId) => throw new NotSupportedException();
+    }
+
     private sealed class RunFixture
     {
         public RunFixture()

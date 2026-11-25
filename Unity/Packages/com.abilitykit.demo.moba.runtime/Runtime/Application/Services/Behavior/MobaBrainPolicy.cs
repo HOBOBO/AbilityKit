@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace AbilityKit.Demo.Moba.Services.Behavior
 {
     /// <summary>
-    /// Determines how a brain ranks cooldown-ready skills after behavior-tree filtering.
+    /// 决定大脑如何对行为树筛选后冷却就绪的技能排序。
     /// </summary>
     public enum MobaBrainSkillSelectionPolicy
     {
@@ -27,7 +27,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     }
 
     /// <summary>
-    /// Stateless, deterministic brain-level skill ranking policy.
+    /// 无状态、确定性的大脑级技能排序策略。
     /// </summary>
     public static class MobaBrainSkillSelectionPolicies
     {

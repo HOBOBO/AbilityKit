@@ -7,7 +7,7 @@ namespace AbilityKit.World.Snapshot.Tests;
 
 /// <summary>
 /// world.snapshot 包快照路由的直接契约测试（脱离 demo）。
-/// 覆盖 SnapshotRegistryCatalog 的成功 + 失败 + 边界用例。
+/// 覆盖注册目录、路由装配和订阅的生命周期。
 /// </summary>
 public sealed class SnapshotRoutingTests
 {
@@ -135,6 +135,108 @@ public sealed class SnapshotRoutingTests
         first.Dispose();
         dispatcher.Feed(envelope);
         Assert.Equal(new[] { 0, -5 }, received);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Build_failure_detaches_only_owned_subscriptions_from_external_dispatcher(bool filterRegistries)
+    {
+        const int opCode = 9;
+        using var dispatcher = new FrameSnapshotDispatcher();
+        dispatcher.Register<int>(opCode, DecodeByte);
+
+        var received = new List<string>();
+        dispatcher.SnapshotReceived += (_, _) => received.Add("external-event");
+        using var existing = dispatcher.Subscribe<int>(opCode, (_, value) => received.Add($"external-{value}"));
+        var registerError = new InvalidOperationException("registry failed after subscribing");
+        var registries = new ISnapshotRegistry[]
+        {
+            SnapshotRoutingBuilder.From("partial", (decoders, pipelineDecoders, stages, commands) =>
+            {
+                decoders.RegisterDecoder<int>(opCode, DecodeIncrementedByte);
+                pipelineDecoders.RegisterDecoder<int>(opCode, DecodeByte);
+                stages.AddPipelineStage<int>(opCode, 0, (_, _, _) => received.Add("owned-stage"));
+                commands.RegisterCmdHandler<int>(opCode, (_, _, _) => received.Add("owned-command"));
+                throw registerError;
+            })
+        };
+
+        var failure = Assert.Throws<InvalidOperationException>(() => filterRegistries
+            ? SnapshotRoutingBuilder.Build(new object(), dispatcher, registries, new HashSet<string> { "partial" })
+            : SnapshotRoutingBuilder.Build(new object(), dispatcher, registries));
+
+        Assert.Same(registerError, failure);
+        dispatcher.Feed(new TestEnvelope(new WorldStateSnapshot(opCode, new byte[] { 5 })));
+        Assert.Equal(new[] { "external-event", "external-6" }, received);
+    }
+
+    [Fact]
+    public void Build_failure_during_registry_enumeration_detaches_owned_dispatcher_callbacks()
+    {
+        const int opCode = 9;
+        var received = new List<string>();
+        var enumerationError = new InvalidOperationException("registry enumeration failed");
+        FrameSnapshotDispatcher? dispatcher = null;
+
+        IEnumerable<ISnapshotRegistry> Registries()
+        {
+            yield return SnapshotRoutingBuilder.From((decoders, pipelineDecoders, stages, commands) =>
+            {
+                dispatcher = Assert.IsType<FrameSnapshotDispatcher>(decoders);
+                decoders.RegisterDecoder<int>(opCode, DecodeByte);
+                pipelineDecoders.RegisterDecoder<int>(opCode, DecodeByte);
+                stages.AddPipelineStage<int>(opCode, 0, (_, _, _) => received.Add("owned-stage"));
+                commands.RegisterCmdHandler<int>(opCode, (_, _, _) => received.Add("owned-command"));
+            });
+            throw enumerationError;
+        }
+
+        var failure = Assert.Throws<InvalidOperationException>(() => SnapshotRoutingBuilder.Build(new object(), Registries()));
+
+        Assert.Same(enumerationError, failure);
+        Assert.NotNull(dispatcher);
+        dispatcher.Feed(new TestEnvelope(new WorldStateSnapshot(opCode, new byte[] { 5 })));
+        Assert.Empty(received);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Build_filters_identified_registries_without_reordering_or_excluding_anonymous_registries(bool useExternalDispatcher)
+    {
+        using var dispatcher = new FrameSnapshotDispatcher();
+        var registered = new List<string>();
+        var registries = new[]
+        {
+            SnapshotRoutingBuilder.From("enabled", (_, _, _, _) => registered.Add("enabled")),
+            null!,
+            SnapshotRoutingBuilder.From("disabled", (_, _, _, _) => registered.Add("disabled")),
+            SnapshotRoutingBuilder.From((_, _, _, _) => registered.Add("anonymous"))
+        };
+        var enabledIds = new HashSet<string> { "enabled" };
+
+        using var routing = useExternalDispatcher
+            ? SnapshotRoutingBuilder.Build(new object(), dispatcher, registries, enabledIds)
+            : SnapshotRoutingBuilder.Build(new object(), registries, enabledIds);
+
+        Assert.Equal(new[] { "enabled", "anonymous" }, registered);
+        if (useExternalDispatcher)
+        {
+            Assert.Same(dispatcher, routing.ExternalDispatcher);
+            Assert.Null(routing.Snapshots);
+        }
+        else
+        {
+            Assert.Null(routing.ExternalDispatcher);
+            Assert.NotNull(routing.Snapshots);
+        }
+    }
+
+    private static bool DecodeIncrementedByte(in WorldStateSnapshot snapshot, out int value)
+    {
+        value = snapshot.Payload[0] + 1;
+        return true;
     }
 
     private static bool DecodeByte(in WorldStateSnapshot snapshot, out int value)

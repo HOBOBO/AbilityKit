@@ -76,7 +76,7 @@ $firstFailureExitCode = 0
 foreach ($projectKey in $Projects) {
     $entry = $projectRegistry[$projectKey]
     if ($null -eq $entry) {
-        Write-Error ("Unknown protocol wire project '{0}'. Known projects: {1}." -f $projectKey, ($projectRegistry.Keys -join ', '))
+        Write-Error ("未知线协议项目 '{0}'。可用项目：{1}。" -f $projectKey, ($projectRegistry.Keys -join ', '))
         exit 1
     }
 
@@ -92,12 +92,12 @@ foreach ($projectKey in $Projects) {
         }
     }
     if (-not $ownsWireSchema) {
-        Write-Error ("Project '{0}' ({1}) owns no *.wire.yaml under {2}; author its wire schemas before enabling the wire export gate." -f $projectKey, $projectId, $wireInput)
+        Write-Error ("项目 '{0}'（{1}）在 {2} 下没有所属的 *.wire.yaml；启用线协议导出门禁前，请先编写结构定义。" -f $projectKey, $projectId, $wireInput)
         if ($firstFailureExitCode -eq 0) { $firstFailureExitCode = 1 }
         continue
     }
 
-    Write-Host ("=== Protocol wire export [{0}] projectId={1}" -f $projectKey, $projectId)
+    Write-Host ("=== 线协议导出 [{0}] projectId={1}" -f $projectKey, $projectId)
     $compilerArguments = @(
         'run',
         '--project', $compilerProject,

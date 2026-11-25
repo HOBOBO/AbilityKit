@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.BattleScenario;
 using AbilityKit.EnvironmentModel;
 using AbilityKit.Demo.Moba.Acceptance;
@@ -16,7 +17,6 @@ using AbilityKit.Demo.Moba.Services.EnvironmentModel;
 using AbilityKit.Game.Test.UnitTest;
 using AbilityKit.Game.Battle.Testing;
 using AbilityKit.Scenario;
-using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.BattleScenario;
 
@@ -41,6 +41,10 @@ public sealed class MobaBattleScenarioWorldRunner
         var predictionBackend = MobaBattleScenarioPredictionRunner.ResolveBackend(scenario);
         ValidateCommands(scenario.Commands);
         using var bootstrapper = Boot();
+        var services = bootstrapper.RuntimeServices!;
+        services.TryResolve<MobaTraceRegistry>(out var trace);
+        services.TryResolve<IFrameTime>(out var frameClock);
+        using var traceCapture = new MobaAcceptanceTraceCapture(trace, frameClock);
         var expectation = ToExpectation(scenario);
         var executor = new LiveSimSetupActionExecutor(bootstrapper);
         executor.AfterTick = observeTick;
@@ -82,7 +86,7 @@ public sealed class MobaBattleScenarioWorldRunner
                 predictionRun);
         }
 
-        var records = CaptureTraceRecords(bootstrapper, scenario.CaseId);
+        var records = traceCapture.Capture(scenario.CaseId, out var traceEvidence);
         var traceNodes = ToTraceNodes(records);
         var summary = $"actors={scenario.Actors.Count}, timeline={scenario.Timeline.Count}, traceNodes={records.Length}, " +
                       $"tickRate={execution.TickRate}, simulatedMs={simulatedMs:F3}";
@@ -114,10 +118,12 @@ public sealed class MobaBattleScenarioWorldRunner
         if (hasGameplayAssertions)
         {
             var observations = executor.CaptureObservations(expectation);
-            verdict = AcceptanceVerifier.VerifyWithObservations(expectation, records, observations);
+            verdict = AcceptanceVerifier.VerifyWithObservations(expectation, records, observations, traceEvidence: traceEvidence);
             passed &= verdict.result.passed;
             if (!verdict.result.passed)
             {
+                if (verdict.coverage.forbiddenTraceEvidenceInsufficient)
+                    summary += $", traceIncomplete={traceEvidence.reason ?? "capture not verified"}";
                 if (!string.IsNullOrEmpty(verdict.coverage.missingTraceNodes))
                     summary += $", missing={verdict.coverage.missingTraceNodes}";
                 if (!string.IsNullOrEmpty(verdict.coverage.missingStates))
@@ -348,53 +354,6 @@ public sealed class MobaBattleScenarioWorldRunner
                 position = actor.spawnPosition,
             });
         }
-    }
-
-    private static MobaAcceptanceTraceRecord[] CaptureTraceRecords(ConsoleBattleBootstrapper bootstrapper, string caseId)
-    {
-        var services = bootstrapper.RuntimeServices;
-        if (services == null || !services.TryResolve<MobaTraceRegistry>(out var trace) || trace == null)
-            return Array.Empty<MobaAcceptanceTraceRecord>();
-
-        var records = new List<MobaAcceptanceTraceRecord>(64);
-        var seen = new HashSet<long>();
-        foreach (MobaExecutionKind kind in Enum.GetValues(typeof(MobaExecutionKind)))
-        {
-            if (kind == MobaExecutionKind.None) continue;
-            foreach (var node in trace.GetNodesByKind((int)kind))
-            {
-                if (!node.IsValid || !seen.Add(node.ContextId)) continue;
-                var metadata = node.Metadata;
-                var frame = node.CreatedFrame;
-                records.Add(new MobaAcceptanceTraceRecord
-                {
-                    caseId = caseId,
-                    frame = frame,
-                    timeMs = (int)Math.Round(frame * (1000f / 30f)),
-                    rootId = node.RootId,
-                    parentId = node.ParentId,
-                    nodeId = node.ContextId,
-                    kind = kind.ToString(),
-                    kindValue = node.Kind,
-                    configId = metadata != null ? metadata.ConfigId : 0,
-                    sourceActorId = metadata != null ? metadata.SourceActorId : 0,
-                    targetActorId = metadata != null ? metadata.TargetActorId : 0,
-                    sourceId = metadata != null ? metadata.SourceId : 0,
-                    targetId = metadata != null ? metadata.TargetId : 0,
-                    isRoot = node.IsRoot,
-                    isEnded = node.IsEnded,
-                    endedFrame = node.EndedFrame,
-                    endReason = node.EndReason,
-                    childCount = node.ChildCount,
-                });
-            }
-        }
-        records.Sort((x, y) =>
-        {
-            var c = x.rootId.CompareTo(y.rootId);
-            return c != 0 ? c : x.nodeId.CompareTo(y.nodeId);
-        });
-        return records.ToArray();
     }
 
     private static bool HasAssertions(MobaAcceptanceExpectation expectation) =>

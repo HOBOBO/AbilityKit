@@ -665,7 +665,9 @@ namespace AbilityKit.Demo.Moba.Services.Area
         }
     }
 
-    /// <summary>Owns the persistent AOE VFX cue. Area snapshots continue to drive model/range views.</summary>
+    /// <summary>
+    /// 拥有持久 AOE 特效提示。区域快照继续驱动模型和范围视图。
+    /// </summary>
     [WorldService(typeof(MobaAreaPresentationCueReporter))]
     public sealed class MobaAreaPresentationCueReporter : MobaCueReporterBase
     {

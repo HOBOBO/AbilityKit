@@ -38,7 +38,7 @@ public interface IOrleansBattleProtocolMapper
     /// 这消除了"快照 payload → actorSnapshotMappers → ActorSnapshot"的独立映射路径，
     /// 使网关提取与预测通道提取共享同一份逻辑（MobaActorProjectionProducer）。
     /// </summary>
-    /// <param name="worldId">world ID。</param>
+    /// <param name="worldId">世界 ID。</param>
     /// <param name="frame">当前帧。</param>
     /// <param name="producer">标准投影生产方（MobaActorProjectionProducer）。</param>
     /// <param name="isFullSnapshot">是否为全量快照。</param>
@@ -349,8 +349,10 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
         return actors;
     }
 
-    // yaw = atan2(forward.x, forward.z), where forward = q × (0,0,1)
-    // forward.x = 2(xz + wy), forward.z = 1 − 2(x² + y²)
+    /*
+     * yaw = atan2(forward.x, forward.z)，其中 forward = q × (0,0,1)。
+     * forward.x = 2(xz + wy), forward.z = 1 − 2(x² + y²)
+     */
     private static float QuatToYaw(float x, float y, float z, float w)
     {
         return MathF.Atan2(2f * (x * z + w * y), 1f - 2f * (x * x + y * y));

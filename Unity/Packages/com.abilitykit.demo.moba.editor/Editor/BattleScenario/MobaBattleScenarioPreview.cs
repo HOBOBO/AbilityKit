@@ -10,6 +10,7 @@ using AbilityKit.Game;
 using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Battle.Testing;
 using AbilityKit.Game.Editor;
+using AbilityKit.Game.Flow;
 using AbilityKit.Scenario;
 using UnityEditor;
 using UnityEngine;
@@ -37,9 +38,29 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
             BattleScenarioEditorIntegration.CaseDirectories = new[] { FlowsDirectory };
             BattleScenarioEditorIntegration.SearchTerms = GetSearchTerms;
             BattleScenarioEditorIntegration.PlaySavedCase = StartPreview;
+            BattleScenarioEditorIntegration.CreateActorReplayPreview = CreateActorReplayPreview;
+            BattleScenarioEditorIntegration.CaptureStateSyncClientReplay = MobaStateSyncClientReplay.Capture;
             EditorApplication.playModeStateChanged += OnPlayModeChanged;
             var path = SessionState.GetString(PendingKey, "");
             if (path != "") Arm(path);
+        }
+
+        private static IActorReplayPreview CreateActorReplayPreview(int modelId)
+        {
+            var preview = BattleActorReplayPreview.Create(modelId);
+            return preview == null ? null : new ActorReplayPreviewAdapter(preview);
+        }
+
+        private sealed class ActorReplayPreviewAdapter : IActorReplayPreview
+        {
+            private readonly BattleActorReplayPreview _preview;
+
+            internal ActorReplayPreviewAdapter(BattleActorReplayPreview preview) => _preview = preview;
+
+            public void Draw(Rect rect, Bounds recordedBounds, Pose? authority, Pose? prediction) =>
+                _preview.Draw(rect, recordedBounds, authority, prediction);
+
+            public void Dispose() => _preview.Dispose();
         }
 
         private static IEnumerable<string> GetSearchTerms(BattleScenarioDocument document)

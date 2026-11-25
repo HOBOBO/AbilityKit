@@ -12,7 +12,9 @@ namespace AbilityKit.Network.Runtime.Conditioning
         Outbound
     }
 
-    /// <summary>Time-based packet rules relative to an explicit origin, or the first observed packet.</summary>
+    /// <summary>
+    /// 相对于显式时间原点或首个观测数据包的定时数据包规则。
+    /// </summary>
     public sealed class NetworkConditionScenario
     {
         public readonly struct Phase
@@ -48,7 +50,9 @@ namespace AbilityKit.Network.Runtime.Conditioning
 
         internal NetworkConditionProfile Resolve(long elapsedMs, bool inbound, uint opCode)
         {
-            // Later matching rules win, so a narrow opcode rule can override a broad phase.
+            /*
+             * 后匹配的规则优先，因此特定操作码规则可覆盖较宽泛的阶段规则。
+             */
             var profile = Baseline;
             foreach (var phase in _phases)
             {

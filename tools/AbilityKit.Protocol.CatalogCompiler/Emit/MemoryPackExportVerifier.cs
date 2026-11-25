@@ -25,18 +25,14 @@ public sealed class MemoryPackExportVerification
 }
 
 /// <summary>
-/// Compares a deterministic in-memory export plan against the files committed in an export
-/// folder. The comparison normalizes CRLF/LF because the repository has no .gitattributes and
-/// core.autocrlf rewrites checked-out files, so byte-exact compares would depend on each
-/// machine's git configuration rather than on the generated content itself.
+/// 将确定的内存导出计划与导出目录入库文件比较。比较前统一 CRLF/LF：仓库没有 .gitattributes，core.autocrlf 会改写检出文件，直接比较字节会依赖各机器 Git 配置，而非生成内容。
 /// </summary>
 public static class MemoryPackExportVerifier
 {
     public const string ManifestFileName = "protocol-export.json";
 
     /// <summary>
-    /// Files the export owns inside its folder. Everything else (for example Unity .meta files)
-    /// is ignored by the gate.
+    /// 导出在目录内拥有的文件。门禁忽略其他文件，例如 Unity .meta。
     /// </summary>
     public static bool IsManagedFile(string fileName) =>
         fileName.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase) ||

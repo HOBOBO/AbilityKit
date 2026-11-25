@@ -142,8 +142,9 @@ internal static class ShooterServerSyncTemplateCatalog
 
     private static readonly IReadOnlyList<ShooterServerSyncTemplatePolicy> Policies = new[]
     {
-        // Predicted clients replay from each authoritative snapshot. Packed deltas are relative
-        // to the server baseline and cannot be imported into a world already predicted ahead.
+        /*
+         * 预测客户端从每份权威快照重演。压缩增量相对于服务端基线，不能导入已预测领先的世界。
+         */
         Packed(ShooterServerProtocol.PredictRollbackAuthorityTemplate, 1, 1, NetworkConditionProfile.Ideal),
         Packed(ShooterServerProtocol.AuthoritativeInterpolationPresentationTemplate, 1, 60, NetworkConditionProfile.Lan),
         PureState(ShooterServerProtocol.BatchStateLowFrequencyTemplate, 60, 300, NetworkConditionProfile.Mobile4G, BatchStateSettings),

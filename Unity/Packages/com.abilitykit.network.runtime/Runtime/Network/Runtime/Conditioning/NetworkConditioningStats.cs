@@ -3,8 +3,7 @@
 namespace AbilityKit.Network.Runtime.Conditioning
 {
     /// <summary>
-    /// Running counters for a <see cref="NetworkConditioningMiddleware"/>, useful for demo overlays
-    /// and assertions in tests.
+    /// <see cref="NetworkConditioningMiddleware"/> 的运行计数器，供示例叠加显示及测试断言使用。
     /// </summary>
     public readonly struct NetworkConditioningStats
     {
@@ -39,7 +38,9 @@ namespace AbilityKit.Network.Runtime.Conditioning
         public long OutboundDropped { get; }
         public long OutboundReordered { get; }
 
-        /// <summary>Packets currently buffered awaiting their scheduled delivery time.</summary>
+        /// <summary>
+        /// 当前已缓冲、等待计划投递时间的数据包数量。
+        /// </summary>
         public int PendingCount { get; }
     }
 }

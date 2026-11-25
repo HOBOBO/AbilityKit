@@ -4,6 +4,8 @@
 
 文档类型：Canonical 设计 | 事实基线：2026-08-16 | 适用范围：World DI 注册、解析、作用域、模块规划与服务生命周期
 
+> 局部复核：2026-11-24–25 D1 核对容器、作用域及包使用契约，并更新第 10–11 节证据；不将原文所有设计分析统一提升为本轮已核校。
+
 独立安装、最小示例和消费限制见 [World DI 包入口](../../../Unity/Packages/com.abilitykit.world.di/README.md)及[使用说明](../../../Unity/Packages/com.abilitykit.world.di/Documentation~/Usage.md)。本文保留容器与世界装配的设计、执行流程与证据。
 
 ---
@@ -340,6 +342,8 @@ World DI 有独立的 `.NET` 测试工程，可直接执行：
 ./tools/run_test_gate.ps1 -Gate runtime-contracts -StepName "World DI tests" -Configuration Release
 ```
 
+2026-11-24 在本地 .NET 镜像工程实际运行上述单步（附加 `-NoRestore` 与显式 `-ResultsDirectory local/Logs/documentation/<本轮目录>/gates`），62/62 通过。该结果是 `runtime-contracts` 的选定步骤，不代表完整 gate、Unity 或 CI 已通过。2026-11-25 编译运行包 README 及三个完整示例，输出与文档一致。
+
 独立测试不只验证“容器能构建”，还直接断言以下契约：
 
 | 测试资产 | 已覆盖契约 |
@@ -352,13 +356,14 @@ World DI 有独立的 `.NET` 测试工程，可直接执行：
 | `AttributeWorldServicesModuleTests.cs` | 一个实现注册多个 scoped 契约时，同一 scope 共享实例、不同 scope 隔离 |
 | `WorldModulePlannerTests.cs` | 依赖、order、来源顺序，接口依赖，以及重复类型、重复 id、冲突、缺依赖和依赖环诊断 |
 | `WorldTestInjectorTests.cs` | 不创建容器时的测试成员注入、显式契约、optional 和 required 行为 |
+| `WorldManagerTests.cs` | 创建后初始化与登记、身份校验、创建失败补偿、销毁先摘除、批量释放失败聚合及关闭后复用 |
 
 已有测试支持本文关于注册优先级、播种所有权、成员注入、依赖环和逆序释放的主要描述，但还不能推导出容器全部行为都已封闭。优先补测项如下：
 
 1. 根容器直接解析 scoped，以及 singleton 构造链捕获 scoped 时的拒绝和诊断。
-2. singleton、scoped、transient 的实例复用次数，以及 transient 是否按每次解析初始化和释放。
+2. 完整的 singleton、scoped、transient 复用次数及 resolver 传递矩阵；已有测试覆盖 transient 初始化且不被解析器保留、scoped 别名只初始化和释放一次，不再将这些路径概括为未覆盖。
 3. 多个 public 构造函数并存时，按参数数量选择可解析候选；没有候选时的缺失依赖报告。
-4. `IWorldInitializable.OnInit` 对 singleton、scoped、transient 的 resolver 类型和只初始化一次语义。
+4. `IWorldInitializable.OnInit` 的完整 resolver 类型矩阵；singleton/scoped 初始化失败后显式重试、半初始化不发布及失败不转移释放责任已有测试。
 5. `OnInit`、`OnDeinit` 或 `Dispose` 抛异常时，后续实例是否继续处理及日志内容。
 6. 构造成功后成员注入失败的补偿边界；`OnInit` 失败后的显式重试与归属已有测试覆盖。
 7. 属性扫描的 namespace、profile、缓存清理、非法 ServiceType 与项目显式覆盖。
@@ -379,7 +384,7 @@ World DI 有独立的 `.NET` 测试工程，可直接执行：
 | 认为属性扫描会覆盖项目服务 | 属性扫描用 `TryRegisterType`，默认不覆盖已有注册 |
 | 认为 `[WorldInject(required: false)]` 一定会有值 | optional 注入失败会保留默认值，使用前仍要判空或提供降级路径 |
 | 忘记释放作用域 | scoped 服务的 `OnDeinit` 和 `Dispose` 依赖 `WorldScope.Dispose()` |
-| 看到 31 个测试就认为所有容器路径已覆盖 | 当前强项是注册、播种、成员注入和释放顺序；构造选择、transient 和异常路径仍有缺口 |
+| 看到本轮 62 个测试通过就认为所有容器路径已覆盖 | 已覆盖注册、播种、成员注入、所有权、初始化失败与部分世界管理；构造选择、完整失败矩阵、并发及 Unity 目标仍不能据此外推 |
 | 容器会释放 transient | transient 会初始化但不进入 root/scope 的销毁列表，资源所有权由调用方承担 |
 | 容器和 scope 可以并发解析与装配 | 内部注册、缓存与 seeded 字典不是并发容器，当前定位是单线程装配/解析 |
 | 根与 scope 的 `TryResolve` 失败完全等价 | 两者都传播循环错误；作用域还传播部分无效操作异常 |
@@ -400,6 +405,8 @@ World DI 有独立的 `.NET` 测试工程，可直接执行：
 
 ---
 
-当前证据可标记为局部 E3：31 项测试覆盖注册策略、模块规划、播种、成员注入、依赖环和部分释放顺序。它们没有覆盖构造函数选择、transient 所有权、初始化异常和完整并发/失败矩阵。`runtime-contracts` 配置虽然包含 World DI 测试，但 `ciPolicy` 当前全为 false，workflow 没有执行对应 job，因此不能标记 E5。规范目标是保持轻量、可预测的世界级容器，并补齐所有权和异常契约；它不是用来替代应用层完整 IOC 容器的通用框架。
+当前证据为局部 E3：本轮 World DI 步骤 62 项测试通过，覆盖注册策略、模块规划、播种、成员注入、依赖环、transient 所有权、初始化失败重试、部分释放顺序与世界管理失败补偿。构造函数选择、完整失败/并发矩阵及 Unity 目标仍未在本轮验证。`runtime-contracts` 的 `ciPolicy` 当前全为 false，本轮也没有 CI 运行结果，不能标记 E5。规范目标是保持轻量、可预测的世界级容器，并补齐所有权和异常契约。
 
-*文档版本：v3.3 | 最后更新：2026-11-22（补包内导航）*
+文档类型：Canonical 设计 | 事实基线：原设计 2026-08-16，局部复核 2026-11-24–25 | 证据等级：限定范围 E0/E3
+
+*文档版本：v3.4 | 最后更新：2026-11-25（D1 包契约与证据复核）*

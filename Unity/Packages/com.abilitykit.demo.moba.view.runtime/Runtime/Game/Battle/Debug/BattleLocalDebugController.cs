@@ -629,7 +629,11 @@ namespace AbilityKit.Game.Flow
             var nextFrame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(ctx.LastFrame, in plan);
             var command = BattleInputCommandFactory.CreateDebugSpawnUnit(nextFrame, playerId, relation);
             var submitter = new BattleInputSubmitter(ctx, playerId, worldId);
-            submitter.Submit(in command);
+            if (!submitter.Submit(in command))
+            {
+                message = "单位生成命令提交失败，请在战斗就绪后重试";
+                return false;
+            }
 
             message = relation == MobaDebugSpawnUnitRelation.Enemy
                 ? "敌方单位生成命令已提交"

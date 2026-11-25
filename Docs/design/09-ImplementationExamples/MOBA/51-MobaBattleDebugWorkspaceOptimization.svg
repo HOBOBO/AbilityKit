@@ -1,0 +1,218 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1840" viewBox="0 0 1800 1840" role="img" aria-labelledby="title desc">
+  <title id="title">MOBA 战斗调试工具模块与实体浏览规划图</title>
+  <desc id="desc">展示调试工作台共享上下文、独立功能模块、预设组合，以及 Actor 与运行时对象的筛选和来源辨识方案。</desc>
+  <defs>
+    <style>
+      text { font-family: "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; fill: #24313b; }
+      .title { font-size: 30px; font-weight: 700; }
+      .subtitle { font-size: 15px; fill: #52616d; }
+      .section { font-size: 19px; font-weight: 700; }
+      .group { font-size: 16px; font-weight: 700; }
+      .cardTitle { font-size: 14px; font-weight: 700; }
+      .body { font-size: 12px; }
+      .small { font-size: 11px; fill: #53616c; }
+      .tiny { font-size: 10px; fill: #53616c; }
+      .shell { fill: #243746; }
+      .shellText { fill: #f5f7f8; }
+      .frame { fill: #ffffff; stroke: #c8d2d9; stroke-width: 1.2; }
+      .actorBg { fill: #edf6f1; stroke: #80b39d; }
+      .objectBg { fill: #edf2f8; stroke: #91a8c0; }
+      .investBg { fill: #fbf5e7; stroke: #c8b276; }
+      .syncBg { fill: #edf5f7; stroke: #8cb3be; }
+      .dataBg { fill: #f6eef3; stroke: #b797aa; }
+      .note { fill: #fffdf5; stroke: #d9c98c; }
+      .line { stroke: #9eabb4; stroke-width: 1.5; fill: none; }
+      .arrow { stroke: #647783; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L8 4 L0 8 Z" fill="#647783"/>
+    </marker>
+  </defs>
+  <rect width="1800" height="1840" fill="#f3f6f7"/>
+  <text x="40" y="52" class="title">MOBA 战斗调试工具：模块分配与实体浏览</text>
+  <text x="40" y="82" class="subtitle">壳层只保留共享选择；模块按任务独立加载；Actor 与运行时对象分视角浏览，通过稳定引用关联</text>
+
+  <rect x="40" y="108" width="1720" height="125" rx="7" class="shell"/>
+  <text x="64" y="140" class="group shellText">工作台壳层：轻量共享上下文</text>
+  <line x1="64" y1="153" x2="1736" y2="153" stroke="#536777"/>
+  <text x="64" y="181" class="body shellText">数据源 / Session / World</text>
+  <text x="320" y="181" class="body shellText">Actor 浏览器 + 精确 ID 跳转</text>
+  <text x="650" y="181" class="body shellText">诊断帧游标 / 回放状态</text>
+  <text x="960" y="181" class="body shellText">连接状态 / 轻量健康摘要</text>
+  <text x="1275" y="181" class="body shellText">模块目录 / 搜索</text>
+  <text x="1515" y="181" class="body shellText">预设 / 布局 / 刷新</text>
+  <text x="64" y="211" class="tiny" fill="#d8e1e6">壳层保存稳定 ID 和导航上下文；模块未激活时不执行重型查询。选择对象只传引用，不共享可变运行时对象。</text>
+
+  <text x="40" y="274" class="section">独立功能模块目录</text>
+  <text x="1760" y="274" text-anchor="end" class="small">模块各自声明来源能力、选择要求与刷新策略；模块可单独打开，也可组合</text>
+
+  <rect x="40" y="294" width="326" height="436" rx="7" class="actorBg"/>
+  <text x="58" y="323" class="group">A　角色状态</text>
+  <text x="348" y="323" text-anchor="end" class="tiny">Actor 选择上下文</text>
+  <rect x="56" y="341" width="294" height="52" rx="4" class="frame"/>
+  <text x="70" y="363" class="cardTitle">角色概览</text><text x="70" y="382" class="small">关键状态、当前帧摘要、问题入口</text>
+  <rect x="56" y="401" width="294" height="52" rx="4" class="frame"/>
+  <text x="70" y="423" class="cardTitle">属性与来源</text><text x="70" y="442" class="small">当前值、修改器与计算解释</text>
+  <rect x="56" y="461" width="294" height="52" rx="4" class="frame"/>
+  <text x="70" y="483" class="cardTitle">Buff 生命周期</text><text x="70" y="502" class="small">层数、持续时间、来源和状态</text>
+  <rect x="56" y="521" width="294" height="52" rx="4" class="frame"/>
+  <text x="70" y="543" class="cardTitle">效果实例</text><text x="70" y="562" class="small">效果层数、周期、持续策略</text>
+  <rect x="56" y="581" width="294" height="52" rx="4" class="frame"/>
+  <text x="70" y="603" class="cardTitle">标签与门禁</text><text x="70" y="622" class="small">有效标签、规则命中和结果位</text>
+  <rect x="56" y="641" width="294" height="68" rx="4" class="note"/>
+  <text x="70" y="664" class="cardTitle">Actor 浏览器（共享组件）</text>
+  <text x="70" y="684" class="small">筛选、选择和跳转；不是详情模块</text>
+  <text x="70" y="700" class="tiny">召唤单位可关联跳转，各自保留身份</text>
+
+  <rect x="385" y="294" width="326" height="436" rx="7" class="objectBg"/>
+  <text x="403" y="323" class="group">B　施法与运行时对象</text>
+  <rect x="401" y="341" width="294" height="104" rx="4" class="frame"/>
+  <text x="415" y="365" class="cardTitle">技能施法运行时</text>
+  <text x="415" y="388" class="small">阶段、输入快照、黑板、挂起子对象</text>
+  <text x="415" y="417" class="tiny">Live only · 激活时刷新</text>
+  <rect x="401" y="453" width="294" height="118" rx="4" class="frame"/>
+  <text x="415" y="477" class="cardTitle">运行时对象目录</text>
+  <text x="415" y="500" class="small">投射物 / 区域 / 召唤物及生命周期</text>
+  <text x="415" y="522" class="small">来源、所有者、完整度和关联引用</text>
+  <text x="415" y="549" class="tiny">主列表 + 选中对象检查器</text>
+  <rect x="401" y="579" width="294" height="104" rx="4" class="frame"/>
+  <text x="415" y="603" class="cardTitle">活跃对象监视</text>
+  <text x="415" y="626" class="small">当前投射物链接、活动区域和解析</text>
+  <text x="415" y="655" class="tiny">Live only · 高频查询按需启动</text>
+  <text x="401" y="710" class="tiny">相关模块互相跳转，不合并查询和生命周期</text>
+
+  <rect x="730" y="294" width="326" height="436" rx="7" class="investBg"/>
+  <text x="748" y="323" class="group">C　事件调查</text>
+  <rect x="746" y="341" width="294" height="145" rx="4" class="frame"/>
+  <text x="760" y="366" class="cardTitle">战斗事件</text>
+  <text x="760" y="391" class="small">概览 / Trigger 与 Flow / 列表 / 详情</text>
+  <text x="760" y="414" class="small">按 Actor、帧、结果和关键词筛选</text>
+  <text x="760" y="437" class="small">选中事件可跳到 Trace、Actor、配置</text>
+  <text x="760" y="467" class="tiny">Live / Offline：需要 Events capability</text>
+  <rect x="746" y="496" width="294" height="145" rx="4" class="frame"/>
+  <text x="760" y="521" class="cardTitle">执行 Trace</text>
+  <text x="760" y="546" class="small">流程树 / 瀑布图 / 详情与错误视图</text>
+  <text x="760" y="569" class="small">按节点跳转事件、Actor、技能或对象</text>
+  <text x="760" y="592" class="small">与事件模块共享引用，不共享视图状态</text>
+  <text x="760" y="622" class="tiny">Live / Offline：需要 Trace capability</text>
+  <text x="746" y="680" class="small">调查预设默认并排事件 + Trace</text>
+
+  <rect x="1075" y="294" width="326" height="436" rx="7" class="syncBg"/>
+  <text x="1093" y="323" class="group">D　帧同步</text>
+  <rect x="1091" y="341" width="294" height="52" rx="4" class="frame"/>
+  <text x="1105" y="363" class="cardTitle">同步总览</text><text x="1105" y="382" class="small">World / 最近帧 / 状态入口</text>
+  <rect x="1091" y="401" width="294" height="52" rx="4" class="frame"/>
+  <text x="1105" y="423" class="cardTitle">预测分析</text><text x="1105" y="442" class="small">预测状态和时间范围指标</text>
+  <rect x="1091" y="461" width="294" height="52" rx="4" class="frame"/>
+  <text x="1105" y="483" class="cardTitle">回滚分析</text><text x="1105" y="502" class="small">回滚帧、原因和历史指标</text>
+  <rect x="1091" y="521" width="294" height="52" rx="4" class="frame"/>
+  <text x="1105" y="543" class="cardTitle">对账与控制</text><text x="1105" y="562" class="small">差异诊断；写操作显式呈现</text>
+  <rect x="1091" y="581" width="294" height="52" rx="4" class="frame"/>
+  <text x="1105" y="603" class="cardTitle">时间同步</text><text x="1105" y="622" class="small">时间同步与每世界状态</text>
+  <rect x="1091" y="641" width="294" height="52" rx="4" class="frame"/>
+  <text x="1105" y="663" class="cardTitle">网络缓冲</text><text x="1105" y="682" class="small">网络输入和 jitter buffer</text>
+
+  <rect x="1420" y="294" width="340" height="436" rx="7" class="dataBg"/>
+  <text x="1438" y="323" class="group">E　会话、数据与回放</text>
+  <rect x="1436" y="341" width="308" height="68" rx="4" class="frame"/>
+  <text x="1450" y="364" class="cardTitle">会话健康</text><text x="1450" y="386" class="small">采集状态、耗时、异常入口</text>
+  <rect x="1436" y="417" width="308" height="68" rx="4" class="frame"/>
+  <text x="1450" y="440" class="cardTitle">诊断状态快照</text><text x="1450" y="462" class="small">状态/指标对比、完整度和帧说明</text>
+  <rect x="1436" y="493" width="308" height="68" rx="4" class="frame"/>
+  <text x="1450" y="516" class="cardTitle">Artifact 管理</text><text x="1450" y="538" class="small">离线导入、实时导出、能力解析</text>
+  <rect x="1436" y="569" width="308" height="68" rx="4" class="frame"/>
+  <text x="1450" y="592" class="cardTitle">录像回放</text><text x="1450" y="614" class="small">播放、逐帧、seek、速度和模式</text>
+  <rect x="1436" y="645" width="308" height="54" rx="4" class="note"/>
+  <text x="1450" y="668" class="small">预设只组合模块与布局，不改变模块语义</text>
+  <text x="1450" y="687" class="tiny">Replay 自己管理播放游标生命周期</text>
+
+  <text x="40" y="777" class="section">实体浏览：列表负责快速收敛，检查器负责解释身份和来源</text>
+  <rect x="40" y="798" width="1720" height="56" rx="6" class="shell"/>
+  <text x="62" y="823" class="body shellText">浏览范围</text>
+  <rect x="145" y="808" width="118" height="34" rx="4" fill="#e4f1ec"/><text x="204" y="830" text-anchor="middle" class="small">当前选择</text>
+  <rect x="273" y="808" width="118" height="34" rx="4" fill="#ffffff"/><text x="332" y="830" text-anchor="middle" class="small">最近活动</text>
+  <rect x="401" y="808" width="118" height="34" rx="4" fill="#ffffff"/><text x="460" y="830" text-anchor="middle" class="small">全部 N 个</text>
+  <text x="552" y="823" class="body shellText">搜索：名称 / Actor ID / 配置 ID</text>
+  <text x="920" y="823" class="body shellText">精确跳转：Actor ID</text>
+  <text x="1162" y="823" class="body shellText">类型 · 阵营 · 状态 · 来源</text>
+  <text x="1497" y="823" class="body shellText">匹配数 / 总数 · 排序</text>
+  <text x="62" y="844" class="tiny" fill="#d8e1e6">常用过滤显式控件；高级条件可使用 id: / tag: / attr: / effect:。条件可见、可移除；维度间 AND、同维度多选 OR。</text>
+
+  <rect x="40" y="875" width="955" height="470" rx="7" class="frame"/>
+  <text x="62" y="909" class="group">Actor 浏览器：角色/单位列表</text>
+  <text x="970" y="909" text-anchor="end" class="small">共享导航组件 · 仅显示当前来源实际提供的字段</text>
+  <rect x="62" y="928" width="911" height="33" rx="3" fill="#e8eef1"/>
+  <text x="78" y="950" class="small">显示名 / 回退类型名</text><text x="292" y="950" class="small">Actor ID</text>
+  <text x="421" y="950" class="small">类型 / 配置</text><text x="615" y="950" class="small">阵营</text>
+  <text x="714" y="950" class="small">状态</text><text x="833" y="950" class="small">来源 / 归属</text>
+  <rect x="62" y="968" width="911" height="49" rx="3" fill="#edf6f1" stroke="#80b39d"/>
+  <text x="78" y="990" class="body">远程单位 A</text><text x="292" y="990" class="body">#1042</text>
+  <text x="421" y="990" class="body">Hero · cfg: 101</text><text x="615" y="990" class="body">蓝方</text>
+  <text x="714" y="990" class="body">存活</text><text x="833" y="990" class="body">玩家创建</text>
+  <text x="78" y="1009" class="tiny">当前选中</text>
+  <line x1="62" y1="1027" x2="973" y2="1027" class="line"/>
+  <text x="78" y="1056" class="body">未命名对象</text><text x="292" y="1056" class="body">#2088</text>
+  <text x="421" y="1056" class="body">类型未知</text><text x="615" y="1056" class="small">未提供</text>
+  <text x="714" y="1056" class="small">未采集</text><text x="833" y="1056" class="small">来源未知</text>
+  <text x="78" y="1075" class="tiny">诚实显示字段缺失，不按 ID 猜对象身份</text>
+  <line x1="62" y1="1093" x2="973" y2="1093" class="line"/>
+  <text x="78" y="1122" class="body">... 其余匹配 Actor</text>
+  <rect x="62" y="1150" width="911" height="168" rx="4" fill="#f5f8f9" stroke="#d4dde2"/>
+  <text x="80" y="1178" class="cardTitle">列表行为与状态</text>
+  <text x="80" y="1204" class="small">• 显示匹配数 / 总数、稳定排序、清空过滤和无结果状态</text>
+  <text x="80" y="1228" class="small">• 大列表分段/虚拟化；搜索与选择不触发每个 Actor 的详情查询</text>
+  <text x="80" y="1252" class="small">• 事件 / Trace 可带入临时过滤条件，条件可见且随时移除</text>
+  <text x="80" y="1276" class="small">• 检查器链接属性、Buff、效果、标签模块；选择本身保持轻量</text>
+  <text x="80" y="1302" class="tiny">实时索引现有内容以 Actor ID 为主；名称、类型、配置、来源不可用时明确标注未提供。</text>
+
+  <rect x="1020" y="875" width="740" height="470" rx="7" class="frame"/>
+  <text x="1042" y="909" class="group">运行时对象目录：独立生命周期对象</text>
+  <text x="1738" y="909" text-anchor="end" class="small">不要并入 Actor ID 列表</text>
+  <rect x="1042" y="928" width="696" height="33" rx="3" fill="#e8eef1"/>
+  <text x="1058" y="950" class="small">Kind</text><text x="1143" y="950" class="small">Runtime ID : Gen</text>
+  <text x="1302" y="950" class="small">名称 / 定义</text><text x="1503" y="950" class="small">状态 / 完整度</text>
+  <rect x="1042" y="968" width="696" height="49" rx="3" fill="#edf2f8" stroke="#91a8c0"/>
+  <text x="1058" y="997" class="body">召唤物</text><text x="1143" y="997" class="body">710:2</text>
+  <text x="1302" y="997" class="body">Tibbers / def: 33</text><text x="1503" y="997" class="body">Active / Complete</text>
+  <text x="1058" y="1055" class="small">筛选：Kind · 状态 · 所有者 · 完整度 · 生命周期帧范围</text>
+  <rect x="1042" y="1080" width="696" height="238" rx="4" fill="#f5f8fa" stroke="#d4dde2"/>
+  <text x="1060" y="1108" class="cardTitle">选中对象检查器</text>
+  <text x="1060" y="1136" class="small">身份：Kind + Runtime ID/Generation + Definition ID</text>
+  <text x="1060" y="1162" class="small">来源：Source / Owner；关联：Actor、目标、Trace 引用</text>
+  <text x="1060" y="1188" class="small">生命周期：状态、帧范围、结束原因、完整度</text>
+  <text x="1060" y="1214" class="small">可点击引用跳转；目标模块按来源能力重新查询</text>
+  <text x="1060" y="1251" class="tiny">目录已有类型、ID/代数、名称/定义、来源/所有者、状态、完整度、帧范围及关联上下文。</text>
+  <text x="1060" y="1275" class="tiny">字段未知、未采集、不支持、部分完整应分别表达；关联缺失不等于对象不存在。</text>
+
+  <path d="M995 1135 H1010" class="arrow"/>
+  <text x="1004" y="1117" text-anchor="middle" class="tiny">关联跳转</text>
+
+  <rect x="40" y="1370" width="1720" height="132" rx="7" class="note"/>
+  <text x="62" y="1402" class="group">可复用能力与数据缺口</text>
+  <text x="62" y="1430" class="body">复用：Actor 选择/ID 跳转、过滤语法、Artifact Actor Summary、运行时对象目录 DTO/检查器、事件与 Trace 的稳定引用和通用空态/计数控件。</text>
+  <text x="62" y="1457" class="body">边界：筛选 UI 可复用，身份主键、过滤字段、生命周期语义和 capability 必须由 Actor 浏览器与对象目录分别声明。</text>
+  <text x="62" y="1484" class="body">待评估：实时 Actor 索引缺少名称/类型/配置/来源摘要；扩展诊断契约前须核实权威来源、采集成本、Artifact 兼容和缺失语义。</text>
+
+  <text x="40" y="1541" class="section">常用工作区预设：任务入口组合模块，不是新的功能边界</text>
+  <rect x="40" y="1560" width="326" height="116" rx="6" class="frame"/>
+  <text x="58" y="1587" class="cardTitle">角色检查</text><text x="58" y="1613" class="small">Actor 浏览器 + 角色概览</text><text x="58" y="1637" class="small">属性 / Buff / 标签按需加入</text><text x="58" y="1660" class="tiny">回答：这个单位当前怎样？</text>
+  <rect x="385" y="1560" width="326" height="116" rx="6" class="frame"/>
+  <text x="403" y="1587" class="cardTitle">技能与对象调查</text><text x="403" y="1613" class="small">施法运行时 + 对象目录</text><text x="403" y="1637" class="small">活跃对象监视按需打开</text><text x="403" y="1660" class="tiny">回答：对象从哪里来、走到哪？</text>
+  <rect x="730" y="1560" width="326" height="116" rx="6" class="frame"/>
+  <text x="748" y="1587" class="cardTitle">战斗调查</text><text x="748" y="1613" class="small">事件 + Trace 并排</text><text x="748" y="1637" class="small">Actor / 帧 / 对象引用联动</text><text x="748" y="1660" class="tiny">回答：结果由什么导致？</text>
+  <rect x="1075" y="1560" width="326" height="116" rx="6" class="frame"/>
+  <text x="1093" y="1587" class="cardTitle">帧同步</text><text x="1093" y="1613" class="small">总览 + 指定同步专项模块</text><text x="1093" y="1637" class="small">预测 / 回滚 / 网络按需打开</text><text x="1093" y="1660" class="tiny">回答：客户端为何出现差异？</text>
+  <rect x="1420" y="1560" width="340" height="116" rx="6" class="frame"/>
+  <text x="1438" y="1587" class="cardTitle">离线证据</text><text x="1438" y="1613" class="small">Artifact + 支持的事件/Trace/状态</text><text x="1438" y="1637" class="small">录像回放独立管理播放状态</text><text x="1438" y="1660" class="tiny">回答：如何从证据定位目标帧？</text>
+
+  <rect x="40" y="1700" width="1720" height="104" rx="7" class="shell"/>
+  <text x="62" y="1732" class="group shellText">按需加载顺序</text>
+  <text x="62" y="1765" class="body shellText">1 壳层身份与轻量选择</text>
+  <path d="M280 1758 H330" class="arrow"/>
+  <text x="350" y="1765" class="body shellText">2 激活模块后查询</text>
+  <path d="M555 1758 H605" class="arrow"/>
+  <text x="625" y="1765" class="body shellText">3 当前 Widget 刷新</text>
+  <path d="M830 1758 H880" class="arrow"/>
+  <text x="900" y="1765" class="body shellText">4 选中/展开时加载深层详情</text>
+  <text x="1736" y="1765" text-anchor="end" class="tiny" fill="#d8e1e6">隐藏模块停止周期刷新；缺失字段不作推断</text>
+</svg>

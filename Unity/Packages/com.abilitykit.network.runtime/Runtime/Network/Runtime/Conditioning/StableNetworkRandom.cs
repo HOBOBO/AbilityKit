@@ -1,6 +1,8 @@
 namespace AbilityKit.Network.Runtime.Conditioning
 {
-    /// <summary>Fixed xorshift32 stream for cross-runtime virtual playback.</summary>
+    /// <summary>
+    /// 用于跨运行时虚拟播放的固定 xorshift32 随机流。
+    /// </summary>
     internal sealed class StableNetworkRandom
     {
         private uint _state;

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 
 namespace AbilityKit.Ability.Config
 {
@@ -106,10 +105,10 @@ namespace AbilityKit.Ability.Config
                     arr = Array.CreateInstance(definition.DtoType, 0);
                 }
 
-                var dtoTable = CreateDtoTableFromDtos(definition, arr);
+                var dtoTable = ConfigTableMaterializer.CreateDtoTableFromDtos(definition, arr);
                 nextDtoTables[definition.DtoType] = dtoTable;
 
-                var table = CreateAndPopulateTable(definition, arr);
+                var table = ConfigTableMaterializer.CreateAndPopulateTable(definition, arr);
                 nextTables[definition.EntryType] = table;
             }
 
@@ -169,10 +168,10 @@ namespace AbilityKit.Ability.Config
                     return fail;
                 }
 
-                var dtoTable = CreateDtoTableFromDtos(definition, arr);
+                var dtoTable = ConfigTableMaterializer.CreateDtoTableFromDtos(definition, arr);
                 nextDtoTables[definition.DtoType] = dtoTable;
 
-                var table = CreateAndPopulateTable(definition, arr);
+                var table = ConfigTableMaterializer.CreateAndPopulateTable(definition, arr);
                 nextTables[definition.EntryType] = table;
             }
 
@@ -231,59 +230,6 @@ namespace AbilityKit.Ability.Config
             if (texts.TryGetValue(filePath, out text) && !string.IsNullOrEmpty(text)) return true;
             text = null;
             return false;
-        }
-
-        private object CreateAndPopulateTable(ConfigTableDefinition definition, Array dtos)
-        {
-            if (definition.EntryTableFactory != null) return definition.EntryTableFactory(dtos);
-
-            var entryType = definition.EntryType;
-            var tableType = typeof(IntKeyConfigTable<>).MakeGenericType(entryType);
-            var table = Activator.CreateInstance(tableType);
-
-            if (dtos != null)
-            {
-                for (int i = 0; i < dtos.Length; i++)
-                {
-                    var dto = dtos.GetValue(i);
-                    if (dto == null) continue;
-
-                    // 直接通过构造函数创建条目。
-                    var entry = Activator.CreateInstance(entryType, dto);
-                    if (entry == null) continue;
-
-                    // 直接调用 Add 方法。
-                    var addMethod = tableType.GetMethod("Add", BindingFlags.Instance | BindingFlags.Public);
-                    if (addMethod == null) throw new InvalidOperationException($"Add not found on {tableType.FullName}");
-
-                    // 从 DTO 读取 Id。
-                    var id = ReadIdFromDto(dto);
-                    addMethod.Invoke(table, new[] { id, entry });
-                }
-            }
-
-            return table;
-        }
-
-        private static int ReadIdFromDto(object dto)
-        {
-            if (dto == null) throw new ArgumentNullException(nameof(dto));
-            var type = dto.GetType();
-
-            var field = type.GetField("Id", BindingFlags.Public | BindingFlags.Instance);
-            if (field != null && field.FieldType == typeof(int)) return (int)field.GetValue(dto);
-
-            var property = type.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
-            if (property != null && property.PropertyType == typeof(int)) return (int)property.GetValue(dto);
-
-            // 回退：尝试读取 Code 字段（Luban DR* 类型会使用该字段）。
-            field = type.GetField("Code", BindingFlags.Public | BindingFlags.Instance);
-            if (field != null && field.FieldType == typeof(int)) return (int)field.GetValue(dto);
-
-            property = type.GetProperty("Code", BindingFlags.Public | BindingFlags.Instance);
-            if (property != null && property.PropertyType == typeof(int)) return (int)property.GetValue(dto);
-
-            throw new InvalidOperationException($"DTO must have int Id or Code field/property. type={type.FullName}");
         }
 
         private void CommitTables(Dictionary<Type, object> nextTables)
@@ -353,10 +299,10 @@ namespace AbilityKit.Ability.Config
                     return fail;
                 }
 
-                var dtoTable = CreateDtoTableFromDtos(definition, arr);
+                var dtoTable = ConfigTableMaterializer.CreateDtoTableFromDtos(definition, arr);
                 nextDtoTables[definition.DtoType] = dtoTable;
 
-                var table = CreateAndPopulateTable(definition, arr);
+                var table = ConfigTableMaterializer.CreateAndPopulateTable(definition, arr);
                 nextTables[definition.EntryType] = table;
             }
 
@@ -437,10 +383,10 @@ namespace AbilityKit.Ability.Config
                         arr = Array.CreateInstance(definition.DtoType, 0);
                     }
 
-                    var dtoTable = CreateDtoTableFromDtos(definition, arr);
+                    var dtoTable = ConfigTableMaterializer.CreateDtoTableFromDtos(definition, arr);
                     nextDtoTables[definition.DtoType] = dtoTable;
 
-                    var table = CreateAndPopulateTable(definition, arr);
+                    var table = ConfigTableMaterializer.CreateAndPopulateTable(definition, arr);
                     nextTables[definition.EntryType] = table;
                 }
                 catch (Exception ex)
@@ -545,10 +491,10 @@ namespace AbilityKit.Ability.Config
                     }
 
                     // 创建配置表。
-                    var dtoTable = CreateDtoTableFromDtos(entry, arr);
+                    var dtoTable = ConfigTableMaterializer.CreateDtoTableFromDtos(entry, arr);
                     nextDtoTables[entry.DtoType] = dtoTable;
 
-                    var table = CreateAndPopulateTable(entry, arr);
+                    var table = ConfigTableMaterializer.CreateAndPopulateTable(entry, arr);
                     nextTables[entry.EntryType] = table;
                 }
             }
@@ -606,10 +552,10 @@ namespace AbilityKit.Ability.Config
 
                 try
                 {
-                    var dtoTable = CreateDtoTableFromDtos(definition, arr);
+                    var dtoTable = ConfigTableMaterializer.CreateDtoTableFromDtos(definition, arr);
                     nextDtoTables[definition.DtoType] = dtoTable;
 
-                    var table = CreateAndPopulateTable(definition, arr);
+                    var table = ConfigTableMaterializer.CreateAndPopulateTable(definition, arr);
                     nextTables[definition.EntryType] = table;
                 }
                 catch (Exception ex)
@@ -671,31 +617,6 @@ namespace AbilityKit.Ability.Config
             if (bytesByKey.TryGetValue(fullPath, out bytes)) return true;
             if (bytesByKey.TryGetValue(filePath, out bytes)) return true;
             return false;
-        }
-
-        private static object CreateDtoTableFromDtos(ConfigTableDefinition definition, Array dtos)
-        {
-            if (definition.DtoTableFactory != null) return definition.DtoTableFactory(dtos);
-
-            var dtoType = definition.DtoType;
-            var tableType = typeof(DtoTable<>).MakeGenericType(dtoType);
-            var table = Activator.CreateInstance(tableType);
-            var addMethod = tableType.GetMethod("Add", BindingFlags.Instance | BindingFlags.Public);
-            if (addMethod == null) throw new InvalidOperationException($"Add not found on {tableType.FullName}");
-
-            if (dtos != null)
-            {
-                for (int i = 0; i < dtos.Length; i++)
-                {
-                    var dto = dtos.GetValue(i);
-                    if (dto != null)
-                    {
-                        addMethod.Invoke(table, new[] { dto });
-                    }
-                }
-            }
-
-            return table;
         }
 
         private void CommitTables(Dictionary<Type, object> nextTables, Dictionary<Type, object> nextDtoTables)
@@ -813,9 +734,9 @@ namespace AbilityKit.Ability.Config
                         arr = _deserializer.DeserializeText(change.Text, definition.DtoType);
                     }
 
-                    var nextDtoTable = CreateDtoTableFromDtos(definition, arr);
-                    var nextEntryTable = CreateAndPopulateTable(definition, arr);
-                    CollectChangedIds(definition, arr, allChangedIds);
+                    var nextDtoTable = ConfigTableMaterializer.CreateDtoTableFromDtos(definition, arr);
+                    var nextEntryTable = ConfigTableMaterializer.CreateAndPopulateTable(definition, arr);
+                    ConfigTableMaterializer.CollectChangedIds(definition, arr, allChangedIds);
 
                     if (!preparedByEntryType.TryGetValue(definition.EntryType, out var prepared))
                     {
@@ -896,94 +817,6 @@ namespace AbilityKit.Ability.Config
 
             // 注意：运行时修改注册表需要 registry 本身提供支持。
             // 这里是前置声明，实际实现取决于 registry。
-        }
-
-        private sealed class PreparedIncrementalTableUpdate
-        {
-            private readonly ConfigTableDefinition _definition;
-            private readonly bool _replacesExisting;
-            private readonly object _existingDtoTable;
-            private readonly object _existingEntryTable;
-            private IConfigTableContentReplacer _dtoReplacer;
-            private IConfigTableContentReplacer _entryReplacer;
-
-            public PreparedIncrementalTableUpdate(
-                ConfigTableDefinition definition,
-                bool replacesExisting,
-                object existingDtoTable,
-                object existingEntryTable)
-            {
-                _definition = definition;
-                _replacesExisting = replacesExisting;
-                _existingDtoTable = existingDtoTable;
-                _existingEntryTable = existingEntryTable;
-            }
-
-            public object NextDtoTable { get; set; }
-            public object NextEntryTable { get; set; }
-
-            public void ValidateCommitTargets()
-            {
-                if (!_replacesExisting) return;
-
-                _dtoReplacer = GetTableContentReplacer(
-                    _existingDtoTable,
-                    NextDtoTable,
-                    _definition.DtoType);
-                _entryReplacer = GetTableContentReplacer(
-                    _existingEntryTable,
-                    NextEntryTable,
-                    _definition.EntryType);
-            }
-
-            public void Commit(
-                Dictionary<Type, object> tables,
-                Dictionary<Type, object> dtoTables)
-            {
-                if (_replacesExisting)
-                {
-                    _dtoReplacer.ReplaceContentsFrom(NextDtoTable);
-                    _entryReplacer.ReplaceContentsFrom(NextEntryTable);
-                    return;
-                }
-
-                dtoTables[_definition.DtoType] = NextDtoTable;
-                tables[_definition.EntryType] = NextEntryTable;
-            }
-        }
-
-        private static IConfigTableContentReplacer GetTableContentReplacer(
-            object target,
-            object source,
-            Type valueType)
-        {
-            if (!(target is IConfigTableContentReplacer replacer) || target.GetType() != source.GetType())
-                throw new InvalidOperationException($"Table replacement is not supported for {valueType.FullName}");
-            return replacer;
-        }
-
-        private static void CollectChangedIds(
-            ConfigTableDefinition definition,
-            Array entries,
-            HashSet<int> changedIds)
-        {
-            if (definition.ChangedIdCollector != null)
-            {
-                definition.ChangedIdCollector(entries, changedIds);
-                return;
-            }
-
-            if (entries == null) return;
-
-            for (int i = 0; i < entries.Length; i++)
-            {
-                var dto = entries.GetValue(i);
-                if (dto != null)
-                {
-                    var id = ReadIdFromDto(dto);
-                    changedIds.Add(id);
-                }
-            }
         }
 
         #endregion

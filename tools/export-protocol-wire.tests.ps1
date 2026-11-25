@@ -79,8 +79,8 @@ function Invoke-ExportScript {
 
     $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $scriptUnderTest, '-RepositoryRoot', $FixtureRoot, '-Projects', $ProjectList)
     $arguments += $ScriptSwitches
-    # Windows PowerShell 5.1 turns redirected native stderr into terminating errors
-    # while $ErrorActionPreference is 'Stop'; relax it around the child invocation.
+    # Windows PowerShell 5.1 在 $ErrorActionPreference 为 'Stop' 时，会将重定向的原生命令标准错误转为终止错误；
+    # 因此仅在子进程调用期间临时放宽此设置。
     $previousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
@@ -98,7 +98,7 @@ try {
     $fixture = New-FixtureRepo -Name 'main'
     $exportDirectory = Join-Path $fixture 'Unity/Packages/com.abilitykit.protocol.shooter/Runtime/Generated'
 
-    # 1. Write mode exports the deterministic artifact set into the package folder.
+    # 1. 写入模式将确定的产物集合导出到包目录。
     $write = Invoke-ExportScript -FixtureRoot $fixture
     Assert-Equal -Expected 0 -Actual $write.ExitCode -Message ("Write mode should succeed. Output: " + $write.Output)
     foreach ($expectedFile in @(
@@ -113,7 +113,7 @@ try {
     Assert-Equal -Expected 'battle' -Actual $manifest.generatedGroups[0].groupId -Message "Manifest should retain wire group ownership."
     Assert-Equal -Expected 'Fixture.Protocol.FixturePayload' -Actual $manifest.generatedGroups[0].generatedTypes[0] -Message "Manifest should assign the generated type to its group."
 
-    # 2. Check mode passes after a write, even when line endings were normalized by git.
+    # 2. 写入后，即使 Git 已统一行尾，检查模式仍应通过。
     $dtoPath = Join-Path $exportDirectory 'FixturePayload.MemoryPack.g.cs'
     $dtoContent = [System.IO.File]::ReadAllText($dtoPath)
     $normalized = $dtoContent.Replace("`r`n", "`n")
@@ -121,37 +121,36 @@ try {
     $checkAfterEolFlip = Invoke-ExportScript -FixtureRoot $fixture -ScriptSwitches @('-Check')
     Assert-Equal -Expected 0 -Actual $checkAfterEolFlip.ExitCode -Message ("Check should ignore CRLF/LF drift. Output: " + $checkAfterEolFlip.Output)
 
-    # 3. Check mode fails with exit code 3 on drifted content.
+    # 3. 内容发生漂移时，检查模式以退出码 3 失败。
     [System.IO.File]::WriteAllText($dtoPath, $dtoContent + "// tampered`r`n", (New-Object System.Text.UTF8Encoding($false)))
     $checkTampered = Invoke-ExportScript -FixtureRoot $fixture -ScriptSwitches @('-Check')
     Assert-Equal -Expected 3 -Actual $checkTampered.ExitCode -Message "Check should fail with exit 3 on drifted content."
     Assert-True -Condition ($checkTampered.Output -match 'StaleFile') -Message "Drifted content should be reported as a stale file."
 
-    # 4. Check mode fails with exit code 3 when the manifest is missing.
+    # 4. 清单缺失时，检查模式以退出码 3 失败。
     Remove-Item -Force (Join-Path $exportDirectory 'protocol-export.json')
     $checkMissingManifest = Invoke-ExportScript -FixtureRoot $fixture -ScriptSwitches @('-Check')
     Assert-Equal -Expected 3 -Actual $checkMissingManifest.ExitCode -Message "Check should fail with exit 3 on a missing manifest."
 
-    # 5. Check mode fails with exit code 3 on stale leftover export files.
+    # 5. 存在过期残留导出文件时，检查模式以退出码 3 失败。
     New-Item -ItemType Directory -Force -Path $exportDirectory | Out-Null
     [System.IO.File]::WriteAllText((Join-Path $exportDirectory 'RemovedDto.MemoryPack.g.cs'), '// stale', (New-Object System.Text.UTF8Encoding($false)))
     $checkExtra = Invoke-ExportScript -FixtureRoot $fixture -ScriptSwitches @('-Check')
     Assert-Equal -Expected 3 -Actual $checkExtra.ExitCode -Message "Check should fail with exit 3 on stale leftover export files."
 
-    # 6. After the operator removes the flagged leftover, rewrite converges back to a green check.
-    #    (Write mode only deletes files owned by the previous manifest; hand-dropped files are
-    #    reported by the check and must be removed manually.)
+    # 6. 操作者移除已报告的残留后，重新写入应恢复检查通过。
+    # 写入模式仅删除上一清单拥有的文件；手工放入的文件由检查报告，必须手工移除。
     Remove-Item -Force (Join-Path $exportDirectory 'RemovedDto.MemoryPack.g.cs')
     $rewrite = Invoke-ExportScript -FixtureRoot $fixture
     Assert-Equal -Expected 0 -Actual $rewrite.ExitCode -Message ("Rewrite after drift should succeed. Output: " + $rewrite.Output)
     $checkConverged = Invoke-ExportScript -FixtureRoot $fixture -ScriptSwitches @('-Check')
     Assert-Equal -Expected 0 -Actual $checkConverged.ExitCode -Message ("Check after rewrite should pass. Output: " + $checkConverged.Output)
 
-    # 7. Unknown project keys fail fast.
+    # 7. 未知项目键应立即失败。
     $unknown = Invoke-ExportScript -FixtureRoot $fixture -ProjectList @('does-not-exist')
     Assert-Equal -Expected 1 -Actual $unknown.ExitCode -Message "Unknown project key should fail with exit 1."
 
-    # 8. A project without authored wire schemas is rejected before invoking the compiler.
+    # 8. 尚未编辑线协议结构的项目，应在调用编译器前被拒绝。
     $notOnboarded = Invoke-ExportScript -FixtureRoot $fixture -ProjectList @('moba')
     Assert-Equal -Expected 1 -Actual $notOnboarded.ExitCode -Message "Project without wire schemas should fail with exit 1."
     Assert-True -Condition ($notOnboarded.Output -match 'owns no') -Message "Not-onboarded failure should explain the missing wire schemas."

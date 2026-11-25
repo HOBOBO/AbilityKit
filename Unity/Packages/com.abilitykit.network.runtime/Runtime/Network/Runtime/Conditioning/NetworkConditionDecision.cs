@@ -7,7 +7,9 @@ namespace AbilityKit.Network.Runtime.Conditioning
         QueueOverflow
     }
 
-    /// <summary>Packet-level outcome before downstream delivery; timestamps use the injected clock.</summary>
+    /// <summary>
+    /// 下游投递前的数据包级处理结果；时间戳使用注入的时钟。
+    /// </summary>
     public readonly struct NetworkConditionDecision
     {
         public NetworkConditionDecision(long observedAtMs, long deliverAtMs, bool inbound,

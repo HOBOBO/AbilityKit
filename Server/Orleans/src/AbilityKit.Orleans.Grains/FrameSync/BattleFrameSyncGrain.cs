@@ -306,8 +306,9 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         var history = request.FromFrameExclusive == -1 && _enableRecording
             ? _fullRecording
             : null;
-        // FromFrameExclusive=-1 is reserved for a new-process lockstep restore. Never let it
-        // fall through to the short ring buffer: an absent/truncated full recording must fail.
+        /*
+         * FromFrameExclusive=-1 专用于新进程锁步恢复。不得回退到短环形缓冲；完整记录缺失或截断时必须失败。
+         */
         var maxAvailableFrames = request.FromFrameExclusive == -1
             ? history?.Count ?? 0
             : MaxHistoryFrames;
@@ -573,7 +574,9 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
     {
         _inputHistory[frame] = new List<FrameInputItem>(inputs);
 
-        // Trim old entries (ring buffer)
+        /*
+         * 裁剪旧条目，维护环形缓冲。
+         */
         var threshold = frame - MaxHistoryFrames;
         var keysToRemove = new List<int>();
         foreach (var kv in _inputHistory)

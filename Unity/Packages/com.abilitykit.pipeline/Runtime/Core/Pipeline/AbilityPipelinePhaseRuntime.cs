@@ -29,14 +29,22 @@ namespace AbilityKit.Pipeline
             where TCtx : IAbilityPipelineContext
         {
             var result = PipelinePools.RentRunPhaseList<TCtx>();
-            for (int i = 0; i < phases.Count; i++)
+            try
             {
-                var runPhase = CreateRunPhase(phases[i]);
-                runPhase.Reset();
-                result.Add(runPhase);
-            }
+                for (int i = 0; i < phases.Count; i++)
+                {
+                    var runPhase = CreateRunPhase(phases[i]);
+                    runPhase.Reset();
+                    result.Add(runPhase);
+                }
 
-            return result;
+                return result;
+            }
+            catch
+            {
+                PipelinePools.ReleaseRunPhaseList(result);
+                throw;
+            }
         }
     }
 }

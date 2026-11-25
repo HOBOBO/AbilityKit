@@ -67,7 +67,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 var current = Reference(trace, second);
                 Assert.That(snapshots.Read(old).Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Evicted));
                 Assert.That(snapshots.Read(current).IsCaptured, Is.True);
-                trace.PurgeRoot(second);
+                trace.EndRoot(second);
+                Assert.That(trace.TryPurgeRoot(second), Is.True);
                 Assert.That(snapshots.Read(current).Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Evicted));
             }
         }

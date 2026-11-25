@@ -5,3 +5,5 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("AbilityKit.Game.UnitTests")]
 [assembly: InternalsVisibleTo("AbilityKit.Demo.Moba.View.Runtime.Tests")]
 [assembly: InternalsVisibleTo("AbilityKit.Demo.Moba.Prediction.PlayMode.Tests")]
+[assembly: InternalsVisibleTo("AbilityKit.Demo.Moba.BattleScenario.Editor.Tests")]
+[assembly: InternalsVisibleTo("AbilityKit.Demo.Moba.Editor")]

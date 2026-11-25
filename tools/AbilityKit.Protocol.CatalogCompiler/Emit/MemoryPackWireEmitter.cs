@@ -4,15 +4,15 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
-/// <summary>Emits MemoryPack DTOs from field-level wire schemas.</summary>
+/// <summary>
+/// 从字段级线协议结构生成 MemoryPack DTO。
+/// </summary>
 public static class MemoryPackWireEmitter
 {
     public static string Emit(WireSchemaIr schema) => Emit(schema, null);
 
     /// <summary>
-    /// Emits the MemoryPack DTO, optionally annotated with <c>ProtocolOpCode</c> when the schema's
-    /// qualified type maps to exactly one catalog message. The overload without a message keeps the
-    /// codec-neutral declaration shape used by schema-only tests and previews.
+    /// 生成 MemoryPack DTO；结构完整类型名恰好映射到一个目录消息时，可附加 <c>ProtocolOpCode</c>。不带消息的重载保留编解码无关声明形式，供纯结构测试及预览使用。
     /// </summary>
     public static string Emit(WireSchemaIr schema, ProtocolMessageIr? protocolMessage)
     {

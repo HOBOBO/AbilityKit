@@ -9,8 +9,7 @@ using AbilityKit.HFSM.Graph.Conditions;
 namespace AbilityKit.HFSM.Editor
 {
     /// <summary>
-    /// Inspector panel for editing HFSM nodes and transitions.
-    /// Displays in the right sidebar of the editor window.
+    /// 在编辑器窗口右侧显示检查器面板，用于编辑 HFSM 节点和转换。
     /// </summary>
     public class InspectorPanel : EditorWindow
     {
@@ -33,7 +32,9 @@ namespace AbilityKit.HFSM.Editor
 
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
 
-            // Show selection info
+            /*
+             * 显示选择信息。
+             */
             if (_context.SelectedEdge != null)
             {
                 DrawEdgeInspector(_context.SelectedEdge);
@@ -56,8 +57,7 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Records an undo snapshot of the graph asset before an inspector edit. It must be called
-        /// before mutating the model, because Undo.RecordObject snapshots the state at call time.
+        /// 在检查器编辑前记录图资产撤销快照。必须先调用再修改模型，因为 Undo.RecordObject 捕获的是调用时状态。
         /// </summary>
         private void RecordUndo(string label)
         {
@@ -70,7 +70,9 @@ namespace AbilityKit.HFSM.Editor
             EditorGUILayout.LabelField("节点检查器", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
-            // Display name
+            /*
+             * 显示名称。
+             */
             EditorGUI.BeginChangeCheck();
             string newName = EditorGUILayout.TextField("名称", node.DisplayName);
             if (EditorGUI.EndChangeCheck())
@@ -83,7 +85,9 @@ namespace AbilityKit.HFSM.Editor
             // Position
             EditorGUILayout.LabelField("位置", $"{node.Position.x:F0}, {node.Position.y:F0}");
 
-            // Node type (read only)
+            /*
+             * 节点类型，只读。
+             */
             EditorGUILayout.LabelField("类型", node is StateMachineNode ? "状态机" : "叶状态");
 
             EditorGUILayout.Space();
@@ -99,7 +103,9 @@ namespace AbilityKit.HFSM.Editor
 
             EditorGUILayout.Space();
 
-            // Actions section
+            /*
+             * 动作区域。
+             */
             DrawActionSection(node);
         }
 
@@ -133,7 +139,9 @@ namespace AbilityKit.HFSM.Editor
             }
             EditorGUILayout.Space();
 
-            // Needs exit time
+            /*
+             * 是否需要退出时间。
+             */
             EditorGUI.BeginChangeCheck();
             bool needsExitTime = EditorGUILayout.Toggle("需要退出时间", state.NeedsExitTime);
             if (EditorGUI.EndChangeCheck())
@@ -143,7 +151,9 @@ namespace AbilityKit.HFSM.Editor
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
 
-            // Ghost state
+            /*
+             * 幽灵状态。
+             */
             EditorGUI.BeginChangeCheck();
             bool isGhost = EditorGUILayout.Toggle("幽灵状态", state.IsGhostState);
             if (EditorGUI.EndChangeCheck())
@@ -155,7 +165,9 @@ namespace AbilityKit.HFSM.Editor
 
             EditorGUILayout.Space();
 
-            // Default state toggle
+            /*
+             * 默认状态开关。
+             */
             EditorGUI.BeginChangeCheck();
             bool isDefault = EditorGUILayout.Toggle("设为默认状态", state.isDefault);
             if (EditorGUI.EndChangeCheck())
@@ -174,7 +186,9 @@ namespace AbilityKit.HFSM.Editor
 
             EditorGUILayout.Space();
 
-            // Behavior Editor
+            /*
+             * 行为编辑器。
+             */
             DrawBehaviorEditorSection(state);
         }
 
@@ -182,7 +196,9 @@ namespace AbilityKit.HFSM.Editor
         {
             EditorGUILayout.LabelField("行为编辑器", EditorStyles.boldLabel);
 
-            // Initialize behavior inspector if needed
+            /*
+             * 按需初始化行为检查器。
+             */
             if (_behaviorInspector == null || _lastInspectedState != state)
             {
                 _behaviorInspector = new BehaviorInspector(state, () =>
@@ -192,7 +208,9 @@ namespace AbilityKit.HFSM.Editor
                 _lastInspectedState = state;
             }
 
-            // Draw behavior inspector
+            /*
+             * 绘制行为检查器。
+             */
             _behaviorInspector.Draw();
         }
 
@@ -200,7 +218,9 @@ namespace AbilityKit.HFSM.Editor
         {
             EditorGUILayout.LabelField("状态机设置", EditorStyles.boldLabel);
 
-            // Remember last state
+            /*
+             * 记住上一个状态。
+             */
             EditorGUI.BeginChangeCheck();
             bool rememberLast = EditorGUILayout.Toggle("记住上次状态", stateMachine.RememberLastState);
             if (EditorGUI.EndChangeCheck())
@@ -230,10 +250,14 @@ namespace AbilityKit.HFSM.Editor
 
             EditorGUILayout.Space();
 
-            // Default state selector
+            /*
+             * 默认状态选择器。
+             */
             EditorGUILayout.LabelField("默认状态", stateMachine.DefaultStateId ?? "无");
 
-            // Child count
+            /*
+             * 子节点数量。
+             */
             EditorGUILayout.LabelField("子状态数", stateMachine.ChildNodeIds.Count.ToString());
         }
 
@@ -290,19 +314,27 @@ namespace AbilityKit.HFSM.Editor
 
             EditorGUILayout.LabelField("动作", EditorStyles.boldLabel);
 
-            // Entry actions
+            /*
+             * 进入动作。
+             */
             EditorGUILayout.LabelField("进入时", EditorStyles.miniLabel);
             DrawActionList(stateNode.EntryActionMethodNames, "进入动作");
 
-            // Logic actions
+            /*
+             * 逻辑动作。
+             */
             EditorGUILayout.LabelField("逻辑更新时", EditorStyles.miniLabel);
             DrawActionList(stateNode.LogicActionMethodNames, "逻辑动作");
 
-            // Exit actions
+            /*
+             * 退出动作。
+             */
             EditorGUILayout.LabelField("退出时", EditorStyles.miniLabel);
             DrawActionList(stateNode.ExitActionMethodNames, "退出动作");
 
-            // Can exit methods
+            /*
+             * 退出许可方法。
+             */
             if (stateNode.NeedsExitTime)
             {
                 EditorGUILayout.LabelField("可退出判断", EditorStyles.miniLabel);
@@ -333,7 +365,9 @@ namespace AbilityKit.HFSM.Editor
             EditorGUILayout.LabelField("转换检查器", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
-            // Source and target
+            /*
+             * 源节点与目标节点。
+             */
             var sourceNode = _context.GraphAsset.GetNodeById(edge.SourceNodeId);
             var targetNode = _context.GraphAsset.GetNodeById(edge.TargetNodeId);
 
@@ -352,7 +386,9 @@ namespace AbilityKit.HFSM.Editor
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
 
-            // Force instantly
+            /*
+             * 强制立即转换。
+             */
             EditorGUI.BeginChangeCheck();
             bool forceInstantly = EditorGUILayout.Toggle("立即强制转换", edge.ForceInstantly);
             if (EditorGUI.EndChangeCheck())
@@ -362,7 +398,9 @@ namespace AbilityKit.HFSM.Editor
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
 
-            // Is exit transition
+            /*
+             * 是否为退出转换。
+             */
             EditorGUI.BeginChangeCheck();
             bool isExit = EditorGUILayout.Toggle("退出转换", edge.IsExitTransition);
             if (EditorGUI.EndChangeCheck())
@@ -408,12 +446,16 @@ namespace AbilityKit.HFSM.Editor
 
             EditorGUILayout.Space();
 
-            // Conditions section
+            /*
+             * 条件区域。
+             */
             DrawConditionSection(edge);
 
             EditorGUILayout.Space();
 
-            // Delete button
+            /*
+             * 删除按钮。
+             */
             if (GUILayout.Button("删除转换"))
             {
                 _context.DeleteEdge(edge);

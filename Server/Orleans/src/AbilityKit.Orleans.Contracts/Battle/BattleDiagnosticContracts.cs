@@ -9,7 +9,7 @@ public static class BattleDiagnosticContractConstants
 }
 
 /// <summary>
-/// Runtime diagnostic query. StoreRevision zero means read the current retained view.
+/// 运行时诊断查询。StoreRevision 为零表示读取当前保留视图。
 /// </summary>
 [GenerateSerializer]
 public sealed record BattleDiagnosticEventsQuery(
@@ -22,8 +22,7 @@ public sealed record BattleDiagnosticEventsQuery(
     [property: Id(6)] int Offset = 0);
 
 /// <summary>
-/// Runtime diagnostic query result. An Available result may still contain zero events;
-/// status and availability must be interpreted independently by consumers.
+/// 运行时诊断查询结果。Available 结果仍可能不含事件；消费方必须分别解释状态及可用性。
 /// </summary>
 [GenerateSerializer]
 public sealed record BattleDiagnosticEventsResult(
@@ -42,10 +41,7 @@ public sealed record BattleDiagnosticEventsResult(
     [property: Id(12)] int Limit);
 
 /// <summary>
-/// Transport projection of one runtime event.
-/// SkillId is the runtime ConfigId, SkillInstanceId is RuntimeId, NodeId is ContextId,
-/// and RootId is RootContextId. Parent/source/owner IDs are zero when runtime provenance
-/// does not provide a trustworthy relationship; zero must not be interpreted as an edge.
+/// 单个运行时事件的传输投影。SkillId 对应运行时 ConfigId，SkillInstanceId 对应 RuntimeId，NodeId 对应 ContextId，RootId 对应 RootContextId。运行时来源未提供可信关系时，父级、来源及所有者 ID 为零；零不能解释为关系边。
 /// </summary>
 [GenerateSerializer]
 public sealed record BattleDiagnosticEventRecord(

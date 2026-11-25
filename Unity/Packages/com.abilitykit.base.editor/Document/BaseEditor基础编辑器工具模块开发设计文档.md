@@ -30,6 +30,8 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 
 Platform 提供服务注册表、模块描述符、模块注册表和显式贡献模型。模块可以注册服务、命令、菜单或面板贡献，并通过 `IDisposable` registration handle 对称注销。
 
+模块、菜单和面板登记默认不进入 `Window/AbilityKit/Hub`。需要在正式导航中出现时，使用构造参数 `showInHub: true` 显式声明；可打开的目标不得在打开时写资产。此选项不改变注册生命周期、实际 Unity 菜单或其他调用路径。Hub 的“迁移清单（只读）”默认折叠，只显示未准入的发现路径，不能从这里执行。
+
 生命周期约束：
 
 - 重复注册必须显式失败或由调用方先注销；

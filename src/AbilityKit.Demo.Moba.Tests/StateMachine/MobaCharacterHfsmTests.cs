@@ -135,18 +135,17 @@ public sealed class MobaCharacterHfsmTests
         SetCastParameter(parameters, 17, 501, 1);
         using var runtime = new MobaCharacterHfsmRuntime(17,
             MobaCharacterHfsmTestFixture.CreateDefinition(), 0, Fixed64.Zero, parameters: parameters);
-        runtime.Tick(1, Time(1), true, false, false, 501, 30010001);
-        Assert.Equal("life/alive/action/casting", runtime.Action.Path);
-        runtime.Tick(2, Time(2), true, false, false, 501, 30010001);
+        runtime.Tick(1, Time(1), true, false, false, 501, 30010601, 5, 5);
 
         Assert.Equal(1f, parameters.Resolve(17, MobaCharacterHfsmTestFixture.CommittedAttackSlot));
         Assert.Equal("life/alive/action/attack.slot.1", runtime.Action.Path);
 
         parameters.ClearSource(17, 501);
-        runtime.Tick(3, Time(3), true, false, false, 0, 0);
+        runtime.Tick(2, Time(2), true, false, true, 0, 0);
 
         Assert.Equal(0f, parameters.Resolve(17, MobaCharacterHfsmTestFixture.CommittedAttackSlot));
-        Assert.Equal("life/alive/action/attack.slot.2", runtime.Action.Path);
+        Assert.Equal("life/alive/action/moving", runtime.Action.Path);
+        Assert.Equal(0, runtime.Action.CastInstanceId);
     }
 
     [Fact]
@@ -305,7 +304,7 @@ public sealed class MobaCharacterHfsmTests
     }
 
     [Fact]
-    public void AttackSlotParameterSelectsNextAttackStateAndDoesNotOverrideControl()
+    public void ReadyMagazineDoesNotOverrideLocomotionOrControl()
     {
         var definition = MobaCharacterHfsmTestFixture.CreateDefinition();
         var parameters = CreateJhinParameterService();
@@ -315,8 +314,8 @@ public sealed class MobaCharacterHfsmTests
 
         using var runtime = new MobaCharacterHfsmRuntime(17, definition, 0, Fixed64.Zero,
             parameters: parameters);
-        runtime.Tick(1, Time(1), true, false, false, 0, 0);
-        Assert.Equal("life/alive/action/attack.slot.1", runtime.Action.Path);
+        runtime.Tick(1, Time(1), true, false, true, 0, 0);
+        Assert.Equal("life/alive/action/moving", runtime.Action.Path);
 
         modifier = ModifierData.Override(
             ModifierKey.FromPacked(MobaCharacterHfsmTestFixture.AttackSlot), 4f, sourceId: 30010001);
@@ -324,20 +323,11 @@ public sealed class MobaCharacterHfsmTests
         runtime.Tick(2, Time(2), true, true, false, 0, 0);
         Assert.Equal("life/alive/action/controlled", runtime.Action.Path);
 
-        runtime.Tick(3, Time(3), true, false, false, 0, 0);
-        Assert.Equal("life/alive/action/idle", runtime.Action.Path);
+        runtime.Tick(3, Time(3), true, false, true, 0, 0);
+        Assert.Equal("life/alive/action/moving", runtime.Action.Path);
         runtime.Tick(4, Time(4), true, false, false, 0, 0);
-        Assert.Equal("life/alive/action/attack.slot.4", runtime.Action.Path);
-
-        modifier = ModifierData.Override(
-            ModifierKey.FromPacked(MobaCharacterHfsmTestFixture.AttackSlot), 0f, sourceId: 30010001);
-        parameters.Set(17, 30010001, MobaCharacterHfsmTestFixture.AttackSlot, in modifier);
-        runtime.Tick(5, Time(5), true, false, false, 0, 0);
-        Assert.Equal("life/alive/action/attack.slot.4", runtime.Action.Path);
-        var resetDelay = definition.Machines.Single(machine => machine.Id == "action")
-            .Transitions.Single(transition => transition.Id == "attack.slot.4.reset").MinimumActiveDurationRaw;
-        runtime.Tick(6, Fixed64.FromRaw(Time(4).RawValue + resetDelay), true, false, false, 0, 0);
         Assert.Equal("life/alive/action/idle", runtime.Action.Path);
+        Assert.Equal(4f, runtime.ResolveParameter(MobaCharacterHfsmTestFixture.AttackSlot));
     }
 
     [Fact]
@@ -456,20 +446,20 @@ public sealed class MobaCharacterHfsmTests
         Assert.Equal(30010601, runtime.Action.SkillId);
         parameters.ClearSource(17, 30010601);
 
-        // Once the short flow completes, the already advanced magazine
-        // parameter selects the next state and clears the completed cast cue.
         runtime.Tick(3, Time(3), true, false, false, 0, 0);
-        Assert.Equal("life/alive/action/attack.slot.2", runtime.Action.Path);
+        Assert.Equal("life/alive/action/idle", runtime.Action.Path);
         Assert.Equal(0, runtime.Action.CastInstanceId);
         Assert.Equal(0, runtime.Action.SkillId);
 
+        SetCastParameter(parameters, 17, 202, 2);
         runtime.Tick(4, Time(4), true, false, false, 202, 30010602, 5, 5);
+        Assert.Equal("life/alive/action/attack.slot.2", runtime.Action.Path);
         Assert.Equal(202, runtime.Action.CastInstanceId);
         Assert.Equal(30010602, runtime.Action.SkillId);
     }
 
     [Fact]
-    public void CompletedCastUsesReadyAttackSlotTransitionWithoutAnIdleFrame()
+    public void CompletedCastWithoutMoveReturnsToIdleDespiteReadyMagazine()
     {
         var definition = MobaCharacterHfsmTestFixture.CreateDefinition();
         var parameters = CreateJhinParameterService();
@@ -485,7 +475,7 @@ public sealed class MobaCharacterHfsmTests
 
         runtime.SyncCastContext(0, 0);
         runtime.ReevaluateCurrentFrame();
-        Assert.Equal("life/alive/action/attack.slot.2", runtime.Action.Path);
+        Assert.Equal("life/alive/action/idle", runtime.Action.Path);
     }
 
 
@@ -753,7 +743,7 @@ public sealed class MobaCharacterHfsmTests
             provider.Import(new FrameIndex(1), snapshot);
             actor.characterHfsm.Runtime.Tick(2, Time(2), true, false, false, 0, 0);
 
-            Assert.Equal("life/alive/action/attack.slot.2", actor.characterHfsm.Runtime.Action.Path);
+            Assert.Equal("life/alive/action/attack-slot-2", actor.characterHfsm.Runtime.Action.Path);
         }
         finally
         {

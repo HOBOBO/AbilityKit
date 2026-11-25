@@ -2,7 +2,9 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
-/// <summary>Adapts the established MemoryPack emitters to the codec backend SPI.</summary>
+/// <summary>
+/// 将既有 MemoryPack 生成器适配到编解码后端服务提供接口。
+/// </summary>
 public sealed class MemoryPackProtocolBackend : IProtocolBackend
 {
     public string Codec => "memorypack";

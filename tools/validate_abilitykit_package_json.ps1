@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $errors = @()
 $packageDirs = Get-ChildItem -Path 'Unity\Packages' -Directory -Filter 'com.abilitykit*'
@@ -21,4 +21,4 @@ if ($errors.Count -gt 0) {
     exit 1
 }
 
-Write-Host 'All AbilityKit package.json files are valid JSON.'
+Write-Host '全部 AbilityKit package.json 文件均为有效 JSON。'

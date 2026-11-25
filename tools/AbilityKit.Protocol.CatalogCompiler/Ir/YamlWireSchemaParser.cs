@@ -5,7 +5,9 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace AbilityKit.Protocol.CatalogCompiler.Ir;
 
-/// <summary>Parses the canonical grouped YAML wire schema document.</summary>
+/// <summary>
+/// 解析规范的分组 YAML 线协议结构文档。
+/// </summary>
 public sealed class YamlWireSchemaParser : IWireSchemaParser
 {
     private static readonly Regex GroupIdPattern = new(

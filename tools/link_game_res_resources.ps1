@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [string]$GameResRoot
@@ -6,9 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# The script is intentionally anchored to the repository instead of the caller's
-# current directory. This keeps the same command usable from an elevated shell,
-# Rider, or the Unity package directory.
+# 脚本以仓库为基准，不依赖调用方当前目录，使相同命令可从管理员终端、Rider 或 Unity 包目录运行。
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $unityRoot = Join-Path $repositoryRoot 'Unity'
 $packageRoot = Join-Path $unityRoot 'Packages/com.abilitykit.demo.moba.view.runtime'
@@ -33,16 +31,14 @@ $heroes = @(
     '14.Void_Annie'
 )
 
-# These are all dependencies observed from the extracted hero prefabs. Keep the
-# complete set here so linking one hero never produces a partial Unity import.
+# 此处列出从导出英雄预制体观察到的全部依赖。保留完整集合，防止链接单个英雄时仅完成部分 Unity 导入。
 $dependencies = @(
     '01.KarmaQ_StarGuardian', '02.BraumR_Arcade', '03.BardW_Project',
     '04.DariusR_Reaper', '05.BrandW_Void', '06.GarenR_Arcade',
     '07.AsheR_Arclight', '08.Jinx_Arcanist',
     '09.Veigar_Hextech', '10.Gragas_StarGuardian', '11.Karthus_Project',
     '12.Lux_DarkStar', '13.Jhin_Battlecast', '14.Void_Annie',
-    # Hero materials reference the shared Puppet shaders by GUID. Mount the
-    # Puppet root so Unity sees Puppet/Shaders and its .meta files together.
+    # 英雄材质通过 GUID 引用共享 Puppet 着色器。挂载 Puppet 根目录，使 Unity 同时看到 Puppet/Shaders 及其 .meta 文件。
     'Puppet'
 )
 

@@ -1,3 +1,5 @@
+#nullable enable annotations
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -16,8 +18,10 @@ namespace AbilityKit.Network.Host
         private readonly Dictionary<string, ServerNetworkSession> _sessions = new Dictionary<string, ServerNetworkSession>();
         private readonly Dictionary<string, RequestQueue> _requestQueues = new Dictionary<string, RequestQueue>();
         private readonly HashSet<string> _closingSessions = new HashSet<string>();
-        private bool _started;
-        private bool _disposed;
+        private volatile bool _started;
+        private volatile bool _disposed;
+        private bool _starting;
+        private TaskCompletionSource<bool>? _stopCompletion;
         private long _acceptedSessions;
         private long _closedSessions;
         private long _rejectedSessions;
@@ -110,15 +114,23 @@ namespace AbilityKit.Network.Host
         public event Action<Exception> ListenerError;
         public event Action<IServerChannel, ChannelAdmissionResult> ChannelRejected;
 
+        /// <summary>
+        /// 开始监听。只能在上一次停机完成后重新启动。
+        /// </summary>
         public void Start()
         {
-            ThrowIfDisposed();
-            if (_started) throw new InvalidOperationException("Network host is already running.");
-            _listener.ChannelAccepted += OnChannelAccepted;
-            _listener.Error += OnListenerError;
-            _started = true;
+            lock (_gate)
+            {
+                ThrowIfDisposed();
+                ThrowIfLifecycleChanging();
+                if (_started) throw new InvalidOperationException("Network host is already running.");
+                _starting = true;
+                _started = true;
+            }
             try
             {
+                _listener.ChannelAccepted += OnChannelAccepted;
+                _listener.Error += OnListenerError;
                 _listener.Start();
             }
             catch
@@ -131,45 +143,117 @@ namespace AbilityKit.Network.Host
                 CloseAllSessions();
                 throw;
             }
-        }
-
-        public void Stop()
-        {
-            if (!_started) return;
-            BeginStop();
-            try
-            {
-                _listener.Stop();
-            }
             finally
             {
-                CloseAllSessions();
+                lock (_gate) _starting = false;
             }
         }
 
+        /// <summary>
+        /// 停止接入并立即取消请求、关闭会话；启动或停机尚未完成时不允许调用。
+        /// </summary>
+        public void Stop()
+        {
+            TaskCompletionSource<bool> stop;
+            lock (_gate)
+            {
+                ThrowIfLifecycleChanging();
+                if (!_started) return;
+                stop = BeginStop();
+            }
+
+            StopImmediately(stop);
+        }
+
+        /// <summary>
+        /// 停止接入，等待已入队请求，并在返回前关闭本次运行的会话。
+        /// 停机未完成时，后续调用等待同一个结果，不替换首次调用的排空期限或取消令牌。
+        /// </summary>
+        /// <param name="drainTimeout">等待已有请求完成的期限，零表示不等待。</param>
+        /// <param name="cancellationToken">取消本次排空等待；会话清理仍会执行。</param>
         public async Task StopAsync(TimeSpan drainTimeout, CancellationToken cancellationToken = default)
         {
             if (drainTimeout < TimeSpan.Zero)
                 throw new ArgumentOutOfRangeException(nameof(drainTimeout), "Drain timeout cannot be negative.");
-            if (!_started) return;
 
-            BeginStop();
-            Exception listenerStopError = null;
+            TaskCompletionSource<bool>? ownedStop = null;
+            Task completion;
+            lock (_gate)
+            {
+                if (_stopCompletion != null)
+                {
+                    completion = _stopCompletion.Task;
+                }
+                else
+                {
+                    ThrowIfLifecycleChanging();
+                    if (!_started) return;
+                    ownedStop = BeginStop();
+                    completion = ownedStop.Task;
+                }
+            }
+
+            if (ownedStop != null) _ = CompleteStopAsync(ownedStop, drainTimeout, cancellationToken);
+            await completion.ConfigureAwait(false);
+        }
+
+        private TaskCompletionSource<bool> BeginStop()
+        {
+            _started = false;
+            _stopCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            return _stopCompletion;
+        }
+
+        private void StopImmediately(TaskCompletionSource<bool> stop)
+        {
+            _ = CompleteStopAsync(stop, null, default);
+            stop.Task.GetAwaiter().GetResult();
+        }
+
+        private async Task CompleteStopAsync(
+            TaskCompletionSource<bool> stop,
+            TimeSpan? drainTimeout,
+            CancellationToken cancellationToken)
+        {
+            Exception? error = null;
             try
             {
-                _listener.Stop();
+                await StopCoreAsync(drainTimeout, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception)
             {
-                listenerStopError = exception;
+                error = exception;
             }
 
+            lock (_gate)
+            {
+                _stopCompletion = null;
+                if (error is OperationCanceledException cancelled && drainTimeout.HasValue)
+                    stop.TrySetCanceled(cancelled.CancellationToken);
+                else if (error != null)
+                    stop.SetException(error);
+                else
+                    stop.SetResult(true);
+            }
+        }
+
+        private async Task StopCoreAsync(TimeSpan? drainTimeout, CancellationToken cancellationToken)
+        {
+            Exception? listenerStopError = null;
             try
             {
-                if (await DrainRequestsAsync(drainTimeout, cancellationToken).ConfigureAwait(false))
-                    Interlocked.Increment(ref _gracefulStops);
-                else
-                    Interlocked.Increment(ref _drainTimeouts);
+                _listener.ChannelAccepted -= OnChannelAccepted;
+                _listener.Error -= OnListenerError;
+                try { _listener.Stop(); }
+                catch (Exception exception) when (drainTimeout.HasValue) { listenerStopError = exception; }
+
+                if (drainTimeout.HasValue)
+                {
+                    if (await DrainRequestsAsync(drainTimeout.Value, cancellationToken).ConfigureAwait(false))
+                        Interlocked.Increment(ref _gracefulStops);
+                    else
+                        Interlocked.Increment(ref _drainTimeouts);
+                }
             }
             finally
             {
@@ -177,13 +261,6 @@ namespace AbilityKit.Network.Host
             }
 
             if (listenerStopError != null) throw listenerStopError;
-        }
-
-        private void BeginStop()
-        {
-            _started = false;
-            _listener.ChannelAccepted -= OnChannelAccepted;
-            _listener.Error -= OnListenerError;
         }
 
         private async Task<bool> DrainRequestsAsync(
@@ -284,16 +361,25 @@ namespace AbilityKit.Network.Host
             return false;
         }
 
+        /// <summary>
+        /// 关闭会话并释放监听器；启动或停机尚未完成时不允许调用。
+        /// </summary>
         public void Dispose()
         {
-            if (_disposed) return;
+            TaskCompletionSource<bool>? stop;
+            lock (_gate)
+            {
+                ThrowIfLifecycleChanging();
+                if (_disposed) return;
+                _disposed = true;
+                stop = _started ? BeginStop() : null;
+            }
             try
             {
-                Stop();
+                if (stop != null) StopImmediately(stop);
             }
             finally
             {
-                _disposed = true;
                 _listener.Dispose();
             }
         }
@@ -499,6 +585,12 @@ namespace AbilityKit.Network.Host
         private void ThrowIfDisposed()
         {
             if (_disposed) throw new ObjectDisposedException(nameof(NetworkHost));
+        }
+
+        private void ThrowIfLifecycleChanging()
+        {
+            if (_starting || _stopCompletion != null)
+                throw new InvalidOperationException("Wait for the active start or stop before changing the network host lifecycle.");
         }
 
         private sealed class RequestQueue

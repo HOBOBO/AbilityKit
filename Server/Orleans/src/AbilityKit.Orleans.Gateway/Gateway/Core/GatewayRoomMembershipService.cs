@@ -9,8 +9,7 @@ public sealed record GatewayRoomLeaveResult(
     RoomOperationResult Operation);
 
 /// <summary>
-/// Owns gateway-side room membership cleanup while RoomGrain remains the
-/// authority for phase transitions, owner transfer, and room closure.
+/// 负责网关侧房间成员清理；阶段转换、房主转移及房间关闭仍以 RoomGrain 为权威。
 /// </summary>
 public sealed class GatewayRoomMembershipService
 {
@@ -55,8 +54,9 @@ public sealed class GatewayRoomMembershipService
         var operation = await room.LeaveWithResultAsync(accountId);
         if (operation.Success)
         {
-            // RoomGrain normally clears this mapping. Keep the gateway cleanup
-            // idempotent for an already-missing member with a stale mapping.
+            /*
+             * 通常由 RoomGrain 清除此映射。成员已不存在但映射残留时，网关清理仍须幂等。
+             */
             await mapping.ClearAccountRoomAsync(accountId, activeRoomId);
         }
 

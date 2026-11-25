@@ -5,9 +5,7 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
 /// <summary>
-/// Emits the small typed API layer that sits above the transport SDK. The generated surface keeps
-/// protocol identities in the catalog while leaving serialization, transport and business logic
-/// supplied by the consuming project.
+/// 生成位于传输 SDK 之上的精简强类型 API 层。协议身份保留在目录中，序列化、传输和业务逻辑由消费项目提供。
 /// </summary>
 public static class ProtocolApiEmitter
 {

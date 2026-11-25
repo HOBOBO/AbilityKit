@@ -6,7 +6,6 @@ DebugDraw 的运行时契约和 Unity SceneView 适配器由本包统一拥有�
 因此本包现在显式依赖 `com.abilitykit.core`；不再是零内部依赖包。
 
 开发期性能剖析与调试工具：Profiler 抽象、火焰图数据、分析工件导出与 Unity Editor 窗口。
-不依赖任何其他 AbilityKit 包，可独立选装。
 
 ## 为什么需要它
 
@@ -22,6 +21,7 @@ Editor 侧消费工具。
 | 核心 | `EditorProfiler` | 编辑器/开发期实现 |
 | 数据 | `FlameData` | 火焰图数据结构（可导出给 speedscope 等工具） |
 | 分析 | `AnalysisArtifact` / `AnalysisProfilerBuilder` / `AnalysisBattleDiagnosticSection` | 战斗分析工件与构建 |
+| Unity 运行时 | `UnityRuntimeDiagnostics` | 显式采集 Unity 帧耗时与内存指标；不会自动注册 PlayerLoop |
 | Editor | `DiagnosticsWindow` | Unity 编辑器诊断窗口 |
 | Editor | `Exporters` / `AdvancedExporters` / `AnalysisArtifactJsonExporter` | 工件导出：json / csv / folded / speedscope / chrome trace / **flamegraph SVG** / 分析工件 JSON |
 
@@ -36,70 +36,43 @@ using (ProfilerHub.Current.Sample("battle.tick"))
 
 未挂载实现时走 `NullProfiler`，生产环境零开销；需要观测时替换 Hub 中的实现即可。
 
-## Collection levels
+## 采集等级
 
-Diagnostics is optional. The core runtime uses `NullProfiler` until a project explicitly installs
-and registers a diagnostics implementation. `ProfilerOptions.CollectionLevel` controls the amount
-of work performed by a running `EditorProfiler`:
+诊断能力为可选项。在项目显式安装并注册诊断实现前，核心运行时使用 `NullProfiler`。`ProfilerOptions.CollectionLevel` 控制活动 `EditorProfiler` 执行的工作量：
 
-| Level | Collected data |
+| 等级 | 采集数据 |
 |---|---|
-| `Off` | No metrics are collected. Session lifecycle APIs remain available. |
-| `Summary` | Counters, gauges, rates and duration summaries; no flame tree, raw samples, events or spans. |
-| `Standard` | Full flame tree, samples, threshold events and span timeline. |
-| `Verbose` | Reserved for detailed adapters; currently equivalent to `Standard`. |
+| `Off` | 不采集指标；会话生命周期 API 仍可用。 |
+| `Summary` | 计数器、量值、速率和时长摘要；不采集火焰树、原始采样、事件或跨度。 |
+| `Standard` | 完整火焰树、采样、阈值事件和跨度时间轴。 |
+| `Verbose` | 为详细适配器预留，目前等同于 `Standard`。 |
 
-Use `NullProfiler` or `Off` in production by default. Enable `Summary`, `Standard` or `Verbose`
-only for a test, profiling or CI session.
+生产默认使用 `NullProfiler` 或 `Off`，仅在测试、性能分析或 CI 会话启用 `Summary`、`Standard` 或 `Verbose`。
 
-When an `EditorProfiler` remains installed but collection is `Off` (or `Enabled` is false),
-hot-path `Begin`, `Record` and event calls return through an immutable gate without taking the
-aggregation lock. This keeps runtime feature switches cheap as well as keeping `NullProfiler`
-available for deployments that do not install diagnostics at all.
+保留 `EditorProfiler` 但采集等级为 `Off`（或 `Enabled` 为 false）时，热路径 `Begin`、`Record` 和事件调用通过不可变门禁直接返回，不获取聚合锁，使运行时开关保持低开销；完全不安装诊断的部署仍可使用 `NullProfiler`。
 
-Detailed span records are written to bounded thread-local buffers and merged when a snapshot,
-session save or stop is requested. This keeps the high-frequency span path away from the central
-span ring lock; the merged timeline preserves per-buffer completion order, while cross-thread
-ordering is intentionally treated as diagnostic evidence rather than a synchronization contract.
+详细跨度记录写入有界线程本地缓冲，在请求快照、保存或停止会话时合并，避免高频路径争用中央跨度环形锁。合并时间轴保留每个缓冲内的完成顺序；跨线程顺序仅为诊断证据，不构成同步契约。
 
-Counter and gauge writes use bounded thread-local operation buffers and are merged before reads,
-snapshots, session saves and stop. If a buffer fills, the newest operations replace the oldest;
-the resulting loss is exposed as `ProfilerSnapshot.MetricOperationsDropped` and in JSON/CSV exports.
+计数器及量值写入有界线程本地操作缓冲，在读取、快照、会话保存和停止前合并。缓冲满时新操作替换最旧操作；丢失量通过 `ProfilerSnapshot.MetricOperationsDropped` 及 JSON/CSV 导出公开。
 
-Raw `Sample` writes use the same bounded thread-local operation buffers. They are merged before
-`GetSamples`, snapshots, session saves and stop, so the hot path does not take the profiler's
-aggregation lock. Buffer overflow is reported through the same `MetricOperationsDropped` field.
-The per-thread budget defaults to 256 and can be tuned with
-`ProfilerOptions.MaxMetricOperationsPerThread`; changing it while a session is running keeps
-the newest pending operations and counts evicted entries as dropped.
+原始 `Sample` 写入使用相同的有界线程本地操作缓冲，在 `GetSamples`、快照、保存和停止前合并，热路径不获取聚合锁。溢出通过相同的 `MetricOperationsDropped` 报告。每线程预算默认 256，可由 `ProfilerOptions.MaxMetricOperationsPerThread` 调整；活动会话中修改时保留最新待处理操作，将淘汰项计为丢失。
 
-Counter rates maintain incremental 1-second, 5-second and 60-second rolling totals. A counter
-write only expires samples that crossed a window boundary; reading a rate or snapshot performs
-the same bounded expiry pass. This avoids rescanning the full 60-second history on every high-rate
-counter operation while preserving `TotalCount`, peak rate and threshold event behavior.
+计数器速率增量维护 1 秒、5 秒和 60 秒滚动总量。写入仅清理越过窗口边界的采样；读速率或快照执行相同有界过期处理，避免每次高频操作都重扫完整 60 秒历史，同时保留 `TotalCount`、峰值速率及阈值事件行为。
 
-`SaveSession` records only the session summary metadata it needs and does not clone the flame tree,
-sample buffers or span timeline. Use `GetSnapshot` when a complete exportable copy is required;
-this keeps frequent session checkpoints inexpensive for large captures.
+`SaveSession` 仅记录所需会话摘要元数据，不复制火焰树、采样缓冲或跨度时间轴。需要完整可导出副本时使用 `GetSnapshot`，使大型采集的频繁会话检查点保持低开销。
 
-The Unity diagnostics window reuses its display snapshot for a short refresh interval and takes a
-fresh copy for export. Repainting the editor window therefore does not repeatedly clone a large
-flame tree while a capture is running.
+Unity 诊断窗口在短刷新间隔内复用显示快照，导出时取得新副本，避免采集期间每次窗口重绘都复制大型火焰树。
 
-File exports for profiler JSON/CSV/folded/FlameGraph/0x formats and analysis artifacts write directly to a UTF-8 stream.
-`ExportToString` remains available for tests and integrations that need an in-memory value, while
-large file exports avoid constructing a second complete output string.
+性能分析的 JSON、CSV、folded、FlameGraph、0x 格式及分析工件直接写入 UTF-8 流。`ExportToString` 继续供测试和需要内存值的集成使用；大型文件导出避免构建第二份完整输出字符串。
 
-SpeedScope and Chrome Trace file exports serialize their final JSON directly to a UTF-8 stream,
-while `ExportToString` remains available. Timeline events are staged as compact value records to
-preserve ordering, and JSON is generated one event at a time. This avoids retaining a second string
-for every event; sorting buffers and event records still require memory proportional to capture size.
-FlameGraph SVG output is also written directly to the file stream after its layout is computed.
+SpeedScope 和 Chrome Trace 文件将最终 JSON 直接序列化到 UTF-8 流，同时保留 `ExportToString`。时间轴事件以紧凑值记录暂存以保序，逐事件生成 JSON，避免为每个事件保留第二份字符串；排序缓冲及事件记录仍需与采集规模成正比的内存。FlameGraph SVG 在完成布局计算后同样直接写入文件流。
 
-Probe tokens are tagged with the session generation in which they were created. Completing a
-token after `Stop`/`Start` or `Clear` is ignored, preventing asynchronous work from contaminating
-the next session.
+探针令牌标记其创建时的会话代际。`Stop`/`Start` 或 `Clear` 后完成的旧令牌被忽略，防止异步工作污染下一会话。
 
 ## 依赖
 
-无 AbilityKit 内部依赖。Unity 2022.3+（Editor 部分仅编辑器可用，Runtime 部分纯 C#）。
+- `AbilityKit.Diagnostics`：纯 C# 运行时，依赖 Core 的数学类型；`.NET` 工程复用同一源码。
+- `AbilityKit.Diagnostics.Unity`（`Runtime/Unity/`）：Unity 2022.3+ 运行时适配，单向依赖纯 C# 运行时。
+- `AbilityKit.Diagnostics.Editor`（`Editor/`）：窗口、SceneView 绘制、Editor 导出；JSON 工件导出使用 `com.unity.nuget.newtonsoft-json`。运行时程序集不引用该 JSON 库。
+
+`UnityRuntimeDiagnostics` 的命名空间和方法不变。自定义 asmdef 若调用它，需引用 `AbilityKit.Diagnostics.Unity`；仅消费 `ProfilerHub` 等通用能力不需要增加引用。程序集限定反射名称或预编译二进制中持有旧程序集引用的消费者需要迁移。

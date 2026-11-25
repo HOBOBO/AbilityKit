@@ -8,8 +8,7 @@ using AbilityKit.Context;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Domain execution categories. Values are stable because execution snapshots and
-    /// optional observers may persist them outside the live combat world.
+    /// 领域执行分类。执行快照及可选观察者可能在活动战斗世界外持久化这些值，因此数值保持稳定。
     /// </summary>
     public enum MobaExecutionKind : byte
     {
@@ -45,8 +44,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Stable business reasons for ending an execution context.
-    /// Optional projections may display these values but do not own them.
+    /// 结束执行上下文的稳定业务原因。可选投影可显示这些值，但不拥有它们。
     /// </summary>
     public enum MobaExecutionEndReason : byte
     {
@@ -192,8 +190,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Owns deterministic combat execution identities and their minimal causal lineage.
-    /// Optional observers, including Trace, consume committed lifecycle events.
+    /// 拥有确定性战斗执行身份及最小因果沿袭。包括 Trace 在内的可选观察者消费已提交生命周期事件。
     /// </summary>
     [WorldService(typeof(MobaExecutionContextRegistry), WorldLifetime.Scoped)]
     public sealed class MobaExecutionContextRegistry :
@@ -382,8 +379,9 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        // Only the joint local provider calls this with a fully preflighted target or its
-        // in-memory compensation backup. Unlike prediction retraction it restores the cursor.
+        /*
+         * 仅联合本地 Provider 使用已完整预检的目标或其内存补偿备份调用。此处恢复游标，与预测撤回不同。
+         */
         internal void RestoreLocalRegistry(IReadOnlyList<MobaExecutionContextNode> nodes, long nextId)
         {
             var restored = new Dictionary<long, MobaExecutionContextNode>();
@@ -406,8 +404,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// Restores lifecycle fields only. Legacy gameplay observers stay silent; read-only
-        /// lifecycle observers receive one reconciliation signal and can rebuild their projection.
+        /// 仅恢复生命周期字段。旧玩法观察者保持静默，只读生命周期观察者收到一次对账信号，可重建投影。
         /// </summary>
         public void RestoreLifecycle(IReadOnlyList<MobaExecutionContextNode> nodes)
         {
@@ -498,7 +495,9 @@ namespace AbilityKit.Demo.Moba.Services
                 }
                 catch
                 {
-                    // Observation diagnostics must not change committed context state.
+                    /*
+                     * 观测诊断不得改变已提交上下文状态。
+                     */
                 }
             }
         }

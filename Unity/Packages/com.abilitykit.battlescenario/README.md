@@ -116,7 +116,7 @@ var scenario = BattleScenarioCompiler.Compile("case-1", new BattleBlock[] { stan
 
 打开「Window → AbilityKit → 战斗测试用例编辑器」，在顶部「状态同步复现样例 → 选样例」选择内置录制，无需导入文件或运行测试。先看「导入失败后重试 · 预测回退并重演」：跳到 `retry-import`，依次看到上次观测的预测 `20`、回退起点 `14`、重演候选与最终预测 `21`。还可查看固定基线恢复的两份证明变体、重演历史缺口、会话换代和部分提交失败。固定基线两份变体可在 Tick 20 的 `recovery-full` 对比。内置样例只读，不会替换草稿。
 
-「MOBA · 古拉加斯 E」子菜单包含正式技能的本地录制：权威确认、命中纠偏、无终结证明、移动历史缺口。回放画的是世界 Z 轴，不是 3D 技能表现；只重演 E 退场后的普通移动，不回滚施法和伤害。正式技能预览和重录入口见[样例说明](../../../src/AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/PredictionPrerequisites/README.md)。
+「MOBA · 古拉加斯 E」子菜单包含正式技能的本地录制：权威确认、命中纠偏、无终结证明、移动历史缺口。命中纠偏可逐步查看旧预测、权威交付对照、回退到权威起点、逐 Tick 候选和交付后的新预测。勾选「3D 双投影对照（仅角色）」可在同镜头观察深灰权威与原色预测；回退起点两者重合时只画原色候选。不开启时仍显示世界 Z 轴。该视图只读取记录姿态，不运行场景，不回滚施法和伤害。正式技能预览和重录入口见[样例说明](../../../src/AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/PredictionPrerequisites/README.md)。
 
 同栏的「导入验收…」可打开本仓库本地测试新导出的 `*.statesync-replay.json`。两类录制复用同一回放窗，不执行当前草稿或重新计算预测。对于有重演的交付，依次显示回退起点、真实回调记录的各 Tick 候选位置、最终交付检查点。候选位置不等于已发布预测；检查点仍分别显示已发布位置、对账权威和预测。旧版文件仍可看检查点，但不会补画重演位置。
 

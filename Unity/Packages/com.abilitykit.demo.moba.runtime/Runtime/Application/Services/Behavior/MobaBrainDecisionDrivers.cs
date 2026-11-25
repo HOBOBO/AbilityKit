@@ -63,8 +63,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     }
 
     /// <summary>
-    /// Optional driver-owned validation for algorithm-specific resources and definitions.
-    /// Adding a new driver does not require a central validation branch.
+    /// 驱动器拥有的可选验证，检查算法专用资源及定义。添加新驱动器无需增加集中验证分支。
     /// </summary>
     public interface IMobaBrainDecisionDriverValidator
     {

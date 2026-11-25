@@ -205,47 +205,55 @@ namespace AbilityKit.Network.Client
             }).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// 完成房间流程并按选项挂接战斗连接；在交付会话前取消或挂接失败时释放已取得的资源。
+        /// </summary>
         public static async Task<MultiplayerClientSession> EnterAsync(MultiplayerClientSessionOptions options)
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
             var room = options.RoomConnection ?? throw new ArgumentException("Room connection options are required.", nameof(options));
             var flow = options.RoomFlow ?? throw new ArgumentException("Room flow options are required.", nameof(options));
             var battle = options.Battle ?? throw new ArgumentException("Battle options are required.", nameof(options));
-            if (battle.Attach && battle.Configure == null)
+            var attachBattle = battle.Attach;
+            var configureBattle = battle.Configure;
+            if (attachBattle && configureBattle == null)
                 throw new ArgumentException("Battle configuration is required when attach is enabled.", nameof(options));
 
+            var host = room.Host;
+            var port = room.Port;
+            var cancellationToken = room.CancellationToken;
             var session = await MultiplayerRoomSession.CreateAsync(
-                room.Host, room.Port, room.AccountId, room.LaunchSpec,
-                room.TransportFactory, room.Dispatcher, room.Timeout, room.CancellationToken,
+                host, port, room.AccountId, room.LaunchSpec,
+                room.TransportFactory, room.Dispatcher, room.Timeout, cancellationToken,
                 flow.JoinRoomId, flow.ConfigureClient, flow.PlayerId, flow.WaitForBattleStart,
                 flow.AfterJoinAndBeforeReady, flow.AfterReadyAndBeforeBattleStart,
-                subscribeStateSync: !battle.Attach,
+                subscribeStateSync: !attachBattle,
                 joinFallbackToCreate: flow.JoinFallbackToCreate).ConfigureAwait(false);
 
-            var client = new MultiplayerClientSession(
-                session, room.Host, room.Port, battle.TransportFactory, battle.Dispatcher, battle.IoDispatcher);
+            MultiplayerClientSession? client = null;
             try
             {
-                if (battle.Attach)
+                cancellationToken.ThrowIfCancellationRequested();
+                client = new MultiplayerClientSession(
+                    session, host, port, battle.TransportFactory, battle.Dispatcher, battle.IoDispatcher);
+                if (attachBattle)
                 {
-                    client.AttachBattle(battle.Configure!);
+                    client.AttachBattle(configureBattle!);
                 }
+                cancellationToken.ThrowIfCancellationRequested();
                 return client;
             }
-            catch
+            catch (Exception entryError)
             {
-                client.Dispose();
+                DisposeAfterFailure((IDisposable?)client ?? session, entryError);
                 throw;
             }
         }
 
         /// <summary>
-        /// Builds the battle options: gateway address + session identity + the standard room-gateway
-        /// protocol preset are pre-filled; <paramref name="configureBattle"/> receives the config and
-        /// the room-flow result (battleId/roomId/numericRoomId are usually needed by the game
-        /// callbacks). Do not call <c>Build()</c> inside the callback — the session builds and connects
-        /// the transport. Pass <paramref name="connect"/>=false to defer <c>Connect()</c> — needed when
-        /// push consumers must subscribe before the engine's connect handshake emits its first pushes.
+        /// 预填网关、会话身份和协议配置，再由回调补全配置；回调无需调用 Build。
+        /// 成功后战斗连接由会话持有；本次挂接失败时保留房间连接，调用方可重试或释放会话。
+        /// 将 <paramref name="connect"/> 设为 false 可在订阅推送后再连接。
         /// </summary>
         public NetworkTransport AttachBattle(Action<NetworkBattleConfig, MultiplayerRoomSessionResult> configureBattle, bool connect = true)
         {
@@ -259,8 +267,8 @@ namespace AbilityKit.Network.Client
         }
 
         /// <summary>
-        /// Creates a battle plane for a staged flow. The caller owns the returned transport and
-        /// may connect it after registering push consumers.
+        /// 为分步流程创建战斗连接，成功返回后由调用方持有。
+        /// 若立即连接失败，本方法负责清理已创建的战斗连接。
         /// </summary>
         public static NetworkTransport CreateBattleTransport(
             NetworkTransportOptions options,
@@ -276,9 +284,9 @@ namespace AbilityKit.Network.Client
                 transport.Connect();
                 return transport;
             }
-            catch
+            catch (Exception connectError)
             {
-                transport.Dispose();
+                DisposeAfterFailure(transport, connectError);
                 throw;
             }
         }
@@ -332,19 +340,39 @@ namespace AbilityKit.Network.Client
             _battle?.Tick(realDeltaTime);
         }
 
+        /// <summary>
+        /// 先尝试释放战斗连接，再尝试释放房间连接；重复调用不再释放。
+        /// 释放不发送退房请求；会话不支持与其他操作并发调用。
+        /// </summary>
+        /// <exception cref="AggregateException">战斗和房间连接均释放失败，保留两项异常。</exception>
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
-            _battle?.Dispose();
+            var battle = _battle;
             _battle = null;
-            if (_roomSession != null)
+            var room = (IDisposable?)_roomSession ?? _roomConnection;
+            try
             {
-                _roomSession.Dispose();
+                battle?.Dispose();
             }
-            else
+            catch (Exception battleError)
             {
-                _roomConnection.Dispose();
+                DisposeAfterFailure(room, battleError);
+                throw;
+            }
+            room.Dispose();
+        }
+
+        private static void DisposeAfterFailure(IDisposable resource, Exception originalError)
+        {
+            try
+            {
+                resource.Dispose();
+            }
+            catch (Exception cleanupError)
+            {
+                throw new AggregateException(originalError, cleanupError);
             }
         }
 

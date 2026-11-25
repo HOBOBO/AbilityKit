@@ -6,7 +6,7 @@
 >
 ## 一、文档定位
 
-`com.abilitykit.context` 提供一组轻量运行时关联工具：用实体 ID 关联属性，用 Flow 记录一批实体所属的执行阶段，用 Snapshot 保留每个实体的最新状态，再通过统一读取器在实时数据和快照之间选择来源。
+`com.abilitykit.context` 提供一组轻量运行时关联工具：用实体 ID 关联属性，用 Flow 记录一批实体所属的执行阶段，用 Snapshot 保留最新记录或有界历史，再通过读取器显式选择实时数据或快照。
 
 该包采用 ECS 风格的实体、属性和查询接口，但它不是完整 ECS World：没有 System 调度、结构变更队列、Chunk 存储、帧历史或自动资源回收。它更适合承载 Buff、技能阶段、触发输入和诊断上下文等跨模块关联数据。
 
@@ -22,8 +22,8 @@ Context 还提供只读的生命周期观察契约 `IContextLifecycleSource<TNod
 |---|---|---|---|
 | 实体注册 | `ContextRegistry` | 分配实体 ID，保存属性和反向索引，发布变更事件 | System 调度、持久化、自动快照 |
 | 流程组织 | `FlowContext` | 记录父子 Flow、Owner、阶段和所属实体 | 状态迁移校验、级联销毁 |
-| 最新快照 | `SnapshotStorage` | 每个实体保存一份当前快照，按 source/owner 查询 | 历史帧、增量日志、版本冲突处理 |
-| 统一读取 | `ContextValueResolver` | 按模式读取实时 provider、实体属性或快照 | 缓存一致性、自动迁移、值域校验 |
+| 快照 | `SnapshotStorage` | 按实体索引最新记录，按精确引用读取有界历史 | 完整帧历史、增量日志、权威恢复或版本冲突处理 |
+| 精确读取 | `ContextValueResolver` | 按实体或快照引用读取指定来源 | 跨来源回退、业务版本校验、值域校验 |
 | 生命周期观察 | `IContextLifecycleSource<TNode>`、`ContextLifecycleEvent<TNode>` | 在 Context 状态提交后提供只读快照与生命周期事件 | 改写提交、要求 Trace 存在、传播观察者异常 |
 
 ```mermaid
@@ -67,12 +67,12 @@ flowchart LR
 
 事件包括实体创建、属性更新、销毁前、销毁后、Flow 创建和 Flow 阶段变化。`ContextRegistry` 在锁内复制订阅者列表，在锁外同步调用 handler，因此回调不会持有 registry 锁。
 
-多个 handler 抛出的异常会汇总为 `AggregateException`。这一行为对销毁流程有两个不同影响：
+单个 handler 抛错由 `EventHandlerException` 报告，不中断本次操作或后续 handler；错误报告回调抛错也会被隔离。
 
-1. `Destroying` 在删除实体前发布。该事件抛错会中断 `Destroy()`，实体仍然存在。
-2. `Destroyed` 在删除实体后发布。该事件抛错时实体已经删除，但 `Destroy()` 仍以异常结束。
+1. `Destroying` 在删除前发布，观察者仍可读取原实体及属性。同一实例在通知期间重复调用 `Destroy()` 返回 `false`，不会再次发布销毁事件。
+2. 通知后只删除原实例。如果同 ID 已换成另一实例，本次销毁返回 `false`，不会删除新实例或为它发出 `Destroyed`。`Destroyed` 只在原实体及索引删除后发布。
 
-因此不能仅凭“调用抛错”判断实体是否仍存在。生产接入应让清理订阅者保持幂等，并在异常恢复时通过 `Exists()` 核对实际状态。需要强事务语义时，应由上层包装状态提交和事件投递；当前同步事件不是事务总线。
+这些保护不使通知成为事务边界。订阅者应保持短小、幂等；需要跟踪同一实体时，使用带 registry 和 generation 的 `ContextEntityReference`，不要以裸 ID 判断是否仍为原实例。
 
 ## 四、Flow 是组织记录，不是资源所有权
 
@@ -118,9 +118,11 @@ Running -> Completed | Cancelled | Failed
 
 ## 五、SnapshotStorage 的数据边界
 
-### 5.1 每个实体只有最新快照
+### 5.1 兼容最新记录与有界历史
 
-`Save()` 以 `EntityId` 为键覆盖旧记录，并同步更新 source 和 owner 反向索引。它不是帧历史存储：旧版本对象不会保留，也不能按版本回读。
+兼容入口 `Save()` 以 `EntityId` 为键覆盖旧记录，并同步更新 source 和 owner 反向索引。旧记录不会保留，也不能按版本回读。
+
+`TrySaveManaged()` 需要注册快照类型并提供 generation、frame 和 kind；成功时返回 `ContextSnapshotReference`。容量达到上限时淘汰未持有的记录；如果候选记录均被持有，则返回 `false`，不分配引用或替换记录。按 ID 读取的是当前最新记录，不证明与旧引用属于同一代；精确读取不会回退到最新记录或实时值。
 
 若快照实现 `IVersionedContextSnapshot`，storage 直接采用对象给出的 `Version` 和 `Frame`；否则由 storage 为该实体自动递增版本，帧固定为 `0`。
 
@@ -142,52 +144,17 @@ flowchart TD
 
 ### 5.3 Destroy 标记与删除不同
 
-`MarkDestroyed(entityId)` 只在当前快照实现 `IDestroyableSnapshot` 时调用其 `MarkDestroyed()`；记录仍留在 storage，source/owner 索引也仍可查询到它。`Remove()` 才会删除记录和索引。
+兼容快照实现 `IDestroyableSnapshot` 时，`MarkDestroyed(entityId)` 调用该对象的销毁标记。托管快照的销毁状态是记录元数据，不修改 payload。销毁标记不会移除记录；`Remove()` 才会删除记录和索引。
 
 `ContextRegistry.Destroy()` 不会自动调用 `SnapshotStorage.MarkDestroyed()`。这使得“实时实体已经销毁，但最终快照仍可读取”成为可实现的模式，同时也要求业务明确维护两者顺序。
 
 ## 六、实时值与快照值的统一读取
 
-### 6.1 四种读取模式
+`ContextValueResolver` 只接受精确引用。`ReadRealtimeProperty`、`ReadRealtime` 使用 `ContextEntityReference` 校验注册表和代际；实时来源优先使用外部 provider 提供的属性对象，没有绑定时才读取 Registry 属性。一旦选定属性，字段缺失不再向另一对象取值。
 
-| 模式 | 顺序 |
-|---|---|
-| `RealtimeThenSnapshot` | 实时 provider / registry 属性，失败后读快照 |
-| `RealtimeOnly` | 只读实时来源 |
-| `SnapshotOnly` | 只读快照 |
-| `SnapshotThenRealtime` | 先读快照，失败后读实时来源 |
+`ReadSnapshot` 通过只读的 `IContextSnapshotReader` 查询指定的 `ContextSnapshotReference`，不读取实时值或实体最新记录。值为 `0` 仍可命中；记录存在但字段缺失是 `FieldMissing`，序号尚未分配是 `NotCaptured`，已保存但后来淘汰或删除是 `Unavailable`。保存失败返回无效引用，不能视为已保存。
 
-实时来源内部还有固定顺序：先读 `ContextRealtimeProviderRegistry`，再读 `ContextRegistry` 中已保存的属性。每个 property type 只能注册一个实时 provider，后注册会覆盖前一个。
-
-值读取需要属性或快照实现 `IContextValueProvider`，通过 `TryGetValue()` 区分“命中默认值”和“没有该 key”。读取整个属性对象时则使用 `GetProperty<TProperty>()`。
-
-### 6.2 Result 与 TryGet 的缺失语义
-
-`GetValue()` 在所有来源都未命中时返回：
-
-```text
-Found = true
-Source = DefaultValue
-Value = 调用方给定默认值
-```
-
-`TryGetValue()` 会额外排除 `DefaultValue` 来源，因此这时返回 `false`。调用方若使用 `GetValue()`，应同时检查 `Source`，不能只看 `Found` 判断数据是否来自 Context。
-
-`GetProperty()` 的缺失结果不同：`Found = false`、`Source = None`。对象读取和值读取的默认语义并不完全对称。
-
-### 6.3 ISnapshotAccessor 的兼容风险
-
-Snapshot 读取顺序为：
-
-1. `IContextValueProvider.TryGetValue()`；
-2. `ISnapshotAccessor.GetValue()`；
-3. key 为空时按对象类型返回快照自身。
-
-`ISnapshotAccessor` 只有 `GetValue()`，不能表达 key 缺失。Resolver 调用它后无条件把结果视为 Snapshot 命中。因此一个未知 key 返回的 `default(T)` 也会阻止 `SnapshotThenRealtime` 继续回退到实时来源。
-
-此外，`ISnapshotAccessor.IsRealtimeAvailable` 没有被 Resolver 用于选择来源。接口注释中的“优先实时值”需要由具体 accessor 自己实现，Resolver 不会依据该标志自动访问实时 provider。
-
-新的业务快照应优先实现 `IContextValueProvider`。P0 修正方案是为 accessor 增加可表达 missing 的接口，或让 Resolver 只在明确命中时返回 Snapshot 来源。
+这是破坏性 API 迁移：删除裸 ID Resolver 入口、默认值命中、逐键实时 provider 适配和 `ISnapshotAccessor`。字段由选中的属性或受管快照通过 `IContextValueProvider.TryGetValue` 提供。调用方在生产端冻结引用，不能在读取旧事实时用裸 ID 查找当前代次补绑。按业务模式选择来源是领域职责，例如 MOBA 同代 Buff 最终状态读取；它不属于通用解析器。
 
 ## 七、Context 生命周期观察与 Trace 桥接边界
 
@@ -220,15 +187,14 @@ Trace 仍独立负责投影树、retain/release、查询、导出与清理。不
 `MobaRuntimeContextService` 是当前较完整的组合示例。它为 Buff 维护一个实时 provider，并在终止路径显式执行：
 
 1. 从实时 Buff 创建最终 `MobaBuffContextSnapshot`；
-2. 将快照保存到 `SnapshotStorage`；
+2. 尝试将最终快照保存到 `SnapshotStorage`，通过记录元数据标记已销毁；
 3. 从实时 provider 解绑 context ID；
 4. 销毁 `ContextRegistry` 中的实体；
-5. 对快照调用 `MarkDestroyed()`；
-6. 清空 BuffRuntime 上的 context ID 与版本。
+5. 按调用方是否保留引用，决定是否清空 BuffRuntime 上的标识、版本和身份。
 
-这套顺序保证终止后实时读取失败，而快照仍可作为后备。它是 MOBA 领域服务的编排，不是 `com.abilitykit.context` 自动提供的生命周期。
+快照因容量被拒绝时，Buff 销毁仍然完成。保存成功且记录尚可用时，同代引用才能读到最终快照。MOBA 领域读接口区分字段缺失 `ValueMissing` 和找不到最终快照 `SnapshotUnavailable`；后者不区分未保存和已淘汰。Action 诊断通过独立的 `MobaActionExecutionSnapshotStore` 维护观测快照，不参与 Buff 回收或玩法恢复。以上均为消费端编排，不是 Context 与 Trace 的自动联动。
 
-MOBA 快照同时实现 `IContextValueProvider` 和 `ISnapshotAccessor`。Resolver 会优先使用前者，因此其未知 key 能正确返回 missing，不会触发 accessor 的无条件命中问题。其他只实现 `ISnapshotAccessor` 的业务快照仍受该风险影响。
+MOBA 最终快照实现 `IImmutableContextSnapshot`，通过 `TryGetValue` 区分未知字段与合法的零值。领域读取选中快照后返回本次解析的精确引用；分析和断言若要重复读取同一事实，应保存该引用，而不是再选最新记录。
 
 ### 8.2 战斗执行 Context 与 canonical provenance
 
@@ -263,7 +229,7 @@ Effect 创建或挂接正式 `EffectExecution` Context 后，`MobaCombatExecutio
 
 ## 十、验证现状
 
-`src/AbilityKit.Context.Tests` 已是独立 `.NET` 测试工程。2026-08-16 当次结果为 `5/5`：其中 3 项覆盖 Registry 观察者异常隔离、Clear 和 Destroy，2 项固定枚举默认值。该工程证明事件异常不会改变已提交的 create/destroy/clear 结果，但尚未形成 Snapshot/Resolver/Flow 的完整包级矩阵。
+`src/AbilityKit.Context.Tests` 是独立 `.NET` 测试工程，由 `core-stability` 的 `Context tests` 步骤执行。覆盖 Registry 事件顺序、异常隔离、重复销毁、ID 复用与回滚、精确引用、快照容量与持有、淘汰及来源隔离。
 
 `src/AbilityKit.Demo.Moba.Tests/Context/MobaContextBridgeTests.cs` 另提供以下寄宿式证据：
 
@@ -273,7 +239,7 @@ Effect 创建或挂接正式 `EffectExecution` Context 后，`MobaCombatExecutio
 - Flow 创建和实体创建事件可被观察；
 - 显式 `Execute(registry)` 使用执行时传入的注册表。
 
-独立工程已经覆盖销毁事件异常，但仍没有覆盖 Snapshot、Resolver 和 Flow 终态，所以下述测试缺口仍成立。MOBA 项目层另有 `MobaCanonicalProvenanceTests` 14/14 和 ownership fixture 9/9 的 2026-08-15 聚焦结果，覆盖多来源 enrichment、identity/metadata 冲突、Effect execution node 推进以及 Buff/Projectile/Summon/Skill runtime 清理；这些是战斗执行 Context 的寄宿式 E3，不应表述为通用 Context 包专项覆盖。
+MOBA 的 `MobaRuntimeContextIdentityTests` 与 `MobaBuffContextRecoveryTests` 提供消费端证据，包括最终快照、字段缺失、淘汰和同 ID 恢复；这些不替代通用 Context 包的专项测试。
 
 ### 10.1 P0 测试
 
@@ -281,8 +247,7 @@ Effect 创建或挂接正式 `EffectExecution` Context 后，`MobaCombatExecutio
 |---|---|
 | Flow 终态与实体存续 | 固化“只改阶段、不级联销毁”的当前契约 |
 | Flow 终态事件与异常 | 明确阶段迁移观察者失败后的 Flow 实际状态和事件顺序 |
-| 四种 `ContextValueReadMode` | 覆盖 provider、registry 属性、snapshot 和 default 来源 |
-| accessor 未知 key | 暴露并修复 `SnapshotThenRealtime` 被默认值截断的问题 |
+| accessor-only 消费者迁移 | 先盘点依赖兼容行为的调用方，不直接改变 accessor 的命中语义 |
 | 显式版本回退 | 明确选择允许覆盖还是拒绝旧版本 |
 
 ### 10.2 P1 测试
@@ -293,7 +258,6 @@ Effect 创建或挂接正式 `EffectExecution` Context 后，`MobaCombatExecutio
 | MarkDestroyed | 验证只标记当前记录且不删除索引 |
 | Flow 父子和 owner | 覆盖创建、阶段变化及终态查询 |
 | 查询与结构变化 | 明确快照结果和并发修改边界 |
-| MOBA 最终快照 | 验证解绑、销毁、标记后只从 Snapshot 读取 |
 
 ## 十一、生产接入清单
 
@@ -312,14 +276,12 @@ Effect 创建或挂接正式 `EffectExecution` Context 后，`MobaCombatExecutio
 
 - Context Registry 是轻量关联索引，不是完整 ECS World。
 - Flow 是阶段和归属记录，不是资源所有权或级联清理协议。
-- SnapshotStorage 每实体只保存最新记录，不是历史帧仓库。
+- SnapshotStorage 支持有界历史，但不保证完整帧历史，也不是权威恢复仓库。
 - 显式版本和帧由 storage 信任，当前没有冲突或回退门禁。
 - Registry 销毁与 Snapshot、provider、Trace 没有自动联动。
 - Trace bridge 只保存 ID，不验证 Trace 节点，也不管理其生命周期。
 - MOBA combat execution context 与 canonical provenance 属于项目应用层，不是通用 Context 包内置能力。
-- Resolver 的默认结果与 missing 结果不同；只看 `Found` 可能误判来源。
-- 仅实现 `ISnapshotAccessor` 的快照无法可靠表达 key 缺失。
-- 通用包已有最小 `5/5`，但 Snapshot、Resolver、Flow 和跨组件事务专项覆盖仍不足；MOBA 查询桥接、canonical provenance 和 ownership 测试只提供寄宿式证据。
+- 通用包尚未覆盖 Flow 终态和所有跨组件组合；单组件的读写与回收测试不等于跨组件事务保证。
 
 ---
 

@@ -41,6 +41,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (!MobaEffectMagnitudeSchemaReader.TryValidateTerms(args, out error)) return false;
             if (MobaEffectMagnitudeSchemaReader.HasMagnitudeArgs(args)) { error = null; return true; }
             return RequireAny(args, "shield_value", out error, "shield_value", "value", "amount");
         }

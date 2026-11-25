@@ -394,6 +394,75 @@ public sealed class NetworkHostAdvancedTests
     }
 
     [Fact]
+    public async Task StopAsync_BlocksRestartAndSharesCompletionUntilSessionsAreClosed()
+    {
+        var listener = new InProcessChannelListener();
+        var started = Completion();
+        var release = Completion();
+        using var host = CreateHost(listener, new DelegateAsyncHandler(async (_, _, _, token) =>
+        {
+            started.TrySetResult();
+            await release.Task.WaitAsync(token);
+        }));
+        host.Start();
+        using var client = Connect(listener);
+        client.Send(10, Bytes(1), (ushort)NetworkPacketFlags.Request, 1);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var stopping = host.StopAsync(TimeSpan.FromSeconds(15));
+        var joined = host.StopAsync(TimeSpan.Zero, new CancellationToken(canceled: true));
+        try
+        {
+            Assert.Throws<InvalidOperationException>(host.Start);
+            Assert.Throws<InvalidOperationException>(host.Stop);
+            Assert.Throws<InvalidOperationException>(host.Dispose);
+            Assert.False(joined.IsCompleted);
+            Assert.Equal(1, host.SessionCount);
+        }
+        finally
+        {
+            release.TrySetResult();
+            await Task.WhenAll(stopping, joined).WaitAsync(TimeSpan.FromSeconds(2));
+        }
+
+        Assert.Equal(0, host.SessionCount);
+        Assert.Equal(1, host.GetDiagnostics().GracefulStops);
+        Assert.Equal(0, host.GetDiagnostics().DrainTimeouts);
+        host.Start();
+        using var nextClient = Connect(listener);
+        Assert.Equal(1, host.SessionCount);
+    }
+
+    [Fact]
+    public async Task StopAsync_CancellationClosesOldSessionsBeforeBothCallsComplete()
+    {
+        var listener = new InProcessChannelListener();
+        var started = Completion();
+        using var host = CreateHost(listener, new DelegateAsyncHandler((_, _, _, token) =>
+        {
+            started.TrySetResult();
+            return Task.Delay(Timeout.InfiniteTimeSpan, token);
+        }));
+        host.Start();
+        using var client = Connect(listener);
+        client.Send(10, Bytes(1), (ushort)NetworkPacketFlags.Request, 1);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        using var stopCancellation = new CancellationTokenSource();
+        var stopping = host.StopAsync(TimeSpan.FromSeconds(15), stopCancellation.Token);
+        var joined = host.StopAsync(TimeSpan.Zero);
+        stopCancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stopping.WaitAsync(TimeSpan.FromSeconds(2)));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => joined.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.Equal(0, host.SessionCount);
+        Assert.False(host.IsListening);
+        host.Start();
+        using var nextClient = Connect(listener);
+        Assert.Equal(1, host.SessionCount);
+    }
+
+    [Fact]
     public async Task SessionSnapshots_ExposeTransportStateAndPendingWork()
     {
         var listener = new InProcessChannelListener();

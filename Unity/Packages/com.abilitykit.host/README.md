@@ -1,18 +1,22 @@
 # AbilityKit Host
 
-`com.abilitykit.host` 提供 **权威（authoritative）的世界 Host 运行时**。
+`com.abilitykit.host` 提供显式装配的世界 Host 运行时 `HostRuntime`。世界由 `IWorldManager` 管理；本包不附送玩法世界或自动选择同步驱动。
+
+## 安装与首次使用
+
+从项目配置的包来源安装，版本、Unity 最低版本及依赖见 [package.json](package.json)。从[文档索引](Documentation~/README.md)进入；[使用指南](Documentation~/Usage.md)给出不依赖具体 ECS 的完整本地例子和关闭责任。以下较长的 blueprints 与项目 wiring 均为装配片段，不是仅安装本包即可运行的程序。
 
 核心目标：
 - 托管一个或多个 `IWorld` 实例（Server 或 Offline）。
-- 通过 driver 驱动世界运行（帧同步 / 实时）。
+- 由宿主调用 Tick，可额外安装时间或帧同步 driver。
 - 将 gameplay 逻辑隔离在 Host 之外。
 - 通过 **WorldType + World Modules** 组装不同玩法的世界。
 
 ## 分层 / 职责
 
 - **Host（本包）**
-  - world 生命周期、路由、tick 驱动
-  - 输入/快照管线集成（通过 world capabilities）
+  - world 生命周期通知、消息转发和 Tick 入口
+  - 供扩展装配输入/快照管线的 capabilities 与 hooks
   - 传输抽象（连接 + 消息）
   - 横切型 host modules（time/rollback/record/metrics）
 
@@ -42,7 +46,7 @@
 ```text
 Game/App
   -> chooses WorldType + creates minimal WorldCreateOptions
-  -> Host creates world, selects driver by capability
+  -> Application installs the required driver; Host creates world
   -> Game routes join/leave/input to a world session handle
   -> Driver ticks: flush inputs -> world.Tick -> snapshots -> broadcast
 ```
@@ -52,7 +56,8 @@ Game/App
 从 `world.Services` 解析得到的 world capabilities：
 - `IWorldInputSink`：帧同步世界的输入接收器
 - `IWorldStateSnapshotProvider`：提供用于广播的快照
-- `IWorldPlayerLifecycle`：玩法侧的玩家 join/leave 语义
+
+玩家 join/leave 由应用层定义自己的端口并装配到世界；Host 不提供名为 `IWorldPlayerLifecycle` 的内置 capability。
 
 ### Capability 的经验法则
 
@@ -101,9 +106,9 @@ var blueprints = new WorldBlueprintRegistry()
 // 3) 包装 factory，使创建前自动应用 blueprint
 IWorldFactory factory = new WorldBlueprintWorldFactory(baseFactory, blueprints);
 
-// 4) 创建 world manager + host
+// 4) 创建 world manager + host（需导入 AbilityKit.Ability.Host.Framework）
 var worldManager = new WorldManager(factory);
-var host = new LogicWorldServer(worldManager);
+var host = new HostRuntime(worldManager);
 
 // 5) 使用最小 options 创建 world（其余由 blueprint 补齐）
 host.CreateWorld(new WorldCreateOptions(new WorldId("room_1"), "battle"));
@@ -113,6 +118,8 @@ host.CreateWorld(new WorldCreateOptions(new WorldId("room_1"), "battle"));
 
 Host modules 应保持通用性，不能依赖 gameplay。
 它们应该安装在 host options 上，而不是放进 gameplay world modules 里。
+
+`HostRuntimeModuleHost` 按添加顺序安装、逆序卸载，不自动补偿安装失败；`WorldHostBuilder` 也不返回模块清理 owner。调用方保留模块、runtime 与同一份 options，负责在退出和部分安装失败时清理，详见使用指南。
 
 示例：
 - `ServerFrameTimeModule`
@@ -126,7 +133,7 @@ Host modules 应保持通用性，不能依赖 gameplay。
 - `com.abilitykit.host.network`：将 NetworkHost Session 适配为 `IServerConnection`。
 
 普通项目可以使用 `TcpHostNetwork` 快速装配；需要 WebSocket、KCP、平台 Relay 等传输时，
-替换 `IChannelListener` 即可，Host 和业务协议无需修改。
+可从 `IChannelListener` 扩展传输装配；具体监听实现、协议成帧和平台支持仍须分别验收，不能仅凭接口可替换就认定链路已可用。
 
 ### Host 模块与 World 模块的区别
 
@@ -194,12 +201,12 @@ IWorldFactory baseFactory = new RegistryWorldFactory(typeRegistry);
 IWorldFactory factory = new WorldBlueprintWorldFactory(baseFactory, blueprints);
 
 var worldManager = new WorldManager(factory);
-var host = new LogicWorldServer(worldManager);
+var host = new HostRuntime(worldManager);
 ```
 
 ## 真实示例：MOBA battle/lobby 接入
 
-本仓库提供了一个应用侧显式注册的示例：
+以下为仓库应用侧的示例路径导航，不是本包 API 或安装依赖；当前项目接线需另行核对：
 
 - Blueprints:
   - `com.abilitykit.demo.moba.runtime/Runtime/Worlds/Blueprints/MobaLobbyWorldBlueprint.cs`

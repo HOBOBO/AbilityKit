@@ -1,4 +1,5 @@
 using System.Linq;
+using AbilityKit.Ability.Behavior;
 using AbilityKit.Combat.MotionSystem.Generic;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
@@ -69,7 +70,7 @@ public sealed class MobaSummonMovementHandoffTests
 
     [Theory]
     [InlineData(.4f)]
-    [InlineData(7.5f)]
+    [InlineData(1.9f)]
     public void Moving_owner_does_not_pull_tibbers_out_of_combat_or_reverse_its_clear_follow_path(float enemyDistance)
     {
         var start = BattleStartConfig.CreateDefault();
@@ -216,6 +217,85 @@ public sealed class MobaSummonMovementHandoffTests
         battle.Tick();
         Assert.True((summon.transform.Value.Position - stoppedAt).Magnitude < .001f,
             "A stopped brain left its previous follow path active.");
+    }
+
+    [Fact]
+    public void Warden_keeps_a_valid_target_through_boundary_and_distance_order_changes()
+    {
+        var start = BattleStartConfig.CreateDefault();
+        foreach (var player in start.Players) player.EnableBrainOnSpawn = false;
+        using var battle = new ConsoleBattleBootstrapper(start);
+        battle.Initialize();
+        battle.Start();
+        for (var tick = 0; tick < 8 && battle.Context.EcsWorld == null; tick++) battle.Tick();
+        battle.SetupBattle();
+        for (var tick = 0; tick < 10; tick++) battle.Tick();
+
+        var services = battle.RuntimeServices!;
+        var registry = services.Resolve<MobaActorRegistry>();
+        var owner = registry.Entries.First(pair => pair.Value.hasTeam && pair.Value.hasTransform).Value;
+        var enemies = registry.Entries.Where(pair => pair.Value.hasTeam && pair.Value.hasTransform &&
+            pair.Value.team.Value != owner.team.Value).Select(pair => pair.Value).Take(2).ToArray();
+        foreach (var pair in registry.Entries)
+            if (pair.Value.hasTransform) Place(pair.Value, new Vec3(40f + pair.Key, 0f, 40f));
+        var spawn = new Vec3(-10f, 0f, -10f);
+        Place(owner, new Vec3(4f, 0f, -10f));
+        Assert.True(services.Resolve<MobaSummonService>().TrySummon(owner.actorId.Value, 30030502,
+            in spawn, Vec3.Right, default, out var id));
+        Assert.True(registry.TryGet(id, out var summon));
+        battle.Tick();
+        Assert.True(services.Resolve<MobaBrainService>().TryGetBehavior(summon.actorBrain.BehaviorInstanceId, out var behavior));
+
+        void AssertMovingTo(global::ActorEntity target)
+        {
+            var intent = MobaBrainIntentReader.Read(behavior);
+            Assert.Equal(MobaActorMovementIntentKind.TargetPosition, intent.MovementKind);
+            Assert.Equal(target.transform.Value.Position, intent.MoveTarget);
+        }
+
+        Place(enemies[0], summon.transform.Value.Position - Vec3.Right * 12.1f);
+        battle.Tick();
+        AssertMovingTo(owner);
+
+        for (var tick = 0; tick < 20; tick++)
+        {
+            var before = summon.transform.Value;
+            Place(enemies[0], before.Position - Vec3.Right * (tick % 2 == 0 ? 11.9f : 12.1f));
+            battle.Tick();
+            AssertMovingTo(enemies[0]);
+            if (tick > 0) Assert.True(Vec3.Dot(before.Forward, summon.transform.Value.Forward) > 0f);
+        }
+
+        for (var tick = 0; tick < 20; tick++)
+        {
+            var before = summon.transform.Value;
+            Place(enemies[0], before.Position - Vec3.Right * (tick % 2 == 0 ? 4.2f : 3.8f));
+            Place(enemies[1], before.Position + Vec3.Right * (tick % 2 == 0 ? 3.8f : 4.2f));
+            battle.Tick();
+            AssertMovingTo(enemies[0]);
+            Assert.True(Vec3.Dot(before.Forward, summon.transform.Value.Forward) > 0f);
+        }
+
+        var snapshots = Assert.IsAssignableFrom<IBehaviorSnapshotValidator>(behavior.Decision);
+        var retainedFirst = snapshots.CaptureSnapshot();
+        Place(enemies[0], summon.transform.Value.Position - Vec3.Right * 14.1f);
+        battle.Tick();
+        AssertMovingTo(enemies[1]);
+
+        snapshots.ValidateSnapshot(retainedFirst);
+        snapshots.RestoreSnapshot(retainedFirst);
+        Place(enemies[0], summon.transform.Value.Position - Vec3.Right * 12.1f);
+        Place(enemies[1], summon.transform.Value.Position + Vec3.Right * 4f);
+        battle.Tick();
+        AssertMovingTo(enemies[0]);
+
+        new MobaAttrs(enemies[0]).Hp = 0;
+        battle.Tick();
+        AssertMovingTo(enemies[1]);
+        Place(enemies[0], new Vec3(60f, 0f, 60f));
+        Place(enemies[1], summon.transform.Value.Position + Vec3.Right * 14.1f);
+        battle.Tick();
+        AssertMovingTo(owner);
     }
 
     private static void Place(global::ActorEntity actor, Vec3 position) => actor.ReplaceTransform(

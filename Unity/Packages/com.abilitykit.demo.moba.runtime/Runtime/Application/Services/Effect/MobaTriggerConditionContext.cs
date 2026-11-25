@@ -1,5 +1,4 @@
 using System;
-using AbilityKit.Context;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -93,26 +92,6 @@ namespace AbilityKit.Demo.Moba.Services
             return _payload.TryResolveRuntimeContext(out reference);
         }
 
-        public MobaRuntimeContextValueResult<TValue> GetRuntimeContextValue<TValue, TProperty>(
-            MobaRuntimeContextService contexts,
-            string key,
-            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
-            where TProperty : class, IProperty
-        {
-            return _payload.GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
-        }
-
-        public bool TryGetRuntimeContextValue<TValue, TProperty>(
-            MobaRuntimeContextService contexts,
-            string key,
-            out TValue value,
-            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
-            where TProperty : class, IProperty
-        {
-            var result = GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
-            value = result.Value;
-            return result.Found;
-        }
  
         public bool TryGetBlackboard(out MobaSkillRuntimeBlackboard blackboard)
         {

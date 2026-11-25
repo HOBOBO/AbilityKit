@@ -3,49 +3,42 @@ using UnityEngine;
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// Configurable parameters for the battle camera.
+    /// 战斗相机的可配置参数。
     /// </summary>
     public sealed class BattleCameraConfig
     {
         /// <summary>
-        /// Camera offset from the target (in world space).
+        /// 相对目标的相机偏移，使用世界空间坐标。
         /// </summary>
         public Vector3 Offset = new Vector3(0f, 15f, -12f);
 
         /// <summary>
-        /// Exponential damping speed used while following the target position.
-        /// Higher values = snappier follow. 0 means instant snap.
+        /// 跟随目标位置的指数阻尼速度。值越大跟随越快，0 表示立即对齐。
         /// </summary>
         public float PositionLerpSpeed = 8f;
 
         /// <summary>
-        /// Exponential damping speed used for the look-at target.
-        /// Keeping this close to the position speed prevents snapshot steps from rotating the camera abruptly.
-        /// 0 means instant snap.
+        /// 注视目标的指数阻尼速度。与位置跟随速度保持接近，可避免快照跳变导致相机突然旋转；0 表示立即对齐。
         /// </summary>
         public float LookAtLerpSpeed = 8f;
 
         /// <summary>
-        /// When true the camera immediately snaps to the first tracked position.
-        /// After the first frame it will use lerp.
+        /// 为 true 时，相机立即对齐首次跟踪位置，后续帧使用线性插值。
         /// </summary>
         public bool SnapOnFirstTarget = true;
 
         /// <summary>
-        /// When true the camera only follows horizontal motion. The Y reference
-        /// is locked to the first tracked position so jumps and vertical motion
-        /// do not jitter the camera. Designed for top-down MOBA view.
+        /// 为 true 时，相机仅跟随水平移动。Y 轴基准锁定首次跟踪位置，避免跳跃和垂直运动造成抖动，适用于俯视 MOBA 视角。
         /// </summary>
         public bool LockVerticalAxis = true;
 
         /// <summary>
-        /// Optional world-space look-at offset applied on top of the target position.
+        /// 叠加在目标位置上的可选世界空间注视偏移。
         /// </summary>
         public Vector3 LookAtOffset = Vector3.zero;
 
         /// <summary>
-        /// If true, the camera's forward vector is always toward the tracked position.
-        /// If false, the initial camera orientation is preserved.
+        /// 为 true 时，相机前向始终指向跟踪位置；为 false 时，保留初始朝向。
         /// </summary>
         public bool AlwaysLookAtTarget = true;
 

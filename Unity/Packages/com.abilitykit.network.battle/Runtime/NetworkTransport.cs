@@ -182,22 +182,32 @@ namespace AbilityKit.Network.Battle
 
         public void SendInput(SubmitInputRequest request)
         {
+            SendInput(request, null);
+        }
+
+        /// <summary>
+        /// 发送输入，并在首次准备完成时通知调用方。此通知不代表服务端已接收或终结。
+        /// 传输内部的重试不再次通知，调用方不得将准备时的计划 Tick 当成服务端实际执行 Tick。
+        /// </summary>
+        public void SendInput(SubmitInputRequest request, Action<object> onPrepared)
+        {
             if (_options.SerializeSubmitInput == null) throw new InvalidOperationException("SerializeSubmitInput is not configured.");
             if (_options.DeserializeSubmitInputResponse == null)
             {
-                _ = SendInputWithoutResponseAsync(request);
+                _ = SendInputWithoutResponseAsync(request, onPrepared);
                 return;
             }
 
-            _ = SendInputWithResponseAsync(request, null, default(CancellationToken));
+            _ = SendInputWithResponseAsync(request, null, default(CancellationToken), onPrepared);
         }
 
-        private async Task SendInputWithoutResponseAsync(SubmitInputRequest request)
+        private async Task SendInputWithoutResponseAsync(SubmitInputRequest request, Action<object> onPrepared)
         {
             try
             {
                 await WaitForAuthenticationAsync();
                 var prepared = _options.PrepareSubmitInput?.Invoke(request) ?? request;
+                NotifyInputPrepared(onPrepared, prepared);
                 var payload = _options.SerializeSubmitInput.Invoke(prepared);
                 _sdkClient.SendPacket(_options.OpSubmitInput, payload, flags: (ushort)NetworkPacketFlags.Request);
             }
@@ -241,7 +251,8 @@ namespace AbilityKit.Network.Battle
         private async System.Threading.Tasks.Task<NetworkSubmitInputResponse> SendInputWithResponseAsync(
             SubmitInputRequest request,
             TimeSpan? timeout,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Action<object> onPrepared = null)
         {
             if (timeout.HasValue && timeout.Value <= TimeSpan.Zero)
             {
@@ -249,6 +260,7 @@ namespace AbilityKit.Network.Battle
             }
 
             object current = _options.PrepareSubmitInput?.Invoke(request) ?? request;
+            NotifyInputPrepared(onPrepared, current);
             NetworkSubmitInputResponse response = default;
             CancellationTokenSource timeoutCancellation = null;
             var effectiveCancellationToken = cancellationToken;
@@ -325,6 +337,13 @@ namespace AbilityKit.Network.Battle
             }
 
             return response;
+        }
+
+        private static void NotifyInputPrepared(Action<object> observer, object input)
+        {
+            if (observer == null) return;
+            try { observer(input); }
+            catch (Exception exception) { Log.Exception(exception, "[NetworkTransport] Input preparation observer failed."); }
         }
 
         private static NetworkSubmitInputResponse CreateTransportFailureResponse(

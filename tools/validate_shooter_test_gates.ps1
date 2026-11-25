@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ConfigPath = 'tools\test-gates.json',
     [string]$WorkflowPath = '.github\workflows\abilitykit-test-gates.yml',
     [string]$OutputPath = 'artifacts\test-gates\contract-validation\report.json',
@@ -184,9 +184,8 @@ $outputFullPath = Resolve-RepoPath $OutputPath
 $null = New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outputFullPath)
 
 try {
-    # Read as UTF-8 explicitly: test-gates.json has no BOM, and Windows PowerShell 5.1 on an
-    # ANSI-codepage machine (e.g. GBK) would otherwise decode it as the local codepage and
-    # corrupt non-ASCII descriptions into invalid JSON.
+    # 显式按 UTF-8 读取：test-gates.json 无 BOM，Windows PowerShell 5.1 在 GBK 等本地代码页机器上，
+    # 否则会按本地代码页解码，将非 ASCII 说明破坏为无效 JSON。
     $config = [System.IO.File]::ReadAllText($configFullPath) | ConvertFrom-Json
     Add-Check -Name 'Gate JSON parseability' -Passed $true -Detail $ConfigPath
     Test-GateReferences -Config $config
@@ -368,7 +367,7 @@ finally {
         checks = @($checks)
     }
     $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $outputFullPath -Encoding UTF8
-    Write-Host "Contract validation report ($($report.scope)): $outputFullPath" -ForegroundColor Cyan
+    Write-Host "契约验证报告 ($($report.scope)): $outputFullPath" -ForegroundColor Cyan
 }
 
 if (@($checks | Where-Object { -not $_.passed }).Count -gt 0) {

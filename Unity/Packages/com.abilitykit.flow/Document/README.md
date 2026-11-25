@@ -1,5 +1,7 @@
 # Flow — 流程编排引擎
 
+> 历史设计说明入口：正文保留旧术语和示意 API，不能作为当前调用契约。请从[包使用文档](../Documentation~/README.md)开始；本文仍作为历史概念材料阅读。
+
 ## 设计理念
 
 Flow 回答的问题是："如何组织异步/时间驱动的复杂逻辑？"
@@ -71,16 +73,10 @@ Sequence(
 
 ## WAKE/PUMP 机制
 
-`FlowCompletion.Set()` 可以从任意线程调用，触发 Wake() 将等待中的节点推入就绪队列：
+旧示意中的 `FlowCompletion.Set()` 已不是当前 API；当前方法名是 `Complete(bool succeeded)`。`Complete` 会直接调用绑定的 `FlowWakeUp.Wake()`，实现没有跨线程同步或调度保证，因此应在 Runner 所在线程调用。后台操作需先把完成通知投递到宿主线程，再调用 `Complete`：
 
 ```csharp
 var completion = new FlowCompletion();
-Sequence(
-    AwaitCompletion(completion),
-    Do(() => OnComplete())
-);
-await Task.Run(() => {
-    // 异步操作...
-    completion.Set();  // 唤醒 Flow
-});
+// 在 FlowRunner 所在线程处理已投递的完成通知。
+completion.Complete(succeeded: true);
 ```

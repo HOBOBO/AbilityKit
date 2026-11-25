@@ -66,6 +66,14 @@ namespace AbilityKit.Game.Flow
         private bool ShowPredictionViewCore(string instanceId, Vector3 worldOffset,
             BattleProjectionViewCapabilities capabilities, bool allowOverlap)
         {
+            if (_plan.UsesStateSyncAuthority)
+            {
+                if (_runtime.Recovery?.MovementPrediction is not { } movement || _ctx == null) return false;
+                if (!allowOverlap && (HasActiveBattleView() || _runtime.Presentation.ProjectionViewCount > 0) &&
+                    worldOffset == Vector3.zero) return false;
+                return _runtime.Presentation.AddProjectionView(instanceId, BattleProjectionViewRole.Prediction,
+                    movement, _ctx, _flow, worldOffset, DestroyEntityTree, BattleProjectionViewCapabilities.Actors);
+            }
             if (!_plan.Authority.EnableClientPrediction ||
                 _runtime.Simulation.RemoteDriven.World == null ||
                 _runtime.Simulation.RemoteDriven.Capabilities.ProjectionProducer == null ||

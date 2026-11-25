@@ -4,15 +4,12 @@ using UnityEngine;
 namespace AbilityKit.Game.Battle.Hierarchy
 {
     /// <summary>
-    /// Scene-level MonoBehaviour root that hosts the categorized battle view
-    /// hierarchy. Owns one <see cref="BattleViewHierarchyManager"/> instance and
-    /// exposes convenience methods for creating / destroying child paths.
     ///
-    /// Spawned at runtime by <c>BattleViewFeature.OnAttach</c> (and the
-    /// <c>ConfirmedBattleViewFeature</c> equivalent). Torn down in
-    /// <c>OnDetach</c> by destroying the root GameObject.
+    /// 承载分类战斗视图层级的场景级 MonoBehaviour 根节点。拥有一个 <see cref="BattleViewHierarchyManager"/>，提供创建及销毁子路径的便捷方法。
     ///
-    /// Hierarchy produced (managed by the inner manager):
+    /// 运行时由 <c>BattleViewFeature.OnAttach</c> 及 <c>ConfirmedBattleViewFeature</c> 对应入口生成，在 <c>OnDetach</c> 中通过销毁根 GameObject 拆卸。
+    ///
+    /// 生成的层级如下，由内部管理器维护：
     /// <code>
     /// [Battle]
     ///   ├── _Pool/
@@ -26,6 +23,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
     ///   │   ├── ...
     ///   └── _Debug/
     /// </code>
+    ///
     /// </summary>
     [DisallowMultipleComponent]
     [AddComponentMenu("AbilityKit/Battle View Hierarchy Root")]
@@ -44,7 +42,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         private int _leaseCount;
 
         /// <summary>
-        /// The manager instance associated with this root. Lazily created on first access.
+        /// 此根节点关联的管理器实例，首次访问时按需创建。
         /// </summary>
         public BattleViewHierarchyManager Manager
         {
@@ -60,8 +58,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Acquires the shared battle hierarchy root for a view feature. The final
-        /// matching <see cref="Release"/> destroys the hierarchy and all managed objects.
+        /// 为视图功能获取共享战斗层级根节点。最后一次配对的 <see cref="Release"/> 销毁层级及全部受管对象。
         /// </summary>
         public static BattleViewHierarchyRoot Acquire(string displayName = null)
         {
@@ -72,9 +69,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Creates a new <see cref="BattleViewHierarchyRoot"/> GameObject at scene root.
-        /// Always returns a usable instance (the underlying GameObject may already exist).
-        /// This method does not acquire a lifecycle lease.
+        /// 在场景根节点创建 <see cref="BattleViewHierarchyRoot"/> GameObject。始终返回可用实例，底层 GameObject 可能已存在。本方法不获取生命周期租约。
         /// </summary>
         public static BattleViewHierarchyRoot CreateOrFind(string displayName = null)
         {
@@ -110,8 +105,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Find any existing <see cref="BattleViewHierarchyRoot"/> in the active scene,
-        /// or return null if none exists.
+        /// 查找活动场景中已有的 <see cref="BattleViewHierarchyRoot"/>，不存在时返回 null。
         /// </summary>
         public static BattleViewHierarchyRoot FindAny()
         {
@@ -123,10 +117,9 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Ensure a child path under the root exists and return the leaf transform.
-        /// Intermediate transforms are created if missing and cached for reuse.
+        /// 确保根节点下的子路径存在，返回叶节点变换。缺失的中间变换会被创建并缓存复用。
         /// </summary>
-        /// <param name="segments">Path segments ordered from shallowest to deepest.</param>
+        /// <param name="segments">从浅到深排列的路径段。</param>
         public Transform EnsurePath(string[] segments)
         {
             if (segments == null || segments.Length == 0)
@@ -155,9 +148,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Ensure a single child GameObject with the given name exists under
-        /// <paramref name="parent"/> and return its transform. Returns the existing
-        /// child if one with the same name is already present.
+        /// 确保 <paramref name="parent"/> 下存在指定名称的单个子 GameObject，并返回其变换。同名子对象已存在时直接返回。
         /// </summary>
         public Transform EnsureChild(Transform parent, string name)
         {
@@ -177,8 +168,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Releases one feature lease. The hierarchy is destroyed only after every
-        /// feature that acquired it has released its lease.
+        /// 释放一个功能租约。所有获取该层级的功能均释放租约后，才销毁层级。
         /// </summary>
         public void Release()
         {
@@ -202,8 +192,7 @@ namespace AbilityKit.Game.Battle.Hierarchy
         }
 
         /// <summary>
-        /// Unconditionally destroys this root and all children. Prefer
-        /// <see cref="Release"/> for feature lifecycle teardown.
+        /// 无条件销毁此根节点及全部子节点。功能生命周期拆卸优先使用 <see cref="Release"/>。
         /// </summary>
         public void DestroyHierarchy()
         {
@@ -211,8 +200,9 @@ namespace AbilityKit.Game.Battle.Hierarchy
             {
                 _manager.DestroyAll();
             }
-            // Clear the path cache so stale transform references do not linger after
-            // a new root is acquired on a subsequent run.
+            /*
+             * 清除路径缓存，避免后续运行获取新根节点后仍保留过期变换引用。
+             */
             _pathCache.Clear();
             if (this != null && gameObject != null)
             {
@@ -240,24 +230,22 @@ namespace AbilityKit.Game.Battle.Hierarchy
 #endif
 
         /// <summary>
-        /// Edit-time flag used by the hierarchy inspector. Read by external
-        /// editor windows; the value is not used at runtime.
+        /// 层级检查器使用的编辑期标志，供外部编辑器窗口读取，运行时不使用。
         /// </summary>
         public bool HideInPlayerBuild => _hideInPlayerBuild;
 
-        /// <summary>Number of active feature lifecycle leases.</summary>
+        /// <summary>
+        /// 活动功能生命周期租约数。
+        /// </summary>
         public int LeaseCount => _leaseCount;
 
         /// <summary>
-        /// Returns a snapshot of the current path cache for diagnostic purposes.
-        /// Key is the "/" delimited path relative to this root, value is the transform.
+        /// 返回当前路径缓存快照供诊断使用。键为相对此根节点、以“/”分隔的路径，值为变换。
         /// </summary>
         public IReadOnlyDictionary<string, Transform> PathCache => _pathCache;
 
         /// <summary>
-        /// Get-or-create the stats overlay component attached to this root.
-        /// Used by view features to register pool providers and display reuse
-        /// statistics in the inspector.
+        /// 获取或创建附加在此根节点的统计叠加组件，供视图功能注册对象池提供者，并在检查器显示复用统计。
         /// </summary>
         public BattleViewPoolStatsOverlay GetOrAddStatsOverlay()
         {

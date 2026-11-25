@@ -241,6 +241,15 @@ namespace AbilityKit.Demo.Moba.Services
 
         internal bool CanCommitPreparedParameters()
         {
+            if (SharedData.TryGetValue("cast.level.source.root", out var savedSource))
+            {
+                if (!(savedSource is long root) || root <= 0 || WorldServices == null ||
+                    !WorldServices.TryResolve<MobaActorLookupService>(out var actors) ||
+                    !actors.TryGetActorEntity(CasterActorId, out var actor) ||
+                    !SkillCastPreparationService.TryResolveLevelSource(WorldServices, actor, SkillId, SkillSlot,
+                        out var level, out var currentRoot) || currentRoot != root || level != SkillLevel)
+                    return false;
+            }
             if (_preparedParameters.Length == 0) return true;
             if (WorldServices == null || (SourceContextId <= 0 && RuntimeId <= 0) ||
                 !WorldServices.TryResolve<MobaCharacterHfsmParameterService>(out var parameters) || parameters == null) return false;
@@ -503,6 +512,8 @@ namespace AbilityKit.Demo.Moba.Services
 
             SharedData.Clear();
             _preparedParameters = CopyPreparedParameters(request.ParameterSnapshots);
+            if (triggerContext?.LevelSourceRootContextId > 0)
+                SharedData["cast.level.source.root"] = triggerContext.LevelSourceRootContextId;
             _parametersCommitted = null;
             FailReason = null;
             SkillLevel = triggerContext?.SkillLevel ?? 0;

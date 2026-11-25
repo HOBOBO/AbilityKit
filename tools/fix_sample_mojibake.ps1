@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Repair UTF-8-read-as-GBK mojibake in sample source comments.
 
@@ -54,12 +54,12 @@ $ErrorActionPreference = 'Stop'
 try {
     [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 } catch {
-    Write-Warning "Could not set console output encoding: $($_.Exception.Message)"
+    Write-Warning "无法设置控制台输出编码： $($_.Exception.Message)"
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 
-# Strict on both sides so a line that cannot round trip is skipped, not mangled.
+# 编码和解码两侧均采用严格模式，无法往返的行直接跳过，防止破坏文本。
 $gbk = [System.Text.Encoding]::GetEncoding(
     936,
     [System.Text.EncoderFallback]::ExceptionFallback,
@@ -92,11 +92,10 @@ function Repair-Line {
 
     if ($Line.Length -eq 0) { return $null }
 
-    # Comment lines only. This is the load bearing guard: it keeps the
-    # transform off the behaviour path no matter how the heuristic behaves.
+    # 仅处理注释行。这是关键保护，确保无论启发式结果如何，转换都不会触及行为代码。
     if (-not (Test-IsCommentLine -Line $Line)) { return $null }
 
-    # Pure ASCII cannot be mojibake; skip the overwhelming majority of lines fast.
+    # 纯 ASCII 不会出现此类乱码，快速跳过占绝大多数的行。
     $hasHighByte = $false
     foreach ($ch in $Line.ToCharArray()) {
         if ([int]$ch -gt 127) { $hasHighByte = $true; break }
@@ -118,9 +117,8 @@ function Repair-Line {
     if ($decoded -eq $Line) { return $null }
     if ($decoded.IndexOf([char]0xFFFD) -ge 0) { return $null }
 
-    # A GBK byte pair can also be a valid UTF-8 pair, so a lossless round trip
-    # is not proof of corruption. Requiring real Chinese in the result is what
-    # tells mojibake apart from text that merely happens to survive the trip.
+    # GBK 字节对也可能是合法 UTF-8 字节对，无损往返不能单独证明乱码。
+    # 必须要求结果含真实中文，才能区分乱码与恰好能往返的正常文本。
     if (-not (Test-HasCjk -Text $decoded)) { return $null }
 
     return $decoded
@@ -145,9 +143,8 @@ foreach ($relativeRoot in $Root) {
     foreach ($file in $files) {
         $scannedFiles++
 
-        # Detect the BOM from the raw bytes: File.ReadAllText already skips it,
-        # so inspecting the decoded string would always report "no BOM" and the
-        # rewrite would silently strip it from every file it touches.
+        # 从原始字节检测 BOM：File.ReadAllText 已跳过 BOM，检查解码字符串会始终误报无 BOM，
+        # 导致重写时静默移除所有受影响文件的 BOM。
         $rawBytes = [System.IO.File]::ReadAllBytes($file.FullName)
         $hadBom = $rawBytes.Length -ge 3 -and
                   $rawBytes[0] -eq 0xEF -and $rawBytes[1] -eq 0xBB -and $rawBytes[2] -eq 0xBF
@@ -166,9 +163,7 @@ foreach ($relativeRoot in $Root) {
                 continue
             }
 
-            # A comment line we could not repair is residual damage (usually a
-            # byte lost during the original corruption). Count it so the
-            # leftovers are visible instead of silently disappearing.
+            # 无法修复的注释行属于残留损坏，通常是最初乱码时丢失字节。计数并公开残留，不得静默忽略。
             if (Test-IsCommentLine -Line $lines[$i]) {
                 foreach ($ch in $lines[$i].ToCharArray()) {
                     if ([int]$ch -gt 127) { $fileSkippedLines++; break }

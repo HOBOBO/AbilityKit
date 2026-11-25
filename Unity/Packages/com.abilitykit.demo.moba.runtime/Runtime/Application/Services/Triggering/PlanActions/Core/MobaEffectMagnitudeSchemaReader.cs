@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Modifiers;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Triggering.Variables.Numeric;
+using Newtonsoft.Json.Linq;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
@@ -21,6 +23,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             float fallbackValue)
         {
             if (!HasMagnitudeArgs(args)) return default;
+
+            if (HasName(args, "magnitude_terms"))
+            {
+                foreach (var pair in args)
+                    if (pair.Key.StartsWith("magnitude_", StringComparison.OrdinalIgnoreCase) &&
+                        pair.Key != "magnitude_terms" && pair.Key != "magnitude_evaluation" &&
+                        pair.Key != "magnitude_capture")
+                        throw new InvalidOperationException("magnitude_terms cannot be mixed with legacy magnitude sources.");
+                var terms = ReadTerms(ReadString(args, in ctx, "magnitude_terms"));
+                var termsPolicy = ReadEnum(args, in ctx, MobaEffectEvaluationPolicy.Realtime, "magnitude_evaluation");
+                TryReadBlackboardTarget(args, out var capture, "magnitude_capture");
+                return new MobaEffectMagnitudeSpec(default, default, evaluationPolicy: termsPolicy,
+                    captureTarget: capture, terms: terms);
+            }
 
             var baseSource = ReadSource(args, in ctx, "magnitude", fallbackValue, out var baseSkillParameter);
             string secondarySkillParameter = null;
@@ -55,6 +71,98 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public static bool HasMagnitudeArgs(Dictionary<string, ActionArgValue> args)
         {
             return HasPrefix(args, "magnitude_");
+        }
+
+        internal static bool TryValidateTerms(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
+        {
+            error = null;
+            Dictionary<string, ActionArgValue> dictionary = null;
+            foreach (var pair in args)
+                if (string.Equals(pair.Key, "magnitude_terms", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (pair.Value.Kind != ActionArgKind.StringValue || string.IsNullOrWhiteSpace(pair.Value.StringValue))
+                    { error = "magnitude_terms requires constant JSON"; return false; }
+                    dictionary = new Dictionary<string, ActionArgValue>(StringComparer.OrdinalIgnoreCase);
+                    break;
+                }
+            if (dictionary == null) return true;
+            foreach (var pair in args) dictionary.Add(pair.Key, pair.Value);
+            try { Read(dictionary, default, 0); return true; }
+            catch (Exception ex) { error = ex.Message; return false; }
+        }
+
+        /// <summary>
+        /// 标量 Trigger 参数使用 JSON 字符串承载有序数值项。
+        /// 各项只描述来源，冻结与快照由外层公式统一管理，禁止嵌套公式。
+        /// </summary>
+        internal static MobaEffectMagnitudeSpec[] ReadTerms(string json)
+        {
+            JArray array;
+            try { array = JArray.Parse(json); }
+            catch (Exception ex) { throw new InvalidOperationException("Invalid magnitude_terms JSON array.", ex); }
+            if (array.Count == 0) throw new InvalidOperationException("magnitude_terms must not be empty.");
+            var terms = new MobaEffectMagnitudeSpec[array.Count];
+            for (var i = 0; i < array.Count; i++)
+            {
+                if (!(array[i] is JObject item)) throw new InvalidOperationException("Magnitude term must be an object.");
+                var args = new Dictionary<string, ActionArgValue>(StringComparer.OrdinalIgnoreCase);
+                foreach (var field in item.Properties())
+                {
+                    var name = "magnitude_" + field.Name;
+                    switch (field.Name)
+                    {
+                        case "parameter":
+                        case "coefficient_parameter":
+                            if (field.Value.Type != JTokenType.String || string.IsNullOrWhiteSpace((string)field.Value))
+                                throw new InvalidOperationException("Magnitude parameter must be a non-empty string.");
+                            args.Add(name, ActionArgValue.OfString((string)field.Value, name));
+                            break;
+                        case "type": case "value": case "attribute": case "coefficient": case "source_role":
+                            if ((field.Value.Type != JTokenType.Integer && field.Value.Type != JTokenType.Float) ||
+                                double.IsNaN((double)field.Value) || double.IsInfinity((double)field.Value) ||
+                                Math.Abs((double)field.Value) > float.MaxValue)
+                                throw new InvalidOperationException("Magnitude term requires finite numeric fields.");
+                            if ((field.Name == "type" || field.Name == "attribute" || field.Name == "source_role") &&
+                                ((double)field.Value != Math.Truncate((double)field.Value) ||
+                                 (double)field.Value < 0 || (double)field.Value > int.MaxValue))
+                                throw new InvalidOperationException("Magnitude enum and attribute fields require non-negative integers.");
+                            if (field.Name == "type" && (double)field.Value != 0 && (double)field.Value != 2 &&
+                                (double)field.Value != 6 && (double)field.Value != 7)
+                                throw new InvalidOperationException("Unsupported magnitude term type.");
+                            if (field.Name == "source_role" &&
+                                ((double)field.Value > byte.MaxValue ||
+                                 !Enum.IsDefined(typeof(MobaEffectSourceRole), Enum.ToObject(typeof(MobaEffectSourceRole), (int)field.Value))))
+                                throw new InvalidOperationException("Invalid magnitude source role.");
+                            args.Add(name, ActionArgValue.OfConst((double)field.Value, name));
+                            break;
+                        default: throw new InvalidOperationException("Unknown magnitude term field: " + field.Name);
+                    }
+                }
+                var type = ReadEnum(args, default, MagnitudeSourceType.Fixed, "magnitude_type");
+                if (type != MagnitudeSourceType.Fixed && type != MagnitudeSourceType.Attribute &&
+                    type != MagnitudeSourceType.SkillLevelParameter && type != MagnitudeSourceType.HeroLevelSkillParameter)
+                    throw new InvalidOperationException("Magnitude term requires Fixed, Attribute, SkillLevelParameter or HeroLevelSkillParameter.");
+                var role = ReadEnum(args, default, MobaEffectSourceRole.AttributionActor, "magnitude_source_role");
+                if (!Enum.IsDefined(typeof(MobaEffectSourceRole), role)) throw new InvalidOperationException("Invalid magnitude source role.");
+                var attribute = ReadInt(args, default, 0, "magnitude_attribute");
+                if (type == MagnitudeSourceType.Attribute &&
+                    (attribute <= 0 || !Enum.IsDefined(typeof(BattleAttributeType), attribute)))
+                    throw new InvalidOperationException("Attribute magnitude term requires a valid battle attribute.");
+                var source = ReadSource(args, default, "magnitude", 0, out var parameter);
+                if (type == MagnitudeSourceType.Fixed)
+                    source = MagnitudeSource.Fixed(source.Data0 * ReadFloat(args, default, 1f, "magnitude_coefficient"));
+                var coefficientParameter = ReadString(args, default, "magnitude_coefficient_parameter");
+                if (!string.IsNullOrEmpty(coefficientParameter) && type != MagnitudeSourceType.Attribute)
+                    throw new InvalidOperationException("coefficient_parameter requires Attribute.");
+                /*
+                 * 系数参数沿用既有 Attribute 次项求值，避免添加另一份等级参数读取逻辑。
+                 */
+                terms[i] = type == MagnitudeSourceType.Attribute
+                    ? new MobaEffectMagnitudeSpec(default, in source, sourceRole: role,
+                        secondaryCoefficientSkillLevelParameter: coefficientParameter)
+                    : new MobaEffectMagnitudeSpec(in source, default, sourceRole: role, baseSkillLevelParameter: parameter);
+            }
+            return terms;
         }
 
         public static bool HasMagnitudeArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args)

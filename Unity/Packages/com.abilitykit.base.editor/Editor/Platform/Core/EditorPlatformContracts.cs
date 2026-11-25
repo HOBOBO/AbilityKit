@@ -12,15 +12,29 @@ namespace AbilityKit.Editor.Platform.Core
     public sealed class EditorModuleDescriptor
     {
         public EditorModuleDescriptor(string id, string displayNameKey, int order = 0)
+            : this(id, displayNameKey, showInHub: false, order: order)
+        {
+        }
+
+        /// <summary>
+        /// 声明模块是否进入 Hub 的正式导航。仅有登记不等于允许展示。
+        /// </summary>
+        public EditorModuleDescriptor(string id, string displayNameKey, bool showInHub, int order = 0)
         {
             Id = RequireValue(id, nameof(id));
             DisplayNameKey = RequireValue(displayNameKey, nameof(displayNameKey));
+            ShowInHub = showInHub;
             Order = order;
         }
 
         public string Id { get; }
         public string DisplayNameKey { get; }
         public int Order { get; }
+
+        /// <summary>
+        /// 是否列入 Hub 的正式模块清单；不影响模块生命周期。
+        /// </summary>
+        public bool ShowInHub { get; }
 
         private static string RequireValue(string value, string parameterName)
         {

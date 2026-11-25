@@ -185,16 +185,34 @@ public sealed class RequirementsTests : TagTestBase
     }
 
     [Fact]
-    public void ShouldRemove_IgnoresBlockOnlyRemovalRequirements()
+    public void ShouldRemove_WithOnlyBlockedTags_TriggersWhenNoneArePresent()
     {
-        // 仅设置 Blocked 的移除需求（Required 为 null）永远不会触发移除。
         var requirements = new ContinuousTagRequirements
         {
             RemovalRequired = GameplayTagRequirements.Block(T("SR2.A")),
         };
 
         Assert.False(requirements.ShouldRemove(C("SR2.A")));
-        Assert.False(requirements.ShouldRemove(C("SR2.X")));
+        Assert.False(requirements.ShouldRemove(C("SR2.A.Child")));
+        Assert.True(requirements.ShouldRemove(C("SR2.X")));
+        Assert.True(requirements.ShouldRemove(new GameplayTagContainer()));
+        Assert.False(requirements.ShouldRemove(null!));
+    }
+
+    [Fact]
+    public void ShouldRemove_RequiresAllConfiguredConditionKinds()
+    {
+        var query = GameplayTagQuery.Create(GameplayTagQueryNode.CreateTagQuery(
+            GameplayTagQueryOperator.IncludeExactTag, T("SR3.Query")));
+        var requirements = new ContinuousTagRequirements
+        {
+            RemovalRequired = new GameplayTagRequirements(C("SR3.Required"), C("SR3.Blocked"), query: query),
+        };
+
+        Assert.True(requirements.ShouldRemove(C("SR3.Required.Child", "SR3.Query")));
+        Assert.False(requirements.ShouldRemove(C("SR3.Required.Child", "SR3.Query", "SR3.Blocked.Child")));
+        Assert.False(requirements.ShouldRemove(C("SR3.Required.Child", "SR3.Query.Child")));
+        Assert.False(requirements.ShouldRemove(C("SR3.Query")));
     }
 
     [Fact]

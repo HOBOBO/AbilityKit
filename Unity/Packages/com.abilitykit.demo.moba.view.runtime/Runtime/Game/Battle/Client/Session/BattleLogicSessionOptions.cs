@@ -24,6 +24,10 @@ namespace AbilityKit.Game.Battle
         };
 
         public bool ScanAllLoadedAssemblies;
+        /// <summary>
+        /// 为此会话自行装配的世界启用可选 Trace；不覆盖调用方提供的容器。
+        /// </summary>
+        public bool EnableTraceDiagnostics;
         public string[] NamespacePrefixes = new[] { "AbilityKit" };
 
         public bool AutoCreateWorld = true;

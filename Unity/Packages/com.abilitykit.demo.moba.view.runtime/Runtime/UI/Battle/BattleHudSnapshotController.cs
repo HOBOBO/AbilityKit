@@ -100,6 +100,27 @@ namespace AbilityKit.Game.Flow
 
         public void Dispose() => ClearSubscriptions();
 
+        /// <summary>
+        /// 指示器保留帧号与 Actor 生命周期边界，与其他 HUD 订阅一并释放。
+        /// </summary>
+        public void BindOverhead(IBattleGameplayPresentationSource ctx,
+            Action<int, ActorIndicatorStateData[]> indicators,
+            Action<int, ActorSpawnData[]> spawns,
+            Action<int, ActorDespawnData[]> despawns,
+            Action<int, ShieldStateData[]> shields = null)
+        {
+            if (!IsBoundTo(ctx) || _dispatcher == null) return;
+            _subscriptions.Add(_dispatcher.Subscribe<ActorIndicatorStateData[]>(MobaOpCodes.Snapshot.ActorIndicatorState,
+                (envelope, data) => { if (envelope is FramePacket packet) indicators(packet.Frame.Value, data); }));
+            _subscriptions.Add(_dispatcher.Subscribe<ActorSpawnData[]>(MobaOpCodes.Snapshot.ActorSpawn,
+                (envelope, data) => { if (envelope is FramePacket packet) spawns(packet.Frame.Value, data); }));
+            _subscriptions.Add(_dispatcher.Subscribe<ActorDespawnData[]>(MobaOpCodes.Snapshot.ActorDespawn,
+                (envelope, data) => { if (envelope is FramePacket packet) despawns(packet.Frame.Value, data); }));
+            if (shields != null)
+                _subscriptions.Add(_dispatcher.Subscribe<ShieldStateData[]>(MobaOpCodes.Snapshot.ShieldState,
+                    (envelope, data) => { if (envelope is FramePacket packet) shields(packet.Frame.Value, data); }));
+        }
+
         private void ClearSubscriptions()
         {
             _subscriptions.Clear();

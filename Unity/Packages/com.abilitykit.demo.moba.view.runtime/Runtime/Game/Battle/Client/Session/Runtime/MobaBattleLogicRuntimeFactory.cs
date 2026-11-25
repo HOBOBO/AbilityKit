@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World;
@@ -59,19 +60,9 @@ namespace AbilityKit.Game.Battle
             if (options.WorldServices != null) return options.WorldServices;
 
             var prefixes = options.NamespacePrefixes;
-            WorldContainerBuilder builder;
-            if (options.ScanAllLoadedAssemblies)
-            {
-                builder = WorldServiceContainerFactory.CreateWithAttributes(
-                    options.Profile,
-                    true,
-                    prefixes);
-                RegisterRequiredMobaServices(builder);
-                builder.AddModule(new MobaTraceAdapterModule());
-                return builder;
-            }
-
-            var scanAssemblies = options.ScanAssemblies;
+            var scanAssemblies = options.ScanAllLoadedAssemblies
+                ? AppDomain.CurrentDomain.GetAssemblies()
+                : options.ScanAssemblies;
             if (scanAssemblies == null || scanAssemblies.Length == 0)
             {
                 scanAssemblies = new[]
@@ -81,12 +72,13 @@ namespace AbilityKit.Game.Battle
                 };
             }
 
-            builder = WorldServiceContainerFactory.CreateWithAttributes(
+            var traceAssembly = typeof(MobaTraceAdapterModule).Assembly;
+            var builder = WorldServiceContainerFactory.CreateWithAttributes(
                 options.Profile,
-                scanAssemblies,
+                scanAssemblies.Where(assembly => assembly != traceAssembly).ToArray(),
                 prefixes);
             RegisterRequiredMobaServices(builder);
-            builder.AddModule(new MobaTraceAdapterModule());
+            if (options.EnableTraceDiagnostics) builder.AddModule(new MobaTraceAdapterModule());
             return builder;
         }
 

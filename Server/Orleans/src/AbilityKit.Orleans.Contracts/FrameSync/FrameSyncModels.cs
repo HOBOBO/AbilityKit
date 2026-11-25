@@ -19,7 +19,9 @@ public sealed record FrameSyncStartOptions(
     [Id(10)] public bool UseSettledFrames { get; init; }
 }
 
-/// <summary>Server-internal proof that this runtime started at frame zero without a gameplay tick or inputs.</summary>
+/// <summary>
+/// 服务端内部证明：此运行时从第零帧启动，尚未执行玩法步进或输入。
+/// </summary>
 [GenerateSerializer]
 public sealed record FrameSyncInitialCheckpoint([property: Id(0)] System.Guid RuntimeGeneration);
 

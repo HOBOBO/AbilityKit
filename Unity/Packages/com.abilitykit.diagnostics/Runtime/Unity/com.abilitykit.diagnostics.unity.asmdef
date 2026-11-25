@@ -1,0 +1,8 @@
+{
+    "name": "AbilityKit.Diagnostics.Unity",
+    "rootNamespace": "AbilityKit.Diagnostics",
+    "references": [
+        "AbilityKit.Diagnostics"
+    ],
+    "noEngineReferences": false
+}

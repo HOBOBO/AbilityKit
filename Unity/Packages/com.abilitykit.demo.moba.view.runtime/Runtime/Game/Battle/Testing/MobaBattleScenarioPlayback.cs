@@ -21,6 +21,9 @@ namespace AbilityKit.Game.Battle.Testing
     /// </summary>
     public static class MobaBattleScenarioPlayback
     {
+#if UNITY_EDITOR
+        internal const string PendingTraceDiagnosticsKey = "AbilityKit.MobaBattleScenarioPlayback.PendingTraceDiagnostics";
+#endif
         internal const string PreviewProfileId = "moba.skill_preview";
         private static (TestScenario Scenario, bool PreviewOnly) _pending;
 
@@ -48,11 +51,13 @@ namespace AbilityKit.Game.Battle.Testing
                     actor.HeroId <= 0 || actor.Facing != null))
                 throw new NotSupportedException("预览需一个有 PlayerId 的施法者，所有角色需指定队伍、正式英雄和坐标；暂不支持初始朝向覆盖。");
             var caster = scenario.Actors.Single(actor => !string.IsNullOrEmpty(actor.PlayerId));
+            var aliases = new HashSet<string>(scenario.Actors.Select(actor => actor.Alias), StringComparer.Ordinal);
             if (scenario.Timeline.Count == 0 || scenario.Timeline.Any(step =>
+                step.Action == "move_to" ? step.Position == null || !aliases.Contains(step.ActorAlias) :
                 step.Action != "wait" && (step.ActorAlias != caster.Alias || step.Slot <= 0 ||
                 (step.Action != "cast_skill" && step.Action != "press" && step.Action != "release" &&
                  step.Action != "hold" && step.Action != "cancel"))))
-                throw new NotSupportedException("预览时间线仅支持本地角色的技能输入和等待。");
+                throw new NotSupportedException("预览时间线仅支持本地角色技能输入、已布置角色的 move_to 和等待。");
         }
 
         /// <summary>
@@ -81,7 +86,19 @@ namespace AbilityKit.Game.Battle.Testing
         internal static BattleStartConfig ResolveLocalStartConfig(BattleStartConfig source)
         {
             var (scenario, previewOnly) = _pending;
-            if (!Application.isPlaying || scenario == null || source == null) return source;
+            if (!Application.isPlaying || source == null) return source;
+            var enableTraceDiagnostics = false;
+#if UNITY_EDITOR
+            enableTraceDiagnostics = UnityEditor.SessionState.GetBool(PendingTraceDiagnosticsKey, false);
+            if (enableTraceDiagnostics) UnityEditor.SessionState.EraseBool(PendingTraceDiagnosticsKey);
+#endif
+            if (scenario == null)
+            {
+                if (!enableTraceDiagnostics) return source;
+                var traceConfig = UnityEngine.Object.Instantiate(source);
+                traceConfig.EnableTraceDiagnostics = true;
+                return traceConfig;
+            }
             _pending = default;
             var actorPlayers = BuildPlayerIds(scenario);
             var caster = scenario.Actors.Single(actor => !string.IsNullOrEmpty(actor.PlayerId));
@@ -136,6 +153,9 @@ namespace AbilityKit.Game.Battle.Testing
             }
             config.UseRoomGameStartSpec = false;
             config.EnableSyncModeSelection = false;
+            if (enableTraceDiagnostics || (!previewOnly && scenario.Expectations is MobaBattleScenarioAssertions assertions &&
+                assertions.MustContain.Any(expectation => expectation.Kind == nameof(MobaExecutionKind.SkillCast))))
+                config.EnableTraceDiagnostics = true;
             return config;
         }
 
@@ -161,6 +181,7 @@ namespace AbilityKit.Game.Battle.Testing
             if (!context.Session.TryGetWorld(out var world))
                 throw new InvalidOperationException("MOBA 预览未获得本地战斗世界。");
             var actorMap = world.Services.Resolve<MobaPlayerActorMapService>();
+            var registry = world.Services.Resolve<MobaActorRegistry>();
             var targets = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var alias in actorPlayers.Keys)
             {
@@ -186,6 +207,14 @@ namespace AbilityKit.Game.Battle.Testing
                 {
                     EnsurePlaying(flow, deadline);
                     yield return null;
+                }
+                if (step.Action == "move_to")
+                {
+                    if (!registry.TryGet(targets[step.ActorAlias], out var actor) || actor == null || !actor.hasTransform)
+                        throw new InvalidOperationException($"MOBA 预览角色无法移动：{step.ActorAlias}");
+                    var pose = actor.transform.Value;
+                    actor.ReplaceTransform(new Transform3(ToWorldVector(step.Position), pose.Rotation, pose.Scale));
+                    continue;
                 }
                 var phase = step.Action switch
                 {
@@ -221,7 +250,8 @@ namespace AbilityKit.Game.Battle.Testing
                 var casts = assertions.MustContain.Where(expectation => expectation.Kind == nameof(MobaExecutionKind.SkillCast)).ToArray();
                 if (casts.Length != 0)
                 {
-                    var trace = world.Services.Resolve<MobaTraceRegistry>();
+                    if (!world.Services.TryResolve<MobaTraceRegistry>(out var trace))
+                        throw new InvalidOperationException("SkillCast assertions require Trace diagnostics enabled before world creation.");
                     foreach (var expectation in casts)
                     {
                         var count = 0;

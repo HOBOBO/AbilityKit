@@ -31,6 +31,10 @@ namespace AbilityKit.Demo.Moba.Attributes
         public static readonly AttributeId PER_SECOND_BLOOD_R = AttributeRegistry.DefaultRegistry.Request(Prefix + nameof(BattleAttributeType.PER_SECOND_BLOOD_R));
         public static readonly AttributeId PER_SECOND_MANA_R = AttributeRegistry.DefaultRegistry.Request(Prefix + nameof(BattleAttributeType.PER_SECOND_MANA_R));
         public static readonly AttributeId RESILIENCE_R = AttributeRegistry.DefaultRegistry.Request(Prefix + nameof(BattleAttributeType.RESILIENCE_R));
+        /// <summary>
+        /// 每秒固定回复法力的有效属性，与旧法力回复率独立。
+        /// </summary>
+        public static readonly AttributeId MANA_REGEN_PER_SECOND = AttributeRegistry.DefaultRegistry.Request(Prefix + nameof(BattleAttributeType.MANA_REGEN_PER_SECOND));
 
         public static AttributeId Get(BattleAttributeType type)
         {
@@ -59,6 +63,7 @@ namespace AbilityKit.Demo.Moba.Attributes
                 case BattleAttributeType.PER_SECOND_BLOOD_R: return PER_SECOND_BLOOD_R;
                 case BattleAttributeType.PER_SECOND_MANA_R: return PER_SECOND_MANA_R;
                 case BattleAttributeType.RESILIENCE_R: return RESILIENCE_R;
+                case BattleAttributeType.MANA_REGEN_PER_SECOND: return MANA_REGEN_PER_SECOND;
                 case BattleAttributeType.None:
                 default:
                     return default;

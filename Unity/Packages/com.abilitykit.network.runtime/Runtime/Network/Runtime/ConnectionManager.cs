@@ -1,5 +1,5 @@
 using System;
-using System.Text;
+using System.Threading;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Timing;
 using AbilityKit.Network.Abstractions;
@@ -24,6 +24,7 @@ namespace AbilityKit.Network.Runtime
         private ITransport _transport;
         private INetworkRuntimeSession _session;
         private INetworkHeartbeatMiddleware _heartbeat;
+        private SessionEvents _sessionEvents;
 
         private string _host;
         private int _port;
@@ -34,6 +35,7 @@ namespace AbilityKit.Network.Runtime
         private bool _openRequested;
         private readonly string _connectionId;
         private int _connectionGeneration;
+        private int _closeVersion;
 
         private readonly IReconnectAttemptScheduler _reconnectScheduler;
 
@@ -155,8 +157,12 @@ namespace AbilityKit.Network.Runtime
             }
         }
 
+        /// <summary>
+        /// 主动关闭连接并使待执行的连接通知失效，不合成断开事件；可随后重新打开。
+        /// </summary>
         public void Close()
         {
+            Interlocked.Increment(ref _closeVersion);
             _openRequested = false;
             StopInternal();
         }
@@ -184,15 +190,17 @@ namespace AbilityKit.Network.Runtime
             {
                 if (_reconnectScheduler.TryTakeAttempt(deltaTime, out var attemptNumber))
                 {
-                    _dispatcher.Post(() => ReconnectAttemptStarted?.Invoke(attemptNumber));
+                    var closeVersion = Volatile.Read(ref _closeVersion);
+                    PostNotification(closeVersion, () => ReconnectAttemptStarted?.Invoke(attemptNumber));
+                    if (closeVersion != Volatile.Read(ref _closeVersion)) return;
                     try
                     {
                         StartConnect(ConnectionState.Reconnecting);
                     }
                     catch (Exception ex)
                     {
-                        _dispatcher.Post(() => Error?.Invoke(ex));
-                        if (_reconnectScheduler.IsExhausted)
+                        PostNotification(closeVersion, () => Error?.Invoke(ex));
+                        if (closeVersion == Volatile.Read(ref _closeVersion) && _reconnectScheduler.IsExhausted)
                         {
                             MarkReconnectExhausted();
                         }
@@ -233,11 +241,10 @@ namespace AbilityKit.Network.Runtime
             _session.Send(opCode, payload, flags, seq);
         }
 
-        public void Dispose()
-        {
-            _openRequested = false;
-            StopInternal();
-        }
+        /// <summary>
+        /// 关闭并释放当前传输会话；关闭前排队的通知不再分发。
+        /// </summary>
+        public void Dispose() => Close();
 
         private void StartConnect(ConnectionState connectState)
         {
@@ -278,11 +285,13 @@ namespace AbilityKit.Network.Runtime
                 }
 
                 _session.Start();
-                _session.PacketReceived += OnSessionPacketReceived;
-                _session.ServerPushReceived += OnSessionServerPushReceived;
-                _session.Connected += OnSessionConnected;
-                _session.Disconnected += OnSessionDisconnected;
-                _session.Error += OnSessionError;
+                var events = new SessionEvents(this, Volatile.Read(ref _closeVersion));
+                Volatile.Write(ref _sessionEvents, events);
+                _session.PacketReceived += events.OnPacketReceived;
+                _session.ServerPushReceived += events.OnServerPushReceived;
+                _session.Connected += events.OnConnected;
+                _session.Disconnected += events.OnDisconnected;
+                _session.Error += events.OnError;
 
                 _heartbeat = _options.HeartbeatFactory != null
                     ? _options.HeartbeatFactory.Invoke(_options.HeartbeatOpCode)
@@ -292,12 +301,13 @@ namespace AbilityKit.Network.Runtime
                     throw new InvalidOperationException("Heartbeat middleware factory returned null.");
                 }
 
-                _heartbeat.HeartbeatReceived += OnHeartbeatReceived;
+                _heartbeat.HeartbeatReceived += events.OnHeartbeatReceived;
                 InstallTrafficProbe(_session.Pipeline, _transport);
                 _session.Pipeline.Add(_heartbeat);
                 PipelineCreated?.Invoke(_session.Pipeline);
+                if (!events.IsCurrent) return;
 
-                _transport.BytesReceived += OnTransportBytesReceived;
+                _transport.BytesReceived += events.OnTransportBytesReceived;
                 _transport.Connect(_host, _port);
             }
             catch
@@ -323,7 +333,9 @@ namespace AbilityKit.Network.Runtime
             }
         }
 
-        /// <summary>Applies a remote catalog advertisement to the configured protocol session.</summary>
+        /// <summary>
+        /// 将远端目录通告应用于已配置协议会话。
+        /// </summary>
         public ProtocolCatalogNegotiationResult ApplyRemoteCatalog(
             ProtocolCatalogDefinition remoteCatalog)
         {
@@ -334,23 +346,16 @@ namespace AbilityKit.Network.Runtime
 
         private void StopInternal(bool keepState = false, bool resetReconnect = true)
         {
-            if (_session != null)
+            var events = Interlocked.Exchange(ref _sessionEvents, null);
+            if (events != null)
             {
-                _session.PacketReceived -= OnSessionPacketReceived;
-                _session.ServerPushReceived -= OnSessionServerPushReceived;
-                _session.Connected -= OnSessionConnected;
-                _session.Disconnected -= OnSessionDisconnected;
-                _session.Error -= OnSessionError;
-            }
-
-            if (_heartbeat != null)
-            {
-                _heartbeat.HeartbeatReceived -= OnHeartbeatReceived;
-            }
-
-            if (_transport != null)
-            {
-                _transport.BytesReceived -= OnTransportBytesReceived;
+                _session.PacketReceived -= events.OnPacketReceived;
+                _session.ServerPushReceived -= events.OnServerPushReceived;
+                _session.Connected -= events.OnConnected;
+                _session.Disconnected -= events.OnDisconnected;
+                _session.Error -= events.OnError;
+                if (_heartbeat != null) _heartbeat.HeartbeatReceived -= events.OnHeartbeatReceived;
+                if (_transport != null) _transport.BytesReceived -= events.OnTransportBytesReceived;
             }
 
             try
@@ -380,17 +385,15 @@ namespace AbilityKit.Network.Runtime
             }
         }
 
-        private void OnTransportBytesReceived(ArraySegment<byte> bytes)
+        private void PostNotification(int closeVersion, Action notify)
         {
-            _timeSinceLastReceive = 0f;
+            _dispatcher.Post(() =>
+            {
+                if (closeVersion == Volatile.Read(ref _closeVersion)) notify();
+            });
         }
 
-        private void OnHeartbeatReceived()
-        {
-            _timeSinceLastReceive = 0f;
-        }
-
-        private void OnSessionConnected()
+        private void OnSessionConnected(SessionEvents events)
         {
             State = ConnectionState.Connected;
             IsReconnectExhausted = false;
@@ -398,12 +401,13 @@ namespace AbilityKit.Network.Runtime
             _timeSinceLastReceive = 0f;
             _timeSinceLastHeartbeatSend = 0f;
 
-            _dispatcher.Post(() => Connected?.Invoke());
+            PostNotification(events.CloseVersion, () => Connected?.Invoke());
         }
 
-        private void OnSessionDisconnected()
+        private void OnSessionDisconnected(SessionEvents events)
         {
-            _dispatcher.Post(() => Disconnected?.Invoke());
+            PostNotification(events.CloseVersion, () => Disconnected?.Invoke());
+            if (!events.IsCurrent) return;
 
             if (_openRequested && _options.EnableReconnect)
             {
@@ -415,9 +419,10 @@ namespace AbilityKit.Network.Runtime
             }
         }
 
-        private void OnSessionError(Exception ex)
+        private void OnSessionError(SessionEvents events, Exception ex)
         {
-            _dispatcher.Post(() => Error?.Invoke(ex));
+            PostNotification(events.CloseVersion, () => Error?.Invoke(ex));
+            if (!events.IsCurrent) return;
 
             if (_openRequested && _options.EnableReconnect)
             {
@@ -434,26 +439,7 @@ namespace AbilityKit.Network.Runtime
         {
             if (_options.EnableKickHandling && opCode == _options.KickPushOpCode)
             {
-                var token = string.Empty;
-                var reason = string.Empty;
-
-                try
-                {
-                    if (payload.Array != null && payload.Count > 0)
-                    {
-                        var json = Encoding.UTF8.GetString(payload.Array, payload.Offset, payload.Count);
-                        token = TryGetJsonStringValue(json, "sessionToken") ?? string.Empty;
-                        reason = TryGetJsonStringValue(json, "reason") ?? string.Empty;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, "[ConnectionManager] Kick push json decode failed");
-                    if (payload.Array != null && payload.Count > 0)
-                    {
-                        reason = Encoding.UTF8.GetString(payload.Array, payload.Offset, payload.Count);
-                    }
-                }
+                KickPushDecoder.Decode(payload, out var token, out var reason);
 
                 Kicked?.Invoke(token, reason);
 
@@ -462,67 +448,6 @@ namespace AbilityKit.Network.Runtime
             }
 
             ServerPushReceived?.Invoke(opCode, payload);
-        }
-
-        private static string TryGetJsonStringValue(string json, string key)
-        {
-            if (string.IsNullOrEmpty(json) || string.IsNullOrEmpty(key)) return null;
-
-            // Very small JSON extractor for {"key":"value"} style payloads.
-            // It is NOT a general JSON parser; it is sufficient for our kick push payload.
-            var pattern = "\"" + key + "\"";
-            var i = json.IndexOf(pattern, StringComparison.Ordinal);
-            if (i < 0) return null;
-
-            i = json.IndexOf(':', i + pattern.Length);
-            if (i < 0) return null;
-            i++;
-
-            while (i < json.Length && char.IsWhiteSpace(json[i])) i++;
-            if (i >= json.Length || json[i] != '"') return null;
-            i++;
-
-            var start = i;
-            var sb = (StringBuilder)null;
-
-            while (i < json.Length)
-            {
-                var c = json[i];
-                if (c == '"')
-                {
-                    if (sb == null) return json.Substring(start, i - start);
-                    return sb.ToString();
-                }
-
-                if (c == '\\')
-                {
-                    if (i + 1 >= json.Length) return null;
-                    sb ??= new StringBuilder(json.Substring(start, i - start));
-                    var esc = json[i + 1];
-                    switch (esc)
-                    {
-                        case '"': sb.Append('"'); break;
-                        case '\\': sb.Append('\\'); break;
-                        case '/': sb.Append('/'); break;
-                        case 'b': sb.Append('\b'); break;
-                        case 'f': sb.Append('\f'); break;
-                        case 'n': sb.Append('\n'); break;
-                        case 'r': sb.Append('\r'); break;
-                        case 't': sb.Append('\t'); break;
-                        default:
-                            // Keep unknown escapes as-is
-                            sb.Append(esc);
-                            break;
-                    }
-                    i += 2;
-                    start = i;
-                    continue;
-                }
-
-                i++;
-            }
-
-            return null;
         }
 
         private void SendHeartbeat()
@@ -549,17 +474,20 @@ namespace AbilityKit.Network.Runtime
                 return;
             }
 
+            var closeVersion = Volatile.Read(ref _closeVersion);
+            var transport = _transport;
             State = ConnectionState.Reconnecting;
             if (!wasPending)
             {
                 var attemptNumber = _reconnectScheduler.NextAttemptNumber;
                 var delaySeconds = _reconnectScheduler.NextDelaySeconds;
-                _dispatcher.Post(() => ReconnectScheduled?.Invoke(attemptNumber, delaySeconds));
+                PostNotification(closeVersion, () => ReconnectScheduled?.Invoke(attemptNumber, delaySeconds));
             }
 
             try
             {
-                _transport?.Close();
+                if (closeVersion == Volatile.Read(ref _closeVersion) && ReferenceEquals(_transport, transport))
+                    transport?.Close();
             }
             catch (Exception ex2)
             {
@@ -571,9 +499,57 @@ namespace AbilityKit.Network.Runtime
         {
             if (IsReconnectExhausted) return;
             IsReconnectExhausted = true;
+            var closeVersion = Volatile.Read(ref _closeVersion);
             var attempts = _reconnectScheduler.AttemptsStarted;
             StopInternal(resetReconnect: false);
-            _dispatcher.Post(() => ReconnectExhausted?.Invoke(attempts));
+            PostNotification(closeVersion, () => ReconnectExhausted?.Invoke(attempts));
+        }
+
+        private sealed class SessionEvents
+        {
+            private readonly ConnectionManager _owner;
+
+            public SessionEvents(ConnectionManager owner, int closeVersion)
+            {
+                _owner = owner;
+                CloseVersion = closeVersion;
+            }
+
+            public int CloseVersion { get; }
+            public bool IsCurrent => CloseVersion == Volatile.Read(ref _owner._closeVersion) &&
+                ReferenceEquals(this, Volatile.Read(ref _owner._sessionEvents));
+
+            public void OnConnected()
+            {
+                if (IsCurrent) _owner.OnSessionConnected(this);
+            }
+
+            public void OnDisconnected()
+            {
+                if (IsCurrent) _owner.OnSessionDisconnected(this);
+            }
+
+            public void OnError(Exception error)
+            {
+                if (IsCurrent) _owner.OnSessionError(this, error);
+            }
+
+            public void OnPacketReceived(uint opCode, uint seq, ArraySegment<byte> payload)
+            {
+                if (IsCurrent) _owner.OnSessionPacketReceived(opCode, seq, payload);
+            }
+
+            public void OnServerPushReceived(uint opCode, ArraySegment<byte> payload)
+            {
+                if (IsCurrent) _owner.OnSessionServerPushReceived(opCode, payload);
+            }
+
+            public void OnHeartbeatReceived()
+            {
+                if (IsCurrent) _owner._timeSinceLastReceive = 0f;
+            }
+
+            public void OnTransportBytesReceived(ArraySegment<byte> bytes) => OnHeartbeatReceived();
         }
 
         private static IReconnectAttemptScheduler CreateReconnectScheduler(

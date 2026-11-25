@@ -29,7 +29,7 @@ Ability-Kit 目前处于**开发期**。这个仓库保存的是 AbilityKit 相�
 | `Server/` | Orleans Host、Gateway、Room、Battle Grain、Smoke 与运维接入代码。 |
 | `Docs/design/` | 当前跨模块设计的 canonical 入口，记录能力边界、源码落点、生命周期、限制和证据等级。 |
 | `LubanConfig/` | 配置表与生成相关素材。 |
-| `tools/` | 本地开发、验证、smoke test 辅助脚本。 |
+| [`tools/`](tools/README.md) | 仓库级开发、生成、验证与发布工具入口。 |
 
 `Unity/Packages/` 中包目录较多，是因为这里集中存放了工具集合的全部源码，包括一个较完整的 MOBA 最佳实践示例。后续给其他项目使用时，应按需获取和组合，而不是默认全量使用。
 
@@ -603,6 +603,8 @@ Starter 的公共 Composition 只负责选择 Profile 并实例化 Root。多人
 
 ## 文档导航
 
+按用途浏览设计、教程、包文档和执行指南，见[文档导航](Docs/README.md)。
+
 跨模块设计的首要入口是 [Docs/design/00-index.md](./Docs/design/00-index.md)。该目录已经按当前源码整理能力边界、应用层归属、生命周期、已知限制和 E0-E5 证据；Package 内的 `Document/` 或 `Documentation~/` 继续承担局部 API 与实现说明。
 
 | 主题 | Canonical 入口 |
@@ -622,13 +624,14 @@ Starter 的公共 Composition 只负责选择 Profile 并实例化 Root。多人
 | ------------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | [技术选型](./Unity/Packages/技术选型文档.md)                                                                | 从零开发战斗框架的技术选型                              |
 | [Host 模块](./Unity/Packages/com.abilitykit.host.extension/Document/)                               | 游戏服务器运行时框架                                 |
-| [状态同步与预测](./Unity/Packages/com.abilitykit.world.statesync/Document/StateSyncDesign.md)            | 客户端预测、Rollback、StateHash 校验                |
+| [状态同步与预测](./Unity/Packages/com.abilitykit.world.statesync/Documentation~/StateSyncDesign.md)            | 客户端预测、Rollback、StateHash 校验                |
 | [快照路由](./Unity/Packages/com.abilitykit.world.snapshot/Document/SnapshotRoutingBoundary.md)        | 快照路由与解码层边界                                 |
 | [帧数据层](./Unity/Packages/com.abilitykit.world.networkfragments/Document/NetworkFragmentsDesign.md) | FramePacket、RemoteFrameBuffer 帧数据结构        |
-| [World DI](./Unity/Packages/com.abilitykit.world.di/Document/)                                    | 依赖注入与组合系统                                  |
+| [World DI](./Unity/Packages/com.abilitykit.world.di/README.md)                                    | 依赖注入与组合系统                                  |
+| [Attributes](./Unity/Packages/com.abilitykit.attributes/README.md)                               | 属性注册、修饰器与求值                              |
 | [Flow 模块](./Unity/Packages/com.abilitykit.flow/)                                                  | 流程编排引擎（参考 Samples~/FlowExamples/README.md） |
 | [Pipeline](./Unity/Packages/com.abilitykit.pipeline/Document/)                                    | 技能管线编排                                     |
-| [Triggering](./Unity/Packages/com.abilitykit.triggering/Document/)                                | 事件触发器系统                                    |
+| [Triggering](./Unity/Packages/com.abilitykit.triggering/Documentation~/README.md)                    | 事件触发器系统                                    |
 | [ActionSchema](./Unity/Packages/com.abilitykit.actionschema/Document/ActionSchema动作时间线数据模块开发设计文档.md) | 动作时间线 DTO 与运行时数据结构                        |
 | [GameplayTags](./Unity/Packages/com.abilitykit.gameplaytags/Document/GameplayTags标签系统模块开发设计文档.md) | 标签系统与状态标识                                  |
 | [Modifiers](./Unity/Packages/com.abilitykit.modifiers/Document/ModifiersDesign.md)                 | 通用修正器与参数计算                                 |
@@ -637,7 +640,7 @@ Starter 的公共 Composition 只负责选择 Profile 并实例化 Root。多人
 | [Behavior](./Unity/Packages/com.abilitykit.behavior/Document/Behavior行为执行模块开发设计文档.md)     | 行为运行时与 Pipeline 行为阶段                         |
 | [帧同步](./Unity/Packages/com.abilitykit.world.framesync/Document/)                                  | 帧同步与回滚                                     |
 | [Targeting](./Unity/Packages/com.abilitykit.combat.targeting/Documentation~/)                     | 目标查找框架                                     |
-| [Projectile](./Unity/Packages/com.abilitykit.combat.projectile/Document/)                         | 投射物系统                                      |
+| [Projectile](./Unity/Packages/com.abilitykit.combat.projectile/README.md)                         | 投射物系统                                      |
 | [Motion](./Unity/Packages/com.abilitykit.combat.motion/Document/)                                  | 战斗移动、轨迹和碰撞求解                               |
 | [战斗传输层](./Unity/Packages/com.abilitykit.game.battle.runtime/Document/BattleTransportDesign.md)    | 战斗传输层架构、NetworkTransport                   |
 

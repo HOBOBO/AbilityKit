@@ -128,28 +128,28 @@ public static class CatalogCompilerProgram
 
     private static void WriteUsage()
     {
-        Console.WriteLine("AbilityKit protocol catalog compiler");
-        Console.WriteLine("  --input <file-or-directory>");
+        Console.WriteLine("AbilityKit 协议目录编译器");
+        Console.WriteLine("  --input <文件或目录>");
         Console.WriteLine("  [--manifest <output.json> --csharp <output.g.cs>]");
         Console.WriteLine("  [--metadata <output.g.cs>] [--metadata-class <name>]");
         Console.WriteLine("  [--client-api <output.g.cs>] [--server-api <output.g.cs>] [--api-namespace <namespace>]");
-        Console.WriteLine("  [--api-assembly <output-dir>] writes ProtocolClients.g.cs and ProtocolHandlers.g.cs together");
+        Console.WriteLine("  [--api-assembly <输出目录>] 同时写入 ProtocolClients.g.cs 和 ProtocolHandlers.g.cs");
         Console.WriteLine("  [--namespace <namespace>] [--class <name>] [--check]");
         Console.WriteLine();
-        Console.WriteLine("Editor/workspace and governance commands:");
+        Console.WriteLine("编辑器、工作区及治理命令：");
         Console.WriteLine("  --input <catalog-root> --wire-input <wire-root> --workspace-output <workspace.json>");
         Console.WriteLine("  --write-catalog <catalog.json> --output <catalog.protocol.yaml>");
         Console.WriteLine("  --write-wire-schema <schema.json> --output <schema.wire.yaml>");
-        Console.WriteLine("    appends a type to an existing grouped v2 document when schema.sourceType is empty");
+        Console.WriteLine("    schema.sourceType 为空时，向已有 v2 分组文档追加类型");
         Console.WriteLine("  --input <catalog-root> --wire-input <wire-root> --compatibility-baseline <baseline.json> [--check]");
         Console.WriteLine("  --input <catalog-root> --wire-input <wire-root> --compatibility-check <baseline.json>");
-        Console.WriteLine("    exits 5 when breaking changes are not covered by the owning catalog revision bump");
+        Console.WriteLine("    所属目录未提升修订号以覆盖破坏性变更时，以退出码 5 结束");
         Console.WriteLine("  --input <catalog-root> --wire-input <wire-root> --export-memorypack <folder>");
         Console.WriteLine("    --project <project-id> [--namespace <catalog-namespace>] [--include-unreferenced] [--strict]");
-        Console.WriteLine("    [--check]  check-only: compare committed export files with the deterministic");
-        Console.WriteLine("               export, exit 3 when stale, 4 when --strict finds missing wire schemas");
+        Console.WriteLine("    [--check]  仅检查：将已提交导出文件与确定性导出结果比较；");
+        Console.WriteLine("               过期时退出码为 3；--strict 发现缺少传输结构定义时为 4");
         Console.WriteLine("  --wire-input <wire-root> --project <project-id> --export-protobuf <folder> [--check]");
-        Console.WriteLine("    emits deterministic proto3 contracts through the protobuf backend SPI");
+        Console.WriteLine("    通过 protobuf 后端 SPI 输出确定性的 proto3 契约");
     }
 }
 

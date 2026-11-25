@@ -1,11 +1,44 @@
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Handlers;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Protocol.Room;
 using Xunit;
 
 namespace AbilityKit.Orleans.Gateway.Tests;
 
 public sealed class SubmitBattleInputHandlerTests
 {
+    [Fact]
+    public void ConnectionGeneration_does_not_reuse_a_reconnected_session_number()
+    {
+        var original = new GatewaySessionContext(42);
+        var reconnect = new GatewaySessionContext(42);
+
+        Assert.Equal(original.SessionId, reconnect.SessionId);
+        Assert.NotEqual(Guid.Empty, original.ConnectionGeneration);
+        Assert.NotEqual(original.ConnectionGeneration, reconnect.ConnectionGeneration);
+    }
+
+    [Fact]
+    public void ScopedInputRequiresStateSyncCapabilityAndAuthenticatedController()
+    {
+        var snapshot = CreateSnapshot();
+        var moba = snapshot with { Summary = snapshot.Summary with { RoomType = GameplayRoomTypes.Moba } };
+        var caps = new NetworkSyncCapabilityMetadata(1, "moba", 0, FixedBaselineStateSyncProtocol.SchemaVersion,
+            0, (int)InputPolicy.ImmediateSubmit, 0, 0, 0, 0);
+        var state = moba with { SyncCapabilities = caps };
+
+        Assert.True(SubmitBattleInputHandler.CanUseScopedInput(state, "battle-a", 9001, "account-a", 1));
+        Assert.False(SubmitBattleInputHandler.CanUseScopedInput(state, "battle-a", 9001, "account-a", 2));
+        Assert.False(SubmitBattleInputHandler.CanUseScopedInput(moba, "battle-a", 9001, "account-a", 1));
+        Assert.False(SubmitBattleInputHandler.CanUseScopedInput(snapshot with { SyncCapabilities = caps },
+            "battle-a", 9001, "account-a", 1));
+        Assert.False(SubmitBattleInputHandler.CanUseScopedInput(state with
+        {
+            SyncCapabilities = caps with { Input = (int)InputPolicy.DeterministicBroadcast }
+        }, "battle-a", 9001, "account-a", 1));
+    }
+
     [Fact]
     public void CanSubmitInput_accepts_matching_account_room_battle_world_and_player()
     {

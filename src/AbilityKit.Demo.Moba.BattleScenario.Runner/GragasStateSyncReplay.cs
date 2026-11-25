@@ -80,6 +80,8 @@ internal static class GragasStateSyncReplay
     private static object EvidenceSample(MovementSample sample) => new
     {
         Position = new { sample.Position.X, sample.Position.Y, sample.Position.Z },
+        Rotation = new { sample.Rotation.X, sample.Rotation.Y, sample.Rotation.Z, sample.Rotation.W },
+        sample.ModelId,
         sample.Speed,
         sample.Delta,
         sample.Consumed,
@@ -134,7 +136,9 @@ internal static class GragasStateSyncReplay
                     && locomotion.Input.Equals(new Vec3(0f, 0f, consumed?.Z ?? 0f)), "The formal motion system did not consume the scheduled local input.");
             }
 
-            samples.Add(new MovementSample(position, speed, world.FixedDelta, consumed));
+            Require(actor.hasModelId && actor.modelId.Value > 0, "The formal actor is missing its model binding.");
+            samples.Add(new MovementSample(position, actor.transform.Value.Rotation, actor.modelId.Value,
+                speed, world.FixedDelta, consumed));
             if (tick < anchorTick + 2)
                 actor.ReplaceMoveInput(0f, tick == anchorTick ? Back.Z : 0f);
         });
@@ -147,6 +151,8 @@ internal static class GragasStateSyncReplay
         var moved = samples[2];
         var idle = samples[3];
         Require(Near(before.Position, cut.Position) && Near(moved.Position, idle.Position)
+            && before.ModelId == cut.ModelId && cut.ModelId == moved.ModelId && moved.ModelId == idle.ModelId
+            && cut.Rotation.Equals(moved.Rotation) && moved.Rotation.Equals(idle.Rotation)
             && cut.Speed == moved.Speed && cut.Speed == idle.Speed && cut.Delta == moved.Delta && cut.Delta == idle.Delta,
             "The cut must be stationary with constant locomotion parameters and explicit neutral input on the empty Tick.");
         Require(!Near(cut.Position, moved.Position) && Near(Step(cut.Projection, Back).Position, moved.Position),
@@ -160,8 +166,10 @@ internal static class GragasStateSyncReplay
         var tick = authority.AnchorTick;
         var deliveryTick = isOnTime ? tick : tick + 2;
         var oldPosition = isOnTime ? old.Cut.Position : old.Idle.Position;
+        var oldProjection = isOnTime ? old.Cut.Projection : old.Idle.Projection;
         Require(authority.BoundActor == old.BoundActor && old.AnchorTick == tick && old.TickRate == authority.TickRate,
             "Observed local inputs and the authority baseline must address the same fixture participant.");
+        Require(authority.Cut.ModelId == old.Cut.ModelId, "Both projections must use the observed model binding.");
         var scope = new ReconciliationScope(1, 1, new Guid("b5781238-8a8c-4241-a64e-efde0020c917"),
             authority.BoundActor.Id, authority.BoundActor.Lifetime, 1, 1);
         var steps = new List<LocalStateSyncReplay.ReplayStep>();
@@ -224,12 +232,14 @@ internal static class GragasStateSyncReplay
             Variant = variant,
             TickRate = authority.TickRate,
             PositionLabel = "MOBA 世界 Z 轴（每 1000 格 = 1 世界单位）",
+            ActorModelId = authority.Cut.ModelId,
             Checkpoints = new[]
             {
                 new LocalStateSyncReplay.Checkpoint
                 {
                     Command = "旧预测（正式世界）", Generation = 1, DeliveryTick = deliveryTick, AppliedTick = -1, BaselineTick = -1,
                     Prediction = Display(oldPosition), Pending = isOnTime ? new[] { Stop.Sequence } : new[] { Stop.Sequence, Back.Sequence },
+                    PredictionPose = Pose(oldProjection),
                     Steps = Array.Empty<LocalStateSyncReplay.ReplayStep>(),
                 },
                 new LocalStateSyncReplay.Checkpoint
@@ -240,6 +250,7 @@ internal static class GragasStateSyncReplay
                     PublishedRevision = movement.Revision, ReconciledRevision = reconciler.AcceptedRevision, TerminalSequence = reconciler.TerminalSequence,
                     Imports = imports, PublishedPosition = Display(anchor.Position), Authority = Display(anchor.Position),
                     Prediction = predicted ? Display(corrected.Position) : null,
+                    AuthorityPose = Pose(anchor), PredictionPose = predicted ? Pose(corrected) : null,
                     Pending = Enumerable.Range(0, reconciler.PendingCount).Select(reconciler.GetPendingSequence).ToArray(),
                     ReplayTicks = steps.Select(step => step.Tick).ToArray(), Steps = steps.ToArray(),
                 },
@@ -267,7 +278,10 @@ internal static class GragasStateSyncReplay
                 replayed.Add(inputs[0].Sequence);
                 candidate = Step(candidate, inputs[0]);
             }
-            steps.Add(new LocalStateSyncReplay.ReplayStep { Tick = replayTick, Before = Display(before), After = Display(candidate.Position) });
+            steps.Add(new LocalStateSyncReplay.ReplayStep
+            {
+                Tick = replayTick, Before = Display(before), After = Display(candidate.Position), AfterPose = Pose(candidate),
+            });
             return true;
         }
     }
@@ -284,6 +298,11 @@ internal static class GragasStateSyncReplay
 
     private static bool Near(Vec3 left, Vec3 right) => (left - right).SqrMagnitude <= Tolerance * Tolerance;
     private static int Display(Vec3 position) => checked((int)MathF.Round(position.Z * 1000f));
+    private static LocalStateSyncReplay.ActorPose Pose(MovementCut cut) => new()
+    {
+        X = cut.Position.X, Y = cut.Position.Y, Z = cut.Position.Z,
+        Qx = cut.Rotation.X, Qy = cut.Rotation.Y, Qz = cut.Rotation.Z, Qw = cut.Rotation.W,
+    };
 
     private static void Require(bool valid, string message)
     {
@@ -291,10 +310,10 @@ internal static class GragasStateSyncReplay
     }
 
     private readonly record struct WalkInput(long Sequence, float Z);
-    private readonly record struct MovementCut(Vec3 Position, float Speed, float Delta);
-    private readonly record struct MovementSample(Vec3 Position, float Speed, float Delta, WalkInput? Consumed)
+    private readonly record struct MovementCut(Vec3 Position, Quat Rotation, float Speed, float Delta);
+    private readonly record struct MovementSample(Vec3 Position, Quat Rotation, int ModelId, float Speed, float Delta, WalkInput? Consumed)
     {
-        internal MovementCut Projection => new(Position, Speed, Delta);
+        internal MovementCut Projection => new(Position, Rotation, Speed, Delta);
     }
     private readonly record struct LocalSnapshot(SnapshotStreamEnvelope Envelope, MovementCut Cut);
     private sealed record Observation(int TickRate, int AnchorTick, (int Id, int Lifetime) BoundActor, int FirstSkillMotionTick, int LastSkillMotionTick,

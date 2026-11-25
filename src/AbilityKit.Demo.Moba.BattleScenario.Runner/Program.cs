@@ -20,22 +20,37 @@ public static class Program
             System.Console.Error.WriteLine(
                 "Usage: <scenario.json|case.battlescenario> [result.txt] | " +
                 "--determinism <scenario.json|case.battlescenario> [result.txt] | " +
-                "--batch <battlescenario-directory> [result.txt] | --statesync-gragas <output-directory>");
+                "--batch <battlescenario-directory> [result.txt] | " +
+                "--statesync-gragas <output-directory> | --statesync-movement <output-directory> | " +
+                "--statesync-jinx-presentation <output-directory>");
             return 1;
         }
 
-        if (args[0] == "--statesync-gragas")
+        if (args[0] is "--statesync-gragas" or "--statesync-movement" or "--statesync-jinx-presentation")
         {
             if (args.Length != 2)
             {
-                System.Console.Error.WriteLine("--statesync-gragas requires an output directory.");
+                System.Console.Error.WriteLine($"{args[0]} requires an output directory.");
                 return 1;
             }
 
             try
             {
-                GragasStateSyncReplay.Export(args[1]);
-                System.Console.WriteLine("PASS: four local state-sync variants and repeatability.");
+                if (args[0] == "--statesync-movement")
+                {
+                    LocalStateSyncMovementReplay.Export(args[1]);
+                    System.Console.WriteLine("PASS: live movement correction, proof recovery, continuation and repeatability.");
+                }
+                else if (args[0] == "--statesync-jinx-presentation")
+                {
+                    JinxProjectilePresentationReplay.Export(args[1]);
+                    System.Console.WriteLine("PASS: two local projectile presentation variants and repeatability.");
+                }
+                else
+                {
+                    GragasStateSyncReplay.Export(args[1]);
+                    System.Console.WriteLine("PASS: four local state-sync variants and repeatability.");
+                }
                 return 0;
             }
             catch (Exception ex)

@@ -32,7 +32,34 @@ namespace AbilityKit.Game.Flow
             _damageEvents = controllers.CreateDamageEvents(_hpBars, _floatingTexts);
             _buffBars = controllers.CreateBuffBars(cfg, root, projector, this);
             _chargeBars = controllers.CreateChargeBars(cfg, root, projector, this);
+            _chargeBars.PanelSlotResolver = id => _hpBars.PanelSlot(id, true);
+            _buffBars.PanelSlotResolver = id => _hpBars.PanelSlot(id, false);
         }
+
+        public void OnActorIndicators(int frame, ActorIndicatorStateData[] data, int localActorId) =>
+            _hpBars.Apply(frame, data, localActorId);
+
+        public void OnActorSpawns(int frame, ActorSpawnData[] data)
+        {
+            if (data == null) return;
+            foreach (var actor in data)
+                if (_hpBars.IsReplacement(frame, actor.ActorId, actor.EntityVersion))
+                { _buffBars.RemoveActor(actor.ActorId); _chargeBars.RemoveActor(actor.ActorId); _floatingTexts.RemoveActor(actor.ActorId); }
+            _hpBars.ObserveSpawns(frame, data);
+        }
+
+        public void OnActorDespawns(int frame, ActorDespawnData[] data)
+        {
+            if (data == null) return;
+            foreach (var actor in data)
+            {
+                if (!_hpBars.AcceptDespawn(frame, actor.ActorId)) continue;
+                _hpBars.RemoveActor(actor.ActorId); _buffBars.RemoveActor(actor.ActorId);
+                _chargeBars.RemoveActor(actor.ActorId); _floatingTexts.RemoveActor(actor.ActorId);
+            }
+        }
+
+        public void ResetOverheadBaseline() => _hpBars.ResetBaseline();
 
         public void OnDamageEvents(DamageEventData[] entries)
         {
@@ -46,6 +73,8 @@ namespace AbilityKit.Game.Flow
             for (var i = 0; i < entries.Length; i++)
             {
                 var entry = entries[i];
+                if (entry.SnapshotKind == PresentationCueSnapshotKind.ActiveBaselineEnd)
+                    _hpBars.ResetIndicatorBaseline();
                 if (entry.Domain == PresentationCueDomain.Buff &&
                     entry.TargetActorId > 0 &&
                     !string.IsNullOrEmpty(entry.InstanceKey) &&
@@ -77,6 +106,8 @@ namespace AbilityKit.Game.Flow
             _hpBars.UpdateShields(entries);
         }
 
+        public void OnShieldStates(int frame, ShieldStateData[] entries) => _hpBars.UpdateShields(frame, entries);
+
         public void Tick(float deltaTime)
         {
             _hpBars.Tick();
@@ -106,6 +137,7 @@ namespace AbilityKit.Game.Flow
         public void ClearPresentationCues()
         {
             _buffBars.Clear();
+            _hpBars.ResetBaseline();
         }
 
         public bool TryGetActorWorldPos(int actorId, out Vector3 pos)

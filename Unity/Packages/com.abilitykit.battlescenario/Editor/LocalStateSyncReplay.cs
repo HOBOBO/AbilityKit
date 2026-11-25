@@ -36,9 +36,11 @@ namespace AbilityKit.BattleScenario.Editor
         /// 可选的绘图轴和刻度说明；不参与对账或位置推导。
         /// </summary>
         [JsonProperty("positionLabel", NullValueHandling = NullValueHandling.Ignore)] internal string? PositionLabel = null;
+        [JsonProperty("actorModelId", NullValueHandling = NullValueHandling.Ignore)] internal int? ActorModelId = null;
         [JsonProperty(Required = Required.Always)] internal Checkpoint[] Checkpoints = Array.Empty<Checkpoint>();
 
         internal bool HasStepPositions => Version == CurrentVersion;
+        internal bool HasPresentationTrack => Checkpoints.Length > 0 && Checkpoints[0]?.Presentation != null;
 
         internal string Serialize()
         {
@@ -63,10 +65,15 @@ namespace AbilityKit.BattleScenario.Editor
                 var point = Checkpoints[deliveryIndex];
                 var firstFrame = frames.Count;
                 var prior = deliveryIndex > 0 ? Checkpoints[deliveryIndex - 1] : null;
-                var previousPrediction = prior?.Generation == point.Generation ? prior.Prediction : null;
+                if (prior?.Generation != point.Generation) prior = null;
+                var previousPrediction = prior?.Prediction;
                 if (point.Steps is { Length: > 0 } steps)
                 {
-                    frames.Add(new Frame(point, deliveryIndex, FramePhase.Anchor, steps[0], previousPrediction));
+                    var comparison = point.ComparisonTick.HasValue ? FindComparison(deliveryIndex, point) : prior;
+                    if (comparison?.Prediction is int comparedPosition && point.Authority.HasValue)
+                        frames.Add(new Frame(point, deliveryIndex, FramePhase.Compare, previousPrediction: comparedPosition,
+                            previousPose: comparison.PredictionPose));
+                    frames.Add(new Frame(point, deliveryIndex, FramePhase.Anchor, steps[0]));
                     foreach (var step in steps)
                         frames.Add(new Frame(point, deliveryIndex, FramePhase.ReplayTick, step, previousPrediction));
                 }
@@ -76,21 +83,87 @@ namespace AbilityKit.BattleScenario.Editor
             return new Timeline(CaseId, frames, deliveries);
         }
 
-        private void Validate()
+        internal void Validate()
         {
             if (Format != FormatId || (Version != CheckpointOnlyVersion && Version != CurrentVersion))
                 throw new InvalidDataException("不支持的本地状态同步回放格式或版本。");
             if (string.IsNullOrWhiteSpace(CaseId) || string.IsNullOrWhiteSpace(Variant) || TickRate <= 0 || Checkpoints.Length == 0)
                 throw new InvalidDataException("本地状态同步回放缺少用例、变体、Tick 频率或检查点。");
+            if (ActorModelId.HasValue && (Version != CurrentVersion || ActorModelId <= 0))
+                throw new InvalidDataException("演员投影需要有效模型标识和逐 Tick 回放格式。");
 
             var previousTick = 0;
-            foreach (var point in Checkpoints)
+            for (var index = 0; index < Checkpoints.Length; index++)
             {
+                var point = Checkpoints[index];
                 if (point == null || string.IsNullOrWhiteSpace(point.Command) || point.DeliveryTick < previousTick)
                     throw new InvalidDataException("本地状态同步回放存在空检查点、无名命令或倒序检查点。");
                 ValidateSteps(point);
+                ValidatePresentation(point, index == 0 ? null : Checkpoints[index - 1]);
+                if (point.ComparisonTick.HasValue && (point.ComparisonTick != point.AppliedTick ||
+                    point.Steps is not { Length: > 0 } || !point.Authority.HasValue || FindComparison(index, point) == null))
+                    throw new InvalidDataException("同 Tick 对照缺少同代预测或权威样本。");
+                ValidatePose(point.AuthorityPose, point.Authority);
+                ValidatePose(point.PredictionPose, point.Prediction);
+                if (point.Steps != null)
+                    foreach (var step in point.Steps) ValidatePose(step.AfterPose, step.After);
                 previousTick = point.DeliveryTick;
             }
+        }
+
+        private void ValidatePresentation(Checkpoint point, Checkpoint? prior)
+        {
+            var sample = point.Presentation;
+            if (HasPresentationTrack != (sample != null))
+                throw new InvalidDataException("表现轨道需要为每个 Tick 提供独立观测。");
+            if (sample == null) return;
+            if (Version != CurrentVersion || ActorModelId.HasValue || point.ReplayTicks.Length != 0 ||
+                (prior != null && (long)point.DeliveryTick != (long)prior.DeliveryTick + 1) ||
+                string.IsNullOrWhiteSpace(sample.Phase) || string.IsNullOrWhiteSpace(sample.CueCommand) ||
+                string.IsNullOrWhiteSpace(sample.RejectReason) ||
+                sample.Active < 0 || sample.Active > 1 || sample.Created < 0 || sample.Destroyed < 0 ||
+                sample.Created - sample.Destroyed != sample.Active ||
+                (sample.Active == 1) != (sample.View != null) || (sample.Active == 1) != (sample.Handle is > 0) ||
+                (sample.Active == 0 && sample.Handle.HasValue))
+                throw new InvalidDataException("表现轨道的 Tick、位置或实例计数无效。");
+        }
+
+        private Checkpoint? FindComparison(int index, Checkpoint point)
+        {
+            for (var prior = index - 1; prior >= 0; prior--)
+            {
+                var sample = Checkpoints[prior];
+                if (sample.Generation != point.Generation || sample.DeliveryTick < point.ComparisonTick) break;
+                if (sample.DeliveryTick == point.ComparisonTick && sample.Prediction.HasValue) return sample;
+            }
+            return null;
+        }
+
+        private void ValidatePose(ActorPose? pose, int? plottedPosition)
+        {
+            if (pose == null) return;
+            if (!ActorModelId.HasValue || !plottedPosition.HasValue || !pose.IsValid ||
+                Math.Round(pose.Z * 1000f) != plottedPosition.Value)
+                throw new InvalidDataException("演员姿态无效或与录制的 Z 轴观测不一致。");
+        }
+
+        /// <summary>
+        /// 实际观测的世界空间位置与四元数；缺失时不合成姿态。
+        /// </summary>
+        internal sealed class ActorPose
+        {
+            [JsonProperty(Required = Required.Always)] internal float X { get; set; }
+            [JsonProperty(Required = Required.Always)] internal float Y { get; set; }
+            [JsonProperty(Required = Required.Always)] internal float Z { get; set; }
+            [JsonProperty(Required = Required.Always)] internal float Qx { get; set; }
+            [JsonProperty(Required = Required.Always)] internal float Qy { get; set; }
+            [JsonProperty(Required = Required.Always)] internal float Qz { get; set; }
+            [JsonProperty(Required = Required.Always)] internal float Qw { get; set; }
+
+            internal bool IsValid => Finite(X) && Finite(Y) && Finite(Z) &&
+                Math.Abs(Qx * Qx + Qy * Qy + Qz * Qz + Qw * Qw - 1f) < 0.01f;
+
+            private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
         }
 
         private void ValidateSteps(Checkpoint point)
@@ -144,10 +217,45 @@ namespace AbilityKit.BattleScenario.Editor
             [JsonProperty(Required = Required.AllowNull)] internal int? PublishedPosition;
             [JsonProperty(Required = Required.AllowNull)] internal int? Authority;
             [JsonProperty(Required = Required.AllowNull)] internal int? Prediction;
+            /// <summary>
+            /// 明确指定用于对照的同代预测观测 Tick；旧录制仍显示交付前最后一次观测。
+            /// </summary>
+            [JsonProperty("comparisonTick", NullValueHandling = NullValueHandling.Ignore)] internal int? ComparisonTick = null;
+            [JsonProperty("authorityPose", NullValueHandling = NullValueHandling.Ignore)] internal ActorPose? AuthorityPose = null;
+            [JsonProperty("predictionPose", NullValueHandling = NullValueHandling.Ignore)] internal ActorPose? PredictionPose = null;
             [JsonProperty(Required = Required.Always)] internal long[] Pending = Array.Empty<long>();
             [JsonProperty(Required = Required.Always)] internal int[] ReplayTicks = Array.Empty<int>();
             [JsonProperty("replaySteps", NullValueHandling = NullValueHandling.Ignore)] internal ReplayStep[]? Steps;
             [JsonProperty("commit", NullValueHandling = NullValueHandling.Ignore)] internal CommitObservation? Commit;
+            [JsonProperty("presentation", NullValueHandling = NullValueHandling.Ignore)] internal PresentationObservation? Presentation;
+        }
+
+        /// <summary>
+        /// 单一表现对象的离线观测。实例句柄属于表现注册表，不是逻辑实体 ID；空位置表示本 Tick 没有观测。
+        /// </summary>
+        internal sealed class PresentationObservation
+        {
+            [JsonProperty(Required = Required.Always)] internal string Phase = string.Empty;
+            [JsonProperty(Required = Required.Always)] internal string CueCommand = string.Empty;
+            [JsonProperty(Required = Required.Always)] internal string RejectReason = string.Empty;
+            [JsonProperty(Required = Required.Always)] internal bool Promoted;
+            [JsonProperty(Required = Required.Always)] internal bool DuplicateIgnored;
+            [JsonProperty(Required = Required.AllowNull)] internal PresentationPoint? Authority;
+            [JsonProperty(Required = Required.AllowNull)] internal PresentationPoint? View;
+            [JsonProperty(Required = Required.AllowNull)] internal int? Handle;
+            [JsonProperty(Required = Required.Always)] internal int Active;
+            [JsonProperty(Required = Required.Always)] internal long Created;
+            [JsonProperty(Required = Required.Always)] internal long Destroyed;
+        }
+
+        /// <summary>
+        /// 世界坐标的离线绘图采样，单位为千分之一世界单位。
+        /// </summary>
+        internal sealed class PresentationPoint
+        {
+            [JsonProperty(Required = Required.Always)] internal int X;
+            [JsonProperty(Required = Required.Always)] internal int Y;
+            [JsonProperty(Required = Required.Always)] internal int Z;
         }
 
         /// <summary>
@@ -170,12 +278,13 @@ namespace AbilityKit.BattleScenario.Editor
             [JsonProperty(Required = Required.Always)] internal int Tick;
             [JsonProperty(Required = Required.Always)] internal int Before;
             [JsonProperty(Required = Required.Always)] internal int After;
+            [JsonProperty("afterPose", NullValueHandling = NullValueHandling.Ignore)] internal ActorPose? AfterPose = null;
         }
 
         /// <summary>
-        /// 同一次交付内的显示阶段：先显示重演起点和实际步进，最后显示交付后的检查点。
+        /// 同一次交付内依次对照旧预测、显示重演起点和实际步进，最后显示交付后的检查点。
         /// </summary>
-        internal enum FramePhase { Anchor, ReplayTick, Checkpoint }
+        internal enum FramePhase { Compare, Anchor, ReplayTick, Checkpoint }
 
         /// <summary>
         /// 时间线游标指向的实际观测；不插值、不为旧版文件合成重演位置。
@@ -187,17 +296,33 @@ namespace AbilityKit.BattleScenario.Editor
             internal readonly FramePhase Phase;
             internal readonly ReplayStep? Step;
             internal readonly int? PreviousPrediction;
+            internal readonly ActorPose? PredictionPose;
 
-            internal Frame(Checkpoint point, int deliveryIndex, FramePhase phase, ReplayStep? step = null, int? previousPrediction = null)
+            internal Frame(Checkpoint point, int deliveryIndex, FramePhase phase, ReplayStep? step = null,
+                int? previousPrediction = null, ActorPose? previousPose = null)
             {
                 Point = point;
                 DeliveryIndex = deliveryIndex;
                 Phase = phase;
                 Step = step;
                 PreviousPrediction = previousPrediction;
+                PredictionPose = phase switch
+                {
+                    FramePhase.Compare => previousPose,
+                    FramePhase.Anchor => point.AuthorityPose,
+                    FramePhase.ReplayTick => step?.AfterPose,
+                    _ => point.PredictionPose,
+                };
             }
 
             internal int? Position => Phase == FramePhase.Anchor ? Step?.Before : Step?.After;
+
+            /// <summary>
+            /// 回退起点直接复用权威姿态；该帧只绘制原色候选，避免完全重合的模型互相遮挡。
+            /// </summary>
+            internal bool SharesAnchorPose => Phase == FramePhase.Anchor && PredictionPose != null;
+
+            internal ActorPose? AuthorityProjectionPose => SharesAnchorPose ? null : Point.AuthorityPose;
         }
 
         /// <summary>

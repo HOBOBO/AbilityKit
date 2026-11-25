@@ -1,4 +1,7 @@
 using System;
+using static AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionInputExecution;
+using static AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionLocalInputQueue;
+using static AbilityKit.Ability.Host.Extensions.FrameSync.ClientPredictionSettledTimeline;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
@@ -15,13 +18,6 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
     /// </summary>
     public sealed class ClientPredictionDriverModule : IHostRuntimeModule, IHostRuntimeTickGate, IClientPredictionDriverStats, IClientPredictionTuningControl, IClientPredictionReconcileTarget, IClientPredictionReconcileControl, IClientPredictionBaselineControl, IClientPredictionRestoreFloor
     {
-        private const int ReplayWaitTimeoutTicks = 120;
-
-        private enum ReplayMode
-        {
-            Normal = 0,
-            Replaying = 1,
-        }
 
         /// <summary>
         /// 重置指定世界的对账；未找到记录时仅对仍登记的上下文执行兜底重置。
@@ -30,107 +26,45 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             if (_contexts.TryGetValue(worldId, out var ctx))
             {
-                if (IsRegistered(ctx.World)) ResetReconcileInternal(ctx);
+                if (IsRegistered(ctx.Bindings.World)) ResetReconcileInternal(ctx);
             }
             else
             {
                 // 防御性处理：如果 worldId 不匹配，则重置所有世界，避免卡在回放状态。
                 foreach (var kv in _contexts)
                 {
-                    if (IsRegistered(kv.Value.World)) ResetReconcileInternal(kv.Value);
+                    if (IsRegistered(kv.Value.Bindings.World)) ResetReconcileInternal(kv.Value);
                 }
             }
         }
 
-        private void ResetReconcileInternal(WorldContext ctx)
+        private void ResetReconcileInternal(ClientPredictionWorldContext ctx)
         {
-            if (ctx.SettledTimeline != null) return;
+            if (ctx.Bindings.SettledTimeline != null) return;
             EndInputReplay(ctx);
-            ctx.PredictedHashes?.Clear();
-            ctx.AuthoritativeHashes?.Clear();
-            ctx.ComparedAuthoritativeHashes?.Clear();
-            ctx.Reconciler?.Clear();
+            ctx.Reconciliation.PredictedHashes?.Clear();
+            ctx.Reconciliation.AuthoritativeHashes?.Clear();
+            ctx.Reconciliation.ComparedAuthoritativeHashes?.Clear();
+            ctx.Bindings.Reconciler?.Clear();
 
             // 同时退出回放模式，避免调试强制不一致开关后卡住。
-            ctx.Mode = ReplayMode.Normal;
-            ctx.ReplayTo = ctx.PredictedFrame;
-            ctx.LastRollbackFrame = new FrameIndex(-1);
-            ctx.ReplayWaitTicks = 0;
-            ctx.LastReplayWaitTargetFrame = -1;
+            ctx.Replay.Mode = ClientPredictionReplayMode.Normal;
+            ctx.Replay.ReplayTo = ctx.Progress.PredictedFrame;
+            ctx.Replay.LastRollbackFrame = new FrameIndex(-1);
+            ctx.Replay.ReplayWaitTicks = 0;
+            ctx.Replay.LastReplayWaitTargetFrame = -1;
 
-            _isReplaying = false;
-            _replayToFrame = default;
-            _lastRollbackFrame = default;
+            _state.IsReplaying = false;
+            _state.ReplayToFrame = default;
+            _state.LastRollbackFrame = default;
 
-            _lastReconcileComparedFrame = default;
-            _lastReconcileMismatchFrame = default;
-            _lastReconcilePredictedHash = default;
-            _lastReconcileAuthoritativeHash = default;
+            _state.LastReconcileComparedFrame = default;
+            _state.LastReconcileMismatchFrame = default;
+            _state.LastReconcilePredictedHash = default;
+            _state.LastReconcileAuthoritativeHash = default;
         }
 
-        private sealed class WorldContext
-        {
-            public IWorld World;
-            public IWorldInputSink InputSink;
-            public IWorldSettledInputSink SettledInputSink;
-            public IConsumableRemoteFrameSource<PlayerInputCommand[]> PendingSettlement;
-            public IWorldSettledTimelineSink SettledTimeline;
-            public InputHistoryRingBuffer RawPredictionInputs;
-            public WorldSettledInputFrame PendingSettledFrame;
-            public IWorldSettledFrameUpdate PendingSettledUpdate;
-            public IConsumableRemoteFrameSource<WorldSettledInputFrame> PendingSettledSource;
-            public FrameTime FrameTime;
-
-            public FrameIndex ConfirmedFrame;
-            public FrameIndex PredictedFrame;
-            /*
-             * 输入准备不能代替成功提交；失败时恢复宿主可见进度，模拟现场由世界保留。
-             */
-            public FrameIndex PredictedBeforeTick;
-            public FrameIndex ConfirmedBeforeTick;
-
-            public SortedDictionary<int, List<LocalPlayerInputEvent>> PendingLocalInputs;
-
-            public RollbackCoordinator Rollback;
-            public bool RollbackFaulted;
-            public int CaptureCounter;
-            public FrameIndex LastProcessedRollbackFrame;
-
-            public InputHistoryRingBuffer AppliedInputs;
-            public InputHistoryRingBuffer AuthoritativeInputs;
-
-            public Func<FrameIndex, WorldStateHash> ComputeHash;
-            public WorldStateHashRingBuffer PredictedHashes;
-            public WorldStateHashRingBuffer AuthoritativeHashes;
-            public WorldStateHashRingBuffer ComparedAuthoritativeHashes;
-            public ClientPredictionReconciler Reconciler;
-
-            public bool ReconcileEnabled;
-
-            public int ReplayWaitTicks;
-            public int LastReplayWaitTargetFrame;
-
-            public bool HasBacklogEwma;
-            public float BacklogEwma;
-
-            public int BacklogRaw;
-            public int PredictionWindow;
-            public bool PredictionStalled;
-            public long PredictionWindowStallsTotal;
-
-            public int IdealFrameLimit;
-            public bool IdealFrameStalled;
-            public long IdealFrameStallsTotal;
-            public bool IdealFrameCappedWindow;
-
-            public ReplayMode Mode;
-            public bool InputReplayActive;
-            public FrameIndex ReplayTo;
-            public FrameIndex LastRollbackFrame;
-            public FrameIndex LastMissingAppliedHistoryFrame;
-        }
-
-        private readonly Dictionary<WorldId, WorldContext> _contexts = new Dictionary<WorldId, WorldContext>();
+        private readonly Dictionary<WorldId, ClientPredictionWorldContext> _contexts = new Dictionary<WorldId, ClientPredictionWorldContext>();
         private readonly List<WorldId> _detachedContexts = new List<WorldId>();
 
         private readonly Func<WorldId, IConsumableRemoteFrameSource<PlayerInputCommand[]>> _resolveRemoteInputs;
@@ -158,51 +92,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         private readonly Func<IWorld, Func<FrameIndex, WorldStateHash>> _buildComputeHash;
 
-        private int _lastConsumedConfirmedFrames;
-        private int _lastConsumedPredictedFrames;
-        private long _totalConsumedConfirmedFrames;
-        private long _totalPredictedFrames;
 
-        private long _totalLocalDelayQueueDroppedBatches;
-
-        private int _currentPredictionWindow;
-        private bool _isPredictionStalledByWindow;
-        private long _totalPredictionWindowStalls;
-
-        private int _currentIdealFrameLimit;
-        private bool _isPredictionStalledByIdealFrame;
-        private long _totalIdealFrameStalls;
-
-        private int _currentBacklogRaw;
-        private float _currentBacklogEwma;
-
-        private long _totalRollbackCount;
-        private long _totalRollbackRestoreFailed;
-
-        private long _totalReplayTimeout;
-        private FrameIndex _lastReplayTimeoutFrame;
-
-        private long _totalReconcileAutoDisabledByReplayTimeout;
-        private FrameIndex _lastReconcileAutoDisabledByReplayTimeoutFrame;
-
-        private long _totalReconcileMismatch;
-        private long _totalPredictedHashRecorded;
-        private long _totalAuthoritativeHashSkippedNoPredictedHash;
-        private FrameIndex _lastReconcileMismatchFrame;
-        private FrameIndex _lastReconcileComparedFrame;
-        private WorldStateHash _lastReconcilePredictedHash;
-        private WorldStateHash _lastReconcileAuthoritativeHash;
-
-        private long _totalAuthoritativeHashReceived;
-        private FrameIndex _lastAuthoritativeHashFrame;
-        private WorldStateHash _lastAuthoritativeHash;
-
-        private long _totalAuthoritativeHashIgnoredNoReconciler;
-
-        private bool _isReplaying;
-        private FrameIndex _replayToFrame;
-        private FrameIndex _lastRollbackFrame;
-        private bool _shouldRunWorldTick;
+        private readonly ClientPredictionDriverState _state = new ClientPredictionDriverState();
 
         private readonly Action<IWorld> _onWorldCreated;
         private readonly Action<WorldId> _onWorldDestroyed;
@@ -286,21 +177,21 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
         public ClientPredictionDriverBufferOptions BufferOptions => _bufferOptions;
 
-        public int CurrentBacklogRaw => _currentBacklogRaw;
+        public int CurrentBacklogRaw => _state.CurrentBacklogRaw;
 
-        public float CurrentBacklogEwma => _currentBacklogEwma;
+        public float CurrentBacklogEwma => _state.CurrentBacklogEwma;
 
-        public int CurrentPredictionWindow => _currentPredictionWindow;
+        public int CurrentPredictionWindow => _state.CurrentPredictionWindow;
 
-        public bool IsPredictionStalledByWindow => _isPredictionStalledByWindow;
+        public bool IsPredictionStalledByWindow => _state.IsPredictionStalledByWindow;
 
-        public long TotalPredictionWindowStalls => _totalPredictionWindowStalls;
+        public long TotalPredictionWindowStalls => _state.TotalPredictionWindowStalls;
 
-        public int CurrentIdealFrameLimit => _currentIdealFrameLimit;
+        public int CurrentIdealFrameLimit => _state.CurrentIdealFrameLimit;
 
-        public bool IsPredictionStalledByIdealFrame => _isPredictionStalledByIdealFrame;
+        public bool IsPredictionStalledByIdealFrame => _state.IsPredictionStalledByIdealFrame;
 
-        public long TotalIdealFrameStalls => _totalIdealFrameStalls;
+        public long TotalIdealFrameStalls => _state.TotalIdealFrameStalls;
 
         /// <summary>
         /// 查询当前登记世界的理想帧上限与停滞统计。
@@ -311,9 +202,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             stalled = false;
             stallsTotal = 0;
             if (!TryGetActiveContext(worldId, out var ctx)) return false;
-            idealFrameLimit = ctx.IdealFrameLimit;
-            stalled = ctx.IdealFrameStalled;
-            stallsTotal = ctx.IdealFrameStallsTotal;
+            idealFrameLimit = ctx.Window.IdealFrameLimit;
+            stalled = ctx.Window.IdealFrameStalled;
+            stallsTotal = ctx.Window.IdealFrameStallsTotal;
             return true;
         }
 
@@ -348,65 +239,65 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             _tuningBacklogEwmaAlpha = _defaultBacklogEwmaAlpha;
         }
 
-        public bool IsReplaying => _isReplaying;
+        public bool IsReplaying => _state.IsReplaying;
 
-        public FrameIndex ReplayToFrame => _replayToFrame;
+        public FrameIndex ReplayToFrame => _state.ReplayToFrame;
 
-        public FrameIndex LastRollbackFrame => _lastRollbackFrame;
+        public FrameIndex LastRollbackFrame => _state.LastRollbackFrame;
 
-        public long TotalRollbackCount => _totalRollbackCount;
+        public long TotalRollbackCount => _state.TotalRollbackCount;
 
-        public long TotalRollbackRestoreFailed => _totalRollbackRestoreFailed;
+        public long TotalRollbackRestoreFailed => _state.TotalRollbackRestoreFailed;
 
-        public long TotalReplayTimeout => _totalReplayTimeout;
-        public FrameIndex LastReplayTimeoutFrame => _lastReplayTimeoutFrame;
+        public long TotalReplayTimeout => _state.TotalReplayTimeout;
+        public FrameIndex LastReplayTimeoutFrame => _state.LastReplayTimeoutFrame;
 
-        public long TotalReconcileAutoDisabledByReplayTimeout => _totalReconcileAutoDisabledByReplayTimeout;
-        public FrameIndex LastReconcileAutoDisabledByReplayTimeoutFrame => _lastReconcileAutoDisabledByReplayTimeoutFrame;
+        public long TotalReconcileAutoDisabledByReplayTimeout => _state.TotalReconcileAutoDisabledByReplayTimeout;
+        public FrameIndex LastReconcileAutoDisabledByReplayTimeoutFrame => _state.LastReconcileAutoDisabledByReplayTimeoutFrame;
 
-        public long TotalReconcileMismatch => _totalReconcileMismatch;
+        public long TotalReconcileMismatch => _state.TotalReconcileMismatch;
 
-        public long TotalPredictedHashRecorded => _totalPredictedHashRecorded;
+        public long TotalPredictedHashRecorded => _state.TotalPredictedHashRecorded;
 
-        public long TotalAuthoritativeHashSkippedNoPredictedHash => _totalAuthoritativeHashSkippedNoPredictedHash;
+        public long TotalAuthoritativeHashSkippedNoPredictedHash => _state.TotalAuthoritativeHashSkippedNoPredictedHash;
 
-        public FrameIndex LastReconcileComparedFrame => _lastReconcileComparedFrame;
+        public FrameIndex LastReconcileComparedFrame => _state.LastReconcileComparedFrame;
 
-        public FrameIndex LastReconcileMismatchFrame => _lastReconcileMismatchFrame;
+        public FrameIndex LastReconcileMismatchFrame => _state.LastReconcileMismatchFrame;
 
-        public WorldStateHash LastReconcilePredictedHash => _lastReconcilePredictedHash;
+        public WorldStateHash LastReconcilePredictedHash => _state.LastReconcilePredictedHash;
 
-        public WorldStateHash LastReconcileAuthoritativeHash => _lastReconcileAuthoritativeHash;
+        public WorldStateHash LastReconcileAuthoritativeHash => _state.LastReconcileAuthoritativeHash;
 
-        public long TotalAuthoritativeHashReceived => _totalAuthoritativeHashReceived;
+        public long TotalAuthoritativeHashReceived => _state.TotalAuthoritativeHashReceived;
 
-        public FrameIndex LastAuthoritativeHashFrame => _lastAuthoritativeHashFrame;
+        public FrameIndex LastAuthoritativeHashFrame => _state.LastAuthoritativeHashFrame;
 
-        public WorldStateHash LastAuthoritativeHash => _lastAuthoritativeHash;
+        public WorldStateHash LastAuthoritativeHash => _state.LastAuthoritativeHash;
 
-        public long TotalAuthoritativeHashIgnoredNoReconciler => _totalAuthoritativeHashIgnoredNoReconciler;
+        public long TotalAuthoritativeHashIgnoredNoReconciler => _state.TotalAuthoritativeHashIgnoredNoReconciler;
 
-        public int LastConsumedConfirmedFrames => _lastConsumedConfirmedFrames;
+        public int LastConsumedConfirmedFrames => _state.LastConsumedConfirmedFrames;
 
-        public int LastConsumedPredictedFrames => _lastConsumedPredictedFrames;
+        public int LastConsumedPredictedFrames => _state.LastConsumedPredictedFrames;
 
-        public long TotalConsumedConfirmedFrames => _totalConsumedConfirmedFrames;
+        public long TotalConsumedConfirmedFrames => _state.TotalConsumedConfirmedFrames;
 
-        public long TotalPredictedFrames => _totalPredictedFrames;
+        public long TotalPredictedFrames => _state.TotalPredictedFrames;
 
-        public long TotalLocalDelayQueueDroppedBatches => _totalLocalDelayQueueDroppedBatches;
+        public long TotalLocalDelayQueueDroppedBatches => _state.TotalLocalDelayQueueDroppedBatches;
 
-        public bool ShouldRunWorldTick => _shouldRunWorldTick;
+        public bool ShouldRunWorldTick => _state.ShouldRunWorldTick;
 
         /// <summary>
         /// 查询当前登记世界尚未提交的本地输入批次数。
         /// </summary>
         public bool TryGetLocalDelayQueueDepth(WorldId worldId, out int depth)
         {
-            if (TryGetActiveContext(worldId, out var ctx) && ctx.PendingLocalInputs != null)
+            if (TryGetActiveContext(worldId, out var ctx) && ctx.Inputs.PendingLocalInputs != null)
             {
                 depth = 0;
-                foreach (var pending in ctx.PendingLocalInputs)
+                foreach (var pending in ctx.Inputs.PendingLocalInputs)
                 {
                     depth += pending.Value?.Count ?? 0;
                 }
@@ -424,10 +315,10 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             if (TryGetActiveContext(worldId, out var ctx))
             {
-                backlogRaw = ctx.BacklogRaw;
-                backlogEwma = ctx.BacklogEwma;
-                window = ctx.PredictionWindow;
-                stalled = ctx.PredictionStalled;
+                backlogRaw = ctx.Window.BacklogRaw;
+                backlogEwma = ctx.Window.BacklogEwma;
+                window = ctx.Window.PredictionWindow;
+                stalled = ctx.Window.PredictionStalled;
                 return true;
             }
 
@@ -445,11 +336,11 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             if (TryGetActiveContext(worldId, out var ctx))
             {
-                backlogRaw = ctx.BacklogRaw;
-                backlogEwma = ctx.BacklogEwma;
-                window = ctx.PredictionWindow;
-                stalled = ctx.PredictionStalled;
-                stallsTotal = ctx.PredictionWindowStallsTotal;
+                backlogRaw = ctx.Window.BacklogRaw;
+                backlogEwma = ctx.Window.BacklogEwma;
+                window = ctx.Window.PredictionWindow;
+                stalled = ctx.Window.PredictionStalled;
+                stallsTotal = ctx.Window.PredictionWindowStallsTotal;
                 return true;
             }
 
@@ -468,8 +359,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             if (TryGetActiveContext(worldId, out var ctx))
             {
-                confirmed = ctx.ConfirmedFrame;
-                predicted = ctx.PredictedFrame;
+                confirmed = ctx.Progress.ConfirmedFrame;
+                predicted = ctx.Progress.PredictedFrame;
                 return true;
             }
 
@@ -484,8 +375,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         public bool TryGetRestoreFloor(WorldId worldId, out FrameIndex frame)
         {
             frame = default;
-            return TryGetActiveContext(worldId, out var ctx) && ctx.Rollback != null &&
-                   ctx.Rollback.TryGetRestoreFloor(out frame);
+            return TryGetActiveContext(worldId, out var ctx) && ctx.Bindings.Rollback != null &&
+                   ctx.Bindings.Rollback.TryGetRestoreFloor(out frame);
         }
 
         /// <summary>
@@ -496,16 +387,16 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         /// </summary>
         public bool TryCommitVerifiedRestoreAnchor(WorldId worldId, FrameIndex frame)
         {
-            if (!TryGetActiveContext(worldId, out var ctx) || ctx.Rollback == null || ctx.RollbackFaulted ||
-                ctx.Mode != ReplayMode.Normal || ctx.InputReplayActive ||
-                frame.Value > ctx.LastProcessedRollbackFrame.Value || frame.Value > ctx.PredictedFrame.Value ||
-                (frame.Value < ctx.PredictedFrame.Value && frame.Value > ctx.ConfirmedFrame.Value))
+            if (!TryGetActiveContext(worldId, out var ctx) || ctx.Bindings.Rollback == null || ctx.Progress.RollbackFaulted ||
+                ctx.Replay.Mode != ClientPredictionReplayMode.Normal || ctx.Replay.InputReplayActive ||
+                frame.Value > ctx.Progress.LastProcessedRollbackFrame.Value || frame.Value > ctx.Progress.PredictedFrame.Value ||
+                (frame.Value < ctx.Progress.PredictedFrame.Value && frame.Value > ctx.Progress.ConfirmedFrame.Value))
                 return false;
 
-            if (ctx.World?.Services?.TryResolve<IWorldFrameGuard>(out var guard) == true && !guard.CanCommit)
+            if (ctx.Bindings.World?.Services?.TryResolve<IWorldFrameGuard>(out var guard) == true && !guard.CanCommit)
                 return false;
 
-            return ctx.Rollback.TryAdvanceRestoreFloor(frame);
+            return ctx.Bindings.Rollback.TryAdvanceRestoreFloor(frame);
         }
 
         /// <summary>
@@ -514,57 +405,57 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         public bool TryRebase(WorldId worldId, FrameIndex baselineFrame)
         {
             if (baselineFrame.Value < 0 ||
-                !TryGetActiveContext(worldId, out var ctx) || ctx.SettledTimeline != null)
+                !TryGetActiveContext(worldId, out var ctx) || ctx.Bindings.SettledTimeline != null)
             {
                 return false;
             }
 
-            if (ctx.Rollback != null && ctx.Rollback.TryGetRestoreFloor(out var floor) &&
+            if (ctx.Bindings.Rollback != null && ctx.Bindings.Rollback.TryGetRestoreFloor(out var floor) &&
                 baselineFrame.Value < floor.Value)
                 return false;
 
-            ctx.PendingLocalInputs?.Clear();
-            ctx.AppliedInputs?.Clear();
-            ctx.AuthoritativeInputs?.Clear();
-            ctx.PredictedHashes?.Clear();
-            ctx.AuthoritativeHashes?.Clear();
-            ctx.Reconciler?.Clear();
+            ctx.Inputs.PendingLocalInputs?.Clear();
+            ctx.Inputs.AppliedInputs?.Clear();
+            ctx.Inputs.AuthoritativeInputs?.Clear();
+            ctx.Reconciliation.PredictedHashes?.Clear();
+            ctx.Reconciliation.AuthoritativeHashes?.Clear();
+            ctx.Bindings.Reconciler?.Clear();
 
-            ctx.Rollback?.ClearHistory();
-            ctx.ConfirmedFrame = baselineFrame;
-            ctx.PredictedFrame = baselineFrame;
-            ctx.LastProcessedRollbackFrame = baselineFrame;
-            ctx.CaptureCounter = 0;
-            ctx.LastMissingAppliedHistoryFrame = new FrameIndex(-1);
+            ctx.Bindings.Rollback?.ClearHistory();
+            ctx.Progress.ConfirmedFrame = baselineFrame;
+            ctx.Progress.PredictedFrame = baselineFrame;
+            ctx.Progress.LastProcessedRollbackFrame = baselineFrame;
+            ctx.Progress.CaptureCounter = 0;
+            ctx.Replay.LastMissingAppliedHistoryFrame = new FrameIndex(-1);
 
-            ctx.HasBacklogEwma = false;
-            ctx.BacklogEwma = 0f;
-            ctx.BacklogRaw = 0;
-            ctx.PredictionWindow = 0;
-            ctx.PredictionStalled = false;
-            ctx.IdealFrameStalled = false;
-            ctx.IdealFrameCappedWindow = false;
+            ctx.Window.HasBacklogEwma = false;
+            ctx.Window.BacklogEwma = 0f;
+            ctx.Window.BacklogRaw = 0;
+            ctx.Window.PredictionWindow = 0;
+            ctx.Window.PredictionStalled = false;
+            ctx.Window.IdealFrameStalled = false;
+            ctx.Window.IdealFrameCappedWindow = false;
 
             ResetReconcileInternal(ctx);
-            AlignFrameTimeToBaseline(ctx.FrameTime, baselineFrame);
+            AlignFrameTimeToBaseline(ctx.Bindings.FrameTime, baselineFrame);
 
-            if (ctx.Rollback != null && !ctx.Rollback.TryCaptureAndStore(baselineFrame, out var captureResult))
+            if (ctx.Bindings.Rollback != null && !ctx.Bindings.Rollback.TryCaptureAndStore(baselineFrame, out var captureResult))
             {
-                ctx.RollbackFaulted = true;
+                ctx.Progress.RollbackFaulted = true;
                 Log.Warning(
                     $"[ClientPredictionDriverModule] Failed to capture imported prediction baseline. " +
                     $"worldId={worldId.Value}, frame={baselineFrame.Value}, result={captureResult}");
                 return false;
             }
-            ctx.RollbackFaulted = false;
+            ctx.Progress.RollbackFaulted = false;
 
-            _lastConsumedConfirmedFrames = 0;
-            _lastConsumedPredictedFrames = 0;
-            _currentBacklogRaw = 0;
-            _currentBacklogEwma = 0f;
-            _currentPredictionWindow = 0;
-            _isPredictionStalledByWindow = false;
-            _isPredictionStalledByIdealFrame = false;
+            _state.LastConsumedConfirmedFrames = 0;
+            _state.LastConsumedPredictedFrames = 0;
+            _state.CurrentBacklogRaw = 0;
+            _state.CurrentBacklogEwma = 0f;
+            _state.CurrentPredictionWindow = 0;
+            _state.IsPredictionStalledByWindow = false;
+            _state.IsPredictionStalledByIdealFrame = false;
             return true;
         }
 
@@ -613,30 +504,30 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
             foreach (var entry in _contexts)
             {
-                if (IsRegistered(entry.Value.World)) EndInputReplay(entry.Value);
+                if (IsRegistered(entry.Value.Bindings.World)) EndInputReplay(entry.Value);
             }
             _contexts.Clear();
             _detachedContexts.Clear();
-            _lastConsumedConfirmedFrames = 0;
-            _totalConsumedConfirmedFrames = 0;
-            _totalPredictedFrames = 0;
+            _state.LastConsumedConfirmedFrames = 0;
+            _state.TotalConsumedConfirmedFrames = 0;
+            _state.TotalPredictedFrames = 0;
 
-            _currentPredictionWindow = 0;
-            _isPredictionStalledByWindow = false;
-            _totalPredictionWindowStalls = 0;
+            _state.CurrentPredictionWindow = 0;
+            _state.IsPredictionStalledByWindow = false;
+            _state.TotalPredictionWindowStalls = 0;
 
-            _currentIdealFrameLimit = 0;
-            _isPredictionStalledByIdealFrame = false;
-            _totalIdealFrameStalls = 0;
+            _state.CurrentIdealFrameLimit = 0;
+            _state.IsPredictionStalledByIdealFrame = false;
+            _state.TotalIdealFrameStalls = 0;
 
-            _currentBacklogRaw = 0;
-            _currentBacklogEwma = 0;
+            _state.CurrentBacklogRaw = 0;
+            _state.CurrentBacklogEwma = 0;
 
-            _totalReplayTimeout = 0;
-            _lastReplayTimeoutFrame = default;
+            _state.TotalReplayTimeout = 0;
+            _state.LastReplayTimeoutFrame = default;
 
-            _totalReconcileAutoDisabledByReplayTimeout = 0;
-            _lastReconcileAutoDisabledByReplayTimeoutFrame = default;
+            _state.TotalReconcileAutoDisabledByReplayTimeout = 0;
+            _state.LastReconcileAutoDisabledByReplayTimeoutFrame = default;
             _runtime = null;
             _options = null;
         }
@@ -646,13 +537,13 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             if (world == null || !IsRegistered(world)) return;
 
             IWorldInputSink sink = null;
-            FrameTime frameTime = null;
+            IFrameTimeAligner frameTime = null;
             if (world.Services != null)
             {
                 world.Services.TryResolve<IWorldInputSink>(out sink);
                 if (world.Services.TryResolve<IFrameTime>(out var resolvedFrameTime))
                 {
-                    frameTime = resolvedFrameTime as FrameTime;
+                    frameTime = resolvedFrameTime as IFrameTimeAligner;
                 }
             }
 
@@ -701,38 +592,52 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 : null;
             timeline?.BindSettledTimeline();
             if (!IsRegistered(world)) return;
-            _contexts[world.Id] = new WorldContext
+            _contexts[world.Id] = new ClientPredictionWorldContext
             {
-                World = world,
-                InputSink = sink,
-                SettledInputSink = _useSettledExecutionInputs ? sink as IWorldSettledInputSink : null,
-                SettledTimeline = timeline,
-                RawPredictionInputs = timeline != null ? new InputHistoryRingBuffer(_bufferOptions.InputHistoryCapacity) : null,
-                FrameTime = frameTime,
-                ConfirmedFrame = new FrameIndex(0),
-                PredictedFrame = new FrameIndex(0),
-                PendingLocalInputs = new SortedDictionary<int, List<LocalPlayerInputEvent>>(),
-                Rollback = rollback,
-                CaptureCounter = 0,
-                LastProcessedRollbackFrame = new FrameIndex(0),
-                AppliedInputs = _bufferOptions.Has(ClientPredictionDriverBufferFeatures.AppliedInputHistory)
-                    ? new InputHistoryRingBuffer(_bufferOptions.InputHistoryCapacity)
-                    : null,
-                AuthoritativeInputs = _bufferOptions.Has(ClientPredictionDriverBufferFeatures.AuthoritativeInputHistory)
-                    ? new InputHistoryRingBuffer(_bufferOptions.InputHistoryCapacity)
-                    : null,
-
-                ComputeHash = computeHash,
-                PredictedHashes = predictedHashes,
-                AuthoritativeHashes = authoritativeHashes,
-                ComparedAuthoritativeHashes = comparedAuthoritativeHashes,
-                Reconciler = reconciler,
-                ReconcileEnabled = reconciler != null && computeHash != null && rollback != null,
-                Mode = ReplayMode.Normal,
-                ReplayTo = new FrameIndex(0),
-                LastRollbackFrame = new FrameIndex(-1),
-                LastMissingAppliedHistoryFrame = new FrameIndex(-1),
-                LastReplayWaitTargetFrame = -1,
+                Bindings =
+                {
+                    World = world,
+                    InputSink = sink,
+                    SettledInputSink = _useSettledExecutionInputs ? sink as IWorldSettledInputSink : null,
+                    SettledTimeline = timeline,
+                    FrameTime = frameTime,
+                    Rollback = rollback,
+                    ComputeHash = computeHash,
+                    Reconciler = reconciler,
+                },
+                Progress =
+                {
+                    ConfirmedFrame = new FrameIndex(0),
+                    PredictedFrame = new FrameIndex(0),
+                    CaptureCounter = 0,
+                    LastProcessedRollbackFrame = new FrameIndex(0),
+                },
+                Inputs =
+                {
+                    RawPredictionInputs = timeline != null ? new InputHistoryRingBuffer(_bufferOptions.InputHistoryCapacity) : null,
+                    PendingLocalInputs = new SortedDictionary<int, List<LocalPlayerInputEvent>>(),
+                    AppliedInputs = _bufferOptions.Has(ClientPredictionDriverBufferFeatures.AppliedInputHistory)
+                        ? new InputHistoryRingBuffer(_bufferOptions.InputHistoryCapacity)
+                        : null,
+                    AuthoritativeInputs = _bufferOptions.Has(ClientPredictionDriverBufferFeatures.AuthoritativeInputHistory)
+                        ? new InputHistoryRingBuffer(_bufferOptions.InputHistoryCapacity)
+                        : null,
+                },
+                Reconciliation =
+                {
+                    PredictedHashes = predictedHashes,
+                    AuthoritativeHashes = authoritativeHashes,
+                    ComparedAuthoritativeHashes = comparedAuthoritativeHashes,
+                    ReconcileEnabled = reconciler != null && computeHash != null && rollback != null,
+                },
+                Replay =
+                {
+                    Mode = ClientPredictionReplayMode.Normal,
+                    ReplayTo = new FrameIndex(0),
+                    LastRollbackFrame = new FrameIndex(-1),
+                    LastMissingAppliedHistoryFrame = new FrameIndex(-1),
+                    LastReplayWaitTargetFrame = -1,
+                },
             };
         }
 
@@ -743,13 +648,13 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             if (_contexts.TryGetValue(worldId, out var ctx))
             {
-                if (IsRegistered(ctx.World)) ctx.ReconcileEnabled = enabled;
+                if (IsRegistered(ctx.Bindings.World)) ctx.Reconciliation.ReconcileEnabled = enabled;
             }
             else
             {
                 foreach (var kv in _contexts)
                 {
-                    if (IsRegistered(kv.Value.World)) kv.Value.ReconcileEnabled = enabled;
+                    if (IsRegistered(kv.Value.Bindings.World)) kv.Value.Reconciliation.ReconcileEnabled = enabled;
                 }
             }
         }
@@ -761,7 +666,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             if (TryGetActiveContext(worldId, out var ctx))
             {
-                enabled = ctx.ReconcileEnabled;
+                enabled = ctx.Reconciliation.ReconcileEnabled;
                 return true;
             }
 
@@ -774,75 +679,75 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         /// </summary>
         public void OnAuthoritativeStateHash(WorldId worldId, FrameIndex frame, WorldStateHash hash)
         {
-            _totalAuthoritativeHashReceived++;
-            _lastAuthoritativeHashFrame = frame;
-            _lastAuthoritativeHash = hash;
+            _state.TotalAuthoritativeHashReceived++;
+            _state.LastAuthoritativeHashFrame = frame;
+            _state.LastAuthoritativeHash = hash;
 
             if (!TryGetActiveContext(worldId, out var ctx)) return;
-            if (ctx.Reconciler == null)
+            if (ctx.Bindings.Reconciler == null)
             {
-                _totalAuthoritativeHashIgnoredNoReconciler++;
+                _state.TotalAuthoritativeHashIgnoredNoReconciler++;
                 return;
             }
 
-            if (!ctx.ReconcileEnabled) return;
+            if (!ctx.Reconciliation.ReconcileEnabled) return;
 
-            if (ctx.AuthoritativeHashes != null)
+            if (ctx.Reconciliation.AuthoritativeHashes != null)
             {
-                ctx.AuthoritativeHashes.Store(frame, hash);
+                ctx.Reconciliation.AuthoritativeHashes.Store(frame, hash);
             }
 
-            _lastReconcileComparedFrame = frame;
+            _state.LastReconcileComparedFrame = frame;
 
-            if (ctx.PredictedHashes == null || !ctx.PredictedHashes.TryGet(frame, out var predictedAtFrame))
+            if (ctx.Reconciliation.PredictedHashes == null || !ctx.Reconciliation.PredictedHashes.TryGet(frame, out var predictedAtFrame))
             {
-                _totalAuthoritativeHashSkippedNoPredictedHash++;
+                _state.TotalAuthoritativeHashSkippedNoPredictedHash++;
                 // 等该帧预测哈希记录完成后再重试比对。
                 return;
             }
             else
             {
-                _lastReconcilePredictedHash = predictedAtFrame;
+                _state.LastReconcilePredictedHash = predictedAtFrame;
             }
 
             MarkAuthoritativeHashCompared(ctx, frame, hash);
-            if (!ctx.Reconciler.OnAuthoritativeHash(frame, hash)) return;
+            if (!ctx.Bindings.Reconciler.OnAuthoritativeHash(frame, hash)) return;
 
-            _totalReconcileMismatch++;
-            _lastReconcileMismatchFrame = frame;
-            _lastReconcileAuthoritativeHash = hash;
+            _state.TotalReconcileMismatch++;
+            _state.LastReconcileMismatchFrame = frame;
+            _state.LastReconcileAuthoritativeHash = hash;
         }
 
         private void RequestReconcileRollback(WorldId worldId, FrameIndex mismatchFrame)
         {
             if (!TryGetActiveContext(worldId, out var ctx)) return;
-            if (!_enableRollback || ctx.Rollback == null || ctx.RollbackFaulted) return;
+            if (!_enableRollback || ctx.Bindings.Rollback == null || ctx.Progress.RollbackFaulted) return;
 
             // 避免回滚风暴（例如调试强制不一致），并避免在回放期间重入。
-            if (ctx.Mode == ReplayMode.Replaying) return;
-            if (!ShouldRequestReconcileRollback(ctx.LastRollbackFrame, mismatchFrame)) return;
+            if (ctx.Replay.Mode == ClientPredictionReplayMode.Replaying) return;
+            if (!ShouldRequestReconcileRollback(ctx.Replay.LastRollbackFrame, mismatchFrame)) return;
 
             var rollbackFrame = new FrameIndex(mismatchFrame.Value - 1);
             var ok = TryRestoreState(ctx, rollbackFrame);
             if (!ok)
             {
-                _totalRollbackRestoreFailed++;
+                _state.TotalRollbackRestoreFailed++;
                 return;
             }
 
-            _totalRollbackCount++;
-            ctx.Mode = ReplayMode.Replaying;
-            ctx.ReplayTo = ctx.PredictedFrame;
-            ctx.ConfirmedFrame = rollbackFrame;
-            ctx.PredictedFrame = rollbackFrame;
-            ctx.LastRollbackFrame = rollbackFrame;
-            ctx.LastProcessedRollbackFrame = rollbackFrame;
-            ctx.LastReplayWaitTargetFrame = -1;
-            BeginInputReplay(ctx, rollbackFrame, ctx.ReplayTo);
+            _state.TotalRollbackCount++;
+            ctx.Replay.Mode = ClientPredictionReplayMode.Replaying;
+            ctx.Replay.ReplayTo = ctx.Progress.PredictedFrame;
+            ctx.Progress.ConfirmedFrame = rollbackFrame;
+            ctx.Progress.PredictedFrame = rollbackFrame;
+            ctx.Replay.LastRollbackFrame = rollbackFrame;
+            ctx.Progress.LastProcessedRollbackFrame = rollbackFrame;
+            ctx.Replay.LastReplayWaitTargetFrame = -1;
+            BeginInputReplay(ctx, rollbackFrame, ctx.Replay.ReplayTo);
 
-            _isReplaying = true;
-            _replayToFrame = ctx.ReplayTo;
-            _lastRollbackFrame = rollbackFrame;
+            _state.IsReplaying = true;
+            _state.ReplayToFrame = ctx.Replay.ReplayTo;
+            _state.LastRollbackFrame = rollbackFrame;
         }
 
         private static bool ShouldRequestReconcileRollback(
@@ -853,199 +758,10 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             return lastRollbackFrame.Value < rollbackFrame.Value;
         }
 
-        private static bool TryRestoreState(WorldContext ctx, FrameIndex frame)
-        {
-            if (ctx == null || ctx.Rollback == null) return false;
-            if (ctx.Rollback.TryRestoreAndDiscardFuture(frame, out var result))
-            {
-                ctx.PredictedHashes?.DiscardAfter(frame);
-                return true;
-            }
-            ctx.RollbackFaulted = true;
-            Log.Warning($"[ClientPredictionDriverModule] Rollback restore failed; world tick paused. result={result}");
-            return false;
-        }
-
-        private static void BeginInputReplay(
-            WorldContext ctx,
-            FrameIndex restoredFrame,
-            FrameIndex replayToFrame)
-        {
-            if (ctx == null || ctx.InputReplayActive || ctx.SettledInputSink != null) return;
-            if (!(ctx.InputSink is IWorldInputReplaySink replaySink)) return;
-
-            replaySink.BeginReplay(restoredFrame, replayToFrame);
-            ctx.InputReplayActive = true;
-        }
-
-        private static void SubmitReplayInput(
-            WorldContext ctx,
-            FrameIndex frame,
-            IReadOnlyList<PlayerInputCommand> inputs)
-        {
-            if (ctx.InputReplayActive && ctx.InputSink is IWorldInputReplaySink replaySink)
-            {
-                replaySink.Replay(frame, inputs);
-                return;
-            }
-
-            SubmitReceivedInput(ctx, frame, inputs);
-        }
-
-        private static void SubmitReceivedInput(WorldContext ctx, FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
-        {
-            if (ctx.InputSink is IWorldClientInputSink clientInput) clientInput.SubmitReceived(frame, inputs);
-            else ctx.InputSink?.Submit(frame, inputs);
-        }
-
-        private void ScheduleSettledInput(WorldContext ctx, FrameIndex frame, PlayerInputCommand[] inputs,
-            IConsumableRemoteFrameSource<PlayerInputCommand[]> source, float deltaTime)
-        {
-            AlignFrameTime(ctx.FrameTime, frame, deltaTime);
-            try
-            {
-                ctx.SettledInputSink.ExecuteSettledInputs(frame, inputs);
-            }
-            catch (Exception exception)
-            {
-                ctx.RollbackFaulted = true;
-                Log.Warning($"[ClientPredictionDriverModule] Settled input dispatch failed at {frame.Value}: {exception}");
-                return;
-            }
-
-            ctx.AppliedInputs.Store(frame, inputs);
-            ctx.PredictedFrame = frame;
-            ctx.PendingSettlement = source;
-            _shouldRunWorldTick = true;
-        }
-
-        private static void EndInputReplay(WorldContext ctx)
-        {
-            if (ctx == null || !ctx.InputReplayActive) return;
-            try
-            {
-                (ctx.InputSink as IWorldInputReplaySink)?.EndReplay();
-            }
-            finally
-            {
-                ctx.InputReplayActive = false;
-            }
-        }
-
-        private bool AdvanceSettledTimeline(WorldContext ctx,
-            IConsumableRemoteFrameSource<WorldSettledInputFrame> source, float deltaTime)
-        {
-            try
-            {
-                if (ctx.Mode == ReplayMode.Replaying && ctx.PredictedFrame.Value >= ctx.ReplayTo.Value)
-                    ctx.Mode = ReplayMode.Normal;
-                var nextConfirmed = new FrameIndex(ctx.ConfirmedFrame.Value + 1);
-                if (source != null && nextConfirmed.Value <= source.TargetFrame)
-                {
-                    if (!source.TryGet(nextConfirmed.Value, out var record) || record == null) return true;
-                    if (record.Frame.Value != nextConfirmed.Value)
-                        throw new InvalidOperationException("Unexpected settled frame identity.");
-
-                    var update = ctx.SettledTimeline.PrepareSettledFrame(record);
-                    var matches = false;
-                    if (ctx.PredictedFrame.Value >= nextConfirmed.Value)
-                    {
-                        if (!ctx.AppliedInputs.TryGet(nextConfirmed, out var applied))
-                            throw new InvalidOperationException("Settled frame is outside applied-input history.");
-                        matches = InputsEqual(applied, record.ExecutedInputs);
-                        if (!matches || update.InvalidatesPrediction && ctx.PredictedFrame.Value > nextConfirmed.Value)
-                            RestoreSettledSuffix(ctx, nextConfirmed, matches);
-                    }
-
-                    if (matches)
-                    {
-                        CommitTimelineFrame(ctx, source, record, update);
-                    }
-                    else
-                    {
-                        AlignFrameTime(ctx.FrameTime, nextConfirmed, deltaTime);
-                        ctx.SettledInputSink.ExecuteSettledInputs(nextConfirmed, record.ExecutedInputs);
-                        ctx.PendingSettledFrame = record;
-                        ctx.PendingSettledUpdate = update;
-                        ctx.PendingSettledSource = source;
-                        _shouldRunWorldTick = true;
-                    }
-                }
-                else if (ctx.Mode == ReplayMode.Replaying && ctx.PredictedFrame.Value < ctx.ReplayTo.Value)
-                {
-                    var next = new FrameIndex(ctx.PredictedFrame.Value + 1);
-                    if (!ctx.RawPredictionInputs.TryGet(next, out var inputs))
-                        throw new InvalidOperationException("Missing original predicted input for suffix replay.");
-                    SchedulePrediction(ctx, next, inputs, deltaTime);
-                }
-                else
-                {
-                    ctx.Mode = ReplayMode.Normal;
-                    return false;
-                }
-
-                _isReplaying = ctx.Mode == ReplayMode.Replaying;
-                _replayToFrame = ctx.ReplayTo;
-                _lastRollbackFrame = ctx.LastRollbackFrame;
-            }
-            catch (Exception exception)
-            {
-                ctx.RollbackFaulted = true;
-                Log.Warning($"[ClientPredictionDriverModule] Settled timeline paused: {exception}");
-            }
-            return true;
-        }
-
-        private void RestoreSettledSuffix(WorldContext ctx, FrameIndex nextConfirmed, bool matches)
-        {
-            var boundary = matches ? nextConfirmed : ctx.ConfirmedFrame;
-            var replayTo = Math.Max(ctx.PredictedFrame.Value, ctx.Mode == ReplayMode.Replaying ? ctx.ReplayTo.Value : 0);
-            for (var frame = nextConfirmed.Value + 1; frame <= replayTo; frame++)
-            {
-                if (!ctx.RawPredictionInputs.TryGet(new FrameIndex(frame), out _))
-                    throw new InvalidOperationException("Unconfirmed suffix is outside raw prediction history.");
-            }
-            if (!TryRestoreState(ctx, boundary))
-            {
-                _totalRollbackRestoreFailed++;
-                throw new InvalidOperationException($"Cannot restore settled correction boundary {boundary.Value}.");
-            }
-
-            _totalRollbackCount++;
-            ctx.Mode = ReplayMode.Replaying;
-            ctx.ReplayTo = new FrameIndex(replayTo);
-            ctx.PredictedFrame = boundary;
-            ctx.PredictedBeforeTick = boundary;
-            ctx.LastRollbackFrame = boundary;
-            ctx.LastProcessedRollbackFrame = boundary;
-        }
-
-        private void CommitTimelineFrame(WorldContext ctx, IConsumableRemoteFrameSource<WorldSettledInputFrame> source,
-            WorldSettledInputFrame record, IWorldSettledFrameUpdate update)
-        {
-            if (ctx.World.Services?.TryResolve<IWorldFrameGuard>(out var guard) == true && !guard.CanCommit)
-                throw new InvalidOperationException("World frame cannot commit the settled record.");
-            if (!source.TryGet(record.Frame.Value, out var available) || !ReferenceEquals(available, record) ||
-                !source.TryConsume(record.Frame.Value, out var consumed) || !ReferenceEquals(consumed, record))
-                throw new InvalidOperationException("Settled record changed before commit.");
-
-            update.Commit();
-            ctx.ConfirmedFrame = record.Frame;
-            if (ctx.PredictedFrame.Value < record.Frame.Value) ctx.PredictedFrame = record.Frame;
-            _lastConsumedConfirmedFrames = 1;
-            _totalConsumedConfirmedFrames++;
-        }
-
-        private static void ClearPendingTimelineFrame(WorldContext ctx)
-        {
-            ctx.PendingSettledFrame = null;
-            ctx.PendingSettledUpdate = null;
-            ctx.PendingSettledSource = null;
-        }
 
         private void OnWorldDestroyed(WorldId worldId)
         {
-            if (_contexts.TryGetValue(worldId, out var ctx) && !IsRegistered(ctx.World))
+            if (_contexts.TryGetValue(worldId, out var ctx) && !IsRegistered(ctx.Bindings.World))
             {
                 _contexts.Remove(worldId);
                 EndInputReplay(ctx);
@@ -1057,9 +773,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             return _runtime != null && _runtime.TryGetWorld(world.Id, out var current) && ReferenceEquals(current, world);
         }
 
-        private bool TryGetActiveContext(WorldId worldId, out WorldContext context)
+        private bool TryGetActiveContext(WorldId worldId, out ClientPredictionWorldContext context)
         {
-            if (_contexts.TryGetValue(worldId, out var candidate) && IsRegistered(candidate.World))
+            if (_contexts.TryGetValue(worldId, out var candidate) && IsRegistered(candidate.Bindings.World))
             {
                 context = candidate;
                 return true;
@@ -1073,7 +789,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             foreach (var entry in _contexts)
             {
-                if (!IsRegistered(entry.Value.World)) _detachedContexts.Add(entry.Key);
+                if (!IsRegistered(entry.Value.Bindings.World)) _detachedContexts.Add(entry.Key);
             }
 
             foreach (var worldId in _detachedContexts) _contexts.Remove(worldId);
@@ -1085,660 +801,144 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             if (_runtime == null) return;
 
             PruneDetachedContexts();
-            _shouldRunWorldTick = false;
-            _lastConsumedConfirmedFrames = 0;
-            _lastConsumedPredictedFrames = 0;
+            _state.ShouldRunWorldTick = false;
+            _state.LastConsumedConfirmedFrames = 0;
+            _state.LastConsumedPredictedFrames = 0;
 
-            _isPredictionStalledByWindow = false;
-            _isPredictionStalledByIdealFrame = false;
+            _state.IsPredictionStalledByWindow = false;
+            _state.IsPredictionStalledByIdealFrame = false;
 
-            _isReplaying = false;
-            _replayToFrame = default;
-            _lastRollbackFrame = default;
+            _state.IsReplaying = false;
+            _state.ReplayToFrame = default;
+            _state.LastRollbackFrame = default;
 
-            _lastReconcileMismatchFrame = default;
-            _lastReconcilePredictedHash = default;
-            _lastReconcileAuthoritativeHash = default;
+            _state.LastReconcileMismatchFrame = default;
+            _state.LastReconcilePredictedHash = default;
+            _state.LastReconcileAuthoritativeHash = default;
             foreach (var kv in _contexts)
             {
                 var worldId = kv.Key;
                 var ctx = kv.Value;
-                if (!IsRegistered(ctx.World) || ctx.InputSink == null) continue;
-                if (ctx.RollbackFaulted) continue;
-                if (ctx.PendingSettledFrame != null)
-                {
-                    ClearPendingTimelineFrame(ctx);
-                    ctx.RollbackFaulted = true;
-                    Log.Warning("[ClientPredictionDriverModule] World tick did not complete the pending settled frame.");
-                    continue;
-                }
-                if (ctx.World.Services?.TryResolve<IWorldFrameGuard>(out var preGuard) == true && !preGuard.CanAdvance) continue;
-                ctx.PredictedBeforeTick = ctx.PredictedFrame;
-                ctx.ConfirmedBeforeTick = ctx.ConfirmedFrame;
-
-                _lastConsumedConfirmedFrames = 0;
-                _lastConsumedPredictedFrames = 0;
+                if (!IsRegistered(ctx.Bindings.World) || ctx.Bindings.InputSink == null) continue;
+                if (!ClientPredictionTickCoordinator.Prepare(ctx, _state)) continue;
 
                 var remote = _resolveRemoteInputs != null ? _resolveRemoteInputs(worldId) : null;
                 var timelineSource = _resolveSettledFrames?.Invoke(worldId);
                 var local = _resolveLocalInputs != null ? _resolveLocalInputs(worldId) : null;
-
-                // 每次 HostRuntime.Tick 只提交一次。
-
-                // 从时间同步计算理想帧上限（如果可用）。
                 var ideal = _resolveIdealFrameLimit != null ? _resolveIdealFrameLimit(worldId) : 0;
-                _currentIdealFrameLimit = ideal;
-                ctx.IdealFrameLimit = ideal;
-                ctx.IdealFrameStalled = false;
-                ctx.IdealFrameCappedWindow = false;
-
-                // 计算自适应预测窗口。
-                // - 硬上限：_maxPredictionAheadFrames
-                // - 动态窗口：基于权威积压帧数（TargetFrame - ConfirmedFrame）
-                // - 通过 EWMA 平滑积压帧数，避免窗口抖动。
-                var rawBacklog = (timelineSource?.TargetFrame ?? remote?.TargetFrame ?? ctx.ConfirmedFrame.Value) - ctx.ConfirmedFrame.Value;
-                if (rawBacklog < 0) rawBacklog = 0;
-
-                ctx.BacklogRaw = rawBacklog;
-
-                if (!ctx.HasBacklogEwma)
-                {
-                    ctx.HasBacklogEwma = true;
-                    ctx.BacklogEwma = rawBacklog;
-                }
-                else
-                {
-                    ctx.BacklogEwma = (_tuningBacklogEwmaAlpha * rawBacklog) + ((1f - _tuningBacklogEwmaAlpha) * ctx.BacklogEwma);
-                }
-
-                _currentBacklogRaw = rawBacklog;
-                _currentBacklogEwma = ctx.BacklogEwma;
-
-                var smoothedBacklogInt = (int)MathF.Round(ctx.BacklogEwma);
-                if (smoothedBacklogInt < 0) smoothedBacklogInt = 0;
-
-                var window = smoothedBacklogInt + _inputDelayFrames;
-                if (window < _tuningMinPredictionWindow) window = _tuningMinPredictionWindow;
-                if (_tuningMaxPredictionAheadFrames > 0 && window > _tuningMaxPredictionAheadFrames) window = _tuningMaxPredictionAheadFrames;
-                if (_tuningMaxPredictionAheadFrames == 0) window = 0;
-                _currentPredictionWindow = window;
-
-                ctx.PredictionWindow = window;
-                ctx.PredictionStalled = false;
-
-                if (_currentIdealFrameLimit > 0)
-                {
-                    var maxAheadByIdeal = _currentIdealFrameLimit - ctx.ConfirmedFrame.Value;
-                    if (maxAheadByIdeal < 0) maxAheadByIdeal = 0;
-
-                    if (maxAheadByIdeal < _currentPredictionWindow)
-                    {
-                        ctx.IdealFrameCappedWindow = true;
-                        _currentPredictionWindow = maxAheadByIdeal;
-                        ctx.PredictionWindow = _currentPredictionWindow;
-
-                        if (_currentPredictionWindow == 0 && window > 0)
-                        {
-                            _isPredictionStalledByIdealFrame = true;
-                            _totalIdealFrameStalls++;
-                            ctx.IdealFrameStalled = true;
-                            ctx.IdealFrameStallsTotal++;
-                        }
-                    }
-                }
-
-                // 步骤 0：始终入队一个本地批次（可为空），确保延迟队列向前推进。
-                if (local != null)
-                {
-                    var evts = Array.Empty<LocalPlayerInputEvent>();
-                    if (local.TryDequeue(out var dequeued) && dequeued != null)
-                    {
-                        evts = dequeued;
-                    }
-
-                    ScheduleLocalInputs(ctx, evts);
-                }
-
-                if (ctx.SettledTimeline != null && AdvanceSettledTimeline(ctx, timelineSource, deltaTime)) continue;
-
-                // 步骤 1（优先）：如果下一确认帧有权威输入，则应用它。
-                if (remote != null && ctx.Mode == ReplayMode.Normal)
-                {
-                    var nextConfirmed = ctx.ConfirmedFrame.Value + 1;
-                    if (nextConfirmed <= remote.TargetFrame)
-                    {
-                        var frame = new FrameIndex(nextConfirmed);
-
-                        // 先窥探输入，用于判断是否需要回滚。
-                        PlayerInputCommand[] authInputs;
-                        if (!remote.TryGet(nextConfirmed, out authInputs) || authInputs == null)
-                        {
-                            if (ctx.SettledInputSink != null) continue;
-                            authInputs = Array.Empty<PlayerInputCommand>();
-                        }
-
-                        var confirmsAlreadyPredictedFrame = false;
-                        if (_enableRollback && ctx.Rollback != null && ctx.PredictedFrame.Value >= frame.Value)
-                        {
-                            PlayerInputCommand[] appliedAtFrame = null;
-                            if (ctx.AppliedInputs == null)
-                            {
-                                // Without applied-input history we cannot compare or replay this
-                                // frame, so assume the predicted simulation already covered it.
-                                confirmsAlreadyPredictedFrame = true;
-                            }
-                            else if (!ctx.AppliedInputs.TryGet(frame, out appliedAtFrame) || appliedAtFrame == null)
-                            {
-                                if (ctx.LastMissingAppliedHistoryFrame.Value != frame.Value)
-                                {
-                                    ctx.LastMissingAppliedHistoryFrame = frame;
-                                    _totalRollbackRestoreFailed++;
-                                    Log.Warning(
-                                        $"[ClientPredictionDriverModule] Authoritative frame is outside applied input history; " +
-                                        $"stopping before stale submission. worldId={worldId.Value}, frame={frame.Value}, " +
-                                        $"predicted={ctx.PredictedFrame.Value}, historyCapacity={ctx.AppliedInputs.Capacity}");
-                                }
-
-                                if (ctx.SettledInputSink != null) ctx.RollbackFaulted = true;
-                                continue;
-                            }
-
-                            if (!InputsEqual(appliedAtFrame, authInputs))
-                            {
-                                var rollbackFrame = new FrameIndex(frame.Value - 1);
-                                var ok = TryRestoreState(ctx, rollbackFrame);
-                                if (ok)
-                                {
-                                    _totalRollbackCount++;
-                                    ctx.Mode = ReplayMode.Replaying;
-                                    ctx.ReplayTo = ctx.PredictedFrame;
-                                    ctx.ConfirmedFrame = rollbackFrame;
-                                    ctx.PredictedFrame = rollbackFrame;
-                                    ctx.LastRollbackFrame = rollbackFrame;
-                                    ctx.LastProcessedRollbackFrame = rollbackFrame;
-                                    ctx.LastReplayWaitTargetFrame = -1;
-                                    BeginInputReplay(ctx, rollbackFrame, ctx.ReplayTo);
-
-                                    _isReplaying = true;
-                                    _replayToFrame = ctx.ReplayTo;
-                                    _lastRollbackFrame = rollbackFrame;
-                                }
-                                else
-                                {
-                                    _totalRollbackRestoreFailed++;
-                                    if (ctx.SettledInputSink != null) ctx.RollbackFaulted = true;
-                                    continue;
-                                }
-                            }
-                            else
-                            {
-                                confirmsAlreadyPredictedFrame = true;
-                            }
-                        }
-
-                        if (ctx.Mode == ReplayMode.Replaying)
-                        {
-                            // 继续落入下方回放逻辑。
-                        }
-                        else
-                        {
-                            // 消费并应用权威输入。
-                            if (ctx.SettledInputSink != null && !confirmsAlreadyPredictedFrame)
-                            {
-                                ScheduleSettledInput(ctx, frame, authInputs, remote, deltaTime);
-                                continue;
-                            }
-
-                            if (!remote.TryConsume(nextConfirmed, out var consumed) || consumed == null)
-                            {
-                                if (ctx.SettledInputSink != null) continue;
-                                consumed = Array.Empty<PlayerInputCommand>();
-                            }
-                            if (consumed.Length > 0)
-                            {
-                                Log.Info($"[ClientPredictionDriverModule] Consuming authoritative inputs. worldId={worldId.Value}, frame={nextConfirmed}, count={consumed.Length}, firstOpCode={consumed[0].OpCode}");
-                            }
-
-                            ctx.AuthoritativeInputs?.Store(frame, consumed);
-
-                            ctx.ConfirmedFrame = frame;
-                            _lastConsumedConfirmedFrames = 1;
-                            _totalConsumedConfirmedFrames++;
-
-                            if (confirmsAlreadyPredictedFrame)
-                            {
-                                if (ctx.SettledInputSink != null) continue;
-                                // The world has already simulated this exact input. Use this host tick
-                                // to prepare the next predicted frame instead of executing it twice.
-                            }
-                            else
-                            {
-                                AlignFrameTime(ctx.FrameTime, frame, deltaTime);
-                                SubmitReceivedInput(ctx, frame, consumed);
-                                _shouldRunWorldTick = true;
-                                ctx.AppliedInputs?.Store(frame, consumed);
-
-                                if (ctx.PredictedFrame.Value < frame.Value)
-                                {
-                                    ctx.PredictedFrame = frame;
-                                }
-
-                                continue;
-                            }
-                        }
-                    }
-                }
-
-                // 回放：确定性重新模拟，直到 ReplayTo。
-                if (ctx.Mode == ReplayMode.Replaying)
-                {
-                    _isReplaying = true;
-                    _replayToFrame = ctx.ReplayTo;
-                    _lastRollbackFrame = ctx.LastRollbackFrame;
-
-                    var next = new FrameIndex(ctx.PredictedFrame.Value + 1);
-
-                    if (next.Value > ctx.ReplayTo.Value)
-                    {
-                        EndInputReplay(ctx);
-                        ctx.Mode = ReplayMode.Normal;
-                        ctx.ReplayWaitTicks = 0;
-                        ctx.LastReplayWaitTargetFrame = -1;
-                        _isReplaying = false;
-                        continue;
-                    }
-
-                    if (ctx.SettledInputSink != null)
-                    {
-                        if (remote != null && remote.TryGet(next.Value, out var available) && available != null)
-                            ScheduleSettledInput(ctx, next, available, remote, deltaTime);
-                        continue;
-                    }
-
-                    // 方案 A（收敛优先）：只有该帧权威输入可用时才回放。
-                    // 否则退出回放并返回 Normal 预测，避免来回拉扯。
-                    PlayerInputCommand[] inputs = null;
-                    if (ctx.AuthoritativeInputs != null && ctx.AuthoritativeInputs.TryGet(next, out var auth) && auth != null)
-                    {
-                        inputs = auth;
-                        if (ctx.ConfirmedFrame.Value < next.Value)
-                        {
-                            ctx.ConfirmedFrame = next;
-                        }
-                    }
-                    else if (remote != null && next.Value <= remote.TargetFrame)
-                    {
-                        if (!remote.TryConsume(next.Value, out var consumed) || consumed == null)
-                        {
-                            consumed = Array.Empty<PlayerInputCommand>();
-                        }
-                        if (consumed.Length > 0)
-                        {
-                            Log.Info($"[ClientPredictionDriverModule] Consuming replay authoritative inputs. worldId={worldId.Value}, frame={next.Value}, count={consumed.Length}, firstOpCode={consumed[0].OpCode}");
-                        }
-                        inputs = consumed;
-                        ctx.AuthoritativeInputs?.Store(next, consumed);
-                        if (ctx.ConfirmedFrame.Value < next.Value)
-                        {
-                            ctx.ConfirmedFrame = next;
-                        }
-                    }
-                    else
-                    {
-                        // 该帧尚无权威输入，暂停回放（不提交预测输入）。
-                        var replayWaitTargetFrame = remote != null ? remote.TargetFrame : -1;
-                        if (ctx.LastReplayWaitTargetFrame != replayWaitTargetFrame)
-                        {
-                            ctx.LastReplayWaitTargetFrame = replayWaitTargetFrame;
-                            ctx.ReplayWaitTicks++;
-                        }
-                        if (ctx.ReplayWaitTicks >= ReplayWaitTimeoutTicks)
-                        {
-                            Log.Warning($"[ClientPredictionDriverModule] Replay wait timeout. worldId={worldId} rollbackFrame={ctx.LastRollbackFrame.Value} predicted={ctx.PredictedFrame.Value} replayTo={ctx.ReplayTo.Value} targetFrame={(remote != null ? remote.TargetFrame : -1)}. Disabling reconcile and exiting replay.");
-                            _totalReplayTimeout++;
-                            _lastReplayTimeoutFrame = next;
-                            _totalReconcileAutoDisabledByReplayTimeout++;
-                            _lastReconcileAutoDisabledByReplayTimeoutFrame = next;
-                            ctx.ReconcileEnabled = false;
-                            EndInputReplay(ctx);
-                            ctx.Mode = ReplayMode.Normal;
-                            ctx.ReplayWaitTicks = 0;
-                            ctx.LastReplayWaitTargetFrame = -1;
-                        }
-                        continue;
-                    }
-
-                    ctx.ReplayWaitTicks = 0;
-                    ctx.LastReplayWaitTargetFrame = -1;
-
-                    AlignFrameTime(ctx.FrameTime, next, deltaTime);
-                    SubmitReplayInput(ctx, next, inputs);
-                    _shouldRunWorldTick = true;
-                    ctx.AppliedInputs?.Store(next, inputs);
-                    ctx.PredictedFrame = next;
-                    _lastConsumedPredictedFrames = 1;
-                    _totalPredictedFrames++;
-                    continue;
-                }
-
-                // 步骤 2（方案 A：响应优先）：使用当前 tick 本地输入执行一次预测步。
-                {
-                    if (_currentPredictionWindow == 0)
-                    {
-                        if (ctx.IdealFrameCappedWindow)
-                        {
-                            _isPredictionStalledByIdealFrame = true;
-                        }
-                        continue;
-                    }
-
-                    var next = new FrameIndex(ctx.PredictedFrame.Value + 1);
-
-                    var ahead = ctx.PredictedFrame.Value - ctx.ConfirmedFrame.Value;
-                    if (ahead >= _currentPredictionWindow)
-                    {
-                        if (ctx.IdealFrameCappedWindow)
-                        {
-                            _isPredictionStalledByIdealFrame = true;
-                            _totalIdealFrameStalls++;
-                            ctx.IdealFrameStalled = true;
-                            ctx.IdealFrameStallsTotal++;
-                        }
-                        else
-                        {
-                            _isPredictionStalledByWindow = true;
-                            _totalPredictionWindowStalls++;
-                            ctx.PredictionStalled = true;
-                            ctx.PredictionWindowStallsTotal++;
-                        }
-                        continue;
-                    }
-
-                    var localBatch = TakeLocalInputs(ctx, next);
-                    PlayerInputCommand[] predictedInputs;
-                    if (localBatch.Length == 0)
-                    {
-                        predictedInputs = Array.Empty<PlayerInputCommand>();
-                    }
-                    else
-                    {
-                        predictedInputs = new PlayerInputCommand[localBatch.Length];
-                        for (int i = 0; i < localBatch.Length; i++)
-                        {
-                            var e = localBatch[i];
-                            predictedInputs[i] = new PlayerInputCommand(next, e.PlayerId, e.OpCode, e.Payload ?? Array.Empty<byte>());
-                        }
-                    }
-
-                    if (ctx.RawPredictionInputs != null)
-                    {
-                        for (var index = 0; index < predictedInputs.Length; index++)
-                        {
-                            var input = predictedInputs[index];
-                            predictedInputs[index] = new PlayerInputCommand(next, input.Player, input.OpCode, (byte[])input.Payload.Clone());
-                        }
-                        ctx.RawPredictionInputs.Store(next, predictedInputs);
-                    }
-                    SchedulePrediction(ctx, next, predictedInputs, deltaTime);
-                }
+                var settings = new ClientPredictionTickSettings(_inputDelayFrames, _tuningMinPredictionWindow,
+                    _tuningMaxPredictionAheadFrames, _tuningBacklogEwmaAlpha, _enableRollback, _maxLocalDelayQueueDepth);
+                ClientPredictionTickCoordinator.Advance(ctx, _state, remote, timelineSource, local, ideal, settings, deltaTime);
             }
         }
 
-        private void SchedulePrediction(WorldContext ctx, FrameIndex next, PlayerInputCommand[] predictedInputs, float deltaTime)
+        private static void AlignFrameTime(IFrameTimeAligner frameTime, FrameIndex targetFrame, float fallbackDeltaTime)
         {
-            AlignFrameTime(ctx.FrameTime, next, deltaTime);
-            if (ctx.SettledInputSink != null)
-            {
-                try
-                {
-                    predictedInputs = ctx.SettledInputSink.ExecutePredictedInputs(next, predictedInputs);
-                }
-                catch (Exception exception)
-                {
-                    ctx.RollbackFaulted = true;
-                    Log.Warning($"[ClientPredictionDriverModule] Prediction input dispatch failed at {next.Value}: {exception}");
-                    return;
-                }
-            }
-            else if (ctx.InputSink is IWorldClientInputSink clientInput) clientInput.SubmitPredicted(next, predictedInputs);
-            else ctx.InputSink.Submit(next, predictedInputs);
-            _shouldRunWorldTick = true;
-            ctx.PredictedFrame = next;
-            ctx.AppliedInputs?.Store(next, predictedInputs);
-            _lastConsumedPredictedFrames = 1;
-            _totalPredictedFrames++;
+            ClientPredictionInputExecution.AlignFrameTime(frameTime, targetFrame, fallbackDeltaTime);
         }
 
-        private void ScheduleLocalInputs(WorldContext ctx, LocalPlayerInputEvent[] events)
+        private static void AlignFrameTimeToBaseline(IFrameTimeAligner frameTime, FrameIndex baselineFrame)
         {
-            if (ctx == null || events == null || events.Length == 0) return;
-            ctx.PendingLocalInputs ??= new SortedDictionary<int, List<LocalPlayerInputEvent>>();
-
-            var droppedStaleInput = false;
-            for (var i = 0; i < events.Length; i++)
-            {
-                var input = events[i];
-                var targetFrame = input.Frame.Value > 0
-                    ? input.Frame.Value
-                    : ctx.PredictedFrame.Value + 1;
-                if (targetFrame <= ctx.PredictedFrame.Value)
-                {
-                    if (input.CanRetargetIfStale)
-                    {
-                        targetFrame = ctx.PredictedFrame.Value + 1;
-                    }
-                    else
-                    {
-                        droppedStaleInput = true;
-                        continue;
-                    }
-                }
-
-                if (!ctx.PendingLocalInputs.TryGetValue(targetFrame, out var frameInputs))
-                {
-                    frameInputs = new List<LocalPlayerInputEvent>(2);
-                    ctx.PendingLocalInputs[targetFrame] = frameInputs;
-                }
-
-                var replaced = false;
-                if (input.CanRetargetIfStale)
-                {
-                    for (var pendingIndex = 0; pendingIndex < frameInputs.Count; pendingIndex++)
-                    {
-                        var pending = frameInputs[pendingIndex];
-                        if (pending.CanRetargetIfStale &&
-                            pending.OpCode == input.OpCode &&
-                            pending.PlayerId.Value == input.PlayerId.Value)
-                        {
-                            frameInputs[pendingIndex] = input;
-                            replaced = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!replaced)
-                {
-                    frameInputs.Add(input);
-                }
-            }
-
-            if (droppedStaleInput)
-            {
-                _totalLocalDelayQueueDroppedBatches++;
-            }
-
-            while (ctx.PendingLocalInputs.Count > _maxLocalDelayQueueDepth)
-            {
-                var firstKey = int.MaxValue;
-                foreach (var pending in ctx.PendingLocalInputs)
-                {
-                    firstKey = pending.Key;
-                    break;
-                }
-                if (firstKey == int.MaxValue) break;
-                ctx.PendingLocalInputs.Remove(firstKey);
-                _totalLocalDelayQueueDroppedBatches++;
-            }
-        }
-
-        private static LocalPlayerInputEvent[] TakeLocalInputs(WorldContext ctx, FrameIndex frame)
-        {
-            if (ctx?.PendingLocalInputs == null ||
-                !ctx.PendingLocalInputs.TryGetValue(frame.Value, out var inputs) ||
-                inputs == null ||
-                inputs.Count == 0)
-            {
-                return Array.Empty<LocalPlayerInputEvent>();
-            }
-
-            ctx.PendingLocalInputs.Remove(frame.Value);
-            return inputs.ToArray();
-        }
-
-        private static void AlignFrameTime(
-            FrameTime frameTime,
-            FrameIndex targetFrame,
-            float fallbackDeltaTime)
-        {
-            if (frameTime == null) return;
-
-            // 整数对齐：时间 = 帧号 × 固定步长（与逐帧累加位一致）。
-            // 原实现经 float（FrameToTime/Reset）中转重建，与累加路径有亚毫秒偏差，
-            // 会在冷却 ms 判定边界触发预测哈希失配。
-            frameTime.AlignTo(targetFrame, fallbackDeltaTime);
-        }
-
-        private static void AlignFrameTimeToBaseline(FrameTime frameTime, FrameIndex baselineFrame)
-        {
-            if (frameTime == null) return;
-
-            frameTime.AlignTo(baselineFrame, 0f);
-        }
-
-        private static bool InputsEqual(PlayerInputCommand[] a, IReadOnlyList<PlayerInputCommand> b)
-        {
-            if (ReferenceEquals(a, b)) return true;
-            if (a == null) a = Array.Empty<PlayerInputCommand>();
-            if (b == null) b = Array.Empty<PlayerInputCommand>();
-            if (a.Length != b.Count) return false;
-
-            for (int i = 0; i < a.Length; i++)
-            {
-                var x = a[i];
-                var y = b[i];
-                if (x.OpCode != y.OpCode) return false;
-                if (x.Player.Value != y.Player.Value) return false;
-
-                var xp = x.Payload ?? Array.Empty<byte>();
-                var yp = y.Payload ?? Array.Empty<byte>();
-                if (xp.Length != yp.Length) return false;
-                for (int j = 0; j < xp.Length; j++)
-                {
-                    if (xp[j] != yp[j]) return false;
-                }
-            }
-
-            return true;
+            ClientPredictionInputExecution.AlignFrameTimeToBaseline(frameTime, baselineFrame);
         }
 
         private void OnPostTick(float deltaTime)
         {
-            if (_runtime == null || !_shouldRunWorldTick) return;
+            if (_runtime == null || !_state.ShouldRunWorldTick) return;
 
             foreach (var kv in _contexts)
             {
                 var ctx = kv.Value;
-                if (!IsRegistered(ctx.World)) continue;
-                if (ctx.World?.Services?.TryResolve<IWorldFrameGuard>(out var postGuard) == true && !postGuard.CanCommit)
+                if (!IsRegistered(ctx.Bindings.World)) continue;
+                if (ctx.Bindings.World?.Services?.TryResolve<IWorldFrameGuard>(out var postGuard) == true && !postGuard.CanCommit)
                 {
-                    ctx.PendingSettlement = null;
+                    ctx.Bindings.PendingSettlement = null;
                     ClearPendingTimelineFrame(ctx);
-                    ctx.PredictedFrame = ctx.PredictedBeforeTick;
-                    ctx.ConfirmedFrame = ctx.ConfirmedBeforeTick;
-                    ctx.RollbackFaulted = true;
+                    ctx.Progress.PredictedFrame = ctx.Progress.PredictedBeforeTick;
+                    ctx.Progress.ConfirmedFrame = ctx.Progress.ConfirmedBeforeTick;
+                    ctx.Progress.RollbackFaulted = true;
                     continue;
                 }
-                if (!_enableRollback || ctx.Rollback == null) continue;
-                var captureFrame = ctx.PendingSettledFrame?.Frame ?? ctx.PredictedFrame;
-                if (!ShouldProcessRollbackFrame(captureFrame, ctx.LastProcessedRollbackFrame)) continue;
+                if (!_enableRollback || ctx.Bindings.Rollback == null) continue;
+                var captureFrame = ctx.Inputs.PendingSettledFrame?.Frame ?? ctx.Progress.PredictedFrame;
+                if (!ShouldProcessRollbackFrame(captureFrame, ctx.Progress.LastProcessedRollbackFrame)) continue;
 
-                ctx.LastProcessedRollbackFrame = captureFrame;
-                ctx.CaptureCounter++;
-                if (ctx.CaptureCounter % _rollbackCaptureEveryNFrames != 0) continue;
+                ctx.Progress.LastProcessedRollbackFrame = captureFrame;
+                ctx.Progress.CaptureCounter++;
+                if (ctx.Progress.CaptureCounter % _rollbackCaptureEveryNFrames != 0) continue;
 
                 try
                 {
-                    if (!ctx.Rollback.TryCaptureAndStore(captureFrame, out var captureResult))
+                    if (!ctx.Bindings.Rollback.TryCaptureAndStore(captureFrame, out var captureResult))
                     {
-                        ctx.PendingSettlement = null;
+                        ctx.Bindings.PendingSettlement = null;
                         ClearPendingTimelineFrame(ctx);
-                        if (ctx.SettledInputSink != null) ctx.PredictedFrame = ctx.PredictedBeforeTick;
-                        ctx.RollbackFaulted = true;
+                        if (ctx.Bindings.SettledInputSink != null) ctx.Progress.PredictedFrame = ctx.Progress.PredictedBeforeTick;
+                        ctx.Progress.RollbackFaulted = true;
                         Log.Warning($"[ClientPredictionDriverModule] Rollback capture failed; world tick paused. result={captureResult}");
                         continue;
                     }
 
-                    if (ctx.PendingSettlement != null)
+                    if (ctx.Bindings.PendingSettlement != null)
                     {
-                        var source = ctx.PendingSettlement;
-                        ctx.PendingSettlement = null;
-                        var frame = ctx.PredictedFrame;
-                        if (!ctx.AppliedInputs.TryGet(frame, out var simulated) ||
+                        var source = ctx.Bindings.PendingSettlement;
+                        ctx.Bindings.PendingSettlement = null;
+                        var frame = ctx.Progress.PredictedFrame;
+                        if (!ctx.Inputs.AppliedInputs.TryGet(frame, out var simulated) ||
                             !source.TryGet(frame.Value, out var available) || available == null ||
                             !InputsEqual(simulated, available) ||
                             !source.TryConsume(frame.Value, out var committed) || committed == null ||
                             !InputsEqual(simulated, committed))
                         {
-                            ctx.RollbackFaulted = true;
-                            ctx.PredictedFrame = ctx.PredictedBeforeTick;
+                            ctx.Progress.RollbackFaulted = true;
+                            ctx.Progress.PredictedFrame = ctx.Progress.PredictedBeforeTick;
                             continue;
                         }
-                        ctx.AuthoritativeInputs?.Store(frame, committed);
-                        ctx.ConfirmedFrame = frame;
-                        _lastConsumedConfirmedFrames = 1;
-                        _totalConsumedConfirmedFrames++;
+                        ctx.Inputs.AuthoritativeInputs?.Store(frame, committed);
+                        ctx.Progress.ConfirmedFrame = frame;
+                        _state.LastConsumedConfirmedFrames = 1;
+                        _state.TotalConsumedConfirmedFrames++;
                     }
 
-                    if (ctx.PendingSettledFrame != null)
+                    if (ctx.Inputs.PendingSettledFrame != null)
                     {
-                        CommitTimelineFrame(ctx, ctx.PendingSettledSource, ctx.PendingSettledFrame, ctx.PendingSettledUpdate);
+                        CommitTimelineFrame(ctx, _state, ctx.Bindings.PendingSettledSource, ctx.Inputs.PendingSettledFrame, ctx.Bindings.PendingSettledUpdate);
                         ClearPendingTimelineFrame(ctx);
                     }
 
-                    if (ctx.ComputeHash != null && ctx.Reconciler != null)
+                    if (ctx.Bindings.ComputeHash != null && ctx.Bindings.Reconciler != null)
                     {
-                        if (!ctx.ReconcileEnabled) continue;
-                        var hash = ctx.ComputeHash(ctx.PredictedFrame);
-                        ctx.Reconciler.RecordPredictedHash(ctx.PredictedFrame, hash);
-                        _totalPredictedHashRecorded++;
+                        if (!ctx.Reconciliation.ReconcileEnabled) continue;
+                        var hash = ctx.Bindings.ComputeHash(ctx.Progress.PredictedFrame);
+                        ctx.Bindings.Reconciler.RecordPredictedHash(ctx.Progress.PredictedFrame, hash);
+                        _state.TotalPredictedHashRecorded++;
 
                         // 如果该帧权威哈希已提前到达，现在执行比对。
-                        if (ctx.AuthoritativeHashes != null && ctx.AuthoritativeHashes.TryGet(ctx.PredictedFrame, out var authAtFrame))
+                        if (ctx.Reconciliation.AuthoritativeHashes != null && ctx.Reconciliation.AuthoritativeHashes.TryGet(ctx.Progress.PredictedFrame, out var authAtFrame))
                         {
-                            if (WasAuthoritativeHashCompared(ctx, ctx.PredictedFrame, authAtFrame))
+                            if (WasAuthoritativeHashCompared(ctx, ctx.Progress.PredictedFrame, authAtFrame))
                                 continue;
 
-                            _lastReconcileComparedFrame = ctx.PredictedFrame;
-                            _lastReconcilePredictedHash = hash;
-                            MarkAuthoritativeHashCompared(ctx, ctx.PredictedFrame, authAtFrame);
-                            if (ctx.Reconciler.OnAuthoritativeHash(ctx.PredictedFrame, authAtFrame))
+                            _state.LastReconcileComparedFrame = ctx.Progress.PredictedFrame;
+                            _state.LastReconcilePredictedHash = hash;
+                            MarkAuthoritativeHashCompared(ctx, ctx.Progress.PredictedFrame, authAtFrame);
+                            if (ctx.Bindings.Reconciler.OnAuthoritativeHash(ctx.Progress.PredictedFrame, authAtFrame))
                             {
-                                _totalReconcileMismatch++;
-                                _lastReconcileMismatchFrame = ctx.PredictedFrame;
-                                _lastReconcileAuthoritativeHash = authAtFrame;
+                                _state.TotalReconcileMismatch++;
+                                _state.LastReconcileMismatchFrame = ctx.Progress.PredictedFrame;
+                                _state.LastReconcileAuthoritativeHash = authAtFrame;
                             }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    if (ctx.PendingSettledFrame != null)
+                    if (ctx.Inputs.PendingSettledFrame != null)
                     {
-                        ctx.PredictedFrame = ctx.PredictedBeforeTick;
+                        ctx.Progress.PredictedFrame = ctx.Progress.PredictedBeforeTick;
                         ClearPendingTimelineFrame(ctx);
                     }
-                    ctx.RollbackFaulted = true;
+                    ctx.Progress.RollbackFaulted = true;
                     Log.Exception(ex);
                 }
             }
@@ -1752,21 +952,21 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         }
 
         private static bool WasAuthoritativeHashCompared(
-            WorldContext ctx,
+            ClientPredictionWorldContext ctx,
             FrameIndex frame,
             WorldStateHash hash)
         {
-            return ctx.ComparedAuthoritativeHashes != null &&
-                   ctx.ComparedAuthoritativeHashes.TryGet(frame, out var compared) &&
+            return ctx.Reconciliation.ComparedAuthoritativeHashes != null &&
+                   ctx.Reconciliation.ComparedAuthoritativeHashes.TryGet(frame, out var compared) &&
                    compared.Value == hash.Value;
         }
 
         private static void MarkAuthoritativeHashCompared(
-            WorldContext ctx,
+            ClientPredictionWorldContext ctx,
             FrameIndex frame,
             WorldStateHash hash)
         {
-            ctx.ComparedAuthoritativeHashes?.Store(frame, hash);
+            ctx.Reconciliation.ComparedAuthoritativeHashes?.Store(frame, hash);
         }
     }
 }

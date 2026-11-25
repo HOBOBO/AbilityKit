@@ -97,7 +97,9 @@ namespace AbilityKit.Network.Runtime.Conditioning
 
         public int Seed { get; }
 
-        /// <summary>Earliest queued delivery deadline, for exact virtual-clock stepping.</summary>
+        /// <summary>
+        /// 已排队投递中的最早截止时间，用于精确推进虚拟时钟。
+        /// </summary>
         public long? NextDeliveryAtMs
         {
             get
@@ -113,7 +115,9 @@ namespace AbilityKit.Network.Runtime.Conditioning
             }
         }
 
-        /// <summary>Oldest-to-newest snapshot of the bounded decision log.</summary>
+        /// <summary>
+        /// 按从旧到新顺序排列的有界决策日志快照。
+        /// </summary>
         public NetworkConditionDecision[] SnapshotDecisions()
         {
             lock (_gate)
@@ -156,7 +160,9 @@ namespace AbilityKit.Network.Runtime.Conditioning
             {
                 if (_pending.Count == 0) return;
 
-                // Stable by deadline, then insertion order unless reordering was selected.
+                /*
+                 * 先按截止时间稳定排序，再按插入顺序排序；显式选择乱序时除外。
+                 */
                 _pending.Sort(static (a, b) =>
                 {
                     int byTime = a.DeliverAtMs.CompareTo(b.DeliverAtMs);
@@ -199,8 +205,9 @@ namespace AbilityKit.Network.Runtime.Conditioning
             }
             catch
             {
-                // Preserve packets that had not yet reached their callback, matching the previous
-                // one-at-a-time removal behavior when a downstream callback throws.
+                /*
+                 * 保留尚未进入回调的数据包，使下游回调抛异常时的行为与此前逐个移除一致。
+                 */
                 lock (_gate)
                 {
                     for (int i = deliveryIndex + 1; i < ready.Count; i++)
@@ -223,8 +230,7 @@ namespace AbilityKit.Network.Runtime.Conditioning
         }
 
         /// <summary>
-        /// Discards queued packets and returns their storage to the shared pools.
-        /// Already executing downstream callbacks cannot be interrupted.
+        /// 丢弃排队数据包，将存储归还共享池。已执行的下游回调不能中断。
         /// </summary>
         public void ClearPending()
         {

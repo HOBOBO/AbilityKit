@@ -1,4 +1,3 @@
-using AbilityKit.Context;
 using AbilityKit.Demo.Moba.Services.Projectile;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -54,7 +53,9 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSummonInputIdentity SummonInputIdentity => ExecutionSnapshot.SummonInputIdentity;
         /// <summary>用于溯源与调试关联的帧号。</summary>
         public int Frame { get; }
-        /// <summary>Authoritative gameplay facts frozen for this execution boundary.</summary>
+        /// <summary>
+        /// 为本次执行边界冻结的权威玩法事实。
+        /// </summary>
         public MobaCombatExecutionFacts CombatFacts { get; }
  
         /// <summary>先从链路输入、再从快照推导出的执行类型。</summary>
@@ -125,26 +126,6 @@ namespace AbilityKit.Demo.Moba.Services
             return false;
         }
 
-        public MobaRuntimeContextValueResult<TValue> GetRuntimeContextValue<TValue, TProperty>(
-            MobaRuntimeContextService contexts,
-            string key,
-            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
-            where TProperty : class, IProperty
-        {
-            return MobaRuntimeContextAccessExtensions.GetRuntimeContextValue<TValue, TProperty>(Payload, contexts, key, mode);
-        }
-
-        public bool TryGetRuntimeContextValue<TValue, TProperty>(
-            MobaRuntimeContextService contexts,
-            string key,
-            out TValue value,
-            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
-            where TProperty : class, IProperty
-        {
-            var result = GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
-            value = result.Value;
-            return result.Found;
-        }
  
         public bool TryGetSourceActorId(out int actorId)
         {

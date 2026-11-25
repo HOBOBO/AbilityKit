@@ -13,8 +13,7 @@ namespace AbilityKit.HFSM.Editor.Export
 {
 
     /// <summary>
-    /// Adapts the Next runtime export and the legacy exporter registry into one
-    /// deterministic menu model while preserving their distinct semantics.
+    /// 将 Next 运行时导出与旧导出器注册表适配为确定的统一菜单模型，同时保留各自语义。
     /// </summary>
     public static class ExportActionRegistry
     {

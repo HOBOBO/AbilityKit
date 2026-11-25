@@ -97,22 +97,26 @@ public static class AcceptanceBatchRunner
             var expectation = AcceptanceJsonCodec.LoadExpectation(expectationPath);
             var caseId = string.IsNullOrEmpty(expectation.caseId) ? Path.GetFileNameWithoutExtension(expectationPath) : expectation.caseId;
 
-            if (!traceSource.TryGetRecords(caseId, out var records))
+            if (!traceSource.TryGetEvidence(caseId, out var records, out var evidence))
             {
                 passed = false;
-                errorType = "needs-trace";
+                errorType = expectation.mustNotContain is { Length: > 0 } ? "trace-incomplete" : "needs-trace";
                 errorMessage = $"无 trace 源提供 caseId={caseId} 的观测 trace";
             }
             else
             {
                 var summaryPath = !string.IsNullOrEmpty(artifactDirectory)
                     ? Path.Combine(artifactDirectory, caseId + "_summary.json") : null;
-                summary = AcceptanceVerifier.Verify(expectation, records, expectationPath: NormalizePath(expectationPath), summaryJsonPath: NormalizePath(summaryPath));
+                summary = AcceptanceVerifier.Verify(expectation, records, expectationPath: NormalizePath(expectationPath),
+                    summaryJsonPath: NormalizePath(summaryPath), traceEvidence: evidence);
                 passed = summary.result.passed;
                 if (!passed)
                 {
-                    errorType = "verdict-failed";
-                    errorMessage = summary.coverage.missingTraceNodes;
+                    var incomplete = summary.coverage.forbiddenTraceEvidenceInsufficient && summary.coverage.unexpectedForbiddenTraceNodeCount == 0;
+                    errorType = incomplete ? "trace-incomplete" : "verdict-failed";
+                    errorMessage = incomplete
+                        ? evidence?.reason ?? "mustNotContain requires a verified trace window and an observed effect scope when specified"
+                        : summary.coverage.unexpectedForbiddenTraceNodeCount > 0 ? summary.coverage.unexpectedTraceNodes : summary.coverage.missingTraceNodes;
                 }
                 if (exportArtifacts && summaryPath != null)
                     AcceptanceJsonCodec.WriteSummary(summaryPath, summary);

@@ -270,7 +270,8 @@ public sealed class MobaActionExecutionSnapshotTests
         var third = trace.CreateObservationChild(first, MobaExecutionKind.EffectAction, 301);
         store.OnActionStarted(third, 0, 301, 1, 2, 10);
         var purged = Reference(trace, third);
-        trace.PurgeRoot(first);
+        trace.EndRoot(first);
+        Assert.True(trace.TryPurgeRoot(first));
         Assert.Equal(BattleDiagnosticDataAvailability.Evicted, store.Read(purged).Availability);
         var beforeClear = Action(trace);
         store.OnActionStarted(beforeClear, 0, 301, 1, 2, 10);

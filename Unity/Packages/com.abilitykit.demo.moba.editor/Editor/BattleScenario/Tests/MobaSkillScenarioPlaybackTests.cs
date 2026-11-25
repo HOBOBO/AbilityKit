@@ -11,6 +11,8 @@ using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Triggering;
 using AbilityKit.Game;
+using AbilityKit.Game.Battle.Moba.Config;
+using AbilityKit.Game.Battle.Testing;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Flow;
 using AbilityKit.Protocol.Moba;
@@ -27,6 +29,44 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
         private const int TibbersBasicAttackSkillId = 30030102;
         private const int TibbersHitVfxId = 90033007;
 
+        [Test]
+        public void ActorReplay_UsesFormalModelWithIndependentMaterialsAndObservedPoses()
+        {
+            const int modelId = 3005;
+            var prefab = new BattleViewModelPrefabResolver().Resolve(MobaConfigLoader.LoadDefault(), modelId).Prefab;
+            using var preview = BattleActorReplayPreview.Create(modelId);
+            Assert.IsNotNull(preview, "The recorded hero must resolve to its formal model.");
+            var authority = new Pose(new Vector3(7f, 0f, -2f), Quaternion.Euler(0f, 45f, 0f));
+            var prediction = new Pose(new Vector3(7f, 0f, 1.354f), Quaternion.identity);
+            preview.ApplyPoses(null, prediction);
+            Assert.IsFalse(preview.AuthorityModel.activeSelf);
+            Assert.AreEqual(prediction.position, preview.PredictionModel.transform.position);
+
+            preview.ApplyPoses(authority, prediction);
+            Assert.AreEqual(authority.position, preview.AuthorityModel.transform.position);
+            Assert.That(Quaternion.Angle(authority.rotation, preview.AuthorityModel.transform.rotation), Is.LessThan(0.01f));
+            static Material[] MeshSlots(GameObject actor) => actor.GetComponentsInChildren<Renderer>(true)
+                .Where(renderer => renderer is MeshRenderer || renderer is SkinnedMeshRenderer)
+                .SelectMany(renderer => renderer.sharedMaterials).ToArray();
+
+            var predictionSlots = MeshSlots(preview.PredictionModel);
+            CollectionAssert.AreEqual(MeshSlots(prefab), predictionSlots);
+            var authoritySlots = MeshSlots(preview.AuthorityModel);
+            Assert.AreEqual(predictionSlots.Length, authoritySlots.Length);
+            var authorityMaterial = authoritySlots.First(material => material != null);
+            CollectionAssert.DoesNotContain(predictionSlots, authorityMaterial);
+            for (var slot = 0; slot < authoritySlots.Length; slot++)
+                Assert.AreSame(predictionSlots[slot] == null ? null : authorityMaterial, authoritySlots[slot]);
+            Assert.AreEqual("Standard", authorityMaterial.shader.name);
+            Assert.That(Vector4.Distance(new Color(0.28f, 0.30f, 0.33f), authorityMaterial.color), Is.LessThan(0.0001f));
+            Assert.IsNull(authorityMaterial.mainTexture);
+            Assert.AreEqual(0f, authorityMaterial.GetFloat("_Glossiness"));
+
+            preview.ApplyPoses(authority, null);
+            Assert.IsTrue(preview.AuthorityModel.activeSelf);
+            Assert.IsFalse(preview.PredictionModel.activeSelf);
+        }
+
         [UnityTest]
         public IEnumerator LuxR_FromScenario_ConsumesLocalInput()
         {
@@ -35,6 +75,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             yield return WaitForPlayback("lux-r");
             Assert.AreNotEqual("moba.skill_preview", GameEntry.Instance.Get<GameFlowDomain>().CurrentBattleProfileId);
             Assert.IsNotNull(GameObject.Find("BattleHudCanvas"));
+            AssertLocalDebugPanelVisibility(true);
             Assert.IsFalse(EditorApplication.isPaused);
         }
 
@@ -75,6 +116,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 Assert.IsNotNull(Camera.main);
                 var flow = GameEntry.Instance.Get<GameFlowDomain>();
                 Assert.AreEqual("moba.skill_preview", flow.CurrentBattleProfileId);
+                AssertLocalDebugPanelVisibility(false);
                 Assert.IsTrue(GameEntry.Instance.TryGet(out BattleContext context));
                 Assert.IsTrue(context.CanSubmitGameplayInput);
                 Assert.IsTrue(context.Session.TryGetWorld(out var world));
@@ -100,6 +142,83 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             yield return WaitForPlayback("jhin-r");
         }
 
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator JhinR_FourShots_RenderDistinctMuzzlesAndProjectiles()
+        {
+            const string caseId = "jhin-r";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureWeaponStages(caseId, new[] { 90013004, 90031010 },
+                new[] { 90013005, 90013006 }, new[] { 90013007, 90013008 },
+                new[] { 32010401, 32010402 }, new[] { 3, 1 },
+                new[] { "Jhin_R_Cast", "Jhin_R_Last_Cast" });
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator JinxQ_RangeEdge_RendersBothMuzzlesAndProjectiles()
+        {
+            const string caseId = "jinx-q-range-edge";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureWeaponStages(caseId, new[] { 90032001, 90032003 },
+                new[] { 90032002, 90032005 }, new[] { 90032004 },
+                new[] { 32020201, 32020202 }, new[] { 1, 1 },
+                new[] { "Jinx_AA_Minigun_Cast", "Jinx_AA_Rocket_Cast" });
+        }
+
+        private static IEnumerator CaptureWeaponStages(string caseId, int[] muzzleIds, int[] flightIds,
+            int[] impactIds, int[] projectileIds, int[] expectedShots, string[] muzzlePrefabs)
+        {
+            var directory = CreatePreviewEvidenceDirectory(caseId);
+            var ids = muzzleIds.Concat(flightIds).Concat(impactIds).ToArray();
+            var effects = ids.Select((id, index) => new PreviewEffectSample(id.ToString(),
+                index < muzzlePrefabs.Length ? muzzlePrefabs[index] : string.Empty, id)).ToArray();
+            var starts = ids.ToDictionary(id => id, _ => new List<int>());
+            var previouslyActive = new HashSet<int>();
+            var samples = new List<string>();
+            var lastFrame = -1;
+            MobaTraceRegistry trace = null;
+            yield return WaitForPlayback(caseId, () =>
+            {
+                if (!TryGetPreviewContext(lastFrame, out var context) || !context.Session.TryGetWorld(out var world)) return;
+                lastFrame = context.LastFrame;
+                trace ??= world.Services.Resolve<MobaTraceRegistry>();
+                var active = Object.FindObjectsOfType<Transform>();
+                for (var index = 0; index < ids.Length; index++)
+                {
+                    var id = ids[index];
+                    var count = active.Count(effects[index].Matches);
+                    Assert.That(count, Is.LessThanOrEqualTo(1), $"Duplicate VFX {id} at {lastFrame}. {directory}");
+                    if (count == 0) previouslyActive.Remove(id);
+                    else if (previouslyActive.Add(id)) starts[id].Add(lastFrame);
+                    effects[index].Observe(active, lastFrame, directory, samples);
+                }
+            }, previewOnly: true);
+
+            for (var index = 0; index < ids.Length; index++)
+                samples.Add($"{effects[index].Summary} starts=[{string.Join(",", starts[ids[index]])}]");
+            File.WriteAllLines(Path.Combine(directory, "samples.txt"), samples);
+            Assert.IsNotNull(trace, directory);
+            for (var mode = 0; mode < projectileIds.Length; mode++)
+            {
+                var launch = TraceFrames(trace, MobaExecutionKind.ProjectileLaunch, projectileIds[mode]);
+                var hit = TraceFrames(trace, MobaExecutionKind.ProjectileHit, projectileIds[mode]);
+                Assert.That(hit, Has.Length.EqualTo(expectedShots[mode]), directory);
+                Assert.That(starts[muzzleIds[mode]], Has.Count.EqualTo(hit.Length), directory);
+                Assert.That(starts[flightIds[mode]], Has.Count.EqualTo(hit.Length), directory);
+                for (var shot = 0; shot < hit.Length; shot++)
+                {
+                    var muzzle = starts[muzzleIds[mode]][shot];
+                    var flight = starts[flightIds[mode]][shot];
+                    Assert.IsTrue(launch.Any(frame => Mathf.Abs(frame - flight) <= 3), directory);
+                    Assert.That(muzzle, Is.InRange(flight - 3, hit[shot]), directory);
+                    Assert.That(flight, Is.LessThan(hit[shot]), directory);
+                }
+                Assert.IsTrue(effects[muzzleIds.Length + mode].Moved, directory);
+            }
+            foreach (var effect in effects) effect.AssertPlayed(directory);
+        }
+
         [UnityTest]
         public IEnumerator JhinQ_FromScenario_ConsumesAllFourHits()
         {
@@ -112,6 +231,286 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             var trace = world.Services.Resolve<MobaTraceRegistry>();
             Assert.AreEqual(4, trace.GetNodesByKind((int)MobaExecutionKind.ProjectileHit)
                 .Count(node => node.Metadata?.ConfigId == 32010101));
+        }
+
+        [UnityTest]
+        public IEnumerator JhinQ_FourImpacts_RenderInOrder()
+        {
+            const string caseId = "jhin-q-four-hits";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureJhinQImpacts(caseId, 4);
+        }
+
+        [UnityTest]
+        public IEnumerator JhinQ_ShortChain_DoesNotRenderLaterImpacts()
+        {
+            const string caseId = "jhin-q-short-chain";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureJhinQImpacts(caseId, 1);
+        }
+
+        private static IEnumerator CaptureJhinQImpacts(string caseId, int expectedHits)
+        {
+            var ids = new[] { 90013016, 90013022, 90013023, 90013024 };
+            var impacts = new List<PresentationCueData>();
+            var matched = new HashSet<int>();
+            yield return CaptureScenarioVfx(caseId, ids.Take(expectedHits).ToArray(), (_, effects) =>
+            {
+                for (var index = 0; index < ids.Length; index++)
+                {
+                    var instances = effects.Where(effect => effect.VfxId == ids[index]).ToArray();
+                    Assert.That(instances, Has.Length.LessThanOrEqualTo(1), "A hit visual must not spawn twice.");
+                    if (instances.Length == 0) continue;
+                    Assert.Less(index, expectedHits);
+                    var impact = impacts.FirstOrDefault(cue => cue.VfxId == ids[index]);
+                    if (impact.Positions == null || impact.Positions.Count != 1) continue;
+                    var point = impact.Positions[0];
+                    var actual = instances[0].transform.position;
+                    Assert.That(Vector2.Distance(new Vector2(actual.x, actual.z), new Vector2(point.X, point.Z)),
+                        Is.LessThan(0.15f));
+                    matched.Add(ids[index]);
+                }
+            }, cues => impacts.AddRange(cues.Where(cue => cue.Domain == PresentationCueDomain.Projectile &&
+                cue.Stage == PresentationCueStage.Executed && cue.TemplateId == 32010101)),
+                forbiddenIds: ids.Skip(expectedHits).ToArray());
+            impacts = impacts.GroupBy(cue => (cue.InstanceId, cue.SourceFrame, cue.LifecycleReason, cue.VfxId, cue.TargetActorId))
+                .Select(group => group.First()).ToList();
+            CollectionAssert.AreEqual(ids.Take(expectedHits).ToArray(), impacts.Select(cue => cue.VfxId).ToArray());
+            CollectionAssert.AreEqual(Enumerable.Range(1, expectedHits), impacts.Select(cue => cue.LifecycleReason));
+            Assert.AreEqual(1, impacts.Select(cue => cue.InstanceId).Distinct().Count());
+            Assert.AreEqual(expectedHits, impacts.Select(cue => cue.TargetActorId).Distinct().Count());
+            CollectionAssert.AreEquivalent(ids.Take(expectedHits), matched);
+        }
+
+        [UnityTest]
+        public IEnumerator LuxW_RoundTrip_RendersShieldsOnTheCorrectActors()
+        {
+            const string caseId = "lux-w";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureLuxWRoundTrip(caseId);
+        }
+
+        private static IEnumerator CaptureLuxWRoundTrip(string caseId)
+        {
+            var ally = 0;
+            var amounts = new List<float>();
+            var cues = new List<PresentationCueData>();
+            var casterEffects = new HashSet<int>();
+            var allyShieldVisible = false;
+            yield return CaptureScenarioVfx(caseId, new[] { 90037017, 90037018, 90037019 }, (context, effects) =>
+            {
+                if (context.Session == null || !context.Session.TryGetWorld(out var world)) return;
+                if (!world.Services.Resolve<MobaPlayerActorMapService>().TryGetActorId(new PlayerId("preview_target"), out ally)) return;
+                var shields = world.Services.Resolve<MobaShieldService>();
+                var remaining = shields.GetTotalRemaining(ally);
+                if (remaining > 0 && !amounts.Contains(remaining)) amounts.Add(remaining);
+                foreach (var effect in effects.Where(effect => effect.VfxId == 90037018 || effect.VfxId == 90037019))
+                {
+                    var position = effect.transform.position;
+                    var center = new Vector2(position.x, position.z);
+                    if (Vector2.Distance(center, new Vector2(7, -4)) < 0.15f &&
+                        shields.GetTotalRemaining(context.LocalActorId) > 0f)
+                        casterEffects.Add(effect.VfxId);
+                    if (effect.VfxId == 90037019 && remaining > 0f &&
+                        Vector2.Distance(center, new Vector2(7, 1)) < 0.15f)
+                        allyShieldVisible = true;
+                }
+            }, entries => cues.AddRange(entries.Where(cue => cue.Stage == PresentationCueStage.Executed &&
+                (cue.VfxId == 90037018 || cue.VfxId == 90037019))));
+            cues = cues.GroupBy(cue => cue.Sequence).Select(group => group.First()).ToList();
+            Assert.That(amounts, Has.Count.EqualTo(2));
+            Assert.That(amounts[1], Is.EqualTo(amounts[0] * 2).Within(0.01f));
+            Assert.AreEqual(2, cues.Count(cue => cue.VfxId == 90037019 && cue.TargetActorId == ally));
+            CollectionAssert.AreEquivalent(new[] { 90037018, 90037019 }, casterEffects);
+            Assert.IsTrue(allyShieldVisible, "ShieldUp must also render at the ally contact target.");
+        }
+
+        [UnityTest]
+        public IEnumerator KarthusR_MultiTarget_RendersWarningAndImpact()
+        {
+            const string caseId = "karthus-r-multi-target";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureKarthusR(caseId, interrupted: false);
+        }
+
+        [UnityTest]
+        public IEnumerator KarthusR_Interrupted_ReleasesWarningsWithoutImpact()
+        {
+            const string caseId = "karthus-r-interrupted";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureKarthusR(caseId, interrupted: true);
+        }
+
+        private static IEnumerator CaptureKarthusR(string caseId, bool interrupted)
+        {
+            var warnings = new HashSet<int>();
+            var released = new HashSet<int>();
+            var impactCenters = new HashSet<Vector2>();
+            var ids = interrupted ? new[] { 90036013 } : new[] { 90036013, 90036012 };
+            yield return CaptureScenarioVfx(caseId, ids, (_, effects) =>
+            {
+                foreach (var impact in effects.Where(effect => effect.VfxId == 90036012))
+                {
+                    var position = impact.transform.position;
+                    impactCenters.Add(new Vector2(position.x, position.z));
+                }
+            }, entries =>
+            {
+                foreach (var cue in entries.Where(cue => cue.VfxId == 90036013 || cue.TemplateId == 90036013))
+                {
+                    if (cue.Stage == PresentationCueStage.Started) warnings.Add(cue.TargetActorId);
+                    if (cue.Stage == PresentationCueStage.Removed || cue.Stage == PresentationCueStage.Expired)
+                        released.Add(cue.TargetActorId);
+                }
+            }, forbiddenIds: interrupted ? new[] { 90036012 } : null);
+            Assert.That(warnings, Has.Count.EqualTo(2));
+            CollectionAssert.AreEquivalent(warnings, released);
+            if (interrupted) Assert.IsEmpty(impactCenters);
+            else
+            {
+                Assert.AreEqual(2, impactCenters.Count);
+                Assert.IsTrue(impactCenters.Any(point => Vector2.Distance(point, new Vector2(7, 5)) < 0.15f));
+                Assert.IsTrue(impactCenters.Any(point => Vector2.Distance(point, new Vector2(11, 2)) < 0.15f));
+            }
+        }
+
+        private static IEnumerator CaptureScenarioVfx(string caseId, int[] ids,
+            System.Action<BattleContext, BattleVfxPoolableTag[]> observe,
+            System.Action<PresentationCueData[]> observeCues, int[] forbiddenIds = null)
+        {
+            var directory = Path.GetFullPath(Path.Combine(Application.dataPath,
+                "../../local/Logs/moba-presentation-scenarios",
+                System.DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff"), caseId));
+            Directory.CreateDirectory(directory);
+            var samples = new List<string>();
+            var pixels = ids.ToDictionary(id => id, _ => 0);
+            var forbidden = new HashSet<int>(forbiddenIds ?? System.Array.Empty<int>());
+            System.IDisposable subscription = null;
+            var lastFrame = -1;
+            yield return WaitForPlayback(caseId, () =>
+            {
+                if (!GameEntry.IsInitialized || !GameEntry.Instance.TryGet(out BattleContext context)) return;
+                subscription ??= context.FrameSnapshots.Subscribe<PresentationCueData[]>(MobaOpCodes.Snapshot.PresentationCue,
+                    (_, entries) => observeCues(entries));
+                if (context.LastFrame == lastFrame || Camera.main == null) return;
+                lastFrame = context.LastFrame;
+                var active = Object.FindObjectsOfType<BattleVfxPoolableTag>()
+                    .Where(tag => tag.gameObject.activeInHierarchy && (pixels.ContainsKey(tag.VfxId) ||
+                        forbidden.Contains(tag.VfxId))).ToArray();
+                Assert.IsFalse(active.Any(tag => forbidden.Contains(tag.VfxId)));
+                observe(context, active);
+                foreach (var group in active.GroupBy(tag => tag.VfxId))
+                {
+                    if (pixels[group.Key] > 20) continue;
+                    pixels[group.Key] = System.Math.Max(pixels[group.Key], Capture(directory,
+                        group.Key.ToString(), lastFrame, samples, group.ToArray(), pixels[group.Key]));
+                }
+            }, () => subscription?.Dispose(), previewOnly: true);
+            File.WriteAllLines(Path.Combine(directory, "samples.txt"), samples);
+            foreach (var id in ids) Assert.Greater(pixels[id], 20, $"VFX {id} had no visible pixels. See {directory}.");
+            Assert.IsFalse(Object.FindObjectsOfType<BattleVfxPoolableTag>()
+                .Any(tag => tag.gameObject.activeInHierarchy && pixels.ContainsKey(tag.VfxId)), directory);
+        }
+
+        [UnityTest]
+        public IEnumerator JhinAttacks_FromScenario_WalkBetweenShotsAndResumeAfterReload()
+        {
+            const string caseId = "jhin-basic-attack-locomotion";
+            Prepare(caseId);
+            yield return new EnterPlayMode();
+            yield return VerifyJhinAttackLocomotion(caseId);
+        }
+
+        private static IEnumerator VerifyJhinAttackLocomotion(string caseId)
+        {
+            ActorEntity caster = null;
+            MobaTraceRegistry trace = null;
+            var walked = new bool[4];
+            var stopped = new bool[4];
+            var movingAfterShot = -1;
+            var lastFrame = -1;
+            var sawReload = false;
+            var movedDuringReload = false;
+            var reloadCast = 0L;
+            var positionBeforeMove = 0f;
+            var walkHash = Animator.StringToHash("Walk");
+            yield return WaitForPlayback(caseId, () =>
+            {
+                if (!GameEntry.IsInitialized || !GameEntry.Instance.TryGet(out BattleContext context) ||
+                    context.LocalActorId <= 0 || context.Session == null ||
+                    !context.Session.TryGetWorld(out var world) || context.LastFrame == lastFrame) return;
+                lastFrame = context.LastFrame;
+                if (caster == null && !world.Services.Resolve<MobaActorRegistry>().TryGet(context.LocalActorId, out caster)) return;
+                if (!caster.hasCharacterHfsm) return;
+                trace ??= world.Services.Resolve<MobaTraceRegistry>();
+                var runtime = caster.characterHfsm.Runtime;
+                var action = runtime.Action;
+                var next = (int)runtime.ResolveParameter(10);
+                var currentX = caster.transform.Value.Position.X;
+                if (action.SkillId == 30010605 && action.CastInstanceId > 0)
+                {
+                    if (!sawReload)
+                    {
+                        sawReload = true;
+                        reloadCast = action.CastInstanceId;
+                        positionBeforeMove = currentX;
+                        caster.ReplaceMoveInput(-1f, 0f);
+                        Assert.IsFalse(world.Services.Resolve<MobaCombatRulesService>().CanAttack(context.LocalActorId));
+                    }
+                    else
+                    {
+                        Assert.AreEqual(reloadCast, action.CastInstanceId, "Movement must not restart reload.");
+                        if (Mathf.Abs(currentX - positionBeforeMove) > .2f)
+                        {
+                            movedDuringReload = true;
+                            caster.ReplaceMoveInput(0f, 0f);
+                        }
+                    }
+                    return;
+                }
+                var shot = next >= 2 && next <= 4 ? next - 2 : sawReload && next == 0 ? 3 : -1;
+                if (shot < 0 || stopped[shot] || runtime.FactIsCasting) return;
+                if (movingAfterShot != shot)
+                {
+                    if (!action.Path.EndsWith("/idle", System.StringComparison.Ordinal)) return;
+                    var expectedSkill = shot == 3 ? 30010601 : 30010602 + shot;
+                    var loadout = world.Services.Resolve<MobaSkillLoadoutService>();
+                    Assert.IsTrue(loadout.TryGetSkillId(context.LocalActorId, 5, out var effective));
+                    Assert.AreEqual(expectedSkill, effective);
+                    positionBeforeMove = currentX;
+                    movingAfterShot = shot;
+                    caster.ReplaceMoveInput(shot % 2 == 0 ? 1f : -1f, 0f);
+                }
+                else if (!walked[shot])
+                {
+                    if (Mathf.Abs(currentX - positionBeforeMove) <= .1f ||
+                        !action.Path.EndsWith("/moving", System.StringComparison.Ordinal)) return;
+                    if (!Object.FindObjectsOfType<Animator>().Any(animator => animator.isInitialized &&
+                        animator.GetCurrentAnimatorStateInfo(0).shortNameHash == walkHash)) return;
+                    Assert.AreEqual(0, action.CastInstanceId);
+                    walked[shot] = true;
+                    caster.ReplaceMoveInput(0f, 0f);
+                }
+                else if (action.Path.EndsWith("/idle", System.StringComparison.Ordinal))
+                {
+                    stopped[shot] = true;
+                }
+            }, () =>
+            {
+                if (caster != null && caster.hasMoveInput) caster.ReplaceMoveInput(0f, 0f);
+            });
+            Assert.IsTrue(walked.All(value => value), "Expected real displacement and Walk after every shot/reload.");
+            Assert.IsTrue(stopped.All(value => value), "Stopping should return to Idle without losing the next round.");
+            Assert.IsTrue(movedDuringReload, "Movement must not be blocked by the reload action.");
+            Assert.IsNotNull(trace);
+            for (var id = 30010601; id <= 30010605; id++)
+                Assert.AreEqual(1, trace.GetNodesByKind((int)MobaExecutionKind.SkillCast)
+                    .Count(node => node.Metadata?.ConfigId == id), $"Cast count for {id}");
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
@@ -144,6 +543,123 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             yield return CapturePlayback("jhin-e", 30010301, 32010301, 90013018,
                 new CastPresentationProbe("Jhin_Model_SpellE", flightVfxId: 90013003, groundVfxId: 90013019, chargeVfxId: 90031011),
                 0, 4, 8, 14, 19, 24, 30, 45, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 120);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator JhinE_ChargesFromScenario_RendersAndReleasesAllFourThrows()
+        {
+            const string caseId = "jhin-e-charges";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureJhinTrapCharges(caseId);
+        }
+
+        private static IEnumerator CaptureJhinTrapCharges(string caseId)
+        {
+            const int skillId = 30010301;
+            var position = new Vector2(0f, -6f);
+            var stages = new[] { (Id: 90013003, Label: "flight"), (Id: 90013019, Label: "ground"),
+                (Id: 90031011, Label: "charge"), (Id: 90013018, Label: "explosion") };
+            var directory = CreatePreviewEvidenceDirectory(caseId);
+            var samples = new List<string>();
+            var castFrames = new List<int>();
+            var activations = stages.ToDictionary(stage => stage.Id, _ => new List<TrapVfxActivation>());
+            var active = new Dictionary<BattleVfxPoolableTag, TrapVfxActivation>();
+            MobaTraceRegistry trace = null;
+            var lastFrame = -1;
+            var playingCast = false;
+            yield return WaitForPlayback(caseId, () =>
+            {
+                if (!TryGetPreviewContext(lastFrame, out var context) || !context.Session.TryGetWorld(out var world)) return;
+                lastFrame = context.LastFrame;
+                trace ??= world.Services.Resolve<MobaTraceRegistry>();
+
+                var playing = Object.FindObjectsOfType<Animator>().Any(animator => animator.isInitialized &&
+                    animator.GetComponentsInChildren<SkinnedMeshRenderer>().Any(renderer => renderer.enabled) &&
+                    animator.GetCurrentAnimatorClipInfo(0).Any(info => info.clip.name == "Jhin_Model_SpellE"));
+                if (playing && !playingCast)
+                {
+                    castFrames.Add(lastFrame);
+                    Capture(directory, $"throw-{castFrames.Count}-cast", lastFrame, samples);
+                }
+                playingCast = playing;
+
+                foreach (var tag in active.Keys.Where(tag => tag == null || !tag.gameObject.activeInHierarchy).ToArray())
+                {
+                    active[tag].ReturnFrame = lastFrame;
+                    active.Remove(tag);
+                }
+                foreach (var tag in Object.FindObjectsOfType<BattleVfxPoolableTag>())
+                {
+                    if (!activations.TryGetValue(tag.VfxId, out var history)) continue;
+                    if (!active.TryGetValue(tag, out var activation))
+                    {
+                        var label = stages.First(stage => stage.Id == tag.VfxId).Label;
+                        activation = new TrapVfxActivation($"throw-{history.Count + 1}-{label}", lastFrame, tag.transform.position);
+                        history.Add(activation);
+                        active.Add(tag, activation);
+                    }
+                    activation.Observe(tag, lastFrame, directory, samples);
+                }
+            }, previewOnly: true);
+
+            Capture(directory, "finished", lastFrame, samples);
+            File.WriteAllLines(Path.Combine(directory, "samples.txt"), samples.Concat(activations.Values.SelectMany(history => history)
+                .Select(sample => $"{sample.Name}: start={sample.StartFrame} return={sample.ReturnFrame} " +
+                                  $"position={sample.Position} travel={sample.Travel:F2} visiblePixels={sample.Pixels}")));
+            Assert.IsNotNull(trace, directory);
+            var launches = trace.GetNodesByKind((int)MobaExecutionKind.EffectExecution)
+                .Where(node => node.Metadata?.ConfigId == skillId).Select(node => node.CreatedFrame).OrderBy(frame => frame).ToArray();
+            Assert.That(launches, Has.Length.EqualTo(4), directory);
+            Assert.That(castFrames, Has.Count.EqualTo(launches.Length), directory);
+            Assert.That(active, Is.Empty, $"Trap VFX did not return before preview ended. {directory}");
+            Assert.That(EditorApplication.isPaused, Is.True, "Pure preview must pause at completion.");
+            foreach (var stage in stages)
+                Assert.That(activations[stage.Id], Has.Count.EqualTo(launches.Length), $"{stage.Label}: {directory}");
+
+            for (var index = 0; index < launches.Length; index++)
+            {
+                var chain = stages.Select(stage => activations[stage.Id][index]).ToArray();
+                Assert.That(castFrames[index], Is.InRange(launches[index] - 1, launches[index] + 6), directory);
+                Assert.That(chain[0].StartFrame, Is.GreaterThanOrEqualTo(castFrames[index]), directory);
+                for (var stageIndex = 1; stageIndex < chain.Length; stageIndex++)
+                    Assert.That(chain[stageIndex].StartFrame, Is.GreaterThan(chain[stageIndex - 1].StartFrame), directory);
+                Assert.That(chain[0].Travel, Is.GreaterThan(0.1f), directory);
+                Assert.That(chain[1].ReturnFrame, Is.InRange(chain[2].StartFrame - 1, chain[2].StartFrame + 1), directory);
+                foreach (var sample in chain)
+                {
+                    Assert.That(sample.ReturnFrame, Is.GreaterThan(sample.StartFrame), sample.Name);
+                    Assert.That(sample.Pixels, Is.GreaterThan(20), $"{sample.Name} contributed no visible pixels. {directory}");
+                }
+                foreach (var sample in chain.Skip(1))
+                    Assert.That(Vector2.Distance(position, new Vector2(sample.Position.x, sample.Position.z)),
+                        Is.LessThan(0.15f), $"{sample.Name} did not render at the trap center. {directory}");
+            }
+            Debug.Log($"[SkillScenarioCapture] {caseId}: {directory}; {launches.Length} rendered throws.");
+        }
+
+        private sealed class TrapVfxActivation
+        {
+            public string Name { get; }
+            public int StartFrame { get; }
+            public Vector3 Position { get; }
+            public int ReturnFrame { get; set; } = -1;
+            public float Travel { get; private set; }
+            public int Pixels { get; private set; }
+
+            public TrapVfxActivation(string name, int frame, Vector3 position)
+            {
+                Name = name;
+                StartFrame = frame;
+                Position = position;
+            }
+
+            public void Observe(BattleVfxPoolableTag tag, int frame, string directory, List<string> samples)
+            {
+                Travel = Mathf.Max(Travel, Vector3.Distance(Position, tag.transform.position));
+                if (Pixels <= 20 && tag.GetComponentsInChildren<Renderer>().Any(renderer => renderer.enabled))
+                    Pixels = Mathf.Max(Pixels, Capture(directory, Name, frame, samples, new[] { tag }, previousBest: Pixels));
+            }
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
@@ -415,6 +931,64 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator AnnieR_TargetRetention_RecordsTurnsAndReturnsToOwner()
+        {
+            const string caseId = "annie-r-tibbers-target-retention";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureTibbersTurns(caseId);
+        }
+
+        private static IEnumerator CaptureTibbersTurns(string caseId)
+        {
+            var directory = CreatePreviewEvidenceDirectory(caseId);
+            var samples = new List<string>();
+            var summons = new List<int>();
+            var lastFrame = -1;
+            var lastSharpTurn = -100;
+            var previousYaw = 0f;
+            var peakZ = float.NegativeInfinity;
+            var startZ = float.NaN;
+            var finalZ = float.NaN;
+            var quickReversals = 0;
+            var petId = 0;
+            System.IDisposable subscription = null;
+            yield return WaitForPlayback(caseId, () =>
+            {
+                if (!TryGetPreviewContext(lastFrame, out var context) || !context.Session.TryGetWorld(out var world)) return;
+                if (!world.Services.Resolve<MobaSummonService>().TryGetSummons(context.LocalActorId, summons, 30030502)) return;
+                Assert.That(summons, Has.Count.EqualTo(1), directory);
+                petId = summons[0];
+                var shell = GameObject.Find($"Shell_Summon_30030502_{petId}")?.transform;
+                if (shell == null || !world.Services.Resolve<MobaActorRegistry>().TryGet(petId, out var pet)) return;
+                subscription ??= world.Services.Resolve<IEventBus>().Subscribe(
+                    new EventKey<DamageResult>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply)), result =>
+                    {
+                        if (result.AttackerActorId == petId)
+                            samples.Add($"{context.LastFrame}: attack target={result.TargetActorId}");
+                    });
+                var pose = pet.transform.Value;
+                var yaw = shell.eulerAngles.y;
+                if (lastFrame >= 0 && Mathf.Abs(Mathf.DeltaAngle(previousYaw, yaw)) >= 90f)
+                {
+                    if (context.LastFrame - lastSharpTurn <= 4) quickReversals++;
+                    lastSharpTurn = context.LastFrame;
+                }
+                if (float.IsNaN(startZ)) startZ = shell.position.z;
+                peakZ = Mathf.Max(peakZ, shell.position.z);
+                finalZ = shell.position.z;
+                previousYaw = yaw;
+                lastFrame = context.LastFrame;
+                samples.Add($"{lastFrame}: authority={pose.Position}/{pose.Rotation} view={shell.position} yaw={yaw:F2}");
+            }, () => subscription?.Dispose(), previewOnly: true);
+            samples.Add($"startZ={startZ:F2} peakZ={peakZ:F2} finalZ={finalZ:F2} rapidReversals={quickReversals}");
+            File.WriteAllLines(Path.Combine(directory, "samples.txt"), samples);
+            Assert.That(peakZ, Is.GreaterThan(startZ + 0.5f), directory);
+            Assert.That(finalZ, Is.LessThan(peakZ - 1f), directory);
+            Assert.That(quickReversals, Is.Zero, directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
         public IEnumerator AnnieBasicAttack_DoesNotPlayTibbersImpact()
         {
             const string caseId = "annie-basic-attack";
@@ -444,6 +1018,141 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 Is.LessThan(.15f), capture.Directory);
             impact.AssertPlayed(capture.Directory);
         }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator VeigarQ_TwoTargets_RenderSeparateImpactsAndRetireProjectile()
+        {
+            const string caseId = "veigar-q-two-targets";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            var flight = new PreviewEffectSample("flight", "Veigar_Hextech_Q_Projectile", 90034008);
+            var first = new PreviewEffectSample("first-hit", "Veigar_Hextech_Q_Hit", 90034007,
+                filter: node => node.position.z < -1f);
+            var second = new PreviewEffectSample("second-hit", "Veigar_Hextech_Q_Hit", 90034007,
+                filter: node => node.position.z >= -1f && node.position.z < .85f);
+            var unexpected = new PreviewEffectSample("unexpected-hit", "Veigar_Hextech_Q_Hit", 90034007,
+                filter: node => node.position.z >= .85f);
+            var playback = new AttachedEffectPlayback(caseId, first.AssetId);
+            yield return playback.Observe(flight, first, second, unexpected);
+            flight.AssertPlayed(playback.Directory);
+            first.AssertPlayed(playback.Directory);
+            second.AssertPlayed(playback.Directory);
+            Assert.That(flight.ObservedInstances, Is.EqualTo(1), playback.Directory);
+            Assert.That(first.ObservedInstances + second.ObservedInstances, Is.EqualTo(2), playback.Directory);
+            Assert.That(flight.Moved, Is.True, playback.Directory);
+            Assert.That(first.FirstFrame, Is.LessThan(second.FirstFrame), playback.Directory);
+            Assert.That(flight.LastFrame, Is.InRange(second.FirstFrame - 4, second.FirstFrame), playback.Directory);
+            Assert.That(unexpected.FirstFrame, Is.EqualTo(-1), playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator VeigarR_DisplacedTarget_RendersFlightAndImpactAtNewPosition()
+        {
+            const string caseId = "veigar-r-track-displaced-target";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureVeigarTracking(caseId);
+        }
+
+        private static IEnumerator CaptureVeigarTracking(string caseId)
+        {
+            var flight = new PreviewEffectSample("tracking-flight", "Veigar_Hextech_R_Projectile", 90034011);
+            var impact = new PreviewEffectSample("impact", "Veigar_Hextech_R_Hit", 90034010);
+            var playback = new AttachedEffectPlayback(caseId, impact.AssetId);
+            var displacedFrame = -1;
+            yield return playback.ObserveWithContext(context =>
+            {
+                if (displacedFrame >= 0 || !context.Session.TryGetWorld(out var world)) return;
+                var players = world.Services.Resolve<MobaPlayerActorMapService>();
+                var actors = world.Services.Resolve<MobaActorRegistry>();
+                if (players.TryGetActorId(new PlayerId("preview_target"), out var targetId) &&
+                    actors.TryGet(targetId, out var target) && target.transform.Value.Position.X > 9f)
+                    displacedFrame = context.LastFrame;
+            }, flight, impact);
+            flight.AssertPlayed(playback.Directory);
+            impact.AssertPlayed(playback.Directory);
+            Assert.That(flight.ObservedInstances, Is.EqualTo(1), playback.Directory);
+            Assert.That(impact.ObservedInstances, Is.EqualTo(1), playback.Directory);
+            Assert.That(displacedFrame, Is.GreaterThan(flight.FirstFrame), playback.Directory);
+            Assert.That(flight.EndPosition.x, Is.GreaterThan(8.5f), playback.Directory);
+            Assert.That(impact.FirstFrame, Is.GreaterThan(displacedFrame), playback.Directory);
+            Assert.That(DistanceOnGround(impact.StartPosition, new Vector3(10f, 0f, 2f)), Is.LessThan(1f), playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator LuxQ_TwoTargets_RenderCagesAndClearOnRootExpiry()
+        {
+            const string caseId = "lux-q-two-targets";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            var flight = new PreviewEffectSample("flight", "Lux_DarkStar_Q_Projectile", 90037012);
+            var first = new PreviewEffectSample("first-cage", "Lux_DarkStar_Q_Cage", 90037010,
+                filter: node => DistanceOnGround(node.position, new Vector3(7f, 0f, -.5f)) < .75f);
+            var second = new PreviewEffectSample("second-cage", "Lux_DarkStar_Q_Cage", 90037010,
+                filter: node => DistanceOnGround(node.position, new Vector3(7f, 0f, 2f)) < .75f);
+            var stray = new PreviewEffectSample("stray-cage", "Lux_DarkStar_Q_Cage", 90037010,
+                filter: node => DistanceOnGround(node.position, new Vector3(7f, 0f, -.5f)) >= .75f &&
+                    DistanceOnGround(node.position, new Vector3(7f, 0f, 2f)) >= .75f);
+            var playback = new AttachedEffectPlayback(caseId, first.AssetId);
+            yield return playback.Observe(flight, first, second, stray);
+            flight.AssertPlayed(playback.Directory);
+            first.AssertPlayed(playback.Directory);
+            second.AssertPlayed(playback.Directory);
+            Assert.That(flight.Moved, Is.True, playback.Directory);
+            Assert.That(first.FirstFrame, Is.GreaterThan(flight.FirstFrame), playback.Directory);
+            Assert.That(second.FirstFrame, Is.GreaterThan(first.FirstFrame), playback.Directory);
+            Assert.That(stray.FirstFrame, Is.EqualTo(-1), playback.Directory);
+            var firstRoot = playback.FindFrame(MobaExecutionKind.BuffApply, 30070290);
+            var secondRoot = playback.FindFrame(MobaExecutionKind.BuffApply, 30070290, firstRoot);
+            Assert.That(first.FirstFrame, Is.InRange(firstRoot, firstRoot + 4), playback.Directory);
+            Assert.That(second.FirstFrame, Is.InRange(secondRoot, secondRoot + 4), playback.Directory);
+            Assert.That(first.LastFrame, Is.LessThan(second.LastFrame), playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator LuxE_Recast_RendersFlightFieldExplosionAndCleanup()
+        {
+            const string caseId = "lux-e";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureLuxOrb(caseId, recast: true);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator LuxE_NaturalExpiry_RendersFlightFieldExplosionAndCleanup()
+        {
+            const string caseId = "lux-e-natural-expiry";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureLuxOrb(caseId, recast: false);
+        }
+
+        private static IEnumerator CaptureLuxOrb(string caseId, bool recast)
+        {
+            var flight = new PreviewEffectSample("flight", "Lux_DarkStar_E_Projectile", 90037006);
+            var field = new PreviewEffectSample("field", "Lux_DarkStar_E_Charge", 90037004);
+            var explosion = new PreviewEffectSample("explosion", "Lux_DarkStar_E_Explosion", 90037005);
+            var playback = new AttachedEffectPlayback(caseId, explosion.AssetId);
+            yield return playback.Observe(flight, field, explosion);
+            foreach (var effect in new[] { flight, field, explosion })
+            {
+                effect.AssertPlayed(playback.Directory);
+                Assert.That(effect.ObservedInstances, Is.EqualTo(1), effect.Summary);
+            }
+            Assert.That(flight.Moved, Is.True, playback.Directory);
+            Assert.That(field.FirstFrame, Is.GreaterThan(flight.FirstFrame), playback.Directory);
+            Assert.That(flight.LastFrame, Is.InRange(field.FirstFrame - 4, field.FirstFrame), playback.Directory);
+            Assert.That(field.LastFrame, Is.InRange(explosion.FirstFrame - 4, explosion.FirstFrame), playback.Directory);
+            Assert.That(DistanceOnGround(field.StartPosition, new Vector3(7f, 0f, 1f)), Is.LessThan(.1f), playback.Directory);
+            Assert.That(DistanceOnGround(field.StartPosition, explosion.StartPosition), Is.LessThan(.1f), playback.Directory);
+            Assert.That(playback.FindFrame(MobaExecutionKind.SkillCast, 30070402) >= 0, Is.EqualTo(recast), playback.Directory);
+            var damage = playback.FindFrame(MobaExecutionKind.DamageApply, 30070401);
+            Assert.That(damage, Is.InRange(explosion.FirstFrame - 4, explosion.FirstFrame + 4), playback.Directory);
+            Assert.That(playback.FindFrame(MobaExecutionKind.DamageApply, 30070401, damage), Is.EqualTo(-1), playback.Directory);
+        }
+
+        private static float DistanceOnGround(Vector3 first, Vector3 second)
+            => Vector2.Distance(new Vector2(first.x, first.z), new Vector2(second.x, second.z));
 
         [UnityTest, Category("SkillPresentationCapture")]
         public IEnumerator VeigarW_FromScenario_RendersWarningFallAndImpact()
@@ -893,8 +1602,27 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
         [UnityTearDown]
         public IEnumerator Cleanup()
         {
+            SessionState.EraseBool(MobaBattleScenarioPlayback.PendingTraceDiagnosticsKey);
             Time.captureDeltaTime = 0f;
             if (Application.isPlaying) yield return new ExitPlayMode();
+        }
+
+        private static void AssertLocalDebugPanelVisibility(bool expected)
+        {
+            var entry = GameEntry.Instance;
+            var bridge = entry.GetComponent<GameEntryRuntimeGuiBridge>();
+            Assert.IsNotNull(bridge);
+            var previousDebugEnabled = entry.DebugEnabled;
+            try
+            {
+                entry.DebugEnabled = true;
+                Assert.AreEqual(expected, bridge.ShouldDrawLocalDebugShortcuts(),
+                    "The preview profile must hide the local hero replacement panel even with debugging enabled.");
+            }
+            finally
+            {
+                entry.DebugEnabled = previousDebugEnabled;
+            }
         }
 
         private static void Prepare(string caseId, bool previewOnly = false)
@@ -909,6 +1637,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
                 Assert.Ignore("Presentation evidence requires Unity with a graphics device.");
             Prepare(caseId, previewOnly);
+            SessionState.SetBool(MobaBattleScenarioPlayback.PendingTraceDiagnosticsKey, true);
         }
 
         private static IEnumerator CaptureGragasDash(string caseId, bool expectHit)
@@ -957,7 +1686,9 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 .Where(node => node.Metadata?.ConfigId == configId && node.CreatedFrame > afterFrame)
                 .Select(node => node.CreatedFrame).DefaultIfEmpty(-1).Min();
 
-            public IEnumerator Observe(params PreviewEffectSample[] effects)
+            public IEnumerator Observe(params PreviewEffectSample[] effects) => ObserveWithContext(null, effects);
+
+            public IEnumerator ObserveWithContext(System.Action<BattleContext> observe, params PreviewEffectSample[] effects)
             {
                 System.IO.Directory.CreateDirectory(Directory);
                 var samples = new List<string>();
@@ -983,6 +1714,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                         CastingClips.Add(clip.clip.name);
                     var active = Object.FindObjectsOfType<Transform>();
                     foreach (var effect in effects) effect.Observe(active, context.LastFrame, Directory, samples);
+                    observe?.Invoke(context);
                 }, () => subscription?.Dispose(), previewOnly: true);
                 samples.Add($"requests=[{string.Join(",", RequestFrames)}] clips=[{string.Join(",", CastingClips)}]");
                 samples.AddRange(effects.Select(effect => effect.Summary));
@@ -997,6 +1729,8 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             private readonly string _prefabName;
             private readonly int _minimumAgeFrames;
             private readonly int _maximumAgeFrames;
+            private readonly System.Predicate<Transform> _filter;
+            private readonly HashSet<int> _instances = new HashSet<int>();
             private int _sampleFrame = -1;
             private int _pixels;
             private int _peakInstances;
@@ -1004,29 +1738,39 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             private Vector3 _start;
 
             public PreviewEffectSample(string label, string prefabName, int assetId,
-                int minimumAgeFrames = 0, int maximumAgeFrames = int.MaxValue)
+                int minimumAgeFrames = 0, int maximumAgeFrames = int.MaxValue,
+                System.Predicate<Transform> filter = null)
             {
                 _label = label;
                 _prefabName = prefabName + "(Clone)";
                 AssetId = assetId;
                 _minimumAgeFrames = minimumAgeFrames;
                 _maximumAgeFrames = maximumAgeFrames;
+                _filter = filter;
             }
 
             public int AssetId { get; }
             public int FirstFrame { get; private set; } = -1;
+            public int LastFrame { get; private set; } = -1;
+            public int ObservedInstances => _instances.Count;
             public int SampleFrame => _sampleFrame;
             public Vector3 StartPosition => _start;
+            public Vector3 EndPosition { get; private set; }
             public bool Moved { get; private set; }
-            public string Summary => $"{_label} first={FirstFrame} pixels={_pixels} moved={Moved} peak={_peakInstances} activeAtEnd={_activeCount}";
+            public string Summary => $"{_label} frames={FirstFrame}..{LastFrame} from={_start} to={EndPosition} pixels={_pixels} instances={_instances.Count} peak={_peakInstances} activeAtEnd={_activeCount}";
+
+            public bool Matches(Transform node) => node.name == _prefabName || node.name == "Vfx_" + AssetId;
 
             public void Observe(Transform[] active, int frame, string directory, List<string> samples)
             {
-                var matches = active.Where(node => node.name == _prefabName || node.name == "Vfx_" + AssetId).ToArray();
+                var matches = active.Where(node => Matches(node) && (_filter == null || _filter(node))).ToArray();
                 _activeCount = matches.Length;
                 _peakInstances = System.Math.Max(_peakInstances, _activeCount);
                 if (_activeCount == 0) return;
+                foreach (var match in matches) _instances.Add(match.GetInstanceID());
                 var instance = matches[0];
+                LastFrame = frame;
+                EndPosition = instance.position;
                 if (FirstFrame < 0)
                 {
                     FirstFrame = frame;

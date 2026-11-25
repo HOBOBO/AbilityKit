@@ -144,7 +144,8 @@ public sealed class MobaEffectExecutionSnapshotTests
         trace.RetractPrediction(boundary);
         Assert.True(store.Read(kept).IsCaptured);
         Assert.Equal(BattleDiagnosticDataAvailability.Evicted, store.Read(removed).Availability);
-        trace.PurgeRoot(confirmed);
+        trace.EndRoot(confirmed);
+        Assert.True(trace.TryPurgeRoot(confirmed));
         Assert.Equal(BattleDiagnosticDataAvailability.Evicted, store.Read(kept).Availability);
 
         var beforeClear = CreateEffect(trace);
@@ -267,7 +268,7 @@ public sealed class MobaEffectExecutionSnapshotTests
         }
         public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
         {
-            reference = new MobaRuntimeContextReference(77, 7);
+            reference = new MobaRuntimeContextReference(new ContextEntityReference(Guid.NewGuid(), 77, 1), 7);
             return true;
         }
     }

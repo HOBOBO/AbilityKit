@@ -31,7 +31,15 @@ namespace AbilityKit.Pipeline
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             var runPhases = AbilityPipelinePhaseRuntime.CreateRunPhases(_phases);
-            return new Run(this, Runtime ?? Pipeline.DefaultRuntime, config, context, runPhases);
+            try
+            {
+                return new Run(this, Runtime ?? Pipeline.DefaultRuntime, config, context, runPhases);
+            }
+            catch
+            {
+                PipelinePools.ReleaseRunPhaseList(runPhases);
+                throw;
+            }
         }
 
         /// <summary>

@@ -4,15 +4,12 @@ using UnityEngine;
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// Follows the local player's entity in the world using smooth lerp.
-    /// Works entirely via <see cref="IBattleEntityQuery"/> so it never directly touches ECS entities.
-    /// The camera always reads the authoritative snapshot position — the same position that
-    /// the HUD skill aim preview uses — so there is no visual pop when the player starts
-    /// casting a skill while moving.
     ///
-    /// When the tracked entity has not yet spawned, the camera continues to follow
-    /// the last known valid position so that the follow does not stall while waiting
-    /// for the first snapshot to arrive.
+    /// 通过平滑线性插值跟随世界中的本地玩家实体。完全通过 <see cref="IBattleEntityQuery"/> 工作，不直接访问 ECS 实体。
+    /// 相机始终读取与 HUD 技能瞄准预览一致的权威快照位置，避免玩家移动中开始施法时画面跳变。
+    ///
+    /// 跟踪实体尚未生成时，相机继续跟随最后已知有效位置，避免等待首份快照期间跟随停滞。
+    ///
     /// </summary>
     public sealed class BattleViewCameraController
     {
@@ -26,20 +23,20 @@ namespace AbilityKit.Game.Flow
         private Vector3 _currentPosition;
         private Vector3 _lookAtTarget;
 
-        // True only on the first frame after TrackActor() — when set, the next Tick
-        // snaps the camera to the tracked target instead of lerping.
+        /*
+         * 仅在 TrackActor() 后首帧为 true，此时下次 Tick 立即将相机对齐跟踪目标。
+         */
         private bool _snapPending;
 
-        // Y axis reference for horizontal follow. When LockVerticalAxis is enabled,
-        // the camera height is initialised to the first tracked position (or the
-        // current camera position if none has been resolved yet), and subsequent
-        // follow frames ignore the target's Y coordinate so vertical motion
-        // (e.g. jumping) does not jitter the camera.
+        /*
+         * 水平跟随的 Y 轴基准。启用 LockVerticalAxis 时，高度初始化为首次跟踪位置，尚未解析到位置则用当前相机位置；后续跟随忽略目标 Y 坐标，避免跳跃等垂直运动造成抖动。
+         */
         private float _lockedTargetY;
         private bool _hasLockedTargetY;
 
-        // Last known valid target position. Used as a fallback when the entity has
-        // not yet spawned so that the camera does not stall waiting for the first snapshot.
+        /*
+         * 最后已知有效目标位置。实体尚未生成时作为回退，避免相机等待首份快照时停滞。
+         */
         private Vector3 _lastValidTargetPos;
         private bool _hasLastValidTargetPos;
 
@@ -51,12 +48,12 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// The <see cref="Camera"/> being controlled. Null until <see cref="SetCamera"/> is called.
+        /// 受控 <see cref="Camera"/>，调用 <see cref="SetCamera"/> 前为 null。
         /// </summary>
         public Camera Camera => _camera;
 
         /// <summary>
-        /// The actor being tracked. 0 means no actor is tracked.
+        /// 正在跟踪的角色，0 表示未跟踪角色。
         /// </summary>
         public int TrackedActorId => _trackedActorId;
 
@@ -64,7 +61,7 @@ namespace AbilityKit.Game.Flow
         public float MaxFieldOfView => _config.MaxFieldOfView;
 
         /// <summary>
-        /// Attach a camera. If null, the controller uses <see cref="Camera.main"/>.
+        /// 附加相机。传入 null 时使用 <see cref="Camera.main"/>。
         /// </summary>
         public void SetCamera(Camera camera)
         {
@@ -75,8 +72,9 @@ namespace AbilityKit.Game.Flow
                 _camera = nextCamera;
                 if (_camera != null)
                 {
-                    // Linked battle materials sample _CameraDepthTexture for
-                    // opacity/intersection. Supply that input for every view.
+                    /*
+                     * 关联的战斗材质通过 _CameraDepthTexture 计算不透明度及相交效果，为每个视图提供该输入。
+                     */
                     _addedDepthTexture = (_camera.depthTextureMode & DepthTextureMode.Depth) == 0;
                     _camera.depthTextureMode |= DepthTextureMode.Depth;
                 }
@@ -89,7 +87,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Begin tracking a specific actor. Pass 0 to stop tracking.
+        /// 开始跟踪指定角色，传入 0 停止跟踪。
         /// </summary>
         public void TrackActor(int actorId)
         {
@@ -101,14 +99,14 @@ namespace AbilityKit.Game.Flow
             {
                 _snapPending = _config.SnapOnFirstTarget;
                 _hasLockedTargetY = false;
-                // Keep _lastValidTargetPos so that if the entity has not spawned yet,
-                // the camera can still follow the last known position.
+                /*
+                 * 保留 _lastValidTargetPos，使实体尚未生成时，相机仍可跟随最后已知位置。
+                 */
             }
         }
 
         /// <summary>
-        /// Update the camera to follow the currently tracked actor.
-        /// Call once per frame from <see cref="BattleViewFeature.Tick"/> or any other per-frame hook.
+        /// 更新相机以跟随当前跟踪角色。通过 <see cref="BattleViewFeature.Tick"/> 或其他逐帧入口，每帧调用一次。
         /// </summary>
         public void Tick(IBattleEntityQuery query, float deltaTime)
         {
@@ -130,18 +128,22 @@ namespace AbilityKit.Game.Flow
             }
             else if (_hasLastValidTargetPos)
             {
-                // Entity not yet spawned — fall back to the last known position so the
-                // camera does not stall while waiting for the first snapshot to arrive.
+                /*
+                 * 实体尚未生成，回退至最后已知位置，避免等待首份快照时相机停滞。
+                 */
                 targetPos = _lastValidTargetPos;
             }
             else
             {
-                // No current position and no fallback — nothing to follow.
+                /*
+                 * 当前位置及回退位置均不存在，没有可跟随目标。
+                 */
                 return;
             }
 
-            // Capture Y reference once per track target so vertical motion (jumps,
-            // fall-off ledges, knock-backs) does not jitter the camera.
+            /*
+             * 每个跟踪目标只捕获一次 Y 轴基准，避免跳跃、跌落及击退等垂直运动造成相机抖动。
+             */
             if (_config.LockVerticalAxis && !_hasLockedTargetY)
             {
                 _lockedTargetY = targetPos.y;
@@ -182,7 +184,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Stops tracking and clears the camera reference.
+        /// 停止跟踪并清除相机引用。
         /// </summary>
         public void Reset()
         {

@@ -9,15 +9,12 @@ using UnityEngine;
 namespace AbilityKit.Samples.Editor
 {
     /// <summary>
-    /// 把示例目录接进编辑器平台：注册一个 Hub 面板。
+    /// 把示例目录作为可复用面板接进编辑器平台，不进入正式 Hub 导航。
     ///
     /// 面板刻意做得很薄——只显示一行说明和一个「打开」按钮。示例目录本身有独立窗口，
-    /// 在 Hub 面板里重画整棵目录会让每次重绘都去解析 manifest。
+    /// 复用面板不必重画整棵目录或在重绘时解析 manifest。
     ///
-    /// 这里**不注册菜单贡献**：<c>SampleCatalogWindow</c> 自带
-    /// <c>[MenuItem("Window/AbilityKit/...")]</c>，而 Hub 的
-    /// <c>EditorMenuItemDiscovery</c> 会扫描该根路径下的真实 MenuItem，
-    /// 再注册一条同路径贡献会在 Hub 列表里重复出现。
+    /// 示例目录仍由 <c>SampleCatalogWindow</c> 的 Unity 菜单打开。
     /// </summary>
     public sealed class SamplesEditorModule : IEditorModule
     {

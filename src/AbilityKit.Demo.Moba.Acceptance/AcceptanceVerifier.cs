@@ -27,8 +27,9 @@ public static class AcceptanceVerifier
         MobaAcceptanceTraceRecord[] records,
         string? expectationPath = null,
         string? traceJsonlPath = null,
-        string? summaryJsonPath = null)
-        => VerifyCore(expectation, records, null, expectationPath, traceJsonlPath, summaryJsonPath);
+        string? summaryJsonPath = null,
+        MobaAcceptanceTraceEvidence? traceEvidence = null)
+        => VerifyCore(expectation, records, null, expectationPath, traceJsonlPath, summaryJsonPath, traceEvidence);
 
     /// <summary>
     /// Verifies trace plus carrier-provided state/context observations. Keeping observations
@@ -40,9 +41,10 @@ public static class AcceptanceVerifier
         AcceptanceObservations? observations,
         string? expectationPath = null,
         string? traceJsonlPath = null,
-        string? summaryJsonPath = null)
+        string? summaryJsonPath = null,
+        MobaAcceptanceTraceEvidence? traceEvidence = null)
     {
-        return VerifyCore(expectation, records, observations, expectationPath, traceJsonlPath, summaryJsonPath);
+        return VerifyCore(expectation, records, observations, expectationPath, traceJsonlPath, summaryJsonPath, traceEvidence);
     }
 
     private static MobaAcceptanceSummary VerifyCore(
@@ -51,7 +53,8 @@ public static class AcceptanceVerifier
         AcceptanceObservations? observations,
         string? expectationPath,
         string? traceJsonlPath,
-        string? summaryJsonPath)
+        string? summaryJsonPath,
+        MobaAcceptanceTraceEvidence? traceEvidence)
     {
         ArgumentNullException.ThrowIfNull(expectation);
         ArgumentNullException.ThrowIfNull(records);
@@ -60,6 +63,9 @@ public static class AcceptanceVerifier
         var skillId = expectation.config != null ? expectation.config.skillId : 0;
         var effectRootId = FindRootId(records, "EffectExecution", effectId);
         var coverage = BuildCoverage(expectation, records, effectRootId, observations, observations is not null);
+        coverage.forbiddenTraceEvidenceInsufficient |= coverage.forbiddenTraceNodeCount > 0
+            && !MobaAcceptanceTraceEvidence.CanProveAbsence(traceEvidence, records.Length);
+        coverage.allForbiddenTraceNodesAbsent &= !coverage.forbiddenTraceEvidenceInsufficient;
         var passed = coverage.allRequiredTraceNodesMatched
                      && coverage.allForbiddenTraceNodesAbsent
                      && coverage.allExpectedActionsExecuted
@@ -114,6 +120,7 @@ public static class AcceptanceVerifier
                 satisfiedContextCount = coverage.satisfiedContextCount,
             },
             coverage = coverage,
+            traceEvidence = traceEvidence,
             traceCounts = CountByKind(records),
             // harness-enriched：dotnet 判定层不反查 config 名称，给空值（JSON 更干净）。
             traceDictionary = Array.Empty<MobaAcceptanceTraceDictionaryEntry>(),
@@ -170,7 +177,8 @@ public static class AcceptanceVerifier
             for (var i = 0; i < forbidden.Length; i++)
             {
                 var item = forbidden[i];
-                var count = Count(records, item.kind, item.configId, item.underEffectId > 0 ? effectRootId : 0);
+                var count = MobaAcceptanceForbiddenTrace.Count(records, item, out var scopeFound);
+                coverage.forbiddenTraceEvidenceInsufficient |= !scopeFound;
                 if (count > 0) unexpectedTraceNodes.Add(FormatTraceExpectation(item, count));
             }
         }

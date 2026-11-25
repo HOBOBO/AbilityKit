@@ -11,7 +11,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
     internal static class TriggerPlanJsonReader
     {
         private static readonly TriggerPlanJsonParser _parser = new TriggerPlanJsonParser();
-        private static readonly TriggerPlanConverter _converter = new TriggerPlanConverter();
 
         internal static TriggerPlanRecordStore<TriggerPlanJsonDatabase.Record> Read(
             string json, string sourceName, Func<TriggerCueDescriptor, ITriggerCue> createCue,
@@ -40,6 +39,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 record => (record.TriggerId, record.ExecutionRoot), dto?.Strings, dto?.Blackboards);
             if (dto?.Triggers == null) return store;
 
+            var referenceCatalog = new Lazy<TriggerPlanExecutionNodeReferenceCatalog>(
+                () => new TriggerPlanExecutionNodeReferenceCatalog(dto), isThreadSafe: false);
+
             foreach (var trigger in dto.Triggers)
             {
                 if (trigger == null || trigger.TriggerId <= 0) continue;
@@ -55,8 +57,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     secondaryAssetId: trigger.CueSecondaryAssetId,
                     payload: trigger.CuePayload);
                 var cue = createCue(cueDescriptor) ?? NullTriggerCue.Instance;
-                var plan = _converter.Convert(trigger, cue);
-                var executionRoot = _converter.ConvertExecutionRoot(trigger, dto);
+                var (plan, executionRoot) = TriggerPlanConverter.Convert(trigger, referenceCatalog, cue);
                 var scope = Enum.IsDefined(typeof(TriggerPlanScope), trigger.Scope)
                     ? trigger.Scope
                     : TriggerPlanScope.Global;

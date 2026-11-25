@@ -219,7 +219,7 @@ def check_modifier_domains(report: Report) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, help="repository root override")
+    parser.add_argument("--root", type=Path, help="覆盖仓库根目录")
     args = parser.parse_args()
     if args.root:
         global ROOT, SKILL_XLSX, HFSM, FLOW, ACTIONS, TRIGGER_DIR, MODIFIERS

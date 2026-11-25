@@ -1,8 +1,11 @@
 namespace AbilityKit.Protocol.CatalogCompiler.Ir;
 
-/// <summary>Stable convenience name for the YAML wire-schema source parser.</summary>
-/// <remarks>The schema is intentionally source-format specific today; this facade leaves room
-/// for a JSON source parser without coupling consumers to the YAML implementation.</remarks>
+/// <summary>
+/// YAML 线协议源解析器的稳定便捷入口。
+/// </summary>
+/// <remarks>
+/// 当前结构有意与源格式绑定；此外观为后续 JSON 源解析器保留空间，避免消费方耦合到 YAML 实现。
+/// </remarks>
 public sealed class WireSchemaParser : IWireSchemaParser
 {
     private readonly YamlWireSchemaParser _yaml = new();

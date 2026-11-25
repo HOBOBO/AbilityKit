@@ -369,6 +369,32 @@
           "maximumSchemaVersion": 1,
           "maximumPayloadBytes": 1048576,
           "captureSampleRate": 0.25
+        },
+        {
+          "id": "actor-indicator-state.push",
+          "opCode": 4020,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotPayload",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 0.25
+        },
+        {
+          "id": "state-sync-overhead.push",
+          "opCode": 4021,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Moba.StateSync.MobaStateSyncOverheadPayload",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4194304,
+          "captureSampleRate": 0.25
         }
       ]
     },
@@ -799,6 +825,36 @@
           "direction": "s2c",
           "kind": "response",
           "payloadType": "AbilityKit.Protocol.Room.WireRequestFullStateSyncRes",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 1
+        },
+        {
+          "id": "subscribe-state-sync-movement-proof.request",
+          "opCode": 126,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Room.WireSubscribeScopedStateSyncReq",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "response": "subscribe-state-sync-movement-proof.response",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 1,
+          "sensitiveFields": [
+            "sessionToken"
+          ]
+        },
+        {
+          "id": "subscribe-state-sync-movement-proof.response",
+          "opCode": 126,
+          "direction": "s2c",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Room.WireSubscribeStateSyncRes",
           "codec": "memorypack",
           "reliability": "reliable",
           "minimumSchemaVersion": 1,

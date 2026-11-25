@@ -158,19 +158,17 @@ var contextId = registry.Create()
     .With(new HealthProperty { Current = 80, Max = 100 })
     .Build();
 
-var current = resolver.GetValue<int, HealthProperty>(
-    contextId,
-    "Current",
-    defaultValue: 0,
-    mode: ContextValueReadMode.RealtimeThenSnapshot);
-
-if (current.Found && current.IsRealtime)
+if (registry.TryGetReference(contextId, out var identity))
 {
-    Console.WriteLine(current.Value);
+    var current = resolver.ReadRealtime<int, HealthProperty>(identity, "Current");
+    if (current.Found)
+        Console.WriteLine(current.Value);
 }
 ```
 
-`ContextValueResolver` 是上下文触发模块的统一读入口：调用方只需要传入上下文 ID、属性类型和可选键名，即可按 `ContextValueReadMode` 决定优先读取实时注册中心还是快照存储。属性或快照实现 `IContextValueProvider` 后可暴露多个命名字段；快照也可以继续实现 `ISnapshotAccessor` 兼容旧的按键读取方式。
+`ContextValueResolver` 只按精确引用读取，不跨实时与快照来源回退。属性或受管快照通过 `IContextValueProvider.TryGetValue` 区分缺失字段和合法的零值。
+
+**破坏性迁移**：裸 ID 的 `GetProperty` / `GetValue` / `TryGetValue` / `TryGetRealtimeProperty` / `TryGetSnapshot` 和 `ISnapshotAccessor` 已移除。实时调用方在产生引用时取得 `ContextEntityReference`；历史调用方在采集时保存 `ContextSnapshotReference`。不要在消费旧引用时用裸 ID 补绑当前代次。外部实时 provider 返回能读取字段的属性对象，而不再暴露逐键读取入口。
 
 ## API 概览
 
@@ -208,11 +206,9 @@ if (current.Found && current.IsRealtime)
 
 | 方法 | 说明 |
 |------|------|
-| `GetProperty<TProperty>(contextId, mode)` | 按上下文 ID 读取实时属性或快照属性 |
-| `GetValue<T, TProperty>(contextId, key, defaultValue, mode)` | 按属性类型和键名读取具体值 |
-| `TryGetValue<T, TProperty>(contextId, key, out value, mode)` | 只在实时值或快照值命中时返回 true |
-| `TryGetRealtimeProperty<TProperty>(contextId, out property)` | 只读取注册中心内的实时属性 |
-| `TryGetSnapshot(contextId, out snapshot)` | 只读取快照存储内的快照 |
+| `ReadRealtimeProperty<TProperty>(identity)` | 读取指定实体代次的实时属性 |
+| `ReadRealtime<TValue, TProperty>(identity, key)` | 从该属性读取字段并校验身份 |
+| `ReadSnapshot<TSnapshot, TValue>(reference, key)` | 只读指定受管快照，不回退到最新记录 |
 
 ### IContextValueProvider
 
@@ -250,7 +246,6 @@ com.abilitykit.context/
 │   └── ContextRegistry.cs  # 核心注册中心 + EntityBuilder
 ├── Snapshot/
 │   ├── IContextSnapshot.cs # 快照接口
-│   ├── ISnapshotAccessor.cs
 │   ├── SnapshotStorage.cs # 兼容最新快照存储
 │   ├── SnapshotStorage.Managed.cs # 受管历史与保留管理
 │   └── ContextSnapshotManagement.cs # 类型、身份与只读查询契约

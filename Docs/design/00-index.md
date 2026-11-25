@@ -2,6 +2,8 @@
 
 工具、操作规范、教程或包内 API 的查找入口见[文档导航](../README.md)；本页只索引设计体系。
 
+新增与整理文档先看[文档体系与维护规范](10-EngineeringQuality/20-DocumentationSystemStandard.md)：包内负责独立接入和使用契约，本目录负责能力边界、跨包协作与架构取舍。收录不表示正文已完成当前版本核校。
+
 > AbilityKit 是一个以“战斗能力表达”为中心的 Unity + .NET 框架。它不只提供技能系统，而是把逻辑世界、依赖注入、Host 运行时、ECS、触发器、战斗模块、网络同步、回放、表现层解耦和 Orleans 服务端串成一套可组合的能力体系。
 
 ---
@@ -211,7 +213,7 @@ flowchart TB
 | 文档 | 定位 | 说明 |
 |------|------|------|
 | [Network SDK 组装、生命周期与 Transport 边界](../../Unity/Packages/com.abilitykit.network.sdk/README.md) | 包内 canonical | Builder factory 互斥与 owned connection、transport 延迟创建、Tick/Dispose、dispatcher、池化 payload、失败矩阵及 TCP/InMemory/LiteNet/WebSocket 证据分层 |
-| [00-网络同步能力地图](07-NetworkSynchronization/00-SynchronizationCapabilityMap.md) | 能力地图 | 模板、Room 能力 Profile 与客户端 controller 三层边界；MOBA 唯一 FrameSync、Shooter 默认 StateSync/2 人/30 帧 full，以及可靠事件、回放与 E0-E5 全局解释 |
+| [00-网络同步能力地图](07-NetworkSynchronization/00-SynchronizationCapabilityMap.md) | 能力地图 | 模板、Room Profile 与客户端 controller 分层；核心十包消费路径、两条同步链独立恢复语义、局部验证与后续适配范围 |
 | [01-帧同步机制](07-NetworkSynchronization/01-FrameSync.md) | Canonical 设计 | 输入帧、Host/Relay、Q32.32 FrameTime 与 rollback provider；MOBA `BattleWorldWithFrameSync`、默认 smoke 路线及“帧时钟确定不等于全战斗确定”的边界 |
 | [02-状态同步](07-NetworkSynchronization/02-StateSync.md) | Canonical 设计 | 元信息/实体状态双轨、快照缓存与路由生命周期、hash/diff、PredictionCoordinator 重演顺序及 store 清理缺口 |
 | [03-回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md) | Canonical 设计 | Provider 稳定顺序、池化捕获/恢复、非事务 Import、三层预测实现、FrameTime 恢复与 E0-E5 证据 |
@@ -325,7 +327,7 @@ flowchart TB
 | [03-MOBA 与 Shooter 示例工业化流程](10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md) | 示例工业化 | 高接入度参考应用层、MOBA 默认 FrameSync/双连接/恢复/ACK、Shooter 默认 StateSync 与两人 Smoke 风险，以及 gate catalog/workflow 实际接线差异 |
 | [04-公司级采用与模块治理规范](10-EngineeringQuality/04-CompanyAdoptionAndModuleGovernance.md) | 采用治理 | 资产/成熟度/证据分层、实际命令与 artifact 准入记录、候选发布工具边界及应用编排不上移规则 |
 | [05-跨模块性能与热路径治理](10-EngineeringQuality/05-CrossModulePerformanceAndHotPathGovernance.md) | 性能治理 | workload、测量、基线、预算，Runtime measurement-only 与 Shooter ThresholdFailure 阻断分离及环境字段边界 |
-| [06-Beta 稳定化与发布检查清单](10-EngineeringQuality/06-BetaStabilizationAndReleaseChecklist.md) | 发布门禁 | `tools/publish` cohort/audit/candidate/local-tag 能力、8 包候选批次、旧 reset 风险及当前无发布 E5 的缺口 |
+| [06-Beta 稳定化与发布检查清单](10-EngineeringQuality/06-BetaStabilizationAndReleaseChecklist.md) | 发布门禁 | `tools/publish` cohort/audit/candidate/local-tag 能力；批次以当前 manifest 为准；旧 reset 风险及发布证据缺口 |
 | [07-Analysis Artifact 与运行证据](10-EngineeringQuality/07-AnalysisArtifactAndRuntimeEvidence.md) | 分析产物契约 | `abilitykit-analysis.v1`、section 投影、严格 codec 与宽松 Gateway 展示消费者、样例漂移和统一 validator 缺口 |
 | [08-AI 模型产物运行时策略](10-EngineeringQuality/08-AiModelArtifactRuntimePolicy.md) | 模型发布策略 | dataset/model/metadata、来源校验边界、每次推理数组分配、动作安全、跨语言 fixture 与 AI E5 缺口 |
 | [09-帧同步与状态同步审计记录（2026-08-03）](10-EngineeringQuality/09-FrameSyncStateSyncAuditRecord-20260803.md) | 历史审计 | 保留 2026-08-03 阶段审计与 2026-08-16 复核：multiprocess 已拆 host/client 场景进程但双客户端仍同进程，gate 描述与 workflow 接线落后；当前契约仍以同步、测试与发布 canonical 为准 |
@@ -343,7 +345,9 @@ flowchart TB
 
 | 文档 | 定位 | 说明 |
 |------|------|------|
-| [01-文档治理路线图](11-DocumentationCompletionPlan.md) | 文档治理 | 文档覆盖范围、源码验证重点、专题优先级、测试/CI 文档边界和验收顺序 |
+| [文档体系与维护规范](10-EngineeringQuality/20-DocumentationSystemStandard.md) | 文档制度 canonical | 设计与使用文档分工、模板、核校状态、维护责任、迁移与验收 |
+| [01-文档治理路线图](11-DocumentationCompletionPlan.md) | 实施路线与历史记录 | 文档覆盖范围、源码验证重点、专题优先级；本轮按先规范入口、再逐包核校推进 |
+| [首轮结构盘点与批次清单](../../plans/2026-11-24-DocumentationSystemInventory.md) | 日期化结构盘点 | 已跟踪文档与包入口、文档目录并存、后续逐包核校范围；不作为内容正确性的证明 |
 | [02-飞书离线导出与同步指南](FeishuOfflineExportGuide.md) | 文档发布工具 | `Docs/design` 发布输入、Preview 本地产物、Board `630/630` 离线审计、增量阻断/替代页、权限和恢复；远端能力只按日期化探针声明 |
 
 ### 12 服务端架构
@@ -368,7 +372,7 @@ flowchart TB
 | [06-Shooter RVO 与 Jobs 加速](13-FrameworkCore/06-ShooterRvoAndJobsAcceleration.md) | Shooter 项目避障 | Managed RVO 语义基线、Jobs 仅邻居收集、同步回退、Native 生命周期、速度同步、Runtime E3/E5 与 Jobs/性能证据缺口 |
 | [07-行为树包设计](13-FrameworkCore/07-BehaviorTreePackageDesign.md) | 自研行为树包 | 运行时 IR/编辑配置分离、节点描述符注册与编辑器拉取、确定性执行与快照、调试注册中心、内置节点库与 BTCore 退役路线 |
 | [08-HFSM 确定性内核与渐进迁移](13-FrameworkCore/08-HfsmDeterministicRuntimeEvolution.md) | HFSM canonical 演进 | 自研 Definition/Runtime、定点 Tick、层级语义、快照协议、UnityHFSM 兼容边界与分阶段迁移路线 |
-| [09-编辑器平台收敛与统一入口设计](13-FrameworkCore/09-EditorPlatformConvergence.md) | 编辑器底座收敛 + 演进计划 | Editor Platform 七个关注点的共享/域内边界判定、采纳地图、重复证据、统一入口（Hub）设计与分阶段收敛顺序 |
+| [09-编辑器平台收敛与统一入口设计](13-FrameworkCore/09-EditorPlatformConvergence.md) | 编辑器工具规范 + 演进计划 | Editor Platform 边界、Hub 入口盘点、正式／项目／诊断／临时工具准入、写入安全与兼容迁移 |
 | [10-通用计算加速后端与 Unity Jobs 扩展框架](13-FrameworkCore/10-ComputeAccelerationBackends.md) | 跨运行时计算加速 | 纯 C# kernel/显式后端链、Unity 原生缓冲与 Job DAG、Burst AOT 边界、校验回退、motion/dataflow 迁移方式和性能准入 |
 
 ---
@@ -540,12 +544,25 @@ flowchart TB
 | 2026-11-22 | 3.10 | 规范随包使用说明与仓库设计分工，更新 Attributes / World DI 消费入口，保留旧文档路径；不改运行时契约 |
 | 2026-11-22 | 3.11 | 分流 World ECS、Record、Projectile 和 SkillLibrary 的[包内使用入口](../../Unity/Packages/README.md)与仓库设计；旧路径保留，不改架构契约或证据基线 |
 | 2026-11-22 | 3.12 | 分流 MOBA Runtime / View 包内指南与仓库设计；[上下文专题](09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md)归集跨包说明及测试入口，保留旧路径，不改机制 |
+| 2026-11-24 | 3.13 | 增加框架包结构优化盘点入口，按当前候选与代码归属分批，不改运行时或发布批次 |
+| 2026-11-24 | 3.14 | [MOBA 快照与表现](09-ImplementationExamples/MOBA/04-SnapshotPresentationPrediction.md#18-头顶当前状态与多资源面板2026-11-24)补充头顶多资源面板、正式配置、完整基线与两条同步链的本地验证边界 |
+| 2026-11-24 | 3.15 | MOBA 快照与表现第 19 节补充固定量非 HP 自动回复、七英雄回蓝、世界帧顺序、既有状态恢复归属及状态同步显示与逻辑资源导入的边界 |
+| 2026-11-24 | 3.16 | 框架包结构优化盘点补充稳定与扩展的推进顺序、直接依赖修复、World DI 依赖裁剪及 Pipeline 包外扩展契约的本地验证边界 |
+| 2026-11-24 | 3.17 | 建立文档体系与维护规范，统一设计与包使用文档的职责、模板和核校状态；整理门户与包索引，登记首轮结构盘点和逐包核校批次，不提升历史正文证据等级 |
+| 2026-11-24 | 3.18 | 框架包设计优化实施：Pipeline 资源与登记归属、配置表包外原位替换、预测窗口／投射物查询／行为树调试／HFSM 编译及踢出解码职责提取，补充本地回归、两条同步消费路径及未覆盖环境 |
+| 2026-11-25 | 3.19 | 完成 [D1 基础包文档核校](../../plans/2026-11-24-DocumentationSystemInventory.md#7-d1-基础包核校记录2026-11-2425)：重建 Core、Deterministic、World DI 消费入口与完整示例，修正数值和所有权说明，Core 维护原文归仓库记录；更新服务容器局部 E3，注明独立安装与 Unity 未重跑 |
+| 2026-11-25 | 3.20 | 核对编辑器 Hub 与菜单入口，补充工具分类、写入保护、兼容性与渐进迁移规范；不改 Unity 菜单、资产或批处理 |
+| 2026-11-25 | 3.21 | Hub 正式导航改为显式准入，行为树与 HFSM 工作台首批接入；反射发现改为按需只读清单，保留现有 Unity 菜单与批处理 |
+| 2026-11-25 | 3.21 | 完成 D2 技能与流程包文档入口及限定契约核校：Continuous、Triggering、Pipeline、Attributes、Flow、HFSM；记录 .NET 选定测试和 Unity/业务链路未覆盖边界 |
+| 2026-11-25 | 3.22 | 完成 D3 核心十包文档入口及限定契约核校：World ECS、Host/Extensions、FrameSync/StateSync、Snapshot、Network Fragments、Record、Protocol、Network Runtime；补独立使用入口与完整示例，修正旧 Host/协议/Record 接入误导，记录协议既有断言失败及后续 SDK/适配范围 |
+| 2026-11-25 | 3.23 | [框架包优化盘点](10-EngineeringQuality/19-FrameworkPackageOptimizationAudit.md)补充预测驱动逐世界状态与推进阶段拆分、可选时钟对齐能力、状态账本及 518 项本地回归；保留失败提交、重演与双模式边界，不外推 Unity 或发布验收 |
 
 ---
 
 ## 框架包工程稳定化
 
 - [框架包工程规范](10-EngineeringQuality/10-FrameworkPackageEngineeringStandards.md)：统一中文多行注释、源码目录、公开契约、临时代码审查及发布准备要求。
+- [框架包结构优化盘点](10-EngineeringQuality/19-FrameworkPackageOptimizationAudit.md)：首发候选缺口、其余包的优化工作线与逐批验收项。
 - [Core 包稳定化与发布推进记录](10-EngineeringQuality/11-CorePackageStabilization.md)：首个试点的事实清单、分阶段验收、已执行结果与剩余发布缺口。
 - [Core 职责归属与补强审计](10-EngineeringQuality/16-CoreResponsibilityAudit.md)：基于生产使用方区分稳定基础、兼容面与待评审能力，并列出发版前工单。
 - [Pipeline 职责与公开契约盘点](10-EngineeringQuality/17-PipelineContractAudit.md)：对照生产调用、运行契约与测试，拆分首批行为基线、源码规范化和候选验收。

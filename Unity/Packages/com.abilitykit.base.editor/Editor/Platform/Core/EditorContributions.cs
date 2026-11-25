@@ -14,10 +14,19 @@ namespace AbilityKit.Editor.Platform.Core
     public sealed class EditorMenuContribution : IEditorContribution
     {
         public EditorMenuContribution(string id, string path, Action open, int order = 0)
+            : this(id, path, open, showInHub: false, order: order)
+        {
+        }
+
+        /// <summary>
+        /// 登记菜单能力；只有可安全打开的全局导航才应显式准入 Hub。
+        /// </summary>
+        public EditorMenuContribution(string id, string path, Action open, bool showInHub, int order = 0)
         {
             Id = RequireValue(id, nameof(id));
             Path = RequireValue(path, nameof(path));
             Open = open ?? throw new ArgumentNullException(nameof(open));
+            ShowInHub = showInHub;
             Order = order;
         }
 
@@ -25,6 +34,11 @@ namespace AbilityKit.Editor.Platform.Core
         public string Path { get; }
         public Action Open { get; }
         public int Order { get; }
+
+        /// <summary>
+        /// 是否显示为 Hub 的可打开入口；不影响原 Unity 菜单。
+        /// </summary>
+        public bool ShowInHub { get; }
 
         private static string RequireValue(string value, string parameterName)
         {
@@ -45,6 +59,20 @@ namespace AbilityKit.Editor.Platform.Core
             Func<VisualElement> createVisualElement = null,
             Action<Rect> drawImGui = null,
             int order = 0)
+            : this(id, titleKey, showInHub: false, createVisualElement: createVisualElement, drawImGui: drawImGui, order: order)
+        {
+        }
+
+        /// <summary>
+        /// 登记可组合面板；默认导航只展示显式准入且打开不改资产的面板。
+        /// </summary>
+        public EditorPanelContribution(
+            string id,
+            string titleKey,
+            bool showInHub,
+            Func<VisualElement> createVisualElement = null,
+            Action<Rect> drawImGui = null,
+            int order = 0)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("A panel id is required.", nameof(id));
             if (string.IsNullOrWhiteSpace(titleKey)) throw new ArgumentException("A title key is required.", nameof(titleKey));
@@ -57,6 +85,7 @@ namespace AbilityKit.Editor.Platform.Core
             TitleKey = titleKey;
             CreateVisualElement = createVisualElement;
             DrawImGui = drawImGui;
+            ShowInHub = showInHub;
             Order = order;
         }
 
@@ -65,6 +94,11 @@ namespace AbilityKit.Editor.Platform.Core
         public Func<VisualElement> CreateVisualElement { get; }
         public Action<Rect> DrawImGui { get; }
         public int Order { get; }
+
+        /// <summary>
+        /// 是否显示在 Hub；不限制领域工作台自行复用面板。
+        /// </summary>
+        public bool ShowInHub { get; }
         public bool SupportsUiToolkit => CreateVisualElement != null;
         public bool SupportsImGui => DrawImGui != null;
     }

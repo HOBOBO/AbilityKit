@@ -268,7 +268,9 @@ namespace AbilityKit.Demo.Moba.Services
                 parameterSnapshots: samples,
                 summonInputIdentity: input.SummonInputIdentity);
 
-            var skillLevel = ResolveSlotSkillLevel(actorId, slot);
+            if (!TryResolveLevelSource(_services, boundActor, skillId, slot, out var skillLevel, out var levelSourceRoot))
+                return SkillCastPreparationResult.Failed("skill.cast.levelSourceMissing",
+                    "Configured skill level source is missing, ambiguous or invalid.");
             var championLevel = ResolveChampionLevel(actorId);
             if (!ResolvedSkillCastConfiguration.TryResolve(
                     configs,
@@ -312,6 +314,7 @@ namespace AbilityKit.Demo.Moba.Services
                 .WithSequence(sequence)
                 .Build();
             context.BaseSkillId = baseSkillId;
+            context.LevelSourceRootContextId = levelSourceRoot;
             context.CastFlowId = castFlowId;
             context.ResolvedConfiguration = resolvedConfiguration;
             context.DiagnosticCommandId = input.DiagnosticCommandId;
@@ -449,6 +452,53 @@ namespace AbilityKit.Demo.Moba.Services
 
             var runtime = skills[index];
             return runtime != null ? runtime.Level : 0;
+        }
+
+        /// <summary>
+        /// 只从配置声明的来源采样等级；模式来源沿 Buff 的原 Cast 句柄解析，
+        /// 不增加另一份可变等级。缺失、歧义或跨拥有者来源均拒绝。
+        /// </summary>
+        internal static bool TryResolveLevelSource(IWorldResolver services, global::ActorEntity actor,
+            int skillId, int inputSlot, out int level, out long sourceRoot)
+        {
+            level = 0;
+            sourceRoot = 0;
+            var binding = actor != null && actor.hasCharacterHfsm ? actor.characterHfsm.Runtime?.CastBinding(skillId) : null;
+            if (binding == null || binding.LevelSource == "CurrentSlot")
+            {
+                /*
+                 * 默认来源保持原契约：无槽位的显式施法由配置解析器按一级处理。
+                 * 新增的显式来源则必须完整存在，不能回退到一级。
+                 */
+                var currentSkills = actor != null && actor.hasSkillLoadout ? actor.skillLoadout.ActiveSkills : null;
+                if (inputSlot > 0 && currentSkills != null && inputSlot <= currentSkills.Length)
+                    level = currentSkills[inputSlot - 1]?.Level ?? 0;
+                return true;
+            }
+            if (actor == null || !actor.hasSkillLoadout) return false;
+            if (binding?.LevelSource != "ActivationBuff")
+            {
+                var slot = binding?.LevelSource == "Slot" ? binding.LevelSourceSlot : inputSlot;
+                var skills = actor.skillLoadout.ActiveSkills;
+                if (slot <= 0 || skills == null || slot > skills.Length || skills[slot - 1] == null) return false;
+                level = skills[slot - 1].Level;
+                return level > 0;
+            }
+            if (!actor.hasBuffs || actor.buffs.Active == null || services == null ||
+                !services.TryResolve<MobaSkillCastRuntimeService>(out var runtimes) || runtimes == null) return false;
+            MobaSkillCastRuntimeHandle source = default;
+            foreach (var buff in actor.buffs.Active)
+            {
+                if (buff == null || buff.BuffId != binding.LevelSourceBuffId || buff.SourceId != actor.actorId.Value ||
+                    buff.Remaining <= 0 || buff.Continuous == null || !buff.Continuous.IsActive)
+                    continue;
+                if (source.IsValid || !runtimes.TryGet(buff.SkillRuntimeHandle, out var runtime) ||
+                    runtime.CasterActorId != actor.actorId.Value || runtime.SkillLevel <= 0) return false;
+                source = buff.SkillRuntimeHandle;
+                level = runtime.SkillLevel;
+            }
+            sourceRoot = source.RootContextId;
+            return source.IsValid && sourceRoot > 0;
         }
 
         public void RemoveActor(int actorId)

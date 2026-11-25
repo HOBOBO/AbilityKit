@@ -4,7 +4,9 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
-/// <summary>Deterministically emits proto3 messages from codec-neutral wire schemas.</summary>
+/// <summary>
+/// 从编解码无关线协议结构确定性生成 proto3 消息。
+/// </summary>
 public sealed class ProtobufProtocolBackend : IProtocolBackend
 {
     public string Codec => "protobuf";
@@ -112,7 +114,9 @@ public sealed class ProtobufProtocolBackend : IProtocolBackend
 
     private static void ValidateFieldNumber(uint zeroBasedId, string owner)
     {
-        // Wire IDs are zero-based; protobuf field numbers are one-based and exclude 19000-19999.
+        /*
+         * 线协议 ID 从零开始；protobuf 字段编号从一开始，并排除 19000–19999。
+         */
         if (zeroBasedId >= 536_870_911u)
             throw new InvalidDataException($"{owner} {zeroBasedId} exceeds the protobuf field-number range.");
         var fieldNumber = zeroBasedId + 1u;

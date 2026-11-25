@@ -7,12 +7,14 @@ using UnityEngine;
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// Per-modelId GameObject pool for entity shells.
-    /// Each modelId has its own <see cref="ObjectPool{T}"/> bucket, managed uniformly
-    /// by the framework pooling infrastructure.
     ///
-    /// Hierarchy layout (when an optional <see cref="HierarchyManager"/> is supplied):
-    /// <c>[Battle]/_Pool/_Shell/id_{modelId}/...</c> for inactive pooled instances.
+    ///
+    /// 按 modelId 分桶的实体外壳 GameObject 池。各 modelId 拥有独立 <see cref="ObjectPool{T}"/> 分桶，由框架对象池基础设施统一管理。
+    ///
+    /// 提供可选 <see cref="HierarchyManager"/> 时的层级布局：
+    /// 非活动池实例位于 <c>[Battle]/_Pool/_Shell/id_{modelId}/...</c>。
+    ///
+    ///
     /// </summary>
     public sealed class BattleViewShellPool
     {
@@ -27,16 +29,14 @@ namespace AbilityKit.Game.Flow
         public BattleViewPoolMetrics Metrics => _metrics.Capture(_pools.Values, _leased.Count);
 
         /// <summary>
-        /// Optional hierarchy manager. When set, pool bucket instances are parented
-        /// under <c>[Battle]/_Pool/_Shell/id_{modelId}</c>; otherwise the legacy
-        /// "detach-to-scene-root" behaviour is preserved.
+        /// 可选层级管理器。设置后，池分桶实例挂在 <c>[Battle]/_Pool/_Shell/id_{modelId}</c> 下；否则保留既有脱离到场景根节点的行为。
         /// </summary>
         private readonly BattleViewHierarchyManager _hierarchy;
 
-        /// <param name="factory">Creates a fresh shell GameObject for the given modelId.</param>
-        /// <param name="defaultCapacity">Warm instances pre-created per bucket.</param>
-        /// <param name="maxSize">Hard cap per bucket (after which instances are destroyed on release).</param>
-        /// <param name="hierarchy">Optional manager that organizes pool instances in the Hierarchy.</param>
+        /// <param name="factory">为指定 modelId 创建新的外壳 GameObject。</param>
+        /// <param name="defaultCapacity">每个分桶预先创建的预热实例数。</param>
+        /// <param name="maxSize">每个分桶的硬上限，超过后归还的实例将被销毁。</param>
+        /// <param name="hierarchy">用于在层级中组织池实例的可选管理器。</param>
         public BattleViewShellPool(Func<int, GameObject> factory, int defaultCapacity = 8, int maxSize = 16, BattleViewHierarchyManager hierarchy = null)
         {
             _factory = factory ?? throw new ArgumentNullException(nameof(factory));
@@ -46,7 +46,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Get (or lazily create) the per-modelId bucket.
+        /// 获取或按需创建指定 modelId 的分桶。
         /// </summary>
         private ObjectPool<GameObject> GetOrCreateBucket(int modelId)
         {
@@ -59,8 +59,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Rent a shell GameObject for the given modelId.
-        /// The bucket is lazily created on first rent if it does not exist.
+        /// 为指定 modelId 租用外壳 GameObject，分桶不存在时在首次租用时按需创建。
         /// </summary>
         public bool TryRent(int modelId, out GameObject instance)
         {
@@ -98,8 +97,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Rent a shell GameObject for the given modelId.
-        /// Alias for <see cref="TryRent"/> that throws if no instance is available.
+        /// 为指定 modelId 租用外壳 GameObject。作为 <see cref="TryRent"/> 的别名，无可用实例时抛出异常。
         /// </summary>
         public GameObject Get(int modelId)
         {
@@ -108,8 +106,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Return a shell GameObject to the pool.
-        /// The bucket is lazily created on first return if it does not exist.
+        /// 将外壳 GameObject 归还对象池，分桶不存在时在首次归还时按需创建。
         /// </summary>
         public void Return(int modelId, GameObject instance)
         {
@@ -131,7 +128,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Return a shell GameObject using the modelId stored on its <see cref="BattleShellPoolableTag"/>.
+        /// 使用 <see cref="BattleShellPoolableTag"/> 保存的 modelId 归还外壳 GameObject。
         /// </summary>
         public void Return(GameObject instance)
         {
@@ -139,8 +136,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Destroy all pooled GameObjects and release all bucket pools.
-        /// Call when tearing down the view layer.
+        /// 销毁全部池化 GameObject 并释放所有分桶池，在视图层拆卸时调用。
         /// </summary>
         public void Clear()
         {
@@ -189,8 +185,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Variant of <see cref="ResetInstance"/> that uses a hierarchy manager to
-        /// park the instance under its pool bucket root.
+        /// <see cref="ResetInstance"/> 的变体，通过层级管理器将实例停放在其对象池分桶根节点下。
         /// </summary>
         private void ResetInstanceToBucket(GameObject go, int modelId)
         {
@@ -231,9 +226,12 @@ namespace AbilityKit.Game.Flow
     }
 
     /// <summary>
-    /// Attaches to each pooled shell GameObject so the pool can identify the modelId bucket
-    /// when the object is returned without an explicit modelId parameter.
-    /// Implements <see cref="IPoolable"/> so the framework pooling callbacks fire correctly.
+    ///
+    ///
+    /// 附加到每个池化外壳 GameObject，使未显式提供 modelId 参数的归还操作仍可识别所属分桶。
+    /// 实现 <see cref="IPoolable"/>，确保框架对象池回调正确触发。
+    ///
+    ///
     /// </summary>
     public sealed class BattleShellPoolableTag : MonoBehaviour, IPoolable
     {

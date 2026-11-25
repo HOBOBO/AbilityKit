@@ -1,4 +1,5 @@
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
@@ -25,6 +26,29 @@ namespace AbilityKit.Demo.Moba.Tests.StateSync;
 public sealed class MobaLocalDualModeContractTests
 {
     private const ulong StateWorldId = 5;
+
+    [Fact]
+    public void AuthorityAnchorReadsPersistentInputAndDoesNotAdmitOtherMotionSources()
+    {
+        using var world = new MovementWorld("state-movement-anchor");
+        Assert.False(world.TryCaptureAuthority(new PlayerId("unbound"), out _));
+        world.Step([MobaActorIntent.MoveDirection(0, 1)], .05f);
+
+        Assert.True(world.TryCaptureAuthority(MovementWorld.Controller, out var anchor));
+        Assert.Equal(MovementWorld.ActorId, anchor.ActorId);
+        Assert.True(anchor.EntityVersion > 0);
+        Assert.Equal(world.Capture().Pose, anchor.Pose);
+        Assert.Equal(0f, anchor.MoveX);
+        Assert.Equal(1f, anchor.MoveZ);
+        Assert.Equal(7.5f, anchor.MoveSpeed);
+        Assert.True(anchor.CanMove);
+        Assert.True(anchor.HasIsolatedLocomotion);
+
+        world.AddOtherMotionSource();
+        Assert.True(world.TryCaptureAuthority(MovementWorld.Controller, out var unsupported));
+        Assert.Equal(anchor.EntityVersion, unsupported.EntityVersion);
+        Assert.False(unsupported.HasIsolatedLocomotion);
+    }
 
     [Theory]
     [InlineData(.05f)]
@@ -139,6 +163,34 @@ public sealed class MobaLocalDualModeContractTests
         }
     }
 
+    [Fact]
+    public void Actor_projection_aligns_pose_but_is_not_a_replayable_movement_baseline()
+    {
+        const float deltaTime = .05f;
+        using var authority = new MovementWorld("state-projection-authority");
+        using var replica = new MovementWorld("state-projection-live");
+        var admission = new AuthoritativeSnapshotAdmission();
+        admission.Reset(StateWorldId);
+
+        authority.Step([], deltaTime);
+        replica.Step([MobaActorIntent.MoveDirection(0, 1)], deltaTime);
+        Assert.NotEqual(authority.Capture().Pose.Position, replica.Capture().Pose.Position);
+
+        Assert.True(TryImport(replica, admission, 1, [authority.Project()]));
+        Assert.Equal(1, admission.LastAcceptedFrame);
+        var imported = replica.Capture();
+        var authoritative = authority.Capture();
+        Assert.Equal(authoritative.Pose.Position, imported.Pose.Position);
+        Assert.Equal(authoritative.Pose.Position, imported.Motion.Position);
+        Assert.Equal(Vec3.Zero, authoritative.Input);
+        Assert.Equal(new Vec3(0, 0, 1), imported.Input);
+
+        authority.Step([], deltaTime);
+        replica.Step([], deltaTime);
+        Assert.Equal(imported.Pose.Position, authority.Capture().Pose.Position);
+        Assert.True(replica.Capture().Pose.Position.Z > imported.Pose.Position.Z);
+    }
+
     private static bool TryImport(MovementWorld target, AuthoritativeSnapshotAdmission admission, int tick,
         MobaActorStateImport[] actors)
     {
@@ -179,6 +231,7 @@ public sealed class MobaLocalDualModeContractTests
     private sealed class MovementWorld : IDisposable
     {
         internal const int ActorId = 1;
+        internal static readonly PlayerId Controller = new("local-controller");
         private readonly EntitasWorld _world;
         private readonly ActorEntity _actor;
         private readonly WorldClock _clock;
@@ -198,6 +251,7 @@ public sealed class MobaLocalDualModeContractTests
             _actor = ((Contexts)_world.Contexts).actor.CreateEntity();
             _actor.AddActorId(ActorId);
             registry.Register(ActorId, _actor);
+            _world.Services.Resolve<MobaPlayerActorMapService>().Bind(Controller, ActorId);
             var start = new Vec3(3, 0, 8);
             _actor.AddTransform(new Transform3(start, Quat.Identity, Vec3.One));
             _actor.AddMoveInput(0, 0);
@@ -206,7 +260,7 @@ public sealed class MobaLocalDualModeContractTests
             attributes.SetBase(MobaAttributeIds.MOVE_SPEED, 7.5f);
             attributes.SetBase(MobaAttributeIds.MAX_HP, 100f);
             _actor.AddAttributeGroup(attributes.GetGroupFor(MobaAttributeIds.MAX_HP), attributes);
-            var hp = new ResourceState { Current = initialHp };
+            var hp = new ResourceState { Current = initialHp, MaxAttribute = MobaAttributeIds.MAX_HP };
             _actor.AddResourceContainer(new ResourceContainer { Map = new() { [ResourceType.Hp] = hp } }, true);
             _projection = new MobaActorProjectionProducer(registry);
             Importer = new MobaLogicWorldStateImporter(registry, null!, null!);
@@ -217,6 +271,12 @@ public sealed class MobaLocalDualModeContractTests
             foreach (var input in inputs) _actor.ReplaceMoveInput(input.MoveX, input.MoveZ);
             _world.Tick(deltaTime);
         }
+
+        internal bool TryCaptureAuthority(PlayerId player, out MobaAuthoritativeMovementAnchor anchor) =>
+            MobaAuthoritativeMovementAnchor.TryCapture(_world.Services, player, out anchor);
+
+        internal void AddOtherMotionSource() =>
+            _pipeline.AddSource(new LocomotionMotionSource(2f, MotionInputSpace.World, 1));
 
         internal MovementCheckpoint Capture() => new(_actor.transform.Value, _actor.motion.State, _actor.motion.Output,
             new Vec3(_actor.moveInput.Dx, 0, _actor.moveInput.Dz), Source()?.Input ?? Vec3.Zero,
@@ -257,6 +317,7 @@ public sealed class MobaLocalDualModeContractTests
         public void Configure(WorldContainerBuilder builder)
         {
             builder.Register(WorldLifetime.Scoped, _ => new MobaActorRegistry());
+            builder.Register(WorldLifetime.Scoped, _ => new MobaPlayerActorMapService());
             builder.Register(WorldLifetime.Scoped, _ => new MobaEntityManager(null!));
             builder.Register(WorldLifetime.Scoped, resolver => new ActorIdIndex(resolver.Resolve<Entitas.IContexts>()));
             builder.Register(WorldLifetime.Scoped, resolver => new MobaCombatRulesService(new MobaActorLookupService(

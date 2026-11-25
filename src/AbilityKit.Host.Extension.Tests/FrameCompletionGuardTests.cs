@@ -16,6 +16,52 @@ namespace AbilityKit.Host.Extension.Tests;
 public sealed class FrameCompletionGuardTests
 {
     [Theory]
+    [InlineData(0, 8, 8, 8, 6)]
+    [InlineData(3, 8, 3, 2, 1)]
+    [InlineData(0, 0, 0, 0, 0)]
+    public void Prediction_window_preserves_smoothing_delay_hard_limit_and_ideal_cap(
+        int ideal, int maximum, int firstWindow, int secondWindow, int thirdWindow)
+    {
+        var source = new MissingRemoteFrames { TargetFrame = 10 };
+        var options = new HostRuntimeOptions();
+        var runtime = new HostRuntime(new GuardedWorldManager(), options);
+        var prediction = new ClientPredictionDriverModule(_ => source, _ => null!, _ => ideal,
+            inputDelayFrames: 2, maxPredictionAheadFrames: maximum, minPredictionWindow: 1,
+            backlogEwmaAlpha: .5f);
+        prediction.Install(runtime, options);
+        var world = runtime.CreateWorld(new WorldCreateOptions(new WorldId("window-contract"), "test"));
+
+        var targets = new[] { 10, 6, 0 };
+        var rawBacklogs = new[] { 10, 5, 0 };
+        var smoothed = new[] { 10f, 7.5f, 3.75f };
+        var windows = new[] { firstWindow, secondWindow, thirdWindow };
+        for (var i = 0; i < targets.Length; i++)
+        {
+            source.TargetFrame = targets[i];
+            runtime.Tick(.033f);
+            Assert.True(prediction.TryGetPredictionWindowStats(world.Id, out var raw, out var ewma, out var window, out _));
+            Assert.Equal(rawBacklogs[i], raw);
+            Assert.Equal(smoothed[i], ewma);
+            Assert.Equal(windows[i], window);
+            Assert.Equal(raw, prediction.CurrentBacklogRaw);
+            Assert.Equal(ewma, prediction.CurrentBacklogEwma);
+            Assert.Equal(window, prediction.CurrentPredictionWindow);
+        }
+    }
+
+    private sealed class MissingRemoteFrames : AbilityKit.Network.Abstractions.IConsumableRemoteFrameSource<PlayerInputCommand[]>
+    {
+        public int DelayFrames { get; set; }
+        public int TargetFrame { get; set; }
+        public int MaxReceivedFrame => TargetFrame;
+        public int LastConsumedFrame => 0;
+        public bool TryGet(int frame, out PlayerInputCommand[] data) { data = null!; return false; }
+        public bool TryConsume(int frame, out PlayerInputCommand[] data) => TryGet(frame, out data);
+        public void TrimBefore(int minFrameInclusive) { }
+        public void Dispose() { }
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void TwoWorlds_GuardedFailureDoesNotCommit_WhileHealthyWorldContinues(bool failingWorldFirst)

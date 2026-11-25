@@ -4,7 +4,7 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudDamageEventPresenter
     {
-        private readonly BattleHudHpBarController _hpBars;
+        private readonly BattleHudFloatingTextController _floatingTexts;
         private readonly BattleHudDamageTextFormatter _formatter;
 
         public BattleHudDamageEventPresenter(
@@ -12,7 +12,7 @@ namespace AbilityKit.Game.Flow
             BattleHudFloatingTextController floatingTexts,
             BattleHudDamageTextFormatter formatter = null)
         {
-            _hpBars = hpBars;
+            _floatingTexts = floatingTexts;
             _formatter = formatter ?? new BattleHudDamageTextFormatter();
         }
 
@@ -32,8 +32,7 @@ namespace AbilityKit.Game.Flow
 
             if (!_formatter.TryFormat(entry.Value, entry.IsHeal, out var text)) return;
 
-            _hpBars.Ensure(entry.TargetId);
-            _hpBars.UpdateHp(entry.TargetId, entry.TargetHp, entry.TargetMaxHp);
+            _floatingTexts.Spawn(entry.TargetId, text, entry.IsHeal);
         }
     }
 }

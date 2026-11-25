@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory = $false)]
     [string]$AuthoritativeResourcesRoot = "Unity\Packages\com.abilitykit.demo.moba.view.runtime\Resources",
 
@@ -28,8 +28,7 @@ if ($selectedModes.Count -gt 1) {
     throw "Check, DryRun, and Apply are mutually exclusive."
 }
 
-# A no-argument invocation is an audit. Publishing package-owned authoritative
-# JSON into filesystem replicas always requires explicit consent.
+# 无参数调用仅审计。将包拥有的权威 JSON 发布到文件系统副本，始终需要显式授权。
 $isCheckMode = $Check -or (!$DryRun -and !$Apply)
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -84,8 +83,8 @@ function Get-NormalizedJson {
     }
 
     try {
-        # Windows PowerShell 5.1 does not support ConvertFrom-Json -Depth.
-        # Keep the depth limit on ConvertTo-Json so nested gameplay configs are preserved when normalized.
+        # Windows PowerShell 5.1 不支持 ConvertFrom-Json -Depth。
+        # 将深度限制保留在 ConvertTo-Json 上，使归一化时仍保留嵌套玩法配置。
         $json = ConvertFrom-Json -InputObject $text
         return ($json | ConvertTo-Json -Depth 100 -Compress)
     }

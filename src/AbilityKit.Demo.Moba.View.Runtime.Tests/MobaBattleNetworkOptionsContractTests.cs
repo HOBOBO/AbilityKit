@@ -30,7 +30,7 @@ public sealed class MobaBattleNetworkOptionsContractTests
     private const string BattleId = "battle-moba";
     private const string PublicRoomId = "room-moba";
 
-    private static NetworkTransportOptions Build(bool useFrameSyncInput) =>
+    private static NetworkTransportOptions Build(bool useFrameSyncInput, bool fixedBaseline = false, bool scoped = false) =>
         NetworkTransportOptionsFactory.Create(new NetworkTransportOptionsFactoryOptions
         {
             Host = Host,
@@ -42,9 +42,51 @@ public sealed class MobaBattleNetworkOptionsContractTests
             BattleId = BattleId,
             PublicRoomId = PublicRoomId,
             UseFrameSyncInput = useFrameSyncInput,
+            UseFixedBaselineStateSync = fixedBaseline,
+            UseScopedStateSyncInput = scoped,
+            ScopedInputPlayerId = 123,
+            ScopedInputWorldId = RoomId,
             GetReliableEventEpoch = () => "epoch-1",
             GetReliableEventLastAcknowledgedSequence = () => 42L
         });
+
+    [Fact]
+    public void ScopedStateSyncUsesOneGenerationAcrossInputsAndRetry()
+    {
+        var options = Build(useFrameSyncInput: false, fixedBaseline: true, scoped: true);
+        var other = Build(useFrameSyncInput: false, fixedBaseline: true, scoped: true);
+        var request = new SubmitInputRequest(new WorldId(RoomId.ToString()),
+            new PlayerInputCommand(new FrameIndex(7), new PlayerId("123"), 1, Array.Empty<byte>()));
+        var first = Assert.IsType<SequencedInput>(options.PrepareSubmitInput!(request));
+        var retry = Assert.IsType<SequencedInput>(options.RewriteSubmitInputFrame!(first, 8));
+        var second = Assert.IsType<SequencedInput>(options.PrepareSubmitInput!(request));
+
+        Assert.Equal(RoomGatewayOpCodes.SubscribeStateSyncMovementProof, options.OpPostAuthentication);
+        Assert.Equal(RoomGatewayOpCodes.SubmitScopedStateSyncInput, options.OpSubmitInput);
+        Assert.NotEqual(Guid.Empty, first.InputGeneration);
+        Assert.Equal(options.StateSyncInputGeneration, first.InputGeneration);
+        Assert.Equal(first.InputGeneration, retry.InputGeneration);
+        Assert.Equal(first.InputGeneration, second.InputGeneration);
+        Assert.Equal(1UL, first.CommandSequence);
+        Assert.Equal(first.CommandSequence, retry.CommandSequence);
+        Assert.Equal(8, retry.Request.Input.Frame.Value);
+        Assert.Equal(2UL, second.CommandSequence);
+        Assert.NotEqual(other.StateSyncInputGeneration, first.InputGeneration);
+    }
+
+    [Fact]
+    public void ScopedStateSyncDoesNotReplaceLegacyOrFrameRoutes()
+    {
+        var oldFixed = Build(useFrameSyncInput: false, fixedBaseline: true);
+        var noCapability = Build(useFrameSyncInput: false, scoped: true);
+        var frames = Build(useFrameSyncInput: true, fixedBaseline: true, scoped: true);
+
+        Assert.Equal(RoomGatewayOpCodes.SubscribeFixedBaselineStateSync, oldFixed.OpPostAuthentication);
+        Assert.Equal(RoomGatewayOpCodes.SubmitBattleInput, oldFixed.OpSubmitInput);
+        Assert.Equal(RoomGatewayOpCodes.SubscribeStateSync, noCapability.OpPostAuthentication);
+        Assert.Equal(OpCodes.SubmitFrameInput, frames.OpSubmitInput);
+        Assert.All(new[] { oldFixed, noCapability, frames }, options => Assert.Equal(Guid.Empty, options.StateSyncInputGeneration));
+    }
 
     [Fact]
     public void ProtocolPreset_RoomGatewayOpcodes_AndSession_AreApplied()

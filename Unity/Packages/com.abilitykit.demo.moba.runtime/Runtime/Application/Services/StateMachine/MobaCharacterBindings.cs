@@ -95,6 +95,9 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             {
                 if (cast == null || cast.ParameterSnapshots == null || cast.SkillId <= 0 || !keys.Add(cast.SkillId.ToString()) ||
                     (cast.CastKind != "LoadoutSlot" && cast.CastKind != "BasicAttack" && cast.CastKind != "Active" && cast.CastKind != "Auxiliary") ||
+                    (cast.LevelSource != "CurrentSlot" && cast.LevelSource != "Slot" && cast.LevelSource != "ActivationBuff") ||
+                    (cast.LevelSource == "Slot" ? cast.LevelSourceSlot <= 0 : cast.LevelSourceSlot != 0) ||
+                    (cast.LevelSource == "ActivationBuff" ? cast.LevelSourceBuffId <= 0 : cast.LevelSourceBuffId != 0) ||
                     (cast.AimSource != "Input" && cast.AimSource != "StateAimSnapshot" && cast.AimSource != "InputWithinStateCone") ||
                     (cast.AimSource != "Input" && (string.IsNullOrWhiteSpace(cast.AimScope) ||
                         !States.Exists(x => x.AimScope == cast.AimScope && x.CaptureAim))) ||
@@ -204,6 +207,21 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
     public sealed class MobaCastBinding
     {
         public int SkillId { get; set; }
+        /// <summary>
+        /// 等级来源为当前槽、显式槽，或激活模式 Buff 持有的原 Cast。
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string LevelSource { get; set; } = "CurrentSlot";
+        /// <summary>
+        /// 显式来源槽的编号，从一开始；仅 Slot 来源使用。
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public int LevelSourceSlot { get; set; }
+        /// <summary>
+        /// 激活模式的 Buff 定义；同施法者有效来源必须唯一。
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public int LevelSourceBuffId { get; set; }
         public string CastKind { get; set; } = "LoadoutSlot";
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public bool RespectActionControl { get; set; }

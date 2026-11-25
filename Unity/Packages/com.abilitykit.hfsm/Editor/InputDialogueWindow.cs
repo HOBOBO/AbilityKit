@@ -5,7 +5,7 @@ using UnityEngine;
 namespace AbilityKit.HFSM.Editor
 {
     /// <summary>
-    /// Popup window for text input dialog.
+    /// 文本输入对话框弹出窗口。
     /// </summary>
     public class InputDialogueWindow : EditorWindow
     {

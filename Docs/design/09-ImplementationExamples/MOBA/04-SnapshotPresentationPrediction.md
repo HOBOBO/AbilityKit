@@ -2,6 +2,7 @@
 
 > 文档类型：MOBA 项目应用组合深潜
 > 事实基线：2026-08-16
+> 头顶多资源面板补充基线：2026-11-24，见第 18 节；前文历史验证范围不外推。
 >
 > 本文以当前 MOBA runtime、通用 snapshot package 和 MOBA view runtime 为准，拆分逻辑快照输出、客户端分发/表现 Pipeline、远程输入驱动与预测回滚。仓库中存在多个同名 `FrameSnapshotDispatcher`，本文会明确每一处所指类型。
 
@@ -365,8 +366,8 @@ WorldAutoStartModule
 | 通用 Snapshot Pipeline | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/SnapshotPipeline.cs` |
 | MOBA confirmed-view 快照装配 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/ConfirmedViewSnapshotRuntime.cs` |
 | Share 层 Dispatcher | `Unity/Packages/com.abilitykit.demo.moba.share/Runtime/Game/Flow/Battle/Snapshot/FrameSnapshotDispatcher.cs` |
-| 远程 world 工厂 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldRuntimeFactory.cs` |
-| 预测/远程 modules | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenRuntimeModuleFactory.cs` |
+| 远程 world 工厂 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/FrameSync/RemoteDrivenWorldRuntimeFactory.cs` |
+| 预测/远程 modules | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/FrameSync/RemoteDrivenRuntimeModuleFactory.cs` |
 | Readiness validator | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleRuntimeReadinessValidator.cs` |
 | Transform snapshot 验收示例 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/Acceptance/Heroes/XiaoQiao/XiaoQiaoSkillAcceptanceTests.cs` |
 | 回滚预测设计 | [Rollback 与预测](../../07-NetworkSynchronization/03-RollbackPrediction.md) |
@@ -380,4 +381,91 @@ WorldAutoStartModule
 - 本批未运行 Unity PlayMode、真实双端同步、弱网或回滚 artifact，不新增 E4；`moba-smoke` 的 workflow 接线也不能由本地 E3 结果替代。
 - 通用 `SnapshotPipeline`、dispatcher 和 rollback 原语属于框架；MOBA emitter registry、opcode、View dispatcher、预测历史与 Session teardown 是项目组合，不应下沉为统一战斗表现应用层。
 
-*文档版本：v3.2 | 最后更新：2026-08-16*
+## 18. 头顶当前状态与多资源面板（2026-11-24）
+
+**当前实现 / MOBA 项目组合。** 用户已批准[头顶指示器提案 D1–D3](../../../../plans/MobaActorOverheadIndicatorsProposal.2026-11-24.md)。面板由当前权威状态重建，伤害/治疗事件只生成浮字。该能力留在 MOBA runtime/share/view 与协议适配层，不改变通用世界的时钟、逻辑恢复资格或资源玩法。
+
+### 18.1 来源与正式配置
+
+唯一配置源为 `LubanConfig/Moba/Production/Datas/moba-overhead-indicators.xlsx`：
+
+| 表 | 职责 |
+|---|---|
+| `indicator_definitions` | 语义、Resource/ActorCounter/有效 HFSM 参数/BuffStack/BuffPresent 来源、仿射转换、显式映射、条件覆盖、Ready 和缺失策略 |
+| `overhead_layouts` | 连续条、分段格、数字、有序槽位、尺寸/间距、颜色及 LocalOnly |
+| `actor_overhead_bindings` | Actor 内容到布局的绑定，含分类缺省布局 |
+
+HP/Mana 的 Current 读 `ResourceState.Current`，上限读实时有效 MaxAttribute；`MobaActorResourceReader` 同时供标准 ActorProjection 使用，不将 LastMax 当实时上限，也不调用资源变更入口。Counter 使用 actor-scoped key，HFSM 要求参数已声明，Buff 明确 Sum/Max 聚合；缺失资源与真实零值不同。转换不接受任意脚本。配置校验和发布方法见 [Luban 管线](../../../../LubanConfig/Moba/README.md#头顶血条与多资源面板)。
+
+七英雄均绑定生命与蓝量，护盾继续来自 ShieldState。烬普攻弹药读有效 AttackSlot，R 读现有 Counter 与最终候选 Buff，两个来源在同一槽位互斥；安妮读被动 Counter 并在四格时 Ready；维迦只读成长 Buff 层数，用数字显示。独有计数首批 LocalOnly。金克丝、古拉加斯、卡尔萨斯、拉克丝不额外发明能量玩法。内容 ID 只用于绑定，共享投影和渲染算法不按英雄身份分支。
+
+### 18.2 完整基线与两条同步链
+
+```mermaid
+flowchart LR
+    A[当前 Resource / Counter / HFSM / Buff] --> B[只读 Indicator 投影]
+    C[Luban 定义与绑定] --> B
+    B --> D[4020 完整指示器集合]
+    D --> E[本地快照 dispatcher]
+    D --> F[状态同步宿主 4021 载体]
+    G[原 HFSM 投影与 Shield 完整集合] --> F
+    F --> H[Gateway mapper 解壳]
+    H --> I[权威状态成功应用]
+    I --> E
+    E --> J[HUD 当前状态缓存与统一槽位]
+```
+
+`MobaActorIndicatorSnapshotService` 在现有快照阶段采样，注册 emitter 顺序 87，并实现 `IActiveBaselineSnapshotProvider`。4020 `actor-indicator-state.push` 携带 ActorId/LayoutId/IndicatorId、Current、Max、HasMax、Ready、Availability。每包替换该通道完整集合，编码空集合清除旧显示；缺包或解码失败不能当成空集合。codec 拒绝非有限数、重复指示器、布局冲突和非法范围。平台无关 `FrameSnapshotData.HasActorIndicators` 区分未携带与显式空集，ET 适配和 typed sink 保留该语义。
+
+**状态同步实际宿主。** Orleans `MobaBattleRuntimeAdapter.CaptureStateSyncProjection` 用 4021 `state-sync-overhead.push` 包装原 HFSM 投影和完整 Indicator/Shield，再沿原 Cue 载体发送。`GatewayStateSyncSnapshotMapper` 按固定基线、Cue、Overhead 解壳，保留原投影 opcode/schema。`AuthoritativeStateRecoveryRuntime` 仅在权威状态接纳并成功应用后，按 Cue、Shield、Indicator 顺序送入现行 dispatcher；表现状态不参与实体逻辑导入或输入确认。
+
+**帧同步。** 输入帧推进本地世界后复用同一 projector/emitter。指示器是派生表现，不新增模拟 rollback provider；检查点恢复/输入重演后从目标世界重新投影。HUD 显式基线重置允许较早合法帧，普通播放拒绝旧状态。测试验证真实技能输入、完整检查点恢复及输入重演后的 Mana/被动投影相等，不通过历史 Cue 累加计数。
+
+### 18.3 面板、显隐与复用
+
+`BattleHudOverheadView` 强类型绑定生命、护盾、溢出文本、资源行、CastSlot、BuffSlot 和数值文本。正式 prefab 为 `Resources/ui/battle/hud_overhead.prefab`，缺失时诊断并由同一结构工厂 fallback。结构生成唯一入口为编辑器 `MobaOverheadPrefabBuilder.Build`；普通布局/数值修改走 Luban，无需重建 prefab。
+
+HP 使用 Current/MaxHP；护盾为独立薄层 CurrentShield/MaxHP，超过 MaxHP 的部分显示额外数值，完整空集同时清缓存和填充。连续条、有限分段格与数字复用同一行分发；Ready 同时有图样提示。无有效生命来源显示未知，辅助来源不可用时隐藏，真实零保持空条。既有蓄力继续读 SkillState，Buff/蓄力挂统一槽位，不改变来源语义。
+
+控制器按 LayoutId 池化整个面板与行，稳定刷新不创建/销毁对象；数值、文本和几何仅在变化时写入。Despawn、换世界、布局切换和代际替换清理旧状态及挂载子项；护盾先到时缓存，面板晚创建仍能恢复。死亡、无位置、相机背面和屏幕外隐藏整个根。Spawn/Despawn 帧及已有 EntityVersion 用于过滤迟到状态，不用最大帧号阻止显式恢复。
+
+### 18.4 验证事实与限制
+
+2026-11-24，Windows、Unity 2022.3.62f1 EditMode 与 .NET 10 本地结果：
+
+| 范围 | 本轮结果与证据 |
+|---|---|
+| 配置与发布 | Python 182 项通过；Luban apply/check-published 通过；MOBA codegen gate 通过 |
+| Runtime / 内容 / wire | 最终聚焦回归 106/106，通过实时 HP/Mana、烬弹药、安妮 Ready、维迦层数、合法空集、golden 与恢复/重演断言 |
+| 协议 | ProtocolAdapter 37/37，协议编译器 104/104，catalog/wire 只读检查通过，Moba/Shooter 协议工程构建通过 |
+| 状态同步 | 服务端真实 projection 载体测试 1/1；Unity 安妮恢复测试覆盖 mapper、正式恢复端口、dispatcher、护盾恢复/到期清除和旧包过滤 |
+| Unity 显示 | 联合回归 17/17；最后行间距调整后头顶专测 9/9；覆盖正式 prefab、七英雄联系表、独有计数、溢出护盾、生命周期与对象复用 |
+| 性能采样 | 128 Actor × 300 次稳定 HUD 刷新记录耗时、线程分配和 Transform 数；该刷新段采样 0 字节分配、对象数稳定。此结论不涵盖快照投影/序列化分配 |
+
+本地报告目录为 `local/Logs/overhead-indicators/20261124/implementation/`，包括 `unity-overhead.xml`、`unity-overhead-final.xml`、`dotnet-final/runtime-regression-final.trx` 及对应日志。`seven-hero-overhead.png` 为测试生成的七英雄布局联系表，展示每英雄作为本地角色时的辅助行，不是多人实战截图。上述自动化契约为 E3；本机图形产物只证明指定场景，不外推跨平台、线上或弱网验收。
+
+已知限制：状态同步逻辑导入器对 Summon Kind=4 的拒绝保持原状；同帧同 ActorId 的不同代际仍受现有包络信息限制；本轮未新增远程蓄力载体，未全面验证远程蓄力；未做真实双端/线上/跨平台或弱网测试。快照集合和序列化仍有分配，不宣称全链零 GC。前文第 17 节保留历史验证基线，不代表本节新增用例结果。
+
+## 19. 固定量非生命资源自动回复（2026-11-24）
+
+`MobaResourceRegenerationSystem` 在 Execute `Base + Normal + 6` 调用 `MobaResourceRegenerationService`，使用正式世界 DeltaTime，早于角色状态机、Brain 和技能费用检查。规则来自 Luban `resource_regeneration_rules`；首批 Mana 绑定固定点数属性 24，七英雄基础/成长由属性模板维护。配置与扩展方式见 [Luban 管线](../../../../LubanConfig/Moba/README.md#固定量资源自动回复)。本机制属于 MOBA 项目层，不改变通用世界时钟或同步模式。
+
+服务按 ActorId、规则 Id 稳定顺序采样有效速率和实时上限，以 Fixed64 计算增量，经 `MobaResourceMutation` 更新既有 `ResourceState.Current`。满值/超上限不写；缺资源不创建；非有限值拒绝；合法 Modifier 将速率降为负数时按零处理。只有 InGame、活跃且存活对象回复。死亡（含死亡施法）停回，暂停无帧不推进，复活/恢复从下一正常帧继续，不补死期或暂停时间。移动、施法、引导与持续费用不暂停基础回复。没有独立 Timer、永久 Buff 或回复历史。
+
+| 状态 | 唯一所有者与恢复 |
+|---|---|
+| 资源 Current 与资源存在性 | 现有 ResourceContainer，生成组件恢复；回复器没有副本 |
+| 回复属性与 Modifier | 既有属性组及来源恢复 |
+| Max、每帧增量 | 当前有效属性和世界步长派生，不捕获 |
+| 规则索引 | 首次正常帧从发布配置加载，世界内固定，只读；不承诺热更 |
+| 时间 | 既有世界帧，恢复 N 后从 N+1 正常 System 重演，无 accumulator 或新 Provider |
+
+帧同步使用相同执行链；实际 `ClientPredictionDriverModule` 场景比较每帧法力 raw 值及全部 Provider。状态同步由服务器执行同一 System，权威 Current/Max 经既有 Indicator 完整集合、4021 载体及正式接纳/dispatcher 更新 HUD。两条链分别验收，蓝条没有本地回复计时。
+
+**已知边界**：现行 `MobaActorStateImport` 仅含 HP/MaxHP，没有非 HP 资源导入字段；本批不将只读 Indicator 反写逻辑资源，也不新增协议。因此状态同步的权威蓝条可以更新，但远程逻辑世界的 Mana 不因该显示载体得到完整权威重建。后续需要非 HP 资源参与远程逻辑预测准入时，应另行明确资源协议和导入合同。Summon Kind=4 的既有导入拒绝保持原状。生命自动回复、百分比回复、脱战延迟及特殊回复门禁不在本批。
+
+本轮证据与实际运行结果记录在 `plans/MobaSevenHeroNumericBaseline.2026-11-24.md` 的 R1–R3 实施记录；本地报告位于 `local/Logs/resource-regeneration/20261124/implementation/`。验收不外推真实双端、线上、跨平台或弱网。
+
+文档类型：MOBA 项目应用组合深潜 | 事实基线：第 18–19 节 2026-11-24，其余 2026-08-16 | 证据等级：本地契约 E3，图形证据仅限本机测试场景
+
+*文档版本：v3.4 | 最后更新：2026-11-24*

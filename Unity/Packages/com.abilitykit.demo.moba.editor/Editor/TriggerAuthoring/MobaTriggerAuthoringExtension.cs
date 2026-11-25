@@ -459,6 +459,8 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
             context.RegisterAction(Action("remove_projectile", "移除投射物", "Action/Projectile"));
             context.RegisterAction(Action("spawn_summon", "生成召唤物", "Action/Summon",
                 Reference("summon_id", SummonSemanticId),
+                Optional("duration_skill_level_parameter", TriggerValueType.String),
+                Optional("birth_attributes", TriggerValueType.String),
                 Optional("position_mode", TriggerValueType.Integer),
                 Optional("rotation_mode", TriggerValueType.Integer),
                 Optional("interval_ms", TriggerValueType.Number),
@@ -856,6 +858,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
         {
             var described = Append(parameters, new[]
             {
+                amountGroup == null ? Optional("magnitude_terms", TriggerValueType.String) : OneOf(amountGroup, "magnitude_terms", TriggerValueType.String),
                 amountGroup == null ? Optional("magnitude_value", TriggerValueType.Number) : OneOf(amountGroup, "magnitude_value", TriggerValueType.Number),
                 Choice("magnitude_type", false,
                     Option(0, "固定值"), Option(1, "等级曲线"), Option(2, "属性"),

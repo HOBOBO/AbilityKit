@@ -11,6 +11,9 @@ namespace AbilityKit.Trace
         RootEnded = 3,
         RootRetained = 4,
         RootReleased = 5,
+        /// <summary>
+        /// 整棵树回收后逐节点通知。ContextId 是被移除节点，RootId 是实际所属根。
+        /// </summary>
         RootPurged = 6,
         RegistryCleared = 7,
         LifecycleRestored = 8,

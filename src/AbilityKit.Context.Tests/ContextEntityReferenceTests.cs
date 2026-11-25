@@ -106,6 +106,33 @@ public sealed class ContextEntityReferenceTests
     }
 
     [Fact]
+    public void Exact_reads_prefer_the_bound_provider_property_without_borrowing_registry_fields()
+    {
+        var registry = new ContextRegistry();
+        var boundId = registry.Create().With(new TestProperty(11)).Build();
+        var unboundId = registry.Create().With(new TestProperty(44)).Build();
+        Assert.True(registry.TryGetReference(boundId, out var bound));
+        Assert.True(registry.TryGetReference(unboundId, out var unbound));
+        var providers = new ContextRealtimeProviderRegistry();
+        providers.Register<TestProperty>(new SplitReadProvider(boundId));
+        var resolver = new ContextValueResolver(registry, realtimeProviders: providers);
+
+        var exact = resolver.ReadRealtime<int, TestProperty>(bound, "value");
+        Assert.True(exact.Found);
+        Assert.Equal(22, exact.Value);
+        Assert.Equal(ContextEntityQueryStatus.FieldMissing, resolver.ReadRealtime<int, TestProperty>(bound, "providerOnly").Status);
+
+        var property = resolver.ReadRealtimeProperty<TestProperty>(bound);
+        Assert.True(property.Found);
+        Assert.True(property.Value.TryGetValue<int>("value", out var propertyValue));
+        Assert.Equal(22, propertyValue);
+
+        var unboundExact = resolver.ReadRealtime<int, TestProperty>(unbound, "value");
+        Assert.True(unboundExact.Found);
+        Assert.Equal(44, unboundExact.Value);
+    }
+
+    [Fact]
     public void Provider_rebinding_during_read_is_rejected_after_capture()
     {
         var registry = new ContextRegistry();
@@ -154,6 +181,16 @@ public sealed class ContextEntityReferenceTests
         public int TypeId => 0;
     }
 
+    private sealed class SplitReadProvider(long boundId) : IContextRealtimeValueProvider
+    {
+        public bool TryGetProperty(long contextId, out IProperty property)
+        {
+            property = contextId == boundId ? new TestProperty(22) : null!;
+            return property != null;
+        }
+
+    }
+
     private sealed class RebindingProvider(Action rebind) : IContextRealtimeValueProvider
     {
         public int Reads;
@@ -164,6 +201,5 @@ public sealed class ContextEntityReferenceTests
             property = new TestProperty(9);
             return true;
         }
-        public bool TryGetValue<T>(long contextId, string key, out T value) => throw new InvalidOperationException("Field path must not run.");
     }
 }

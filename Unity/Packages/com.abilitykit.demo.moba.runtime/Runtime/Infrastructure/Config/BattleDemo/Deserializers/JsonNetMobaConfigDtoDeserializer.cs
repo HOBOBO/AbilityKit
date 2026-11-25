@@ -15,6 +15,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
         private static readonly HashSet<Type> SupportedTypes = new HashSet<Type>
         {
             typeof(CharacterDTO),
+            typeof(IndicatorDefinitionDTO),
+            typeof(OverheadLayoutDTO),
+            typeof(ActorOverheadBindingDTO),
+            typeof(ResourceRegenerationRuleDTO),
             typeof(SkillDTO),
             typeof(SkillButtonTemplateDTO),
             typeof(ContinuousTagTemplateDTO),

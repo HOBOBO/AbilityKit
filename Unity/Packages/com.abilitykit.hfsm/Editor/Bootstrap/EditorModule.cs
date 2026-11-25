@@ -25,6 +25,7 @@ namespace AbilityKit.HFSM.Editor.Bootstrap
         public EditorModuleDescriptor Descriptor { get; } = new EditorModuleDescriptor(
             ModuleId,
             "abilitykit.hfsm.module.name",
+            showInHub: true,
             order: 220);
 
         public void OnRegister(IEditorPlatformContext context)
@@ -40,6 +41,7 @@ namespace AbilityKit.HFSM.Editor.Bootstrap
                     AuthoringMenuId,
                     "Window/AbilityKit/HFSM 状态机编辑器",
                     StateMachineEditorWindow.OpenWindow,
+                    showInHub: true,
                     order: 220)));
                 _registrations.Add(context.Menus.Register(new EditorMenuContribution(
                     CreateMenuId,
@@ -50,6 +52,7 @@ namespace AbilityKit.HFSM.Editor.Bootstrap
                     RuntimeMenuId,
                     "Window/AbilityKit/HFSM 运行时监视器",
                     RuntimeMonitorWindow.OpenWindow,
+                    showInHub: true,
                     order: 222)));
                 _registrations.Add(context.Panels.Register(new EditorPanelContribution(
                     AuthoringPanelId,

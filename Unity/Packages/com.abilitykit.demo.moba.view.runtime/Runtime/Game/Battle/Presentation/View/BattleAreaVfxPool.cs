@@ -7,17 +7,22 @@ using UnityEngine;
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// Per-(templateId, kind) GameObject pool for AOE area view objects (model / range / vfx).
-    /// Each bucket is backed by the framework <see cref="ObjectPool{T}"/>.
-    /// AOE objects have 3 distinct creation paths (Model, Range, Vfx), so the pool
-    /// must be constructed with a per-kind factory via <see cref="UsingFactory"/>.
     ///
-    /// Hierarchy layout (when an optional <see cref="BattleViewHierarchyManager"/> is supplied):
-    /// <c>[Battle]/_Pool/_Area/{kind}/area_{templateId}/...</c> for inactive pooled instances.
+    ///
+    /// 按 (templateId, kind) 分桶的 AOE 区域视图 GameObject 池，支持模型、范围及特效。
+    /// 每个分桶由框架 <see cref="ObjectPool{T}"/> 支撑。
+    /// AOE 对象有 Model、Range、Vfx 三条创建路径，必须通过 <see cref="UsingFactory"/> 提供按种类区分的工厂。
+    ///
+    /// 提供可选 <see cref="BattleViewHierarchyManager"/> 时的层级布局：
+    /// 非活动池实例位于 <c>[Battle]/_Pool/_Area/{kind}/area_{templateId}/...</c>。
+    ///
+    ///
     /// </summary>
     public sealed class BattleAreaVfxPool
     {
-        /// <summary>What kind of object is being pooled in a bucket.</summary>
+        /// <summary>
+        /// 分桶内池化对象的种类。
+        /// </summary>
         public enum PoolKind
         {
             Model,
@@ -46,21 +51,21 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Creates a pool backed by a per-kind factory.
+        /// 使用按种类区分的工厂创建对象池。
         /// </summary>
-        /// <param name="factory">(templateId, kind) → fresh GameObject.</param>
-        /// <param name="capacityPerKindPerTemplate">Warm instance count per bucket.</param>
+        /// <param name="factory">(templateId, kind) → 新建 GameObject。</param>
+        /// <param name="capacityPerKindPerTemplate">每个分桶的预热实例数。</param>
         public static BattleAreaVfxPool UsingFactory(Func<int, PoolKind, GameObject> factory, int capacityPerKindPerTemplate = 8)
         {
             return new BattleAreaVfxPool(factory, capacityPerKindPerTemplate, hierarchy: null);
         }
 
         /// <summary>
-        /// Creates a pool backed by a per-kind factory and a hierarchy manager.
+        /// 使用按种类区分的工厂及层级管理器创建对象池。
         /// </summary>
-        /// <param name="factory">(templateId, kind) → fresh GameObject.</param>
-        /// <param name="capacityPerKindPerTemplate">Warm instance count per bucket.</param>
-        /// <param name="hierarchy">Optional manager that organizes pool instances in the Hierarchy.</param>
+        /// <param name="factory">(templateId, kind) → 新建 GameObject。</param>
+        /// <param name="capacityPerKindPerTemplate">每个分桶的预热实例数。</param>
+        /// <param name="hierarchy">用于在层级中组织池实例的可选管理器。</param>
         public static BattleAreaVfxPool UsingFactory(Func<int, PoolKind, GameObject> factory, BattleViewHierarchyManager hierarchy, int capacityPerKindPerTemplate = 8)
         {
             return new BattleAreaVfxPool(factory, capacityPerKindPerTemplate, hierarchy);
@@ -78,7 +83,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Rent a GameObject from the bucket. Creates the bucket lazily on first use.
+        /// 从分桶租用 GameObject，首次使用时按需创建分桶。
         /// </summary>
         public bool TryRent(int templateId, PoolKind kind, out GameObject instance)
         {
@@ -122,7 +127,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Rent a GameObject from the bucket.
+        /// 从分桶租用 GameObject。
         /// </summary>
         public GameObject Rent(int templateId, PoolKind kind)
         {
@@ -131,7 +136,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Return a GameObject using the templateId/kind stored on its <see cref="BattleAreaPoolableTag"/>.
+        /// 使用 <see cref="BattleAreaPoolableTag"/> 保存的 templateId/kind 归还 GameObject。
         /// </summary>
         public void Return(GameObject instance)
         {
@@ -141,7 +146,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Return a GameObject to its bucket.
+        /// 将 GameObject 归还所属分桶。
         /// </summary>
         public void Return(int templateId, PoolKind kind, GameObject instance)
         {
@@ -168,7 +173,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Destroy all pooled GameObjects and release all bucket pools.
+        /// 销毁全部池化 GameObject，释放所有分桶池。
         /// </summary>
         public void Clear()
         {
@@ -220,9 +225,9 @@ namespace AbilityKit.Game.Flow
 
         private static GameObject CreateFallbackAreaInstance(int templateId, PoolKind kind)
         {
-            // Prefab missing or factory returned null - emit a primitive placeholder so the pool
-            // can still Prewarm without throwing. The placeholder is harmless and immediately
-            // discarded once a real prefab is supplied.
+            /*
+             * 预制体缺失或工厂返回 null 时，创建基础图元占位对象，使对象池仍可 Prewarm 而不抛异常。占位对象无副作用，提供真实预制体后立即丢弃。
+             */
             var primitiveType = kind switch
             {
                 PoolKind.Range => PrimitiveType.Sphere,
@@ -244,8 +249,7 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
-        /// Variant of <see cref="ResetInstance"/> that parents the instance under its
-        /// pool bucket root when a hierarchy manager is supplied.
+        /// <see cref="ResetInstance"/> 的变体：提供层级管理器时，将实例挂到其对象池分桶根节点。
         /// </summary>
         private void ResetInstanceToBucket(GameObject go, int templateId, PoolKind kind)
         {
@@ -287,9 +291,12 @@ namespace AbilityKit.Game.Flow
     }
 
     /// <summary>
-    /// Attaches to pooled AOE GameObjects to identify the bucket (templateId + kind)
-    /// when returned without an explicit key.
-    /// Implements <see cref="IPoolable"/> so framework callbacks fire correctly.
+    ///
+    ///
+    /// 附加到池化 AOE GameObject，在未显式提供键的归还操作中识别分桶（templateId + kind）。
+    /// 实现 <see cref="IPoolable"/>，确保框架回调正确触发。
+    ///
+    ///
     /// </summary>
     public sealed class BattleAreaPoolableTag : MonoBehaviour, IPoolable
     {

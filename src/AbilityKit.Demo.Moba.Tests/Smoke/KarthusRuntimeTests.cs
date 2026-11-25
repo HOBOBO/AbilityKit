@@ -376,7 +376,8 @@ public sealed class KarthusRuntimeTests
             Setup.Execute(new MobaAcceptanceSetupActionExpectation{action="spawn_actor",alias=alias,heroId=hero,
                 attributeTemplateId=hero,playerId="karthus_"+alias,teamId=team,position=new MobaAcceptanceVector3Expectation{x=x,z=z}});
             Assert.True(Setup.TryGetActorId(alias,out var id));Setup.DisableActorBrain(id);
-            Set(id,"MAGIC_DEFENSE",0);Set(id,"PHYSICS_DEFENSE",0);Set(id,"PER_SECOND_BLOOD_R",0);Set(id,"PER_SECOND_MANA_R",0);return id;
+            Set(id,"MAGIC_DEFENSE",0);Set(id,"PHYSICS_DEFENSE",0);Set(id,"PER_SECOND_BLOOD_R",0);Set(id,"PER_SECOND_MANA_R",0);
+            Set(id,"MANA_REGEN_PER_SECOND",0);return id;
         }
         public void Set(int actor,string attribute,float value)=>Setup.SetScenarioActorAttribute(actor,attribute,value);
         public ActorEntity Actor(int id){Assert.True(Services.Resolve<MobaActorLookupService>().TryGetActorEntity(id,out var actor));return actor;}

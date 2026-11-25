@@ -3,6 +3,8 @@
 自有框架包的工程整理、注释、目录和发布准备遵循
 `Docs/design/10-EngineeringQuality/10-FrameworkPackageEngineeringStandards.md`。
 
+- 文档的类型、模板、核校状态与验收遵循 `Docs/design/10-EngineeringQuality/20-DocumentationSystemStandard.md`。包根 README 和包内文档负责独立接入及使用契约，跨包架构和装配设计放仓库 `Docs/design/`。新建包文档使用 `Documentation~/`；旧目录先核对消费者，不批量迁移。修改导航或格式不代表正文已核校。
+
 - 框架代码注释统一使用中文多行形式。类型及公开成员采用多行 XML 文档注释，说明真实契约；实现说明使用中文多行块注释。
 - 既有注释债务按包推进；新增和实质修改代码遵循统一规范，不将局部完成表述为全仓完成。
 - 临时代码必须核查调用方与既定契约后处理。保留中的弃用 API、正式异常隔离和失败兜底不能直接作为临时代码删除。

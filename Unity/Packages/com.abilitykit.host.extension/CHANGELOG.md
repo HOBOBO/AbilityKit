@@ -12,6 +12,7 @@ AbilityKit 整体仍处于开发期，0.x 版本不承诺向后兼容。
 - 客户端预测上下文和帧同步会话按当前世界实例隔离；已摘除世界不再参与预测、捕获或会话输入，重建不继承旧历史与队列。显式无世界会话及首次绑定的排队行为保持不变。
 
 ### 整理
+- 客户端预测拆出逐世界分组状态、诊断状态、本地输入队列、输入执行、结算时间线和推进阶段控制器；保留输入优先级、回滚与失败提交边界。时钟对齐改为使用当前 `IFrameTime` 实例可选的 `IFrameTimeAligner`，支持自定义实现。
 - 将 `FramePacketNetAdapter` 迁入 MOBA 客户端会话层，并复用会话内部上下文；双写、缺帧和快照行为不变。原 `AbilityKit.Ability.Host.Extensions.Session` 公开类型不再由框架导出；其他项目应使用通用帧包、缓冲和快照路由装配自己的会话。
 - 将 `WorldCatchUpDriver` 放入 `FrameSync/CatchUp`，将 `FrameSyncInputHubFactory` 与 `FrameJitterBufferHub<TFrame>` 放入 `FrameSync/Input`。三者的命名空间与公开签名保持不变。
 - 补齐时间与自动启动模块的中文契约和包入口；保留历史文档与示例路径。

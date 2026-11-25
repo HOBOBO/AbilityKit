@@ -8,6 +8,68 @@ namespace AbilityKit.Demo.Moba.Presentation.ProtocolAdapter.Tests;
 
 public sealed class GatewayStateSyncSnapshotMapperTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ScopedMovementProof_OtherInputGenerationDoesNotDiscardAuthority(bool sameProducer)
+    {
+        var input = System.Guid.NewGuid();
+        var stream = System.Guid.NewGuid();
+        var push = new WireStateSyncSnapshotPush
+        {
+            WorldId = 7, Frame = 10, IsFullSnapshot = true, SchemaVersion = WireStateSyncMovementPayload.SchemaVersion,
+            Actors = new List<WireStateSyncActorSnapshot> { new() { ActorId = 5, X = 9 } }
+        };
+        var scoped = new WireStateSyncMovementPayload
+        {
+            FixedBaselinePayload = FixedBaselineStateSyncProtocol.Encode(stream, 2, 0, 1, null),
+            Proof = new WireStateSyncMovementProof
+            {
+                InputGeneration = sameProducer ? input : System.Guid.NewGuid(), PlayerId = 3, WorldId = 7,
+                StreamGeneration = stream, SnapshotId = 2, Tick = 10, ActorId = 5, EntityVersion = 1,
+                TerminalThrough = 4, X = 9, RotationW = 1, MoveZ = 1, MoveSpeed = 5,
+                CanMove = true, HasIsolatedLocomotion = true
+            }
+        };
+
+        var mapped = GatewayStateSyncSnapshotMapper.MapScoped(in push, in scoped, input, 7, 3);
+
+        Assert.True(mapped.UsesFixedBaseline);
+        Assert.Equal(2L, mapped.SnapshotId);
+        Assert.Equal(9f, Assert.Single(mapped.Actors).X);
+        Assert.Equal(sameProducer, mapped.MovementProof.HasValue);
+        if (mapped.MovementProof is { } proof)
+        {
+            Assert.True(proof.Matches(in mapped));
+            Assert.Equal(4L, proof.TerminalThrough);
+            Assert.Equal(1f, proof.MoveZ);
+        }
+    }
+
+    [Fact]
+    public void FixedBaselinePreservesOverheadAndShieldEmptySetsAlongsideHfsmAndCues()
+    {
+        var indicators = MobaActorIndicatorSnapshotCodec.Serialize(new[] {
+            new MobaActorIndicatorSnapshotEntry { ActorId = 7, LayoutId = 2, IndicatorId = 2,
+                Current = 123, Max = 700, HasMax = true, Availability = 1 } });
+        var shields = MobaShieldStateSnapshotCodec.Serialize(System.Array.Empty<MobaShieldStateSnapshotEntry>());
+        var projection = new byte[] { 1, 2, 3 };
+        var overhead = MobaStateSyncOverheadPayloadCodec.Encode(11017, 4, projection, indicators, shields);
+        var cues = MobaPresentationCueSnapshotCodec.Serialize(new[] {
+            new MobaPresentationCueSnapshotEntry { SnapshotKind = (int)PresentationCueSnapshotKind.ActiveBaselineEnd } });
+        var wire = new WireStateSyncSnapshotPush { WorldId = 1, Frame = 12, IsFullSnapshot = true,
+            SchemaVersion = FixedBaselineStateSyncProtocol.SchemaVersion,
+            PayloadOpCode = MobaStateSyncCuePayloadCodec.OpCode,
+            Payload = FixedBaselineStateSyncProtocol.Encode(System.Guid.NewGuid(), 1, 0,
+                MobaStateSyncCuePayloadCodec.CarrierSchemaVersion,
+                MobaStateSyncCuePayloadCodec.Encode(MobaStateSyncOverheadPayloadCodec.OpCode, 1, overhead, cues)) };
+        var actual = GatewayStateSyncSnapshotDecoder.Decode(WireRoomGatewayBinary.Serialize(in wire));
+        Assert.Equal(11017, actual.PayloadOpCode); Assert.Equal(4, actual.SchemaVersion);
+        Assert.Equal(projection, actual.Payload); Assert.Equal(cues, actual.PresentationCueBaseline);
+        Assert.Equal(indicators, actual.ActorIndicatorBaseline); Assert.Equal(shields, actual.ShieldStateBaseline);
+        Assert.Empty(MobaShieldStateSnapshotCodec.Deserialize(actual.ShieldStateBaseline));
+    }
+
     /// <summary>
     /// 固定基线外壳与压缩投影的版本独立，解包不会丢失 Cue 或 HFSM 字节。
     /// </summary>

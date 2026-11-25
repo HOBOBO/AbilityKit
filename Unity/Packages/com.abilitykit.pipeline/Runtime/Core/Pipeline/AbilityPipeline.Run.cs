@@ -15,6 +15,7 @@ namespace AbilityKit.Pipeline
         {
             private readonly AbilityPipeline<TCtx> _owner;
             private readonly PipelineRuntime _runtime;
+            private readonly IPipelineRegistry _registry;
             private readonly IAbilityPipelineConfig _config;
             private readonly List<IAbilityPipelinePhase<TCtx>> _phases;
             private readonly int _ownerId;
@@ -77,10 +78,26 @@ namespace AbilityKit.Pipeline
                 if (initialize != null) initialize(this);
                 else _owner.Events?.OnPipelineStart?.Invoke(Context);
 
-                _runtime.Registry.Register(this);
-                PipelineDebugHooks.NotifyRunStarted<TCtx>(this, _owner, _config, this);
-                if (initialize == null)
-                    _owner.Events?.RecordTrace(_runtime, this, EPipelineTraceEventType.RunStart, default, State, string.Empty);
+                /*
+                 * 启动回调仍可选择注册表，登记后则固定本次运行的清理归属。
+                 * 启动失败只回收框架资源，不代替调用方释放业务上下文。
+                 */
+                _registry = _runtime.Registry;
+                try
+                {
+                    _registry.Register(this);
+                    PipelineDebugHooks.NotifyRunStarted<TCtx>(this, _owner, _config, this);
+                    if (initialize == null)
+                        _owner.Events?.RecordTrace(_runtime, this, EPipelineTraceEventType.RunStart, default, State, string.Empty);
+                }
+                catch
+                {
+                    State = EAbilityPipelineState.Failed;
+                    try { _registry.Unregister(this); }
+                    catch { }
+                    PipelineDebugHooks.NotifyRunEnded(this);
+                    throw;
+                }
             }
 
             public void SetExecutionPosition(int phaseIndex, bool hasCurrentPhase, bool isPaused, bool isCancelled)
@@ -102,9 +119,15 @@ namespace AbilityKit.Pipeline
             {
                 if (State != EAbilityPipelineState.Executing) return;
                 State = EAbilityPipelineState.Failed;
-                _runtime.Registry.Unregister(this);
-                PipelineDebugHooks.NotifyRunEnded(this);
-                PipelinePools.ReleaseRunPhaseList(_phases);
+                try
+                {
+                    _registry.Unregister(this);
+                }
+                finally
+                {
+                    PipelineDebugHooks.NotifyRunEnded(this);
+                    PipelinePools.ReleaseRunPhaseList(_phases);
+                }
             }
 
             public void Tick(float deltaTime)
@@ -398,8 +421,8 @@ namespace AbilityKit.Pipeline
                 }
                 finally
                 {
-                    _runtime.Registry.Unregister(this);
-                    PipelinePools.ReleaseRunPhaseList(_phases);
+                    try { _registry.Unregister(this); }
+                    finally { PipelinePools.ReleaseRunPhaseList(_phases); }
                 }
             }
         }

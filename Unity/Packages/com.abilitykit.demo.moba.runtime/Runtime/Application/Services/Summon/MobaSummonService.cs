@@ -250,16 +250,28 @@ namespace AbilityKit.Demo.Moba.Services
             MobaParameterStage.SummonCreate, MobaModifierSampleTiming.CreateSnapshot)]
         [MobaModifierConsumes(MobaSkillParamModifierKeys.Summon.Ids.InheritRatioScale,
             MobaParameterStage.SummonCreate, MobaModifierSampleTiming.CreateSnapshot)]
-        private bool TrySummonInternal(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId, int durationOverrideMs = 0)
+        private bool TrySummonInternal(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId, int durationOverrideMs = 0,
+            IReadOnlyList<KeyValuePair<BattleAttributeType, float>> birthAttributes = null)
         {
-            return TrySummonInternalCore(casterActorId, summonId, in pos, hasForward, in forward, in sourceContext, out summonActorId, durationOverrideMs);
+            return TrySummonInternalCore(casterActorId, summonId, in pos, hasForward, in forward, in sourceContext, out summonActorId, durationOverrideMs, birthAttributes);
         }
 
-        private bool TrySummonInternalCore(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId, int durationOverrideMs = 0)
+        private bool TrySummonInternalCore(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId, int durationOverrideMs = 0,
+            IReadOnlyList<KeyValuePair<BattleAttributeType, float>> birthAttributes = null)
         {
             summonActorId = 0;
             if (casterActorId <= 0) return false;
             if (summonId <= 0) return false;
+            if (durationOverrideMs < 0) return false;
+            if (birthAttributes != null)
+            {
+                var seen = new HashSet<BattleAttributeType>();
+                foreach (var item in birthAttributes)
+                    if (!Enum.IsDefined(typeof(BattleAttributeType), item.Key) ||
+                        !MobaAttributeIds.Get(item.Key).IsValid || !seen.Add(item.Key) ||
+                        float.IsNaN(item.Value) || float.IsInfinity(item.Value) || item.Value < 0)
+                        return false;
+            }
             EnsureObjectBootstrapRegistered();
             if (_actorIds == null || _registry == null || _entities == null) return false;
             if (_config == null) return false;
@@ -357,6 +369,15 @@ namespace AbilityKit.Demo.Moba.Services
 
                 // 继承属性配置：按 施法者属性 × Ratio + Add 覆写召唤物属性基础值
                 TryApplyInheritAttributes(entity, caster, summon, inheritRatioScale);
+
+                if (birthAttributes != null)
+                {
+                    if (!entity.hasAttributeGroup || entity.attributeGroup.Group == null)
+                        throw new InvalidOperationException("Summon birth attributes require an initialized attribute group.");
+                    foreach (var item in birthAttributes)
+                        entity.attributeGroup.Group.SetBase(MobaAttributeIds.Get(item.Key), item.Value);
+                    new MobaActorAttributeInitializer().InitializeBirthResources(entity);
+                }
 
                 TryApplyDefaultComponentTemplates(entity, summon.DefaultComponentTemplateIds);
 
@@ -797,6 +818,11 @@ namespace AbilityKit.Demo.Moba.Services
             return false;
         }
 
+        /// <summary>
+        /// 按原输入请求去重创建召唤物；出生属性须已求值且有效。
+        /// 显式属性在模板与继承之后应用，再初始化生命和法力资源。
+        /// 同一请求返回原结果，不重复应用出生属性。
+        /// </summary>
         public bool TrySummon(
             in MobaSummonRequestTicket ticket,
             int casterActorId,
@@ -805,10 +831,11 @@ namespace AbilityKit.Demo.Moba.Services
             in Vec3 forward,
             in SummonSourceContext sourceContext,
             out int summonActorId,
-            int durationOverrideMs = 0)
+            int durationOverrideMs = 0,
+            IReadOnlyList<KeyValuePair<BattleAttributeType, float>> birthAttributes = null)
         {
             if (!ticket.IsValid)
-                return TrySummonInternal(casterActorId, summonId, in pos, true, in forward, in sourceContext, out summonActorId, durationOverrideMs);
+                return TrySummonInternal(casterActorId, summonId, in pos, true, in forward, in sourceContext, out summonActorId, durationOverrideMs, birthAttributes);
             var key = new MobaSummonRequestKey(ticket.Identity, ticket.Ordinal);
             if (_requestResults.TryGetValue(key, out var prior))
             {
@@ -816,7 +843,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return prior.Accepted;
             }
             var accepted = TrySummonInternalCore(casterActorId, summonId, in pos, true, in forward,
-                in sourceContext, out summonActorId, durationOverrideMs);
+                in sourceContext, out summonActorId, durationOverrideMs, birthAttributes);
             _requestResults.Add(key, new MobaSummonRequestResult(key, accepted, summonActorId));
             return accepted;
         }

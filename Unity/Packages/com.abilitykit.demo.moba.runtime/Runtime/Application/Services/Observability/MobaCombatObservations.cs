@@ -419,10 +419,10 @@ namespace AbilityKit.Demo.Moba.Services.Observability
             this IMobaRuntimeObjectLifecycleHook hook,
             in MobaRuntimeObjectLifecycleObservation observation)
         {
-            if (hook == null || !hook.IsEnabled) return;
+            if (hook == null) return;
             try
             {
-                hook.OnObserved(in observation);
+                if (hook.IsEnabled) hook.OnObserved(in observation);
             }
             catch
             {
@@ -437,8 +437,8 @@ namespace AbilityKit.Demo.Moba.Services.Observability
             this IMobaEffectExecutionEntryHook hook,
             in MobaEffectExecutionEntryObservation observation)
         {
-            if (hook == null || !hook.IsEnabled) return;
-            try { hook.OnObserved(in observation); }
+            if (hook == null) return;
+            try { if (hook.IsEnabled) hook.OnObserved(in observation); }
             catch { }
         }
 
@@ -446,8 +446,8 @@ namespace AbilityKit.Demo.Moba.Services.Observability
             this IMobaActionExecutionHook hook,
             in MobaActionExecutionObservation observation)
         {
-            if (hook == null || !hook.IsEnabled) return;
-            try { hook.OnObserved(in observation); }
+            if (hook == null) return;
+            try { if (hook.IsEnabled) hook.OnObserved(in observation); }
             catch { }
         }
     }

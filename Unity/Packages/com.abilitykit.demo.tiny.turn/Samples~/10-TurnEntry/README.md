@@ -1,9 +1,8 @@
-# 10 Turn Project Entry
+# 10 回合制项目入口
 
-Attach `TinyTurnProjectLobbyEntry` to a GameObject in your own lobby scene.
-Pass an authenticated `DemoMultiplayerLaunchRequest` to `Enter`, and add both
-the lobby and `TinyTurnGameplayScene` to Build Settings. The Turn package owns
-the Room, State snapshot and action flow; the project owns login and navigation.
+将 `TinyTurnProjectLobbyEntry` 挂到自有大厅场景的 GameObject 上。
+将已认证的 `DemoMultiplayerLaunchRequest` 传给 `Enter`，并将大厅和
+`TinyTurnGameplayScene` 都加入 Build Settings。Turn 包负责房间、状态快照和动作流程；
+项目负责登录与导航。
 
-Install `com.abilitykit.demo.tiny.turn` separately. The main Tiny package does
-not depend on it.
+单独安装 `com.abilitykit.demo.tiny.turn`，主 Tiny 包不依赖它。

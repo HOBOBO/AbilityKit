@@ -70,9 +70,67 @@ public sealed class ConnectionManagerReconnectTests
         Assert.Equal(3, transports.Count);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CloseAndOpen_DropsPreviousConnectionNotificationsAtManagerQueue(bool failBeforeClose)
+    {
+        var callbacks = new ManualSessionDispatcher();
+        var transports = new List<TestTransport>();
+        using var connection = CreateConnection(transports, maxAttempts: 1, callbacks);
+        var events = new List<string>();
+        connection.Connected += () => events.Add("connected");
+        connection.Error += _ => events.Add("error");
+        connection.ReconnectScheduled += (_, _) => events.Add("reconnect scheduled");
+
+        connection.Open("127.0.0.1", 4000);
+        transports[0].Succeed();
+        callbacks.RunNext();
+        if (failBeforeClose)
+        {
+            callbacks.RunNext();
+            Assert.Equal(new[] { "connected" }, events);
+            events.Clear();
+            transports[0].Fail();
+            callbacks.RunNext();
+            Assert.Equal(ConnectionState.Reconnecting, connection.State);
+        }
+        Assert.Empty(events);
+
+        connection.Close();
+        connection.Open("127.0.0.1", 4000);
+        transports[1].Succeed();
+        callbacks.Drain();
+
+        Assert.Equal(new[] { "connected" }, events);
+        Assert.Equal(ConnectionState.Connected, connection.State);
+    }
+
+    [Fact]
+    public void DisconnectedCallbackThatClosesAndReopens_DoesNotScheduleReconnectOnNewConnection()
+    {
+        var transports = new List<TestTransport>();
+        using var connection = CreateConnection(transports, maxAttempts: 1);
+        connection.Open("127.0.0.1", 4000);
+        transports[0].Succeed();
+        connection.Disconnected += () =>
+        {
+            connection.Close();
+            connection.Open("127.0.0.1", 4000);
+            transports[1].Succeed();
+        };
+
+        transports[0].Drop();
+
+        Assert.Equal(2, transports.Count);
+        Assert.Equal(ConnectionState.Connected, connection.State);
+        Assert.True(transports[1].IsConnected);
+    }
+
     private static ConnectionManager CreateConnection(
         List<TestTransport> transports,
-        int maxAttempts)
+        int maxAttempts,
+        IDispatcher? callbacks = null)
     {
         return new ConnectionManager(
             () =>
@@ -89,7 +147,7 @@ public sealed class ConnectionManagerReconnectTests
                 ReconnectMaxDelay = TimeSpan.FromSeconds(2),
                 ReconnectBackoffMultiplier = 2d,
                 ReconnectMaxAttempts = maxAttempts
-            });
+            }, callbacks, InlineDispatcher.Instance);
     }
 
     private sealed class TestTransport : ITransport
@@ -124,6 +182,12 @@ public sealed class ConnectionManagerReconnectTests
         {
             IsConnected = false;
             Error?.Invoke(new InvalidOperationException("simulated transport failure"));
+        }
+
+        public void Drop()
+        {
+            IsConnected = false;
+            Disconnected?.Invoke();
         }
 
         public void Dispose()

@@ -157,20 +157,19 @@ namespace AbilityKit.Demo.Moba.Services
                 endedNodes);
         }
 
+        /// <summary>
+        /// 由诊断宿主按需回收已结束且无人持有的 Trace 树，不改变 Context。
+        /// </summary>
         public static int PurgeReleased(this MobaTraceRegistry trace, int currentFrame, int keepEndedFrames = 0)
         {
             return trace != null ? trace.Purge(currentFrame, keepEndedFrames) : 0;
         }
 
+        /// <summary>
+        /// 尝试立即回收已结束且无人持有的单棵 Trace 树，不等待保留窗口。
+        /// </summary>
         public static bool TryPurgeReleasedRoot(this MobaTraceRegistry trace, long rootId)
-        {
-            if (trace == null || rootId == 0) return false;
-            if (!trace.TryGetRootState(rootId, out var state)) return false;
-            if (state.ActiveCount > 0 || state.ExternalRefCount > 0) return false;
-
-            trace.PurgeRoot(rootId);
-            return true;
-        }
+            => trace != null && trace.TryPurgeRoot(rootId);
 
         private static bool TryResolveRootId(in MobaPersistentContextSourceSnapshot source, out long rootId)
         {

@@ -1,3 +1,11 @@
+﻿<#
+.SYNOPSIS
+按程序集引用审计选定 UPM 包的直接依赖，只读，不修改清单。
+.DESCRIPTION
+默认检查运行时，排除测试及样例。IncludeEditor 同时检查随包交付的编辑器程序集。
+StrictInternalReferences 拒绝无法定位的 AbilityKit 程序集和 GUID 引用；其它未知外部程序集仅告警。
+此检查不分析源码条件编译、解析注册表或替代干净 Unity 工程消费验证。
+#>
 [CmdletBinding()]
 param(
     [string]$PackagesRoot = '',
@@ -6,7 +14,9 @@ param(
         'com.abilitykit.demo.moba.view.runtime',
         'com.abilitykit.demo.shooter.runtime',
         'com.abilitykit.demo.shooter.view.runtime'
-    )
+    ),
+    [switch]$IncludeEditor,
+    [switch]$StrictInternalReferences
 )
 
 $ErrorActionPreference = 'Stop'
@@ -55,9 +65,28 @@ function Get-PackageOwner([string]$Path) {
     }
 }
 
-function Test-IsProductionAssembly([string]$PackageRoot, [string]$AssemblyPath) {
+function Test-IsAuditedAssembly([string]$PackageRoot, [string]$AssemblyPath, [object]$Assembly) {
     $relative = $AssemblyPath.Substring($PackageRoot.Length + 1)
-    return $relative -notmatch '(^|[\\/])(Tests?|Editor|Samples?)([\\/]|$)'
+    if ($relative -match '(^|[\\/])(Tests?|Samples?)~?([\\/]|$)') {
+        return $false
+    }
+
+    <#
+    测试程序集也可能放在 Runtime 下，不能只按目录识别。
+    #>
+    if (@($Assembly.optionalUnityReferences) -contains 'TestAssemblies' -or
+        @($Assembly.references) -contains 'UnityEngine.TestRunner' -or
+        @($Assembly.references) -contains 'UnityEditor.TestRunner') {
+        return $false
+    }
+
+    $platforms = @($Assembly.includePlatforms)
+    if (-not $IncludeEditor -and
+        ($relative -match '(^|[\\/])Editor([\\/]|$)' -or
+         ($platforms.Count -eq 1 -and $platforms[0] -eq 'Editor'))) {
+        return $false
+    }
+    return $true
 }
 
 Get-ChildItem -LiteralPath $resolvedPackagesRoot -Recurse -Filter '*.asmdef' | ForEach-Object {
@@ -80,7 +109,7 @@ Get-ChildItem -LiteralPath $resolvedPackagesRoot -Recurse -Filter '*.asmdef' | F
     }
 }
 
-$hasMissingDependencies = $false
+$hasErrors = $false
 foreach ($packageName in $PackageNames) {
     $packageRoot = Join-Path $resolvedPackagesRoot $packageName
     $manifestPath = Join-Path $packageRoot 'package.json'
@@ -98,10 +127,14 @@ foreach ($packageName in $PackageNames) {
 
     $requiredPackages = @{}
     $unmappedAssemblies = @{}
+    $auditedAssemblyCount = 0
     Get-ChildItem -LiteralPath $packageRoot -Recurse -Filter '*.asmdef' |
-        Where-Object { Test-IsProductionAssembly $packageRoot $_.FullName } |
         ForEach-Object {
             $assembly = Read-JsonFile $_.FullName
+            if (-not (Test-IsAuditedAssembly $packageRoot $_.FullName $assembly)) {
+                return
+            }
+            $auditedAssemblyCount++
             $references = @($assembly.references) + @($assembly.precompiledReferences)
             foreach ($reference in $references) {
                 if ([string]::IsNullOrWhiteSpace($reference)) {
@@ -118,7 +151,7 @@ foreach ($packageName in $PackageNames) {
                 elseif ($externalAssemblyOwners.ContainsKey($reference)) {
                     $owner = $externalAssemblyOwners[$reference]
                 }
-                else {
+                if ([string]::IsNullOrWhiteSpace($owner)) {
                     $unmappedAssemblies[$reference] = $true
                 }
 
@@ -130,20 +163,25 @@ foreach ($packageName in $PackageNames) {
 
     $missing = @($requiredPackages.Keys | Where-Object { -not $declaredDependencies.ContainsKey($_) } | Sort-Object)
     if ($missing.Count -gt 0) {
-        $hasMissingDependencies = $true
+        $hasErrors = $true
         Write-Host "[$packageName] missing direct dependencies:" -ForegroundColor Red
         $missing | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
     }
     else {
-        Write-Host "[$packageName] production asmdef dependencies are complete." -ForegroundColor Green
+        Write-Host "[$packageName] audited asmdef dependencies are complete (assemblies=$auditedAssemblyCount, includeEditor=$IncludeEditor)." -ForegroundColor Green
     }
 
     if ($unmappedAssemblies.Count -gt 0) {
         $names = $unmappedAssemblies.Keys | Sort-Object
         Write-Warning "[$packageName] owner unknown for: $($names -join ', ')"
+        $unresolvedInternal = @($names | Where-Object { $_ -match '^(AbilityKit[.]|com[.]abilitykit[.]|GUID:)' })
+        if ($StrictInternalReferences -and $unresolvedInternal.Count -gt 0) {
+            $hasErrors = $true
+            Write-Host "[$packageName] unresolved internal assembly references: $($unresolvedInternal -join ', ')" -ForegroundColor Red
+        }
     }
 }
 
-if ($hasMissingDependencies) {
+if ($hasErrors) {
     exit 1
 }

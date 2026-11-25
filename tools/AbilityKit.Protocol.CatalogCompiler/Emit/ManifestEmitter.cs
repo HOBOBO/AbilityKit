@@ -5,9 +5,7 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
 /// <summary>
-/// Emits the JSON protocol manifest from the codec-neutral IR. Output formatting is fixed so the
-/// emitted document is byte-stable for a given IR (and therefore deterministic for a given set of
-/// source files in their sorted order).
+/// 从编解码无关中间表示生成 JSON 协议清单。固定输出格式，使相同中间表示生成稳定字节；排序后的同一组源文件因此得到确定结果。
 /// </summary>
 public static class ManifestEmitter
 {

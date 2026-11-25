@@ -89,7 +89,9 @@ namespace AbilityKit.HFSM.Editor
 
             GUILayout.FlexibleSpace();
 
-            // Delete button
+            /*
+             * 删除按钮。
+             */
             if (GUILayout.Button(new GUIContent("X", "删除参数"), GUILayout.Width(20)))
             {
                 DeleteParameter(parameter);

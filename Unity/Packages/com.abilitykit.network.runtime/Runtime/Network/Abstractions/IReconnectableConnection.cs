@@ -3,7 +3,7 @@ using System;
 namespace AbilityKit.Network.Abstractions
 {
     /// <summary>
-    /// Optional connection capability for reconnect scheduling and manual recovery.
+    /// 支持重连调度及手动恢复的可选连接能力。
     /// </summary>
     public interface IReconnectableConnection
     {

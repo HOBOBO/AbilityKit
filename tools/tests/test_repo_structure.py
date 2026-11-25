@@ -86,7 +86,7 @@ class LooseOutputTests(unittest.TestCase):
                 self.assertEqual(check_repo_structure.main(['--strict']), 0)
                 self.assertEqual(check_repo_structure.main(['--staged-outputs']), 1)
             self.assertIn('STAGED LOCAL FILE local/tools/probe/one_off.ps1:', output.getvalue())
-            self.assertIn('Found 6 staged local file issue(s).', output.getvalue())
+            self.assertIn('发现 6 项已暂存本地文件问题。', output.getvalue())
 
 
 class StrictModeTests(unittest.TestCase):
@@ -109,7 +109,7 @@ class StrictModeTests(unittest.TestCase):
                 self.assertEqual(check_repo_structure.main(['--strict']), 0)
                 self.assertEqual(check_repo_structure.main(['--strict', '--package', package.name]), 1)
             list_docs.assert_called_with(root, (scope,))
-            self.assertIn('target leaves the package: ../com.abilitykit.other/README.md', output.getvalue())
+            self.assertIn('目标位于包之外: ../com.abilitykit.other/README.md', output.getvalue())
 
     def test_bad_encoding_fails_strict_but_not_inventory(self):
         with TemporaryDirectory() as workspace:

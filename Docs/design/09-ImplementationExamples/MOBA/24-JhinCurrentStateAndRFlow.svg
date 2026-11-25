@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1540" viewBox="0 0 1900 1540" role="img" aria-labelledby="title desc">
+<title id="title">烬当前 HFSM、表现层与 R 技能流程接线图</title>
+<desc id="desc">依据仓库当前 Authoring 与发布配置绘制。显示 life/action HFSM、AttackSlot 与 RPhase 参数转换、表现层动作映射、R SkillFlow、Timeline 特效和 Trigger 到投射物命中效果链，并标注 RPhase 生产者缺口。R 三个 HFSM 状态到模型动作的映射已配置，尚未由当前 R Flow 驱动。</desc>
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker>
+  <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+  <style>
+    text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif;fill:#172033}
+    .title{font-size:32px;font-weight:700}.subtitle{font-size:15px;fill:#475569}
+    .head{font-size:21px;font-weight:700}.label{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#475569}
+    .panel{fill:#fff;stroke:#cbd5e1;stroke-width:1.5;rx:14}.subpanel{fill:#f8fafc;stroke:#cbd5e1;stroke-width:1.2;rx:10}
+    .configured{fill:#e8f5ee;stroke:#31966a;stroke-width:1.5;rx:9}.gap{fill:#fff1e6;stroke:#e28b32;stroke-width:1.5;stroke-dasharray:6 4;rx:9}
+    .neutral{fill:#eef2ff;stroke:#7183c7;stroke-width:1.3;rx:9}.state{fill:#e7f0ff;stroke:#5281ce;stroke-width:1.4;rx:20}
+    .flow{fill:#f3efff;stroke:#9074d2;stroke-width:1.4;rx:9}.trigger{fill:#fff8db;stroke:#d5a625;stroke-width:1.4;rx:9}
+    .line{fill:none;stroke:#64748b;stroke-width:2;marker-end:url(#arrow)}.dashed{fill:none;stroke:#e28b32;stroke-width:2;stroke-dasharray:7 6;marker-end:url(#arrow)}
+    .blueLine{fill:none;stroke:#2563eb;stroke-width:2;marker-end:url(#arrowBlue)}
+  </style>
+</defs>
+<rect width="1900" height="1540" fill="#f1f5f9"/>
+<text x="42" y="54" class="title">烬（Jhin）当前状态机、动作表现与 R 技能接线图</text>
+<text x="44" y="82" class="subtitle">快照：仓库当前 Authoring / Unity / Console 配置。绿色表示已定义并发布；橙色表示运行时接线缺口。R 连续射击目前仍由 SkillFlow Repeat 驱动，RPhase 尚无生产者。</text>
+<g transform="translate(1450,30)"><rect width="405" height="62" rx="10" fill="#fff" stroke="#cbd5e1"/><rect x="16" y="15" width="18" height="18" rx="4" fill="#e8f5ee" stroke="#31966a"/><text x="43" y="29" class="small">当前已配置</text><rect x="150" y="15" width="18" height="18" rx="4" fill="#fff1e6" stroke="#e28b32" stroke-dasharray="4 3"/><text x="177" y="29" class="small">缺口 / 未接线</text><rect x="300" y="15" width="18" height="18" rx="4" fill="#f3efff" stroke="#9074d2"/><text x="327" y="29" class="small">技能流程</text></g>
+
+<!-- HFSM -->
+<rect x="35" y="115" width="690" height="660" class="panel"/>
+<text x="60" y="151" class="head">① 角色 HFSM（moba.character.default）</text>
+<text x="60" y="176" class="small">Authoring: Configs/MobaStateMachineAuthoring/character_hfsm.json</text>
+<rect x="65" y="207" width="630" height="84" class="subpanel"/>
+<text x="85" y="234" class="label">life（父状态机）</text>
+<rect x="270" y="216" width="150" height="54" class="state"/><text x="345" y="249" text-anchor="middle" class="label">alive</text>
+<rect x="500" y="216" width="150" height="54" class="state"/><text x="575" y="249" text-anchor="middle" class="label">dead</text>
+<path d="M420 231 L498 231" class="line"/><text x="459" y="222" text-anchor="middle" class="small">dead (100)</text>
+<path d="M500 258 L422 258" class="line"/><text x="460" y="281" text-anchor="middle" class="small">alive (100)</text>
+<text x="86" y="271" class="small">alive 内嵌 action 子机</text>
+<rect x="65" y="310" width="630" height="433" class="subpanel"/>
+<text x="85" y="340" class="label">action（alive 的子状态机）</text>
+<text x="85" y="363" class="small">初始 idle · 同层状态互斥 · 状态切换由条件键与参数条件驱动</text>
+<rect x="100" y="390" width="135" height="52" class="state"/><text x="168" y="422" text-anchor="middle" class="label">idle</text>
+<rect x="305" y="390" width="135" height="52" class="state"/><text x="373" y="422" text-anchor="middle" class="label">moving</text>
+<rect x="510" y="390" width="135" height="52" class="state"/><text x="578" y="422" text-anchor="middle" class="label">casting</text>
+<rect x="305" y="485" width="135" height="52" class="state"/><text x="373" y="517" text-anchor="middle" class="label">controlled</text>
+<path d="M235 405 L303 405" class="line"/><text x="269" y="395" text-anchor="middle" class="small">moving · 40</text>
+<path d="M440 405 L508 405" class="line"/><text x="474" y="395" text-anchor="middle" class="small">casting · 70</text>
+<path d="M305 431 C270 458 230 458 196 444" class="line"/><text x="250" y="465" text-anchor="middle" class="small">idle · 10</text>
+<path d="M550 442 C525 469 470 482 440 492" class="line"/><text x="506" y="472" text-anchor="middle" class="small">controlled · 100</text>
+<path d="M305 511 C266 511 245 486 222 445" class="line"/><text x="245" y="535" text-anchor="middle" class="small">free.idle / idle</text>
+<path d="M440 501 C485 482 526 460 550 443" class="line"/><text x="498" y="525" text-anchor="middle" class="small">free.cast / casting</text>
+<rect x="95" y="555" width="550" height="76" class="configured"/>
+<text x="115" y="580" class="label">普攻状态组：attack.slot.1 / .2 / .3 / .4</text>
+<text x="115" y="603" class="body">AttackSlot(ID=10)=1..4 选槽；=0 回 idle；槽间可按参数切换（优先级20）。</text>
+<text x="115" y="622" class="small">Modifier 写 HFSM 参数，状态机自动选槽；控制/施法/移动优先级分别为100/70/40。</text>
+<rect x="95" y="642" width="550" height="82" class="configured"/>
+<text x="115" y="667" class="label">R 阶段状态组：aiming → shooting ⇄ aiming → final_shot</text>
+<text x="115" y="690" class="body">RPhase(ID=11)=1/2/3 选择状态；=0 退出回 idle。控制可打断。</text>
+<text x="115" y="711" class="small">状态与转换已在 Authoring 定义并发布；当前 R Flow 尚未写入该参数。</text>
+<path d="M168 442 C145 500 140 528 170 553" class="blueLine"/><path d="M570 442 C635 505 635 530 610 553" class="line"/>
+
+<!-- Parameters -->
+<rect x="745" y="115" width="450" height="660" class="panel"/>
+<text x="770" y="151" class="head">② 状态参数与切换条件</text>
+<text x="770" y="176" class="small">参数服务：MobaCharacterHfsmParameterService.cs</text>
+<rect x="775" y="207" width="390" height="105" class="configured"/>
+<text x="795" y="237" class="label">AttackSlot = 10（当前被 HFSM 消费）</text>
+<text x="795" y="265" class="body">0：退出攻击槽 → idle</text>
+<text x="795" y="288" class="body">1 / 2 / 3 / 4：选中对应普攻状态</text>
+<rect x="775" y="332" width="390" height="150" class="configured"/>
+<text x="795" y="362" class="label">RPhase = 11（HFSM 已消费）</text>
+<text x="795" y="390" class="body">0 inactive · 1 aiming · 2 shooting · 3 final shot</text>
+<text x="795" y="418" class="body">参数条件已切换 r.aiming / r.shooting / r.final_shot。</text>
+<text x="795" y="446" class="body">三态结束回 idle；各态可被 controlled 打断。</text>
+<text x="795" y="470" class="small">缺口：R 生命周期还没有持续 Modifier 写入/清除 RPhase。</text>
+<rect x="775" y="480" width="390" height="242" class="subpanel"/>
+<text x="795" y="510" class="label">通用 action 条件（已配置）</text>
+<text x="795" y="542" class="body">controlled → controlled</text>
+<text x="795" y="570" class="body">casting → casting</text>
+<text x="795" y="598" class="body">moving → moving</text>
+<text x="795" y="626" class="body">idle → idle</text>
+<text x="795" y="654" class="body">free.cast / free.move / free.idle</text>
+<text x="795" y="690" class="small">HFSM 可以切换 R 阶段；当前 Flow 尚未驱动它们。</text>
+
+<!-- presentation -->
+<rect x="1215" y="115" width="650" height="660" class="panel"/>
+<text x="1240" y="151" class="head">③ 表现层 HFSM 状态 → 模型动作</text>
+<text x="1240" y="176" class="small">映射源：Resources/moba/character_view_actions.json · Hero entityCode=3001</text>
+<rect x="1245" y="207" width="590" height="150" class="configured"/>
+<text x="1265" y="237" class="label">当前已有映射</text>
+<text x="1265" y="267" class="body">action.idle / moving / controlled → 以 Idle 为主的回退表现</text>
+<text x="1265" y="295" class="body">action.attack.slot.1..4 → AutoAttack_1 / 2 / 3 / 4（单次动作）</text>
+<text x="1265" y="323" class="body">action.casting + skillId=30010401 → Spell_R_Deploy（43 帧，单次）</text>
+<text x="1265" y="345" class="body">随后接 Spell_R_Idle（60 帧，循环）</text>
+<rect x="1245" y="380" width="590" height="123" class="configured"/>
+<text x="1265" y="410" class="label">R 三个状态均已接入动作映射</text>
+<text x="1265" y="440" class="body">r.aiming → Spell_R_Idle（60 帧循环）；r.shooting → Spell_R_Shoot（48 帧）。</text>
+<text x="1265" y="468" class="body">r.final_shot → Spell_R_ShootLast（62 帧）；由 HFSM 当前状态路径选择动作。</text>
+<rect x="1245" y="525" width="590" height="195" class="subpanel"/>
+<text x="1265" y="555" class="label">当前表现衔接关系</text>
+<rect x="1270" y="580" width="150" height="52" class="state"/><text x="1345" y="612" text-anchor="middle" class="body">casting</text>
+<rect x="1480" y="580" width="150" height="52" class="configured"/><text x="1555" y="612" text-anchor="middle" class="body">Deploy → Idle</text>
+<rect x="1690" y="580" width="120" height="52" class="gap"/><text x="1750" y="612" text-anchor="middle" class="small">无射击态</text>
+<path d="M1420 606 L1478 606" class="line"/><path d="M1630 606 L1688 606" class="dashed"/>
+<text x="1270" y="666" class="small">表演动作由 HFSM action 状态 + 技能变体选择；模型动作支持单次、循环及串行动作。</text>
+<text x="1270" y="689" class="small">状态路径与动作映射已能解析；R Flow 目前不切换 RPhase，因此实战射击仍播 casting 的 Deploy → Idle。</text>
+
+<!-- Skillflow -->
+<rect x="35" y="800" width="880" height="570" class="panel"/>
+<text x="60" y="837" class="head">④ R（30010401）当前 SkillFlow：施法阶段与触发时间</text>
+<text x="60" y="862" class="small">配置源：Configs/Moba/SkillFlowCO.asset · Repeat 是技能流程编排，不是 HFSM 状态序列</text>
+<rect x="65" y="900" width="180" height="90" class="flow"/><text x="155" y="930" text-anchor="middle" class="label">Release</text><text x="155" y="956" text-anchor="middle" class="body">9373a635</text><text x="155" y="978" text-anchor="middle" class="small">失败则中止</text>
+<rect x="285" y="900" width="180" height="90" class="flow"/><text x="375" y="930" text-anchor="middle" class="label">Commit</text><text x="375" y="956" text-anchor="middle" class="body">9473a635</text><text x="375" y="978" text-anchor="middle" class="small">失败则中止</text>
+<rect x="505" y="890" width="365" height="115" class="flow"/><text x="687" y="922" text-anchor="middle" class="label">Repeat：普通射击 × 3</text><text x="687" y="950" text-anchor="middle" class="body">间隔 1000 ms · 每发 50 ms Timeline</text><text x="687" y="980" text-anchor="middle" class="body">Effect 30010401 · jhin_r_regular_shot</text>
+<path d="M245 945 L283 945" class="line"/><path d="M465 945 L503 945" class="line"/>
+<rect x="505" y="1030" width="365" height="100" class="flow"/><text x="687" y="1062" text-anchor="middle" class="label">Final Shot × 1</text><text x="687" y="1090" text-anchor="middle" class="body">50 ms Timeline · Effect 30010411</text><text x="687" y="1115" text-anchor="middle" class="small">jhin_r_final_shot</text>
+<path d="M687 1005 L687 1028" class="line"/>
+<rect x="65" y="1030" width="400" height="100" class="configured"/><text x="85" y="1061" class="label">R Timeline 表现轨道</text><text x="85" y="1088" class="body">CastPresentation → PlayParticle 模板 90013004</text><text x="85" y="1115" class="small">Jhin_Battlecast_R_Cast · 持续 1800 ms · Actor 挂点</text>
+<path d="M465 1080 L503 1080" class="blueLine"/><text x="480" y="1068" class="small">并行表现</text>
+<rect x="65" y="1170" width="805" height="155" class="subpanel"/>
+<text x="85" y="1201" class="label">当前职责边界</text>
+<text x="85" y="1230" class="body">SkillFlow 管 Release / Commit / Repeat×3 / Final 的逻辑顺序和时间。</text>
+<text x="85" y="1258" class="body">Timeline Event 在指定时刻调用 Trigger；PlayParticle 由表现轨道播放模板，不承载投射物逻辑。</text>
+<text x="85" y="1286" class="body">HFSM 参数投影器支持来源拥有的 StateMachineParameter Modifier；当前 R Flow / Trigger 尚未创建此 Modifier。</text>
+<text x="85" y="1313" class="small">射击阶段仍由 Flow Repeat 与 EventTag 推进，未同步到 RPhase；状态动作映射虽已发布，实战尚未切换至射击动作。</text>
+
+<!-- Trigger chain -->
+<rect x="935" y="800" width="930" height="570" class="panel"/>
+<text x="960" y="837" class="head">⑤ Trigger Authoring：发射 → 投射物 → 命中效果</text>
+<text x="960" y="862" class="small">权威源：Sources/moba-skills.trigger.json；已发布模块：ability_moba_skills.Module.asset</text>
+<rect x="965" y="900" width="185" height="105" class="trigger"/><text x="1057" y="931" text-anchor="middle" class="label">普通弹发射</text><text x="1057" y="958" text-anchor="middle" class="body">Trigger 30010401</text><text x="1057" y="984" text-anchor="middle" class="small">shoot_projectile</text>
+<rect x="1205" y="900" width="190" height="105" class="configured"/><text x="1300" y="931" text-anchor="middle" class="label">共享 Launcher</text><text x="1300" y="958" text-anchor="middle" class="body">33010401</text><text x="1300" y="984" text-anchor="middle" class="small">track_target=false</text>
+<rect x="1450" y="900" width="180" height="105" class="configured"/><text x="1540" y="931" text-anchor="middle" class="label">普通投射物</text><text x="1540" y="958" text-anchor="middle" class="body">Projectile 32010401</text><text x="1540" y="984" text-anchor="middle" class="small">命中回调</text>
+<rect x="1680" y="900" width="155" height="105" class="trigger"/><text x="1757" y="931" text-anchor="middle" class="label">命中触发</text><text x="1757" y="958" text-anchor="middle" class="body">30010402</text><text x="1757" y="984" text-anchor="middle" class="small">伤害 + 减速</text>
+<path d="M1150 952 L1203 952" class="line"/><path d="M1395 952 L1448 952" class="line"/><path d="M1630 952 L1678 952" class="line"/>
+<rect x="965" y="1030" width="185" height="105" class="trigger"/><text x="1057" y="1061" text-anchor="middle" class="label">终结弹发射</text><text x="1057" y="1088" text-anchor="middle" class="body">Trigger 30010411</text><text x="1057" y="1114" text-anchor="middle" class="small">shoot_projectile</text>
+<rect x="1205" y="1030" width="190" height="105" class="configured"/><text x="1300" y="1061" text-anchor="middle" class="label">共享 Launcher</text><text x="1300" y="1088" text-anchor="middle" class="body">33010401</text><text x="1300" y="1114" text-anchor="middle" class="small">track_target=false</text>
+<rect x="1450" y="1030" width="180" height="105" class="configured"/><text x="1540" y="1061" text-anchor="middle" class="label">终结投射物</text><text x="1540" y="1088" text-anchor="middle" class="body">Projectile 32010402</text><text x="1540" y="1114" text-anchor="middle" class="small">命中回调</text>
+<rect x="1680" y="1030" width="155" height="105" class="trigger"/><text x="1757" y="1061" text-anchor="middle" class="label">命中触发</text><text x="1757" y="1088" text-anchor="middle" class="body">30010412</text><text x="1757" y="1114" text-anchor="middle" class="small">伤害 + 减速</text>
+<path d="M1150 1082 L1203 1082" class="line"/><path d="M1395 1082 L1448 1082" class="line"/><path d="M1630 1082 L1678 1082" class="line"/>
+<rect x="965" y="1162" width="870" height="163" class="subpanel"/>
+<text x="985" y="1193" class="label">伤害与效果配置（普通 / 终结共通结构）</text>
+<text x="985" y="1222" class="body">30010402：攻击伤害系数 0.7，damage 来源参数；追加 Buff 32010403（减速）。</text>
+<text x="985" y="1250" class="body">30010412：攻击伤害系数 0.7，finalDamage 来源参数；追加 Buff 32010403。</text>
+<text x="985" y="1278" class="body">30010403 / 30010413：目标生命 ≤ 50% 时，在 damage.attack.before_calc 增加目标已损失生命比例 × 0.5。</text>
+<text x="985" y="1306" class="small">普通/终结弹由不同投射物 ID 区分；发射器复用。伤害在投射物命中后结算，低血量修正由独立事件触发。</text>
+
+<text x="42" y="1420" class="small">主要核对文件：character_hfsm.json · MobaCharacterHfsmParameterService.cs · character_view_actions.json · SkillFlowCO.asset · skill_30010401.json / .moba.presentation.json · moba-skills.trigger.json · JhinSkillAcceptanceTests.cs</text>
+<text x="42" y="1450" class="small">验收测试确认：R 的普通发射 ×3、终结发射 ×1；普通 / 终结投射物分别走各自命中 Trigger。橙色缺口表示 RPhase 生命周期接线尚未接通；动作映射配置已就绪。</text>
+</svg>

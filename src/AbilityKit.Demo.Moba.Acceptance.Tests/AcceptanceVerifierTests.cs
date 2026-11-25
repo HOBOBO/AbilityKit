@@ -66,6 +66,64 @@ public class AcceptanceVerifierTests
 
         Assert.False(summary.result.passed);
         Assert.False(summary.coverage.allForbiddenTraceNodesAbsent);
+        Assert.Equal(1, summary.coverage.unexpectedForbiddenTraceNodeCount);
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("RootPurged", false)]
+    [InlineData("Truncated", false)]
+    [InlineData("count-mismatch", false)]
+    [InlineData("complete", true)]
+    public void Forbidden_absence_requires_complete_evidence(string? state, bool expectedPass)
+    {
+        var expectation = new MobaAcceptanceExpectation
+        {
+            caseId = "absence",
+            mustNotContain = new[] { new MobaAcceptanceTraceExpectation { kind = "DamageApply" } },
+        };
+        var records = Array.Empty<MobaAcceptanceTraceRecord>();
+        var evidence = state == null ? null : new MobaAcceptanceTraceEvidence
+        {
+            isComplete = state is "complete" or "count-mismatch",
+            startFrame = 1,
+            endFrame = 20,
+            recordCount = state == "count-mismatch" ? 1 : 0,
+            reason = state,
+        };
+
+        var summary = AcceptanceVerifier.Verify(expectation, records, traceEvidence: evidence);
+
+        Assert.Equal(expectedPass, summary.result.passed);
+        Assert.Equal(expectedPass, summary.coverage.allForbiddenTraceNodesAbsent);
+        Assert.Equal(!expectedPass, summary.coverage.forbiddenTraceEvidenceInsufficient);
+        Assert.Equal(0, summary.coverage.unexpectedForbiddenTraceNodeCount);
+    }
+
+    [Fact]
+    public void Scoped_absence_requires_the_specified_effect_and_checks_all_its_roots()
+    {
+        var expectation = new MobaAcceptanceExpectation
+        {
+            mustNotContain = new[] { new MobaAcceptanceTraceExpectation { kind = "DamageApply", configId = 42, underEffectId = 20 } },
+        };
+        var evidence = new MobaAcceptanceTraceEvidence { isComplete = true, startFrame = 1, endFrame = 20 };
+        var firstRoot = new MobaAcceptanceTraceRecord { kind = "EffectExecution", configId = 20, rootId = 1 };
+        var secondRoot = new MobaAcceptanceTraceRecord { kind = "EffectExecution", configId = 20, rootId = 2 };
+        var outsideScope = new MobaAcceptanceTraceRecord { kind = "DamageApply", configId = 42, rootId = 3 };
+        var inScope = new MobaAcceptanceTraceRecord { kind = "DamageApply", configId = 42, rootId = 2 };
+
+        evidence.recordCount = 1;
+        var missingScope = AcceptanceVerifier.Verify(expectation, new[] { outsideScope }, traceEvidence: evidence);
+        Assert.True(missingScope.coverage.forbiddenTraceEvidenceInsufficient);
+        Assert.Equal(0, missingScope.coverage.unexpectedForbiddenTraceNodeCount);
+        Assert.False(missingScope.result.passed);
+
+        evidence.recordCount = 3;
+        Assert.True(AcceptanceVerifier.Verify(expectation, new[] { firstRoot, secondRoot, outsideScope }, traceEvidence: evidence).result.passed);
+        var violation = AcceptanceVerifier.Verify(expectation, new[] { firstRoot, secondRoot, inScope }, traceEvidence: evidence);
+        Assert.False(violation.result.passed);
+        Assert.Equal(1, violation.coverage.unexpectedForbiddenTraceNodeCount);
     }
 
     [Fact]

@@ -2,7 +2,9 @@ using AbilityKit.Protocol.CatalogCompiler.Ir;
 
 namespace AbilityKit.Protocol.CatalogCompiler.Emit;
 
-/// <summary>Capabilities declared by a protocol codec backend.</summary>
+/// <summary>
+/// 协议编解码后端声明的能力。
+/// </summary>
 [Flags]
 public enum ProtocolBackendCapabilities
 {
@@ -16,17 +18,20 @@ public enum ProtocolBackendCapabilities
     DecoderRegistration = 1 << 6
 }
 
-/// <summary>Context supplied when a backend emits one codec-specific wire contract.</summary>
+/// <summary>
+/// 后端生成单个特定编解码线协议契约时收到的上下文。
+/// </summary>
 public sealed record ProtocolBackendSchemaContext(
     WireSchemaIr Schema,
     ProtocolMessageIr? ProtocolMessage);
 
-/// <summary>A deterministic file emitted by a codec backend.</summary>
+/// <summary>
+/// 编解码后端生成的确定性文件。
+/// </summary>
 public sealed record ProtocolBackendOutput(string FileName, string Content);
 
 /// <summary>
-/// Codec backend service-provider interface. Implementations consume codec-neutral IR and return
-/// deterministic files without introducing their runtime dependency into the catalog emitter.
+/// 编解码后端服务提供接口。实现消费编解码无关中间表示并返回确定文件，不向目录生成器引入其运行时依赖。
 /// </summary>
 public interface IProtocolBackend
 {
@@ -36,7 +41,9 @@ public interface IProtocolBackend
     IReadOnlyList<ProtocolBackendOutput> EmitSchema(ProtocolBackendSchemaContext context);
 }
 
-/// <summary>Resolves protocol backends by their catalog codec name.</summary>
+/// <summary>
+/// 按目录中的编解码器名称解析协议后端。
+/// </summary>
 public sealed class ProtocolBackendRegistry
 {
     private readonly IReadOnlyDictionary<string, IProtocolBackend> _backends;

@@ -507,6 +507,25 @@ types:
         array: true
         required: true
 
+  - name: MobaActorIndicatorSnapshotEntry
+    fields:
+      - { id: 0, name: actorId, scalarType: int32, required: true }
+      - { id: 1, name: layoutId, scalarType: int32, required: true }
+      - { id: 2, name: indicatorId, scalarType: int32, required: true }
+      - { id: 3, name: current, scalarType: float, required: true }
+      - { id: 4, name: max, scalarType: float, required: true }
+      - { id: 5, name: hasMax, scalarType: bool, required: true }
+      - { id: 6, name: ready, scalarType: bool, required: true }
+      - { id: 7, name: availability, scalarType: int32, required: true }
+
+  - name: MobaActorIndicatorSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaActorIndicatorSnapshotEntry
+        array: true
+        required: true
+
   - name: MobaStateHashSnapshotPayload
     fields:
       - id: 0
@@ -521,3 +540,11 @@ types:
         name: hash
         scalarType: uint32
         required: true
+
+  - name: MobaStateSyncOverheadPayload
+    fields:
+      - { id: 0, name: projectionOpCode, scalarType: int32, required: true }
+      - { id: 1, name: projectionSchemaVersion, scalarType: int32, required: true }
+      - { id: 2, name: projection, scalarType: bytes, required: true }
+      - { id: 3, name: indicators, scalarType: bytes, required: true }
+      - { id: 4, name: shields, scalarType: bytes, required: true }

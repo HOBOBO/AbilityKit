@@ -5,6 +5,8 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Presentation.Features.Settlement;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Shared.Assets;
@@ -12,6 +14,8 @@ using AbilityKit.Game.Flow;
 using AbilityKit.Protocol.Moba;
 using NUnit.Framework;
 using UnityEngine;
+using BattleLogicSessionOptions = AbilityKit.Game.Battle.BattleLogicSessionOptions;
+using BattleViewEventSourceMode = AbilityKit.Game.Flow.BattleViewEventSourceMode;
 using FrameSnapshotDispatcher = AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher;
 using GamePhaseContext = AbilityKit.Game.Flow.GamePhaseContext;
 
@@ -19,6 +23,39 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class BattleGameplayPresentationTests
     {
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void BattleLogicHost_RegistersTraceOnlyWhenRequested(bool scanAll, bool enableTrace)
+        {
+            var options = new BattleLogicSessionOptions
+            {
+                ScanAllLoadedAssemblies = scanAll,
+                ScanAssemblies = new[] { typeof(BattleLogicSession).Assembly, typeof(MobaTraceAdapterModule).Assembly },
+                EnableTraceDiagnostics = enableTrace,
+            };
+            using var services = new MobaBattleLogicRuntimeFactory().CreateWorldServices(options).Build();
+            Assert.AreEqual(enableTrace, services.IsRegistered(typeof(MobaTraceRegistry)));
+        }
+
+        [TestCase(BattleSyncMode.Lockstep, false)]
+        [TestCase(BattleSyncMode.Lockstep, true)]
+        [TestCase(BattleSyncMode.SnapshotAuthority, false)]
+        [TestCase(BattleSyncMode.SnapshotAuthority, true)]
+        public void SessionWorldHost_RegistersTraceOnlyWhenRequested(BattleSyncMode syncMode, bool enableTrace)
+        {
+            var launch = CreatePlan("trace-choice").GetCanonicalLaunchSpec();
+            var plan = BattleStartPlanBuilder.ForWorld(launch.WorldId, launch.WorldType, launch.ClientId, launch.LocalPlayerId.Value, 30, 0)
+                .WithSync(syncMode, BattleViewEventSourceMode.SnapshotOnly)
+                .WithLaunchSpec(in launch)
+                .WithTraceDiagnostics(enableTrace)
+                .Build();
+            var options = SessionMobaWorldBootstrapFactory.CreateWorldOptions(plan, new WorldId(plan.World.WorldId));
+            using var services = options.ServiceBuilder.Build();
+            Assert.AreEqual(enableTrace, services.IsRegistered(typeof(MobaTraceRegistry)));
+        }
+
         [Test]
         public void EndedSnapshot_ProjectsResultWithoutLogicWorld()
         {

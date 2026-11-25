@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Golden baseline check for the AbilityKit sample catalog.
 
@@ -48,12 +48,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Samples emit UTF-8 (Chinese included). Decode native stdout the same way so
-# captured text does not turn into mojibake.
+# 示例输出使用 UTF-8，包含中文；原生命令标准输出也按此解码，防止采集文本乱码。
 try {
     [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 } catch {
-    Write-Warning "Could not set console output encoding: $($_.Exception.Message)"
+    Write-Warning "无法设置控制台输出编码： $($_.Exception.Message)"
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -77,27 +76,17 @@ function Write-Utf8NoBom {
     [System.IO.File]::WriteAllText($Path, $Text, (New-Object System.Text.UTF8Encoding($false)))
 }
 
-# Known wall-clock dependent outputs, masked to keep the baseline reproducible.
+# 已知依赖实际时钟的输出；屏蔽这些字段以保持基线可复现。
 #
-# com.abilitykit.world.statesync stamps WorldStateSnapshot.Timestamp with
-# DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() in StateManager.CaptureState,
-# and that value reaches both StateHashComputer.Compute (it hashes Timestamp)
-# and the byte-position-sensitive ComputeBinaryDiff used by the incremental
-# diff. The reported byte count therefore depends on how many milliseconds
-# happened to elapse between two captures and is not reproducible across
-# processes: 20 consecutive runs of sync/state-diff-apply produced 18x56 and
-# 1x61 bytes.
+# com.abilitykit.world.statesync 在 StateManager.CaptureState 中以 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() 设置 WorldStateSnapshot.Timestamp。
+# 该值同时进入会包含时间戳的 StateHashComputer.Compute，以及对字节位置敏感的增量 ComputeBinaryDiff。
+# 因此报告字节数依赖两次捕获间实际经过的毫秒数，跨进程不可复现：连续运行 sync/state-diff-apply 20 次，得到 18 次 56 字节和 1 次 61 字节。
 #
-# Two lines carry that byte count, and masking only the first left the check
-# failing roughly one run in ten. A 12-run sweep of the whole catalog found
-# exactly these two lines unstable and nothing else, so this list should stay
-# complete: if a third line starts drifting, that is new information, not noise.
+# 两行都携带该字节数；仅屏蔽第一行时，检查约每十次仍失败一次。
+# 完整目录连续运行 12 次，仅这两行不稳定；清单应保持完整。若第三行开始漂移，应视为新线索，不能当作噪声。
 #
-# This masks the symptom only, and it masks the whole value - for
-# StateDiff.Computed that hides the stable "incrementalFull=False" part along
-# with the volatile byte count. The value is reported as normalized on every
-# run so it never disappears silently. Remove an entry once the underlying
-# timestamp stops reaching the hashed / diffed payload.
+# 此处仅屏蔽现象，且屏蔽整个值；对于 StateDiff.Computed，也会隐藏稳定的 "incrementalFull=False" 部分。
+# 每次运行都报告值已归一化，防止静默忽略。底层时间戳不再进入哈希或差异载荷后，应移除对应条目。
 $knownUnstableKeys = @(
     'IncrementalDiffBytes',
     'StateDiff.Computed'
@@ -111,7 +100,7 @@ function Get-UnstableNormalizedText {
         $trimmed = $lines[$i].TrimStart()
         foreach ($key in $knownUnstableKeys) {
             if ($trimmed.StartsWith($key + ': ')) {
-                # Keep the original indentation so the masked line still lines up.
+                # 保留原缩进，使屏蔽后的行仍对齐。
                 $indent = $lines[$i].Substring(0, $lines[$i].Length - $trimmed.Length)
                 $lines[$i] = $indent + $key + ': <unstable>'
                 break
@@ -136,7 +125,7 @@ function Get-UnstableNormalizedCount {
 
 function Normalize-Text {
     param([string]$Text, [string]$ScratchRelative, [string]$ScratchAbsolute)
-    # Fold line endings first so every later comparison is checkout independent.
+    # 先统一行尾，使后续比较不依赖检出配置。
     $normalized = $Text -replace "`r`n", "`n"
     $normalized = $normalized -replace "`r", "`n"
     foreach ($variant in @($ScratchRelative, $ScratchAbsolute, ($ScratchRelative -replace '\\', '/'), ($ScratchAbsolute -replace '\\', '/'))) {
@@ -216,12 +205,12 @@ function Split-ArtifactSections {
 # --- 1. build -----------------------------------------------------------------
 
 if (-not $NoBuild) {
-    Write-Host '=== Building sample host ===' -ForegroundColor Cyan
+    Write-Host '=== 正在构建示例宿主 ===' -ForegroundColor Cyan
     & dotnet build $hostProject -v quiet --nologo | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Build of $hostProject failed with exit code $LASTEXITCODE." }
 }
 
-# --- 2. capture the catalog ---------------------------------------------------
+# --- 2. 采集目录输出 ---
 
 function Get-CapturedArtifact {
     if (Test-Path -LiteralPath $scratchFullPath) {
@@ -235,7 +224,7 @@ function Get-CapturedArtifact {
             '--all', '--file', '--output', $ScratchDirectory, '--no-console'
         ) | Out-Null
 
-        Write-Host '=== Validating manifest ===' -ForegroundColor Cyan
+        Write-Host '=== 正在验证清单 ===' -ForegroundColor Cyan
         $manifestReport = Invoke-SampleHost -Description 'Manifest validation' -HostArguments @('--validate-manifest')
     } finally {
         Pop-Location
@@ -277,7 +266,7 @@ function Get-SectionDifferences {
     return $lines
 }
 
-Write-Host '=== Running all manifest samples ===' -ForegroundColor Cyan
+Write-Host '=== 正在运行清单中的全部示例 ===' -ForegroundColor Cyan
 $artifact = Get-CapturedArtifact
 $unstableCount = Get-UnstableNormalizedCount -Text $artifact
 
@@ -287,12 +276,12 @@ if ($Update) {
     Write-Utf8NoBom -Path $baselineFullPath -Text $artifact
     $sampleCount = (Split-ArtifactSections -Text $artifact).Count - 1
     Write-Host ''
-    Write-Host "Baseline updated: $BaselinePath" -ForegroundColor Green
-    Write-Host "  sections captured: $sampleCount"
+    Write-Host "基线已更新： $BaselinePath" -ForegroundColor Green
+    Write-Host "  已采集分节数： $sampleCount"
     if ($unstableCount -gt 0) {
         Write-Host "  masked as <unstable>: $unstableCount line(s) - see `$knownUnstableKeys for the tracked root cause." -ForegroundColor Yellow
     }
-    Write-Host '  Review the diff before committing.'
+    Write-Host '  提交前请检查差异。'
     exit 0
 }
 
@@ -305,46 +294,43 @@ $expectedText = Normalize-Text -Text (Read-Utf8Text -Path $baselineFullPath) -Sc
 if ($expectedText -ceq $artifact) {
     $sampleCount = (Split-ArtifactSections -Text $artifact).Count - 1
     Write-Host ''
-    Write-Host "Sample baseline OK ($sampleCount sections)." -ForegroundColor Green
+    Write-Host "示例基线一致（$sampleCount 个分节）。" -ForegroundColor Green
     if ($unstableCount -gt 0) {
         Write-Host "  masked as <unstable>: $unstableCount line(s) - see `$knownUnstableKeys for the tracked root cause." -ForegroundColor Yellow
     }
     exit 0
 }
 
-# A mismatch is not automatically a regression: part of the catalog output
-# depends on wall-clock state (see $knownUnstableKeys). Capture once more so a
-# real change and a non-deterministic catalog can be told apart - reporting a
-# hard failure for the latter would be crying wolf, and the migration this
-# baseline guards would be stopped by noise.
+# 不匹配不一定是回归：部分目录输出依赖实际时钟，见 $knownUnstableKeys。
+# 再次采集以区分真实变化和非确定性输出，避免将噪声报告为硬失败并阻断此基线保护的迁移。
 Write-Host ''
-Write-Host 'First capture differs from the baseline; capturing again to separate a real change from non-deterministic output...' -ForegroundColor Yellow
+Write-Host '首次采集与基线不一致；正在再次采集，以区分实际改动与非确定性输出……' -ForegroundColor Yellow
 $secondArtifact = Get-CapturedArtifact
 
 if ($secondArtifact -ceq $expectedText) {
     Write-Host ''
-    Write-Host 'Sample baseline UNSTABLE - not a failure.' -ForegroundColor Yellow
-    Write-Host 'The first capture differed from the baseline, the second matched it.'
-    Write-Host 'Lines that drifted between the two captures:'
+    Write-Host '示例基线不稳定，本次不判为失败。' -ForegroundColor Yellow
+    Write-Host '首次采集与基线不同，第二次与基线一致。'
+    Write-Host '两次采集间发生漂移的行：'
     foreach ($line in (Get-SectionDifferences -Left $artifact -Right $secondArtifact)) { Write-Host $line }
     Write-Host ''
-    Write-Host 'This is the tracked wall-clock dependency, not a change you made.'
+    Write-Host '这是已跟踪的实际时钟依赖导致的差异，并非本次改动引起。'
     exit 0
 }
 
 if ($secondArtifact -cne $artifact) {
     Write-Host ''
-    Write-Host 'Sample baseline UNSTABLE and also different from the baseline.' -ForegroundColor Red
-    Write-Host 'Drift between the two captures:'
+    Write-Host '示例输出不稳定，且两次均与基线不同。' -ForegroundColor Red
+    Write-Host '两次采集间的漂移：'
     foreach ($line in (Get-SectionDifferences -Left $artifact -Right $secondArtifact)) { Write-Host $line }
     Write-Host ''
-    Write-Host 'Both captures disagree with the baseline, so this cannot be dismissed as noise.'
+    Write-Host '两次采集均与基线不一致，不能按噪声忽略。'
 }
 
-# Both captures agree with each other: the difference is deterministic and real.
+# 两次采集结果彼此一致，因此相对基线的差异是确定且真实的。
 $artifact = $secondArtifact
 
-# --- 4. report the difference per section ------------------------------------
+# --- 4. 按分节报告差异 ---
 
 $expectedSections = Split-ArtifactSections -Text $expectedText
 $actualSections = Split-ArtifactSections -Text $artifact
@@ -362,12 +348,12 @@ foreach ($name in $expectedSections.Keys) {
 }
 
 Write-Host ''
-Write-Host 'Sample baseline MISMATCH' -ForegroundColor Red
+Write-Host '示例基线不匹配' -ForegroundColor Red
 if ($changed.Count -gt 0) { Write-Host "  changed: $($changed -join ', ')" }
 if ($added.Count -gt 0) { Write-Host "  added:   $($added -join ', ')" -ForegroundColor Yellow }
 if ($removed.Count -gt 0) { Write-Host "  removed: $($removed -join ', ')" -ForegroundColor Yellow }
 Write-Host ''
-Write-Host 'First differing lines per changed section:'
+Write-Host '各变更分节的首处差异：'
 
 $shown = 0
 foreach ($name in $changed) {
@@ -394,6 +380,6 @@ foreach ($name in $changed) {
 }
 
 Write-Host ''
-Write-Host 'If the change is intentional and reviewed, refresh the baseline with:'
+Write-Host '若此改动符合预期且已审阅，可使用以下命令刷新基线：'
 Write-Host '  powershell -File tools/check_sample_baseline.ps1 -Update' -ForegroundColor Cyan
 exit 1

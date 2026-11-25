@@ -1,45 +1,51 @@
-# 03 - 可选依赖（TryResolve）与边界用法
+<a id="03---可选依赖tryresolve与边界用法"></a>
 
-本示例强调：
+# 可选依赖与空实现
 
-- `TryResolve` 适用于“确实可选且有合理 fallback”的依赖
-- `IWorldResolver` 推荐只在边界使用
+> 文档类型：使用示例
+> 事实基线：2026-11-24 源码核对；2026-11-25 完整类按当前 .NET 镜像编译执行。
 
-## 可选依赖：推荐写法
+<a id="更推荐的方式null-对象--构造注入"></a>
+
+有明确默认行为时，可在组合边界注册空实现，让业务服务仍通过构造函数声明依赖。调用 `OptionalDependencyExample.Run()` 预期返回 `disabled`。
 
 ```csharp
 using AbilityKit.Ability.World.DI;
 
-public sealed class SomeService
+public static class OptionalDependencyExample
 {
-    private readonly IDebugRegistry _debug;
-
-    // 中文说明：
-    // 如果 DebugRegistry 是可选模块提供的服务：
-    // - 有则增强能力
-    // - 无则功能正常
-    public SomeService(IWorldResolver services)
+    public static string Run()
     {
-        // 注意：这属于边界层/过渡层的写法。
-        // 理想情况下，更推荐把 IDebugRegistry 作为构造参数，
-        // 并在 composition 时决定是否注入一个 Null 实现。
-        services.TryResolve(out _debug);
+        var builder = new WorldContainerBuilder();
+        builder.TryRegister<IDebugStatus>(WorldLifetime.Singleton, _ => new NullDebugStatus());
+        builder.RegisterType<Feature, Feature>(WorldLifetime.Scoped);
+        using var root = builder.Build();
+        using var scope = root.CreateScope();
+        return scope.Resolve<Feature>().Status;
+    }
+
+    public interface IDebugStatus { string Status { get; } }
+
+    public sealed class NullDebugStatus : IDebugStatus
+    {
+        public string Status => "disabled";
+    }
+
+    public sealed class Feature
+    {
+        private readonly IDebugStatus _debug;
+        public Feature(IDebugStatus debug) { _debug = debug; }
+        public string Status => _debug.Status;
     }
 }
 ```
 
-解析失败不一定是可选模块未安装。注册覆盖、异常和作用域边界见[使用契约](../Documentation~/Usage.md#注册与解析)。
+需要启用功能时，由项目模块用 Register 显式覆盖 IDebugStatus；不要在包内增加某个项目专用的调试依赖。
 
-## 更推荐的方式：Null 对象 + 构造注入
+<a id="可选依赖推荐写法"></a>
 
-```csharp
-public sealed class NullDebugRegistry : IDebugRegistry
-{
-    // 中文说明：
-    // 用空实现保证依赖始终存在，业务层不需要 if/try。
-}
+## 何时使用 TryResolve
 
-// 模块里：
-// - 不安装 DebugModule 时，注册 NullDebugRegistry
-// - 安装 DebugModule 时，注册真实 DebugRegistry
-```
+只有业务有降级路径时才使用 TryResolve。返回 false 不等于未注册，也不等于没有副作用：工厂或初始化可能已经部分执行。根容器与作用域的异常折叠范围不同，循环依赖会传播；作用域还会传播部分 InvalidOperationException。
+
+排查失败时在同一解析边界用 Resolve 保留异常，不通过吞掉工厂错误伪装成“可选模块缺失”。详细行为见[注册与解析](../Documentation~/Usage.md#注册与解析)。

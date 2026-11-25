@@ -1,8 +1,8 @@
 # com.abilitykit.network.transport.kcp
 
-Optional reliable UDP transport implementing `ITransport` with KCP semantics.
-It carries the same AbilityKit length-prefixed frame bytes as TCP and WebSocket,
-so protocol handlers and session code remain transport independent.
+采用 KCP 语义、实现 `ITransport` 的可选可靠 UDP 传输。
+它承载与 TCP 和 WebSocket 相同的 AbilityKit 长度前缀帧字节，
+使协议处理器和会话代码保持传输无关。
 
 ```csharp
 var transport = new KcpTransport(new KcpTransportOptions
@@ -14,10 +14,8 @@ var connection = new ConnectionManager(() => transport);
 connection.Open("127.0.0.1", 4002);
 ```
 
-The peer must use the same `ConversationId`. KCP is a reliable ordered byte-message
-transport; it does not define authentication, matchmaking, reconnect, or gameplay
-resume semantics. Use the protocol/session layer for those concerns.
+对端必须使用相同的 `ConversationId`。KCP 提供可靠有序的字节消息传输；
+身份认证、匹配、重连和玩法恢复语义由协议与会话层定义。
 
-The implementation is derived from the ET KCP implementation already vendored by the
-ET demo in this repository. Its source license applies to redistribution; review that
-license before publishing this optional package outside the repository.
+实现派生自本仓库 ET 示例已引入的 ET KCP 实现。再次分发受其源码许可证约束；
+向仓库外发布此可选包前，应核对该许可证。

@@ -171,6 +171,13 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             Ensure(definition, MobaBTreeKeys.LaunchHeadingValid, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.LaunchHeadingX, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.LaunchHeadingZ, ValueType.Fixed64);
+            foreach (var node in definition.Nodes)
+            {
+                if (node.Type == MobaBTreeNodeTypes.SelectNearestEnemy &&
+                    new PropertyReader(node.Properties).GetFixed64(MobaSelectNearestEnemyNode.RetainRadiusProperty,
+                        Fixed64.Zero) > Fixed64.Zero)
+                    Ensure(definition, MobaSelectNearestEnemyNode.RetainedTargetKey(node.Id), ValueType.Int64);
+            }
             Ensure(definition, MobaBTreeKeys.OwnerForwardX, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.OwnerForwardZ, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.OwnerId, ValueType.Int64);

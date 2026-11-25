@@ -33,6 +33,7 @@ namespace AbilityKit.Context
             public long Id { get; }
             public long Generation { get; }
             public long FlowId { get; set; }
+            public bool IsDestroying { get; set; }
             public long CreatedAtMs { get; }
             public Dictionary<int, IProperty> Properties { get; } = new Dictionary<int, IProperty>();
 
@@ -132,34 +133,48 @@ namespace AbilityKit.Context
             return new EntityBuilder(this, entityId);
         }
 
+        /// <summary>
+        /// 销毁当前实体。在销毁通知期间，重复销毁同一实例返回 false；
+        /// 通知后仅在原实例仍属于注册表时才提交删除。
+        /// </summary>
         public bool Destroy(long entityId)
         {
+            EntityData entity;
             ContextEvent destroying;
             ContextEvent destroyed;
             lock (_lock)
             {
-                if (!_entities.TryGetValue(entityId, out var entity))
+                if (!_entities.TryGetValue(entityId, out entity) || entity.IsDestroying)
                     return false;
 
+                entity.IsDestroying = true;
                 destroying = ContextEvent.Destroying(entityId, entity.FlowId);
             }
 
-            RaiseEvent(destroying);
-
-            lock (_lock)
+            try
             {
-                if (!_entities.TryGetValue(entityId, out var entity))
-                    return false;
+                RaiseEvent(destroying);
 
-                foreach (var propertyTypeId in entity.Properties.Keys.ToList())
-                    RemovePropertyIndex(propertyTypeId, entityId);
+                lock (_lock)
+                {
+                    if (!_entities.TryGetValue(entityId, out var current) || !ReferenceEquals(current, entity))
+                        return false;
 
-                if (entity.FlowId != 0 && _flows.TryGetValue(entity.FlowId, out var flow))
-                    flow.RemoveEntity(entityId);
+                    foreach (var propertyTypeId in entity.Properties.Keys)
+                        RemovePropertyIndex(propertyTypeId, entityId);
 
-                _entities.Remove(entityId);
-                _idHandlers.Remove(entityId);
-                destroyed = ContextEvent.Destroyed(entityId, entity.FlowId);
+                    if (entity.FlowId != 0 && _flows.TryGetValue(entity.FlowId, out var flow))
+                        flow.RemoveEntity(entityId);
+
+                    _entities.Remove(entityId);
+                    _idHandlers.Remove(entityId);
+                    destroyed = ContextEvent.Destroyed(entityId, entity.FlowId);
+                }
+            }
+            finally
+            {
+                lock (_lock)
+                    entity.IsDestroying = false;
             }
 
             RaiseEvent(destroyed);

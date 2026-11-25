@@ -29,8 +29,9 @@ public sealed class GatewayStateSyncPushSubscriptionManager
         _logger = logger;
     }
 
-    public async Task EnsureBoundAsync(long connectionId, string observerKey)
+    internal async Task<StateSyncPreparedRecipient> EnsureBoundAsync(GatewaySessionContext context, string observerKey)
     {
+        var connectionId = context.ConnectionId;
         if (connectionId <= 0) throw new ArgumentOutOfRangeException(nameof(connectionId));
         if (string.IsNullOrWhiteSpace(observerKey)) throw new ArgumentException("observerKey is required.", nameof(observerKey));
 
@@ -39,16 +40,17 @@ public sealed class GatewayStateSyncPushSubscriptionManager
         {
             if (_subscriptions.TryGetValue(connectionId, out var current))
             {
-                if (string.Equals(current.ObserverKey, observerKey, StringComparison.Ordinal))
+                if (string.Equals(current.ObserverKey, observerKey, StringComparison.Ordinal) &&
+                    current.Recipient.ConnectionGeneration == context.ConnectionGeneration)
                 {
-                    return;
+                    return current.Recipient;
                 }
 
                 await RemoveSubscriptionAsync(connectionId, current).ConfigureAwait(false);
             }
 
             var observerGrain = _clusterClient.GetGrain<IStateSyncObserverGrain>(observerKey);
-            var bindingId = Guid.NewGuid().ToString("N");
+            var recipient = new StateSyncPreparedRecipient(Guid.NewGuid().ToString("N"), context.ConnectionGeneration);
             var pushPump = new ConnectionStateSyncPushPump(
                 connectionId,
                 _sessionRegistry,
@@ -57,14 +59,16 @@ public sealed class GatewayStateSyncPushSubscriptionManager
             var observerReference = _clusterClient.CreateObjectReference<IStateSyncGatewayPushObserver>(observer);
             try
             {
-                await observerGrain.BindGatewayPushObserverAsync(bindingId, observerReference).ConfigureAwait(false);
+                await observerGrain.BindGatewayPushObserverAsync(recipient.BindingId, observerReference, recipient.ConnectionGeneration)
+                    .ConfigureAwait(false);
                 _subscriptions[connectionId] = new Subscription(
                     observerKey,
-                    bindingId,
+                    recipient,
                     observerGrain,
                     observer,
                     observerReference,
                     pushPump);
+                return recipient;
             }
             catch
             {
@@ -104,7 +108,7 @@ public sealed class GatewayStateSyncPushSubscriptionManager
         try
         {
             await subscription.ObserverGrain
-                .UnbindGatewayPushObserverAsync(subscription.BindingId)
+                .UnbindGatewayPushObserverAsync(subscription.Recipient.BindingId)
                 .ConfigureAwait(false);
         }
         catch (Exception exception)
@@ -124,7 +128,7 @@ public sealed class GatewayStateSyncPushSubscriptionManager
 
     private sealed record Subscription(
         string ObserverKey,
-        string BindingId,
+        StateSyncPreparedRecipient Recipient,
         IStateSyncObserverGrain ObserverGrain,
         ConnectionStateSyncPushObserver Observer,
         IStateSyncGatewayPushObserver ObserverReference,

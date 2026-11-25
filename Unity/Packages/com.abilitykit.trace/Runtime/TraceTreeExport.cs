@@ -10,6 +10,9 @@ namespace AbilityKit.Trace
         TreePreOrder = 1
     }
 
+    /// <summary>
+    /// 诊断快照的输出选项。节点和深度上限限制输出，不保证限制查询成本。
+    /// </summary>
     public readonly struct TraceExportOptions
     {
         public TraceExportOptions(int maxNodes, bool activeOnly, bool includeMetadata)
@@ -36,6 +39,9 @@ namespace AbilityKit.Trace
         public static TraceExportOptions ActiveOnlyDefault => new TraceExportOptions(0, true, true);
     }
 
+    /// <summary>
+    /// 诊断快照的节点投影。元数据可包含业务对象引用，导出不会深拷贝或清洗它。
+    /// </summary>
     public readonly struct TraceNodeExportDto
     {
         public TraceNodeExportDto(
@@ -103,6 +109,10 @@ namespace AbilityKit.Trace
         public bool IsRoot => ContextId == RootId;
     }
 
+    /// <summary>
+    /// 用于编辑器、调试和验收的 Trace 诊断快照，不是权威状态或稳定的序列化格式。
+    /// 不用于网络同步、存档或回滚；长期证据须转换为独立的版本化产物。
+    /// </summary>
     public sealed class TraceTreeExportDto
     {
         public TraceTreeExportDto(long rootId, IReadOnlyList<TraceNodeExportDto> nodes, bool truncated)
@@ -117,13 +127,22 @@ namespace AbilityKit.Trace
         public bool Truncated { get; }
     }
 
+    /// <summary>
+    /// 在注册表所属的逻辑线程上导出诊断快照，不授予额外的根保留引用。
+    /// </summary>
     public static class TraceTreeExportExtensions
     {
+        /// <summary>
+        /// 导出指定根的完整诊断视图，默认包含业务元数据。
+        /// </summary>
         public static TraceTreeExportDto ExportRoot(this TraceTreeRegistryBase registry, long rootId)
         {
             return ExportRoot(registry, rootId, TraceExportOptions.Full);
         }
 
+        /// <summary>
+        /// 按指定顺序和输出上限导出单根诊断视图。找不到该根时返回空视图。
+        /// </summary>
         public static TraceTreeExportDto ExportRoot(this TraceTreeRegistryBase registry, long rootId, TraceExportOptions options)
         {
             if (registry == null) throw new ArgumentNullException(nameof(registry));
@@ -133,6 +152,9 @@ namespace AbilityKit.Trace
             return BuildExport(registry, rootId, snapshots, options);
         }
 
+        /// <summary>
+        /// 导出符合条件的根。活动筛选仅作用于根，输出上限按每棵树计算。
+        /// </summary>
         public static IReadOnlyList<TraceTreeExportDto> ExportRoots(this TraceTreeRegistryBase registry, TraceExportOptions options)
         {
             if (registry == null) throw new ArgumentNullException(nameof(registry));

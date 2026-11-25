@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Reconcile console ability-trigger configs with the Unity-authoritative copies.
 
@@ -61,7 +61,7 @@ $reportFullPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $ReportPath
 if (-not (Test-Path -LiteralPath $unityRoot -PathType Container)) { throw "UnityRoot not found: $unityRoot" }
 if (-not (Test-Path -LiteralPath $consoleRoot -PathType Container)) { throw "ConsoleRoot not found: $consoleRoot" }
 
-# 'all' = every category directory present under UnityRoot.
+# 'all' 表示 UnityRoot 下存在的全部分类目录。
 if ($Categories.Count -eq 1 -and $Categories[0] -eq 'all') {
     $Categories = @(Get-ChildItem -LiteralPath $unityRoot -Directory | ForEach-Object { $_.Name })
 }

@@ -36,19 +36,26 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
         CancellationToken cancellationToken)
         => await SubscribeAsync(request, context, fixedBaseline: false);
 
-    internal async ValueTask<GatewayResponse> SubscribeAsync(
+    internal ValueTask<GatewayResponse> SubscribeAsync(
         GatewayRequest request, GatewaySessionContext context, bool fixedBaseline)
     {
         if (request.Payload == null || request.Payload.Length == 0)
-            return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+            return ValueTask.FromResult(GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest));
 
         var req = WireRoomGatewayBinary.Deserialize<WireSubscribeStateSyncReq>(request.Payload);
+        return SubscribeAsync(request.Seq, context, req, fixedBaseline);
+    }
+
+    internal async ValueTask<GatewayResponse> SubscribeAsync(uint requestSequence, GatewaySessionContext context,
+        WireSubscribeStateSyncReq req, bool fixedBaseline, Guid inputGeneration = default, ulong worldId = 0,
+        uint playerId = 0, bool receivesMovementProof = false)
+    {
         if (string.IsNullOrWhiteSpace(req.SessionToken)
             || string.IsNullOrWhiteSpace(req.BattleId)
             || string.IsNullOrWhiteSpace(req.RoomId)
             || context.ConnectionId <= 0)
         {
-            return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+            return GatewayResponse.Error(requestSequence, GatewayStatusCode.BadRequest);
         }
 
         try
@@ -56,7 +63,19 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
             var accountId = await RoomGatewayWireMapper.ValidateAccountAsync(_clusterClient, req.SessionToken);
             if (string.IsNullOrWhiteSpace(accountId))
             {
-                return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+                return GatewayResponse.Error(requestSequence, GatewayStatusCode.BadRequest);
+            }
+
+            if (inputGeneration != Guid.Empty)
+            {
+                var membership = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
+                var roomId = await membership.TryGetAccountRoomAsync(accountId);
+                if (string.IsNullOrWhiteSpace(roomId))
+                    return GatewayResponse.Error(requestSequence, GatewayStatusCode.BadRequest);
+                var roomSnapshot = await _clusterClient.GetGrain<IRoomGrain>(roomId).GetSnapshotAsync();
+                if (!string.Equals(roomSnapshot?.Summary.RoomId, req.RoomId, StringComparison.Ordinal) ||
+                    !SubmitBattleInputHandler.CanUseScopedInput(roomSnapshot, req.BattleId, worldId, accountId, playerId))
+                    return GatewayResponse.Error(requestSequence, GatewayStatusCode.BadRequest);
             }
 
             context.AccountId = accountId;
@@ -69,16 +88,25 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
             var observerKey = $"{accountId}:{roomKey}";
             var observerGrain = _clusterClient.GetGrain<IStateSyncObserverGrain>(observerKey);
 
-            await _pushSubscriptions.EnsureBoundAsync(context.ConnectionId, observerKey);
+            context.ScopedStateSyncInput = null;
+            var recipient = await _pushSubscriptions.EnsureBoundAsync(context, observerKey);
             var cursor = new ReliableBattleEventSubscribeCursor
             {
                 Epoch = req.EventEpoch ?? string.Empty,
                 LastAcknowledgedSequence = Math.Max(0, req.LastEventAck)
             };
             if (fixedBaseline)
-                await observerGrain.SubscribeFixedBaselineAsync(req.BattleId, cursor);
+                await observerGrain.SubscribeFixedBaselineAsync(req.BattleId, cursor,
+                    recipient with
+                    {
+                        SubscriptionGeneration = Guid.NewGuid(), InputGeneration = inputGeneration, PlayerId = playerId,
+                        ReceivesMovementProof = receivesMovementProof
+                    });
             else
                 await observerGrain.SubscribeAsync(req.BattleId, cursor);
+
+            context.ScopedStateSyncInput = inputGeneration == Guid.Empty ? null :
+                new ScopedStateSyncInputIdentity(accountId, req.BattleId, worldId, playerId, inputGeneration);
 
             var wire = new WireSubscribeStateSyncRes
             {
@@ -86,12 +114,12 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
                 Message = string.Empty
             };
             var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
-            return GatewayResponse.Ok(request.Seq, responsePayload.ToArray());
+            return GatewayResponse.Ok(requestSequence, responsePayload.ToArray());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Subscribe state sync failed. BattleId={BattleId}, RoomId={RoomId}, ConnectionId={ConnectionId}", req.BattleId, req.RoomId, context.ConnectionId);
-            return GatewayResponse.Error(request.Seq, GatewayStatusCode.InternalError);
+            return GatewayResponse.Error(requestSequence, GatewayStatusCode.InternalError);
         }
     }
 }

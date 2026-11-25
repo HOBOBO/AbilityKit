@@ -10,10 +10,7 @@ using UnityEngine;
 namespace AbilityKit.Editor.Platform.UI
 {
     /// <summary>
-    /// The single navigation entry point for AbilityKit editor tooling. It renders the
-    /// registries owned by <see cref="AbilityKitEditorPlatform"/> (modules, menus, panels,
-    /// commands) and reflectively surfaces windows still registered via raw
-    /// <c>[MenuItem]</c> as a visible migration backlog.
+    /// 展示显式准入的编辑器模块、菜单和面板；未准入菜单只供迁移盘点。
     /// </summary>
     public sealed class EditorHubWindow : EditorWindow
     {
@@ -23,7 +20,11 @@ namespace AbilityKit.Editor.Platform.UI
         private Vector2 _scroll;
         private IReadOnlyList<EditorMenuItemInfo> _allDiscovered = Array.Empty<EditorMenuItemInfo>();
         private bool _discoveryLoaded;
+        private bool _showMigrationInventory;
 
+        /// <summary>
+        /// 打开编辑器工具导航，不触发菜单迁移扫描或领域操作。
+        /// </summary>
         [MenuItem(HubMenuPath, false, 0)]
         public static void Open()
         {
@@ -37,7 +38,6 @@ namespace AbilityKit.Editor.Platform.UI
             AbilityKitEditorPlatform.Modules.ModulesChanged += Repaint;
             AbilityKitEditorPlatform.Menus.Changed += Repaint;
             AbilityKitEditorPlatform.Panels.Changed += Repaint;
-            AbilityKitEditorPlatform.Commands.CommandsChanged += Repaint;
         }
 
         private void OnDisable()
@@ -47,7 +47,6 @@ namespace AbilityKit.Editor.Platform.UI
             AbilityKitEditorPlatform.Modules.ModulesChanged -= Repaint;
             AbilityKitEditorPlatform.Menus.Changed -= Repaint;
             AbilityKitEditorPlatform.Panels.Changed -= Repaint;
-            AbilityKitEditorPlatform.Commands.CommandsChanged -= Repaint;
         }
 
         private void OnGUI()
@@ -60,10 +59,13 @@ namespace AbilityKit.Editor.Platform.UI
             DrawRegisteredModules(localization);
             DrawRegisteredMenus(localization);
             DrawRegisteredPanels(localization);
-            DrawDiscovered(localization);
+            _showMigrationInventory = EditorGUILayout.Foldout(
+                _showMigrationInventory, localization.Get("abilitykit.editor.hub.section.discovered"), true);
+            if (_showMigrationInventory)
+            {
+                DrawDiscovered(localization);
+            }
             EditorGUILayout.EndScrollView();
-
-            DrawStatusBar(localization);
         }
 
         private void DrawTopToolbar(IEditorLocalization localization)
@@ -74,10 +76,6 @@ namespace AbilityKit.Editor.Platform.UI
             if (GUILayout.Button(localization.Get("abilitykit.editor.hub.language"), EditorStyles.toolbarButton, GUILayout.Width(56f)))
             {
                 ShowLanguageMenu();
-            }
-            if (GUILayout.Button(localization.Get("abilitykit.editor.hub.refresh"), EditorStyles.toolbarButton, GUILayout.Width(64f)))
-            {
-                RefreshDiscovery();
             }
             EditorGUILayout.EndHorizontal();
         }
@@ -94,7 +92,7 @@ namespace AbilityKit.Editor.Platform.UI
         private void DrawRegisteredModules(IEditorLocalization localization)
         {
             var modules = AbilityKitEditorPlatform.Modules.Modules
-                .Where(module => module?.Descriptor != null
+                .Where(module => module?.Descriptor?.ShowInHub == true
                     && _search.Matches(localization.Get(module.Descriptor.DisplayNameKey), module.Descriptor.Id))
                 .ToList();
 
@@ -117,7 +115,7 @@ namespace AbilityKit.Editor.Platform.UI
         private void DrawRegisteredMenus(IEditorLocalization localization)
         {
             var menus = AbilityKitEditorPlatform.Menus.Items
-                .Where(menu => menu != null && _search.Matches(menu.Path))
+                .Where(menu => menu?.ShowInHub == true && _search.Matches(menu.Path))
                 .ToList();
 
             DrawSectionHeader(localization.Get("abilitykit.editor.hub.section.registeredMenus"), menus.Count);
@@ -142,7 +140,7 @@ namespace AbilityKit.Editor.Platform.UI
         private void DrawRegisteredPanels(IEditorLocalization localization)
         {
             var panels = AbilityKitEditorPlatform.Panels.Items
-                .Where(panel => panel != null && _search.Matches(localization.Get(panel.TitleKey), panel.Id))
+                .Where(panel => panel?.ShowInHub == true && _search.Matches(localization.Get(panel.TitleKey), panel.Id))
                 .ToList();
 
             DrawSectionHeader(localization.Get("abilitykit.editor.hub.section.registeredPanels"), panels.Count);
@@ -167,50 +165,30 @@ namespace AbilityKit.Editor.Platform.UI
 
         private void DrawDiscovered(IEditorLocalization localization)
         {
+            EditorGUILayout.HelpBox(localization.Get("abilitykit.editor.hub.discoveredNote"), MessageType.Info);
+            if (GUILayout.Button(localization.Get("abilitykit.editor.hub.refresh"), GUILayout.ExpandWidth(false)))
+            {
+                RefreshDiscovery();
+            }
+
             var discovered = CurrentDiscovered().Where(item => _search.Matches(item.Path)).ToList();
 
-            DrawSectionHeader(localization.Get("abilitykit.editor.hub.section.discovered"), discovered.Count);
             if (discovered.Count == 0)
             {
                 DrawInlineEmpty(localization);
                 return;
             }
 
-            EditorGUILayout.HelpBox(localization.Get("abilitykit.editor.hub.discoveredNote"), MessageType.Info);
             foreach (var group in GroupByTopRoot(discovered))
             {
                 EditorGUILayout.LabelField(group.Key, EditorStyles.miniBoldLabel);
                 EditorGUI.indentLevel++;
                 foreach (var item in group)
                 {
-                    EditorGUILayout.BeginHorizontal();
-                    if (GUILayout.Button(localization.Get("abilitykit.editor.hub.open"), EditorStyles.miniButton, GUILayout.Width(52f)))
-                    {
-                        TryOpenPath(item.Path);
-                    }
-                    EditorGUILayout.LabelField(
-                        EditorMenuItemDiscovery.StripRoot(item.Path, EditorMenuItemDiscovery.DefaultRoots),
-                        EditorStyles.label);
-                    EditorGUILayout.EndHorizontal();
+                    EditorGUILayout.SelectableLabel(item.Path, GUILayout.Height(EditorGUIUtility.singleLineHeight));
                 }
                 EditorGUI.indentLevel--;
             }
-        }
-
-        private void DrawStatusBar(IEditorLocalization localization)
-        {
-            var modules = AbilityKitEditorPlatform.Modules.Modules.Count;
-            var menus = AbilityKitEditorPlatform.Menus.Items.Count;
-            var panels = AbilityKitEditorPlatform.Panels.Items.Count;
-            var commands = AbilityKitEditorPlatform.Commands.Commands.Count;
-            var discovered = CurrentDiscovered().Count;
-
-            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label(
-                localization.Format("abilitykit.editor.hub.status", modules, menus, panels, commands, discovered),
-                EditorStyles.miniLabel);
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.EndHorizontal();
         }
 
         private IReadOnlyList<EditorMenuItemInfo> CurrentDiscovered()
@@ -220,7 +198,7 @@ namespace AbilityKit.Editor.Platform.UI
             return EditorMenuItemDiscovery.Exclude(
                 _allDiscovered,
                 AbilityKitEditorPlatform.Menus.Items
-                    .Where(menu => menu != null)
+                    .Where(menu => menu?.ShowInHub == true)
                     .Select(menu => menu.Path)
                     .Concat(new[] { HubMenuPath }));
         }
@@ -231,19 +209,6 @@ namespace AbilityKit.Editor.Platform.UI
                 AppDomain.CurrentDomain.GetAssemblies(),
                 EditorMenuItemDiscovery.DefaultRoots);
             _discoveryLoaded = true;
-        }
-
-        private static void TryOpenPath(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path)) return;
-            try
-            {
-                EditorApplication.ExecuteMenuItem(path);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogException(ex);
-            }
         }
 
         private static void DrawSectionHeader(string title, int count)

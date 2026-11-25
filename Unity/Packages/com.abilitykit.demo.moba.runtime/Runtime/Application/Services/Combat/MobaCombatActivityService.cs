@@ -51,8 +51,9 @@ namespace AbilityKit.Demo.Moba.Services
         internal Dictionary<int, float> CaptureCombatTimes()
             => new Dictionary<int, float>(_lastCombatTimeByActorId);
 
-        // The rollback owner supplies a detached, fully validated map and transfers ownership.
-        // No gameplay or continuous reconciliation is run during this synchronous exchange.
+        /*
+         * 回滚所有者提供脱离活动状态且已完整验证的映射，并转移所有权。此同步交换不执行玩法或持续对账。
+         */
         internal void RestoreCombatTimes(Dictionary<int, float> prepared)
         {
             _lastCombatTimeByActorId = prepared ?? throw new System.ArgumentNullException(nameof(prepared));

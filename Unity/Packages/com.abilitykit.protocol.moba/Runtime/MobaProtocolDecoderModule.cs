@@ -1,20 +1,26 @@
 #nullable enable
 
 using System;
-using AbilityKit.Ability.Host.Extensions.Moba.Room;
 using AbilityKit.Protocol.Catalog;
+using AbilityKit.Protocol.Generated;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
-using AbilityKit.Protocol.Moba.SettledFrames;
-using AbilityKit.Protocol.Moba.StateSync;
 using MemoryPack;
 
 namespace AbilityKit.Protocol.Moba
 {
-    /// <summary>Registers the MOBA battle payload decoders owned by the MOBA protocol package.</summary>
+    /// <summary>
+    /// 注册 MOBA 战斗协议包的诊断负载解码器。
+    /// </summary>
     public static class MobaProtocolDecoderModule
     {
+        /// <summary>
+        /// MOBA 战斗协议目录标识。
+        /// </summary>
         public const string CatalogId = "abilitykit.moba.battle";
 
+        /// <summary>
+        /// 注册生成目录中的解码器和单独维护的帧同步诊断入口；保留已注册的解码器。
+        /// </summary>
         public static void Register(ProtocolPayloadDecoderRegistry registry)
         {
             if (registry == null) throw new ArgumentNullException(nameof(registry));
@@ -23,29 +29,7 @@ namespace AbilityKit.Protocol.Moba
             Register<WireSubmitFrameInputRes>(registry, "frame-sync-submit-input.response");
             registry.TryRegister(CatalogId, "frame-sync-metrics.request", payload => payload.ToArray());
             Register<WireFrameSyncMetrics>(registry, "frame-sync-metrics.response");
-            Register<WireSettledSubscribeRequest>(registry, "settled-frame-subscribe.request");
-            Register<WireSettledSubscribeResponse>(registry, "settled-frame-subscribe.response");
-            Register<WireSettledCatchUpRequest>(registry, "settled-frame-catch-up.request");
-            Register<WireSettledCatchUpResponse>(registry, "settled-frame-catch-up.response");
-            Register<WireSettledFrame>(registry, "settled-frame.push");
-
-            Register<MobaMovePayload>(registry, "move-input.event");
-            Register<SkillInputEvent>(registry, "skill-input.event");
-            Register<MobaDebugSpawnUnitPayload>(registry, "debug-spawn-unit.event");
-            Register<MobaDebugReplaceHeroPayload>(registry, "debug-replace-hero.event");
-            Register<MobaRoomSnapshot>(registry, "lobby-snapshot.push");
-            Register<MobaEnterGamePayload>(registry, "enter-game.push");
-            Register<MobaActorTransformSnapshotPayload>(registry, "actor-transform.push");
-            Register<MobaStateHashSnapshotPayload>(registry, "state-hash.push");
-            Register<MobaActorSpawnSnapshotPayload>(registry, "actor-spawn.push");
-            Register<MobaProjectileEventSnapshotPayload>(registry, "projectile-event.push");
-            Register<MobaDamageEventSnapshotPayload>(registry, "damage-event.push");
-            Register<MobaActorDespawnSnapshotPayload>(registry, "actor-despawn.push");
-            Register<MobaAreaEventSnapshotPayload>(registry, "area-event.push");
-            Register<MobaPresentationCueSnapshotPayload>(registry, "presentation-cue.push");
-            Register<MobaSkillStateSnapshotPayload>(registry, "skill-state.push");
-            Register<MobaPlayerHeroChangedSnapshotPayload>(registry, "player-hero-changed.push");
-            Register<MobaActionAckPayload>(registry, "action-ack.push");
+            ProjectMemoryPackCodecs.Register(registry);
         }
 
         private static void Register<T>(ProtocolPayloadDecoderRegistry registry, string messageId)

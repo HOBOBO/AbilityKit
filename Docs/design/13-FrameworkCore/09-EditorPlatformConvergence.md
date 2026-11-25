@@ -1,14 +1,14 @@
 # 09-编辑器平台收敛与统一入口设计
 
 > 文档类型：Canonical 设计 + 演进计划
-> 事实基线：2026-09-07
+> 事实基线：2026-11-25（入口与 Hub 源码盘点）；§2–4 的平台采纳与重复实现以 2026-09-07 的历史核查为基线。
 
 ## 一、能力定位
 
 本文是 `com.abilitykit.base.editor` 的 **Editor Platform 跨模块收敛策略**。它回答两个问题：
 
 1. pipeline、HFSM、行为树、BattleScenario、Trigger Authoring、Protocol、Trace 等编辑器的导出、加载、界面、基础功能、运行时调试、校验、项目管理里，**哪些该下沉到 Editor Platform、哪些必须留在各模块**；
-2. 各窗口 `[MenuItem]` 目前散在 `Window/AbilityKit/*`、`Tools/AbilityKit/Framework/*`、`Tools/AbilityKit/Demos/*`、`Assets/AbilityKit/*` 四处，**统一入口如何补上**。
+2. **已有 Hub 如何区分正式工具、项目工具、诊断和一次性操作**，以及菜单、资产上下文与批处理如何共用能力而不重复暴露。
 
 它不重复 `com.abilitykit.base.editor/Document/BaseEditor基础编辑器工具模块开发设计文档.md`（那是 Platform 的 API 面 + Legacy 兼容边界的包内 canonical），只做跨模块的边界判定、采纳地图、重复证据与收敛顺序。
 
@@ -77,38 +77,63 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 
 6. **BT 虽是标杆也有尾巴**：menu/panel 既注册进 Platform，又用裸 `[MenuItem]` 重复声明（`DebugObservationWindow.cs:62`、`AuthoringProjectAssetInspector.cs:171`）；项目级 "Validate All" 不走 `EditorDiagnostic`、直接弹字符串对话框。
 
-## 五、统一入口：当前真正缺的那块
+## 五、统一入口与当前盘点
 
-### 5.1 现状（缺口）
+### 5.1 当前实现与风险
 
-注册机制已建好，但**没有任何窗口消费它**：
+`Window/AbilityKit/Hub` **已经存在**。[Hub 窗口](../../../Unity/Packages/com.abilitykit.base.editor/Editor/Platform/UI/EditorHubWindow.cs)只展示显式准入（`showInHub: true`）的模块、菜单和面板，不展示命令注册表。默认不启动反射扫描；展开“迁移清单（只读）”时，[菜单发现](../../../Unity/Packages/com.abilitykit.base.editor/Editor/Platform/UI/EditorMenuItemDiscovery.cs)按 `Window/AbilityKit/`、`Tools/AbilityKit/`、`Assets/AbilityKit/` 前缀发现，过滤校验声明并排除已经准入的路径与 Hub 本身。该清单只列路径供筛选和复制，不执行菜单。此前反射结果可通过 `ExecuteMenuItem` 执行，使写入类工具可能被当作普通窗口打开；此风险已在 Hub 导航层隔离，未改变原 Unity 菜单。
 
-- `AbilityKitEditorPlatform` 暴露 `Modules`/`Menus`/`Panels`/`Commands`/`Services`（`Platform/Core/AbilityKitEditorPlatform.cs:44-49`）。
-- BT 的 `Bootstrap/EditorModule.cs:116` 把自己注册进 `Modules`，并在 `OnRegister` 注册两个 menu 两个 panel（`:43-68`）。
-- 全库 grep 表明：**除了 BT 的 Register 调用、底座自身定义和测试，没有第二个消费者去遍历 `Menus.Items` / `Modules.Modules` 渲染任何 UI**。
+本轮在 `Unity/Packages/com.abilitykit.*`（不含第三方）和 `Unity/Assets` 中静态筛查可解析的 `[MenuItem]` 路径，拆开执行与 validate 声明并另计 `Samples~`：
 
-因此 130+ 个窗口靠 `[MenuItem]` 散在 4 个菜单根下，互相无索引、无跳转、无"框架有哪些能力"的总览。这是"窗口分布乱"的直接根因。
+- 主体源码有 **128 条执行声明**：`demo.*` 为 59，其他 AbilityKit 包为 65，编辑器宿主 `Unity/Assets` 为 4；另有 19 条校验声明和 `Samples~` 中 6 条执行声明。包名是归属线索；65 不是“正式工具数”。
+- 主体路径分布：`Tools/AbilityKit` 88、`Window/AbilityKit` 20、`Assets/AbilityKit` 12、`Assets/Create/AbilityKit` 3，另有 `GameObject/AbilityKit` 1、独立的 `AbilityKit` 根 3、其他 `Assets` 路径 1。静态声明数不是注册后的菜单数，不统计 `CreateAssetMenu`、Inspector 按钮、资产打开回调、Hub 注册或 `-executeMethod` 入口。
 
-### 5.2 目标设计
+| 源码证据 | 问题与处置方向 |
+|---|---|
+| [HFSM 工作台](../../../Unity/Packages/com.abilitykit.hfsm/Editor/StateMachineEditorWindow.cs)同时有独立窗口入口与资产上下文入口 | 上下文打开目标不同，不按菜单数判定重复。保留有意义的入口，收敛到同一实现；登记旧菜单为兼容路径后再决定去留。 |
+| [BattleScenario 组件创建](../../../Unity/Packages/com.abilitykit.battlescenario/Editor/BattleScenarioRootEditor.cs)走 `GameObject/AbilityKit` | 本来依赖场景上下文，不必为了被 Hub 查到而另开一条全局命令。 |
+| [Trigger 项目配置菜单](../../../Unity/Packages/com.abilitykit.ability/Editor/Utilities/TriggerAuthoringProjectSetup.cs)位于 Ability 包，却构建 MOBA 默认目录并指向 MOBA 运行时输出 | 标为项目模板/发布接入待核；核对正式消费者和发布链后再定归属，不能因放在框架包就认定为框架能力。 |
+| [临时表现 Prefab 生成器](../../../Unity/Assets/Scripts/Editor/MobaTemporaryPresentationPrefabGenerator.cs)、[飞艇占位资源生成器](../../../Unity/Assets/Scripts/Editor/MobaLubanAirshipPrefabGenerator.cs)、[Jinx 发布修补](../../../Unity/Packages/com.abilitykit.demo.moba.editor/Editor/Moba/JinxLivePresentationSync.cs)暴露为菜单，后者还带快捷键 | 写资产/发布类优先复核。先查 Console、Editor、文档、批处理与外部维护调用；再区分正式项目命令和历史修补。盘点未执行这些动作，未确认可删除。 |
+| [MOBA 配置同步脚本](../../../tools/run-moba-config-sync.ps1)明确传入 `-executeMethod` | 批处理是独立入口契约，不能靠菜单扫描估计；不因 UI 整理而改入口方法、退出码和报告路径。 |
 
-新增 **AbilityKit Hub（统一入口窗口）**，放在 Platform 层，读 `Modules`/`Menus`/`Panels`/`Commands`/`Services`，渲染：
+### 5.2 编辑器工具准入规范
 
-1. **已注册模块**（`Modules.Modules`）：按 `Descriptor.Order` 排序，展示模块名（本地化）与它的 menu/panel 贡献；
-2. **已注册菜单/面板**（`Menus.Items`/`Panels.Items`）：按菜单根分组，可点击打开；
-3. **已注册命令**（`Commands.Commands`）：展示 label + `CanExecute` 状态；
-4. **散落窗口（待迁移）**：反射扫描已加载程序集里 `[MenuItem]` 且路径属于 `Window/AbilityKit/`、`Tools/AbilityKit/`、`Assets/AbilityKit/` 的静态方法，去重已注册路径后列出，标记"待迁移"，通过 `EditorApplication.ExecuteMenuItem(path)` 打开。
+**一项能力只有一个权威实现和一个维护归属。** Hub 是全局导航，不是所有命令的执行面；窗口、上下文和批处理可以是指向同一能力的不同入口。菜单路径不是能力 ID，`Framework`／`Demos` 路径不是成熟度证明。
 
-第 4 项让 Hub **立刻可用**（现在就能跳转所有窗口），同时把迁移积压可视化——这既是导航器，也是迁移进度的看板。
+| 类别 | 归属与默认可见性 | 入口规则 |
+|---|---|---|
+| 框架正式工具 | 领域包 `Editor/`；共用稳定原语才进 Editor Platform，底座不反向引用领域或 Demo。 | 可全局发现的工作台显式登记到 Hub；需要兼容时保留 `Window/AbilityKit/<领域>` 薄入口。项目无关的独立命令才放 `Tools/AbilityKit/Framework/<领域>`。 |
+| 项目正式 / Demo 工具 | 项目或 `demo.*.editor` 包；随包示例安装器放 `Samples~`，仅在导入样例后服务样例。 | 项目正式工作流进入项目工作台；示例以 `Tools/AbilityKit/Demos/<项目>` 或样例自身入口呈现。不混进框架默认列表，不让框架包反向依赖示例。 |
+| 诊断 / 运行时观察 | 归所属领域 Editor 模块；稳定、有人维护的调试视图可保留。 | 放领域工作台诊断页或显式诊断区，默认只观察。需要启动测试宿主、注入状态或导出时单独标出副作用。 |
+| 批处理 / 内部支撑 | 对应模块拥有执行与结果契约；仓库包装器由 `tools/README.md` 导航。 | `-executeMethod`、门禁步骤、私有辅助 API 不自动变成菜单，不从 UI 或 `Selection` 猜运行参数。 |
+| 临时修补 / 待退役 | 一次性脚本按仓库规范放 `local/tools/<主题>/`；确实依赖 Editor API 的探针在隔离工程使用。 | 不新增常驻菜单、热键、自动初始化或默认 Hub 入口。历史写操作先核对消费者；需要兼容时标明替代入口与退役条件，不复制实现。 |
+
+`Assets/Create/AbilityKit/...`、`GameObject/AbilityKit/...`、`Assets/AbilityKit/...` 分别服务资源创建、场景创建和选中资产操作；可保留相应上下文入口，不机械迁移到 Hub。新增全局窗口和快捷键须说明使用频率与上下文不足之处，并核查冲突；优先在已有工作台加页签，不增加平行工作台。显示名称可本地化，稳定工具标识、批处理方法和兼容映射由所属模块维护，不建手抄全量索引。
+
+**正式准入与验收：**
+
+1. **归属和契约**：指出真实消费者、所属包、唯一实现、入口上下文、依赖及当前支持环境。正式包入口在包内文档说明，跨包规则留在本页。若已有注册能力满足需要则复用，不为分类另建 Hub 或全局服务。
+2. **读写与回退**：打开窗口、发现、校验及 `CanExecute` 不写资产。普通编辑沿用领域的 Undo／保存契约；批量导入、覆盖、迁移、发布先展示输入、明确目标范围和差异，显式 Apply；批处理须等价地显式传写入意图。分清可撤销操作和非事务写入，后者说明失败恢复、版本控制和可重跑方式。报告输出遵循 [test-artifacts](../../../.claude/skills/test-artifacts/SKILL.md)；正式生成物仍按原发布契约落盘。
+3. **加载与隔离**：模块注册和订阅需对称清理、可重复加载；导航不在每次重绘做全量反射或资产扫描。验证缺少可选包、无选中资产、编辑/播放切换和 Domain Reload 时的行为，确保 Player 不引用 Editor 程序集。共享底座不得为某个项目或英雄添加分支。
+4. **最小证明**：纯分类/去重规则覆盖默认可见性与别名；窗口迁移在 Unity 验证真实菜单、有效和无效上下文、重载行为；写入与批处理增加预检不写、失败不静默和产物等价用例。变更前查 `MenuItem`、`ExecuteMenuItem`、`CreateAssetMenu`、Inspector／资产打开回调、快捷键、`-executeMethod`、测试、文档与外部承诺。测试只覆盖到哪一层，就只报告哪一层。
+
+### 5.3 存量迁移批次
+
+1. **已实现：隔离未分类入口**。行为树的编辑器和运行时观察、HFSM 的编辑器和运行时监视器显式进入导航；示例目录、面板和资产创建贡献不默认展示，已有注册及 Unity 菜单保持可用。反射清单默认折叠、展开才扫描、路径可复制但不可执行。仍需在完整工程验收工作台打开、无选中资产和 Domain Reload。
+2. **再梳理写入项与 Demo**：按 §5.1 的项目模板、占位生成和发布修补逐条标注目标资产、现行调用和候选替代；保留被消费的正式入口，确认无调用才退役。涉及 MOBA 机制或生产/发布语义的变更按[领域治理](../../MobaMechanismGovernance.md)单独确认，本规范不构成批准。
+3. **最后收敛兼容入口**：优先验证 BT/HFSM 现有登记与资产上下文；再按实际消费者处理其他包。每批记录旧入口 → 新入口、受影响调用、复验方式和回退方法；只对新增或迁移项约束，不以全仓命名改动作为前置条件。
+
+验证范围：Unity `2022.3.62f1` 隔离工程运行 `AbilityKit.Editor.Platform.Tests`，准入默认隐藏／显式准入、发现路径排除 3 个新增用例通过；全套 25/28，通过同一工程重跑修改前源码复现了相同的 3 个既有断言失败。此证据只覆盖底座编译与测试，不代表在主工程实点过 Hub 或验证过 BT/HFSM 工作台。结果路径见本地 `local/Logs/editor-hub-20261125-071232535/`。
 
 ## 六、目标架构与收敛顺序（演进计划）
 
 ### 6.1 目标端态
 
-所有提供编辑/调试能力的框架包都成为一个 `IEditorModule`，对称注册 menu/panel/command/localization/diagnostic；导出走 `EditorExport`+`EditorAtomicFileWriter`；文档会话走 `EditorDocumentSession`；源同步走 `EditorSourceSync`；校验适配 `EditorDiagnostic`；个人偏好走 `EditorPrefsUserStateStore`。画布、IR schema、校验规则、快照模型留在各模块。Hub 是唯一导航入口，`[MenuItem]` 只作为注册的退化回退存在。
+需要全局发现的框架工作台显式贡献导航；领域按实际需求复用共用原语：导出 `EditorExport`+`EditorAtomicFileWriter`、文档会话 `EditorDocumentSession`、源同步 `EditorSourceSync`、校验 `EditorDiagnostic`、个人偏好 `EditorPrefsUserStateStore`。画布、IR schema、校验规则、快照模型留在各模块。Hub 是统一发现入口；资产上下文、批处理和有消费者的兼容菜单仍按 §5.2 保留，不为登记强制引入无用途的依赖。
 
 ### 6.2 收敛顺序（按风险从低到高、收益从高到低）
 
-1. **做统一入口（Hub）**——消费已有注册表 + 反射发现散落窗口。零新概念，直接解决"乱"，并立下"新窗口必须注册"的规约。
+1. **统一入口**——Hub 基础已实现；入口准入与存量迁移改按 §5 执行，不再以反射发现直接作为正式导航资格。
 2. **BT 收尾 + 导出报告模型进 HFSM/Ability**——HFSM 已接入统一入口、导出报告和运行时调试导航；后续在 golden/roundtrip 测试保护下删除 Legacy Archive 平行 exporter 抽象，并收敛 Ability 旧导出链。BT 清掉重复 `[MenuItem]` 和绕过 `EditorDiagnostic` 的 Validate All。
 3. **Pipeline/BattleScenario/Protocol 接基础件**——至少接 `EditorAtomicFileWriter` + `EditorDocumentSession`（替换 `BattleScenarioCodec` 裸写、`_undoStack`、`_dirty` 对话框）+ `EditorDiagnostic`。纯减重复，不动各自画布和 IR。
 4. **下沉运行时调试骨架**——✅ 分析完成（2026-09-07），**决定不下沉**。四个 debugger 的运行时桥接机制、快照模型、订阅方式各不相同：hfsm `LiveRegistry`+`IVisualizationProvider`（注册表+provider 抽象）、BT `DebugRegistry`（薄 id 注册表、纯轮询）、pipeline `PipelineDebugHooks`（事件总线 push）、trace `TraceRegistryDirectory`（目录+事件）。共享部分只剩「观察运行时实例」这一抽象概念，无稳定契约；按「能力下沉五条」判定（语义不稳、无交叉验证）不下沉。四个 debugger 保持各自实现，已由 Hub 在导航层统一。落地动作仅是删除 pipeline 死代码 `EditorPipelineTraceRecorder`（未使用单例 + 重复 ring buffer，保留被 registry 使用的 `EditorPipelineRunTrace`）。
@@ -140,7 +165,7 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 | E0 | 已具备 | Platform/Legacy 源码、asmdef、包内 canonical 存在 |
 | E1 | 已具备 | Platform 服务/命令/诊断/状态/会话/同步/导出 API 可被调用 |
 | E2 | 部分具备 | Hub 与 BT/HFSM 正式入口已接；Ability 部分接入，Pipeline/BattleScenario/Protocol/Trace 未接 |
-| E3 | 部分具备 | Platform/领域 Editor 测试源码 + 定向编译存在；本轮未跑 Unity Test Runner |
+| E3 | 局部具备 | §5.3 的 Platform 隔离 EditMode 证据；未覆盖完整工程的工作台与导航集成 |
 | E4 | 待建立 | Hub 与各领域导出/同步/诊断的 Unity 侧验收矩阵未建立 |
 | E5 | 待建立 | 统一入口与迁移门禁未挂 CI |
 
@@ -148,11 +173,11 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 
 - **画布不能下沉**：Hub 与 Platform 只做壳，不提供"万能图编辑器"；强行统一 GraphView/分层画布会让领域编辑器丧失表达力并产生大量迁移成本。
 - **运行时调试最易过度抽象**：四个 debugger 的快照模型与可视化各不相同，先做骨架、后谈统一；在下沉前必须有两个以上非同构消费者证明骨架稳定（对齐仓库"能力下沉五条"）。
-- **Legacy 兼容**：`PlugableWindow`/`WindowBuilder` 在兼容期内保留，但新功能不得再扩展；`trace` 迁移前不得触碰 `WindowExamples` 撞车菜单以外的 Legacy 语义。
+- **Legacy 兼容**：`PlugableWindow`/`WindowBuilder` 已按 §6.2 退役；仍有消费者的菜单路径、快捷键和批处理方法是另一类兼容契约，不随旧框架退役自动删除。
 - **迁移顺序不可逆**：删 HFSM 平行导出抽象、收敛 Ability 旧导出链前，必须有 golden/roundtrip 迁移测试锁定产物等价，避免"减重复"变成"丢格式"。
 
 ---
 
-*文档类型：Canonical 设计 + 演进计划 | 事实基线：2026-09-07 | 证据等级：E0-E2（局部 E3 源码编译，Unity 未重跑）*
+*文档类型：Canonical 设计 + 演进计划 | 事实基线：2026-11-25（§5 入口盘点及局部 EditMode，E0–E3）；其余历史证据不晋级*
 
-*文档版本：v1.2 | 最后更新：2026-09-07*
+*文档版本：v1.4 | 最后更新：2026-11-25*

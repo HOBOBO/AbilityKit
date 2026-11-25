@@ -26,5 +26,6 @@ namespace AbilityKit.Demo.Moba
         PER_SECOND_BLOOD_R = 21,
         PER_SECOND_MANA_R = 22,
         RESILIENCE_R = 23,
+        MANA_REGEN_PER_SECOND = 24,
     }
 }

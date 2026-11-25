@@ -8,6 +8,7 @@ namespace AbilityKit.Game.Flow
     public sealed partial class BattleSessionFeature
     {
         private BattleWorldProjectionViewSource _confirmedProjectionSource;
+        private BattleWorldProjectionViewSource _snapshotAuthorityProjectionSource;
         private BattleWorldProjectionViewSource _spectatorProjectionSource;
         private BattleWorldProjectionViewSource _replayProjectionSource;
         private string _spectatorPresentationInstanceId;
@@ -72,9 +73,6 @@ namespace AbilityKit.Game.Flow
             BattleProjectionViewCapabilities capabilities = BattleProjectionViewCapabilities.Actors,
             Camera camera = null)
         {
-            if (!_plan.Authority.EnableConfirmedAuthorityWorld ||
-                _runtime.Simulation.Confirmed.World == null) return false;
-
             return ShowConfirmedViewCore(instanceId, worldOffset, capabilities, camera,
                 allowOverlap: false);
         }
@@ -86,6 +84,18 @@ namespace AbilityKit.Game.Flow
         private bool ShowConfirmedViewCore(string instanceId, Vector3 worldOffset,
             BattleProjectionViewCapabilities capabilities, Camera camera, bool allowOverlap)
         {
+            if (_plan.UsesStateSyncAuthority)
+            {
+                var world = ResolveSnapshotAuthorityProjectionWorld();
+                if (world == null) return false;
+                if (_snapshotAuthorityProjectionSource == null || !_snapshotAuthorityProjectionSource.WorldId.Equals(world.Id))
+                    _snapshotAuthorityProjectionSource = new BattleWorldProjectionViewSource(
+                        world.Id, ResolveSnapshotAuthorityProjectionWorld,
+                        () => _runtime.Simulation.RemoteDrivenLastTickedFrame);
+                return ShowWorldView(instanceId, BattleProjectionViewRole.Confirmed,
+                    _snapshotAuthorityProjectionSource, worldOffset, capabilities, camera, allowOverlap);
+            }
+
             if (!_plan.Authority.EnableConfirmedAuthorityWorld ||
                 _runtime.Simulation.Confirmed.World == null) return false;
 
@@ -98,6 +108,10 @@ namespace AbilityKit.Game.Flow
             return ShowWorldView(instanceId, BattleProjectionViewRole.Confirmed,
                 _confirmedProjectionSource, worldOffset, capabilities, camera, allowOverlap);
         }
+
+        private IWorld ResolveSnapshotAuthorityProjectionWorld() =>
+            _plan.UsesStateSyncAuthority && _runtime.Recovery?.PendingStateImport == false
+                ? _runtime.Simulation.RemoteDriven.World : null;
 
         public bool ShowSpectatorView(string instanceId, Vector3 worldOffset,
             BattleProjectionViewCapabilities capabilities = BattleProjectionViewCapabilities.Actors,

@@ -7,6 +7,34 @@ namespace AbilityKit.Demo.Moba.Share
     public static class GatewayStateSyncSnapshotMapper
     {
         public static GatewayStateSyncSnapshot Map(in WireStateSyncSnapshotPush push)
+            => MapCore(in push, null);
+
+        /// <summary>
+        /// 将订阅身份匹配的证明转为类型化值；其他会话的证明不影响正常权威状态导入。
+        /// </summary>
+        public static GatewayStateSyncSnapshot MapScoped(in WireStateSyncSnapshotPush push,
+            in WireStateSyncMovementPayload scoped, System.Guid inputGeneration, ulong worldId, uint playerId)
+        {
+            var baseline = push;
+            baseline.SchemaVersion = FixedBaselineStateSyncProtocol.SchemaVersion;
+            baseline.Payload = scoped.FixedBaselinePayload;
+            var proof = scoped.Proof;
+            GatewayStateSyncMovementProof? movementProof = null;
+            if (inputGeneration != System.Guid.Empty && proof.InputGeneration == inputGeneration &&
+                worldId != 0 && proof.WorldId == worldId && push.WorldId == worldId &&
+                playerId != 0 && proof.PlayerId == playerId)
+            {
+                movementProof = new GatewayStateSyncMovementProof(proof.InputGeneration, proof.PlayerId, proof.WorldId,
+                    proof.StreamGeneration, proof.SnapshotId, proof.BaseSnapshotId, proof.Tick, proof.TerminalThrough,
+                    proof.ActorId, proof.EntityVersion, proof.X, proof.Y, proof.Z,
+                    proof.RotationX, proof.RotationY, proof.RotationZ, proof.RotationW,
+                    proof.MoveX, proof.MoveZ, proof.MoveSpeed, proof.CanMove, proof.HasIsolatedLocomotion);
+            }
+            return MapCore(in baseline, movementProof);
+        }
+
+        private static GatewayStateSyncSnapshot MapCore(in WireStateSyncSnapshotPush push,
+            GatewayStateSyncMovementProof? movementProof)
         {
             var source = push.Actors;
             var actors = source == null || source.Count == 0
@@ -70,6 +98,16 @@ namespace AbilityKit.Demo.Moba.Share
                 cueBaseline = cues;
             }
 
+            byte[] indicators = null, shields = null;
+            if (payloadOpCode == MobaStateSyncOverheadPayloadCodec.OpCode)
+            {
+                var overhead = MobaStateSyncOverheadPayloadCodec.Decode(payload);
+                payloadOpCode = overhead.ProjectionOpCode;
+                schemaVersion = overhead.ProjectionSchemaVersion;
+                payload = overhead.Projection;
+                indicators = overhead.Indicators; shields = overhead.Shields;
+            }
+
             return new GatewayStateSyncSnapshot(
                 push.WorldId,
                 push.Frame,
@@ -87,7 +125,7 @@ namespace AbilityKit.Demo.Moba.Share
                 generation,
                 snapshotId,
                 baseSnapshotId,
-                cueBaseline);
+                cueBaseline, indicators, shields, movementProof);
         }
     }
 }

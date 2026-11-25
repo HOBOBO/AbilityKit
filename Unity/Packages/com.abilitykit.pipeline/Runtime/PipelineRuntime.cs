@@ -5,7 +5,7 @@ namespace AbilityKit.Pipeline
 {
     /// <summary>
     /// 可实例化的管线运行时上下文。
-    /// 一个运行时上下文持有自己的生命周期注册表和追踪记录器。
+    /// 显式传入注册表时可隔离运行归属；省略时沿用全局注册表，追踪记录器默认关闭。
     /// </summary>
     public sealed class PipelineRuntime
     {
@@ -47,6 +47,7 @@ namespace AbilityKit.Pipeline
 
         /// <summary>
         /// 设置生命周期注册表。
+        /// 影响随后登记的运行；已有运行仍向登记时的注册表注销。
         /// </summary>
         public void SetRegistry(IPipelineRegistry registry)
         {

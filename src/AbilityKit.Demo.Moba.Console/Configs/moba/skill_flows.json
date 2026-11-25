@@ -1953,14 +1953,36 @@
         }
       },
       {
-        "Type": 4,
+        "Type": 19,
+        "PhaseId": "skill_30010301_economy",
+        "Economy": {
+          "Operation": 0,
+          "ResourceType": 2,
+          "ResourceAmount": 0.0,
+          "UseResolvedResourceCost": true,
+          "ChargeCost": 1,
+          "MaxCharges": 2,
+          "ChargeRecoveryMs": 18000,
+          "StartSkillCooldown": true,
+          "SkillCooldownMs": 0,
+          "UseResolvedSkillCooldown": true,
+          "CooldownGroup": "",
+          "SharedCooldownMs": 0,
+          "GlobalCooldownMs": 0,
+          "IgnoreGlobalCooldown": false,
+          "IgnoreResourceCostCheck": false,
+          "IgnoreResourceConsumption": false,
+          "RefundBeforeCommit": true,
+          "RequireExplicitCommit": true,
+          "FailReason": "skill_economy_reserve_failed"
+        }
+      },
+      {
+        "Type": 18,
         "PhaseId": "skill_30010301_commit",
-        "RulePlan": {
-          "TriggerIds": [
-            900101012
-          ],
-          "AbortOnFailure": true,
-          "FailReason": "skill_commit_failed"
+        "CommitPoint": {
+          "CommitId": "cast",
+          "RequireEconomyReservation": true
         }
       },
       {

@@ -103,7 +103,7 @@ namespace AbilityKit.Game.Test.UnitTest
         private const int ReloadPresentationTemplateId = 90013015;
 
         [Test]
-        public void CurtainCallPresentation_ResolvesPublishedTemplateFromExportedTimeline()
+        public void CurtainCallPresentation_DoesNotFireAMuzzleWhenEnteringTheMode()
         {
             var presentation = Resources.Load<TextAsset>("moba/action_timeline/skill_30010401.moba.presentation");
             var logic = Resources.Load<TextAsset>("moba/action_timeline/skill_30010401.moba.logic");
@@ -116,20 +116,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 4294967297L, presentation.text, sink, new MobaPresentationTemplateResolver());
             runtime.StartAt(0f);
 
-            Assert.AreEqual("90013004", sink.Clip.args["presentationTemplateId"]);
-            Assert.IsFalse(sink.Clip.args.ContainsKey("resourceKey"), "The exported clip should reference the template, not a prefab path.");
-            Assert.AreEqual(90013004, sink.Request.AssetId);
-            Assert.AreEqual("ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Cast", sink.Request.ResourceKey);
-            Assert.AreEqual(1800, sink.Request.DurationMs);
-            Assert.AreEqual(1f, sink.Request.Scale, 0.0001f);
-            Assert.AreEqual(PresentationAttachmentKind.Actor, sink.Request.Attachment.Kind);
-            Assert.AreEqual(0, sink.Request.Attachment.ActorId);
-            Assert.AreEqual(0f, sink.Request.Attachment.Offset.X, 0.0001f);
-            Assert.AreEqual(0.15f, sink.Request.Attachment.Offset.Y, 0.0001f);
-            Assert.AreEqual(0f, sink.Request.Attachment.Offset.Z, 0.0001f);
-            Assert.AreEqual(0f, sink.Request.Position.X, 0.0001f);
-            Assert.AreEqual(0.15f, sink.Request.Position.Y, 0.0001f);
-            Assert.AreEqual(0f, sink.Request.Position.Z, 0.0001f);
+            Assert.IsNull(sink.Clip);
         }
 
         [Test]
@@ -285,15 +272,9 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
-        public void CurtainCallShotPresentation_ResolvesRegularAndFinalProjectileTemplates()
+        public void CurtainCallShotTimeline_DoesNotReplayProjectileOrMuzzle()
         {
             var skillIds = new[] { 30010501, 30010502 };
-            var templateIds = new[] { 90013005, 90013006 };
-            var resources = new[]
-            {
-                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Projectile",
-                "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_R_Last_Projectile"
-            };
 
             for (var i = 0; i < skillIds.Length; i++)
             {
@@ -309,12 +290,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     4294967301L + i, presentation.text, sink, new MobaPresentationTemplateResolver());
                 runtime.StartAt(0f);
 
-                Assert.IsNotNull(sink.Clip, "The shot timeline should dispatch a presentation clip: " + skillIds[i]);
-                Assert.AreEqual(templateIds[i].ToString(), sink.Clip.args["presentationTemplateId"]);
-                Assert.AreEqual(templateIds[i], sink.Request.AssetId);
-                Assert.AreEqual(resources[i], sink.Request.ResourceKey);
-                Assert.AreEqual(PresentationAttachmentKind.Actor, sink.Request.Attachment.Kind);
-                Assert.AreEqual(0.15f, sink.Request.Attachment.Offset.Y, 0.0001f);
+                Assert.IsNull(sink.Clip, "The shot uses the launch cue and projectile lifecycle, not another timeline effect.");
             }
         }
 
@@ -610,10 +586,13 @@ namespace AbilityKit.Game.Test.UnitTest
                     "Self-targeted reload presentation should be attached to Jhin's actor.");
                 Assert.AreEqual(0.15f, reloadCue.OffsetY, 0.0001f);
 
-                // Reload ownership is parameter-driven. Removing the source contribution
-                // must leave the authored state without relying on animation completion.
+                // Reload ownership is parameter-driven. Its authored exit also
+                // requires the auxiliary reload cast to retire; no model animation
+                // callback is delivered by this headless harness.
                 parameters.ClearSource(actorId, BasicAttackLaunchCounterKeyId);
-                harness.Tick(1);
+                for (var tick = 0; tick < 120 &&
+                    actor.characterHfsm.Runtime.Action.Path.EndsWith("action/attack.slot.5"); tick++)
+                    harness.Tick(1);
                 Assert.AreEqual(0f, parameters.Resolve(actorId, MobaCharacterHfsmTestFixture.AttackSlot),
                     "Clearing the reload parameter contribution should restore the default attack slot.");
                 StringAssert.DoesNotEndWith("action/attack.slot.5", actor.characterHfsm.Runtime.Action.Path,

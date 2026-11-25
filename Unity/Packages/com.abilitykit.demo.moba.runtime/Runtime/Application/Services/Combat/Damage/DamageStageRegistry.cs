@@ -57,8 +57,9 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public const int Base = 1000;
         public const int Mitigation = 2000;
-        // Final damage is the last mutable damage input before shield resolution.
-        // A stage after Shield must not be able to replace HpDamage and bypass the shield.
+        /*
+         * 最终伤害是护盾结算前最后一个可变伤害输入。Shield 之后的阶段不得替换 HpDamage 以绕过护盾。
+         */
         public const int Final = 3000;
         public const int Shield = 4000;
 

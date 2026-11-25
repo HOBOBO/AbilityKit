@@ -440,4 +440,45 @@
         <var name="BrainId" type="int?"/>
         <var name="EnableBrainOnSpawn" type="bool?"/>
     </bean>
+    <enum name="IndicatorSourceKind">
+        <var name="None" value="0"/>
+        <var name="Resource" value="1"/>
+        <var name="ActorCounter" value="2"/>
+        <var name="HfsmParameter" value="3"/>
+        <var name="BuffStack" value="4"/>
+        <var name="BuffPresent" value="5"/>
+    </enum>
+    <enum name="IndicatorSemantic">
+        <var name="Health" value="1"/>
+        <var name="Mana" value="2"/>
+        <var name="Energy" value="3"/>
+        <var name="Rage" value="4"/>
+        <var name="Ammo" value="5"/>
+        <var name="Counter" value="6"/>
+    </enum>
+    <enum name="IndicatorRendererKind">
+        <var name="ContinuousBar" value="1"/>
+        <var name="Segments" value="2"/>
+        <var name="Number" value="3"/>
+    </enum>
+    <bean name="IndicatorValueMapping" valueType="1" sep=":">
+        <var name="Input" type="float"/>
+        <var name="Output" type="float"/>
+    </bean>
+    <bean name="IndicatorValueOverride" valueType="1" sep=":">
+        <var name="SourceKind" type="IndicatorSourceKind"/>
+        <var name="SourceKey" type="int"/>
+        <var name="Expected" type="float"/>
+        <var name="Value" type="float"/>
+    </bean>
+    <bean name="OverheadIndicatorRow" valueType="1" sep=":">
+        <var name="IndicatorId" type="int"/>
+        <var name="Renderer" type="IndicatorRendererKind"/>
+        <var name="Slot" type="int"/>
+        <var name="Height" type="float"/>
+        <var name="LocalOnly" type="bool"/>
+        <var name="Style" type="string"/>
+        <var name="Label" type="string"/>
+        <var name="EmptyLabel" type="string"/>
+    </bean>
 </module>

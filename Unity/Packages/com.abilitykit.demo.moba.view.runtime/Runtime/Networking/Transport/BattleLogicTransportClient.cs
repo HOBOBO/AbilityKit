@@ -55,6 +55,17 @@ namespace AbilityKit.Game.Battle
             _transport.SendInput(request);
         }
 
+        internal void SubmitInput(SubmitInputRequest request, Action<object> onPrepared)
+        {
+            if (_transport is AbilityKit.Network.Battle.NetworkTransport networkTransport)
+            {
+                _worldId = request.WorldId;
+                networkTransport.SendInput(request, onPrepared);
+                return;
+            }
+            SubmitInput(request);
+        }
+
         public void Tick(float deltaTime)
         {
         }

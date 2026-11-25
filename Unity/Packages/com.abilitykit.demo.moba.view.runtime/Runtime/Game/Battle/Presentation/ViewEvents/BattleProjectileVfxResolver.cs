@@ -46,6 +46,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 return false;
             }
 
+            if (projectile.UsesHitOrdinalCue) return false;
+
             projectileId = input.ProjectileId;
 
             var abstractInput = new AbstractBattleProjectileTriggerHitInput(input.TemplateId, ToMobaFloat3(input.HitPoint));
@@ -148,6 +150,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public int Resolve(ProjectileMO projectile, ProjectilePresentationEventKind kind)
         {
             if (projectile == null) return 0;
+            if (kind == ProjectilePresentationEventKind.Hit && projectile.UsesHitOrdinalCue) return 0;
 
             var vfxIds = new AbstractBattleProjectileVfxIds(
                 projectile.VfxId,

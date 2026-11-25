@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Attributes;
@@ -48,7 +49,8 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
             bool enabled = true,
             string baseSkillLevelParameter = null,
             string secondarySkillLevelParameter = null,
-            string secondaryCoefficientSkillLevelParameter = null, bool useCurrentHeroLevel = false)
+            string secondaryCoefficientSkillLevelParameter = null, bool useCurrentHeroLevel = false,
+            MobaEffectMagnitudeSpec[] terms = null)
         {
             BaseSource = baseSource;
             SecondarySource = secondarySource;
@@ -61,6 +63,7 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
             SecondarySkillLevelParameter = secondarySkillLevelParameter;
             SecondaryCoefficientSkillLevelParameter = secondaryCoefficientSkillLevelParameter;
             UseCurrentHeroLevel = useCurrentHeroLevel;
+            Terms = terms == null ? null : Array.AsReadOnly((MobaEffectMagnitudeSpec[])terms.Clone());
         }
 
         public MagnitudeSource BaseSource { get; }
@@ -74,6 +77,12 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
         public string BaseSkillLevelParameter { get; }
         public string SecondarySkillLevelParameter { get; }
         public string SecondaryCoefficientSkillLevelParameter { get; }
+
+        /// <summary>
+        /// 按作者顺序相加的数值项；列表的结果作为一次完整数值进入后续结算。
+        /// 各项复用已有来源角色与求值规则，整体快照仍由外层 CaptureTarget 持有。
+        /// </summary>
+        public IReadOnlyList<MobaEffectMagnitudeSpec> Terms { get; }
 
         public static MobaEffectMagnitudeSpec Fixed(float value, MobaEffectEvaluationPolicy policy = MobaEffectEvaluationPolicy.Realtime)
         {
@@ -149,7 +158,26 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
                 return true;
             }
 
-            var requiresActor = RequiresAttributeActor(in spec);
+            if (spec.Terms != null)
+            {
+                if (spec.Terms.Count == 0)
+                { failure = "magnitude terms must not be empty"; return false; }
+                for (var i = 0; i < spec.Terms.Count; i++)
+                {
+                    var term = spec.Terms[i];
+                    if (term.Terms != null)
+                    { failure = "nested magnitude terms are not supported"; return false; }
+                    if (!TryEvaluate(in term, in executionContext, in execCtx,
+                            attributionActorId, selfActorId, targetActorId, default,
+                            out var termValue, out _, out failure))
+                        return false;
+                    value += termValue;
+                    if (float.IsNaN(value) || float.IsInfinity(value))
+                    { failure = "magnitude terms produced a non-finite sum"; return false; }
+                }
+            }
+
+            var requiresActor = spec.Terms == null && RequiresAttributeActor(in spec);
             var hasSourceActor = TryResolveSourceActorId(
                 in spec, in executionContext, in execCtx,
                 attributionActorId, selfActorId, targetActorId,
@@ -166,27 +194,33 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
                 return false;
             }
 
-            var modifierContext = new MobaMagnitudeModifierContext(sourceActor, in executionContext, in execCtx, spec.UseCurrentHeroLevel);
-            if (!TryCalculateSource(spec.BaseSource, spec.BaseSkillLevelParameter, in executionContext, in execCtx, modifierContext, out var primary, out failure) ||
-                !TryCalculateSource(spec.SecondarySource, spec.SecondarySkillLevelParameter, in executionContext, in execCtx, modifierContext, out var secondary, out failure))
-                return false;
-            if (!string.IsNullOrWhiteSpace(spec.SecondaryCoefficientSkillLevelParameter))
+            if (spec.Terms == null)
             {
-                if (spec.SecondarySource.Type != MagnitudeSourceType.Attribute)
+                var modifierContext = new MobaMagnitudeModifierContext(sourceActor, in executionContext, in execCtx, spec.UseCurrentHeroLevel);
+                if (!TryCalculateSource(spec.BaseSource, spec.BaseSkillLevelParameter, in executionContext, in execCtx, modifierContext, out var primary, out failure) ||
+                    !TryCalculateSource(spec.SecondarySource, spec.SecondarySkillLevelParameter, in executionContext, in execCtx, modifierContext, out var secondary, out failure))
+                    return false;
+                if (!string.IsNullOrWhiteSpace(spec.SecondaryCoefficientSkillLevelParameter))
                 {
-                    failure = "skill level coefficient parameter requires an Attribute secondary magnitude source";
-                    return false;
+                    if (spec.SecondarySource.Type != MagnitudeSourceType.Attribute)
+                    {
+                        failure = "skill level coefficient parameter requires an Attribute secondary magnitude source";
+                        return false;
+                    }
+                    if (!TryReadSkillLevelParameter(spec.SecondaryCoefficientSkillLevelParameter, in executionContext, in execCtx, out var coefficient, out failure))
+                        return false;
+                    secondary *= coefficient;
                 }
-                if (!TryReadSkillLevelParameter(spec.SecondaryCoefficientSkillLevelParameter, in executionContext, in execCtx, out var coefficient, out failure))
-                    return false;
-                secondary *= coefficient;
+                value = spec.Combine switch
+                {
+                    MobaEffectMagnitudeCombine.Multiply => primary * secondary,
+                    MobaEffectMagnitudeCombine.Override => secondary,
+                    _ => primary + secondary,
+                };
             }
-            value = spec.Combine switch
-            {
-                MobaEffectMagnitudeCombine.Multiply => primary * secondary,
-                MobaEffectMagnitudeCombine.Override => secondary,
-                _ => primary + secondary,
-            };
+
+            if (float.IsNaN(value) || float.IsInfinity(value))
+            { failure = "magnitude produced a non-finite value"; return false; }
 
             if (spec.EvaluationPolicy == MobaEffectEvaluationPolicy.Snapshot)
             {
@@ -219,6 +253,7 @@ namespace AbilityKit.Demo.Moba.Services.Combat.Magnitude
                     snapshotOutputBoard.MarkSnapshotCaptured(captureTarget.KeyId);
                 }
             }
+            failure = null;
             return true;
         }
 

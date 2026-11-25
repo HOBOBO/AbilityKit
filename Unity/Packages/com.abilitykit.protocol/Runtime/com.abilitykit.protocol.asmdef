@@ -1,19 +1,16 @@
 {
   "name": "AbilityKit.Protocol",
   "rootNamespace": "AbilityKit",
-  "references": [
-    "AbilityKit.Core"
-  ],
+  "references": [],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
-  "overrideReferences": false,
+  "overrideReferences": true,
   "precompiledReferences": [
-    "Newtonsoft.Json.dll",
-    "MemoryPack.dll"
+    "Newtonsoft.Json.dll"
   ],
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": false
+  "noEngineReferences": true
 }

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Battle Scenario 条件驱动控制流程原型</title>
+  <desc id="desc">展示根据目标状态观察、移动、瞄准、释放、等待和断言的控制流程编辑窗口。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171b25"/><stop offset="1" stop-color="#10131b"/></linearGradient>
+    <linearGradient id="toolbar" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#252b38"/><stop offset="1" stop-color="#1b202b"/></linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#324c56" stroke-width="1" opacity=".45"/></pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#70c8d2"/></marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000" flood-opacity=".35"/></filter>
+    <style>
+      .ui{font-family:"Segoe UI","Microsoft YaHei",sans-serif;fill:#d9e0ed;font-size:13px}.small{font-size:11px;fill:#9ca8bb}.tiny{font-size:10px;fill:#8793a7}.title{font-size:16px;font-weight:600;fill:#f4f7fb}
+      .panel{fill:#1b202b;stroke:#313949;stroke-width:1}.subpanel{fill:#202735;stroke:#374153;stroke-width:1}.header{fill:#252c39}.line{stroke:#3a4454;stroke-width:1}.muted{fill:#77849a}
+      .blue{fill:#59a9ff}.bluebg{fill:#214765;stroke:#4e9ce8}.purple{fill:#c58cff}.purplebg{fill:#3d285a;stroke:#a86ee8}.green{fill:#76d69b}.greenbg{fill:#1f4a3d;stroke:#50bd87}.red{fill:#ff7883}.redbg{fill:#552d37;stroke:#e45a69}.yellow{fill:#f2c96d}.yellowbg{fill:#564525;stroke:#d6ac51}.cyan{fill:#54d6d0}.cyanbg{fill:#1e4750;stroke:#54d6d0}.orange{fill:#ffab62}.bold{font-weight:600}.center{text-anchor:middle}.right{text-anchor:end}.round{rx:5;ry:5}
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect x="18" y="18" width="1564" height="964" rx="8" fill="#11151d" stroke="#3d4656" filter="url(#shadow)"/>
+  <rect x="19" y="19" width="1562" height="56" rx="8" fill="url(#toolbar)"/>
+  <circle cx="42" cy="47" r="7" fill="#e86c74"/><circle cx="65" cy="47" r="7" fill="#e1b85c"/><circle cx="88" cy="47" r="7" fill="#69c58c"/>
+  <text x="116" y="42" class="ui title">Scenario Control Flow</text><text x="116" y="60" class="small">jhin-e-w-adaptive-acceptance · 条件驱动输入</text>
+  <rect x="460" y="30" width="108" height="32" class="subpanel round"/><text x="514" y="50" class="ui center">Timeline</text>
+  <rect x="574" y="30" width="124" height="32" class="bluebg round"/><text x="636" y="50" class="ui center bold">Control Flow</text>
+  <rect x="704" y="30" width="108" height="32" class="subpanel round"/><text x="758" y="50" class="ui center">Arena</text>
+  <rect x="824" y="30" width="92" height="32" class="subpanel round"/><text x="870" y="50" class="ui center">保存</text>
+  <rect x="928" y="30" width="122" height="32" class="greenbg round"/><text x="989" y="50" class="ui center bold">▶ 预检运行</text>
+  <text x="1090" y="42" class="small">控制模式</text><text x="1090" y="59" class="yellow bold">● External Input</text><text x="1548" y="50" class="green right">确定性规则 · 30 Tick</text>
+
+  <!-- left rules -->
+  <rect x="30" y="88" width="310" height="648" class="panel"/><rect x="30" y="88" width="310" height="44" class="header"/><text x="48" y="115" class="ui bold">控制流程 · caster</text><text x="320" y="115" class="blue right">＋</text>
+  <rect x="48" y="148" width="274" height="52" class="subpanel round"/><text x="64" y="170" class="small">Rule 01 · 准备进入射程</text><text x="64" y="188" class="ui">target.distance &gt; 6</text><text x="307" y="171" class="yellow right">P80</text>
+  <rect x="48" y="211" width="274" height="78" class="bluebg round"/><text x="64" y="233" class="small">Rule 02 · 目标受控后释放 W</text><text x="64" y="254" class="ui">target.buff has Control.Hard</text><text x="64" y="275" class="small">move → aim_start → aim_update → release</text><text x="307" y="233" class="yellow right">P100</text>
+  <rect x="48" y="300" width="274" height="52" class="subpanel round"/><text x="64" y="322" class="small">Rule 03 · 未命中时重定位</text><text x="64" y="340" class="ui">last_result == Miss</text><text x="307" y="322" class="yellow right">P60</text>
+  <rect x="48" y="364" width="274" height="52" class="subpanel round"/><text x="64" y="386" class="small">Rule 04 · 结束</text><text x="64" y="404" class="ui">target.hp &lt; 30%</text><text x="307" y="386" class="yellow right">P40</text>
+  <line x1="48" y1="440" x2="322" y2="440" class="line"/><text x="48" y="466" class="small bold">观察源</text><text x="64" y="492" class="ui">State Snapshot</text><text x="307" y="492" class="green right">可读</text><text x="64" y="518" class="ui">Trace / Context</text><text x="307" y="518" class="green right">可读</text><text x="64" y="544" class="ui">墙钟时间 / 任意脚本</text><text x="307" y="544" class="red right">禁止</text>
+  <line x1="48" y1="566" x2="322" y2="566" class="line"/><text x="48" y="592" class="small bold">安全边界</text><text x="64" y="618" class="small">最大执行次数 2 · 超时 600 ms</text><text x="64" y="642" class="small">动作经正式 Input Bridge 提交</text><text x="64" y="666" class="small">Control Trace 记录每次分支</text><rect x="48" y="688" width="274" height="30" class="yellowbg round"/><text x="185" y="708" class="ui center">＋ 添加观察→动作规则</text>
+
+  <!-- central flow -->
+  <rect x="358" y="88" width="756" height="648" class="panel"/><rect x="358" y="88" width="756" height="44" class="header"/><text x="376" y="115" class="ui bold">Rule 02 · 实际控制路径</text><text x="1096" y="115" class="small right">预期路径 / 实际路径</text>
+  <rect x="376" y="150" width="720" height="164" fill="#172b34" stroke="#40626d"/><rect x="376" y="150" width="720" height="164" fill="url(#grid)"/>
+  <circle cx="535" cy="226" r="24" fill="#2d6ba0" stroke="#74bdff" stroke-width="3"/><text x="535" y="231" class="ui center bold">烬</text><text x="535" y="265" class="small center">caster</text>
+  <circle cx="894" cy="226" r="24" fill="#873b50" stroke="#f18798" stroke-width="3"/><text x="894" y="231" class="ui center bold">目标</text><text x="894" y="265" class="small center">enemy_01</text>
+  <path d="M565 226 C650 180 770 180 864 226" fill="none" stroke="#ffab62" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#arrow)"/><text x="715" y="183" class="small center">target.buff = Control.Hard · distance 5.2</text>
+  <rect x="376" y="332" width="720" height="82" class="cyanbg round"/><text x="394" y="355" class="small">1 · Observe</text><text x="394" y="381" class="ui">target.buff has Control.Hard  AND  target.alive</text><text x="1078" y="355" class="green right">TRUE @ frame 84</text><text x="1078" y="381" class="small right">snapshot: hp 620 · pos (5.2,0,0)</text>
+  <path d="M736 414v28" stroke="#54d6d0" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="376" y="450" width="720" height="94" class="bluebg round"/><text x="394" y="473" class="small">2 · Actions（正式输入链）</text><text x="394" y="499" class="ui">move_to(range=6) → AimStart(W) → AimUpdate(target.position) → Release(W)</text><text x="1078" y="499" class="yellow right">提交帧 85–92</text><text x="394" y="524" class="small">BattleHudInputEventDispatcher · SkillAimProjectionService · PlayerInputCommand</text>
+  <path d="M736 544v28" stroke="#54d6d0" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="376" y="578" width="720" height="82" class="purplebg round"/><text x="394" y="601" class="small">3 · Wait / Verify</text><text x="394" y="627" class="ui">等待 SkillCast(W) 或 ProjectileLaunch(W)，timeout 600 ms</text><text x="1078" y="627" class="green right">PASSED @ frame 105</text><text x="394" y="650" class="small">Control Trace → timeline.release.02 → assertion.damage</text>
+  <rect x="376" y="681" width="720" height="36" class="subpanel round"/><text x="394" y="704" class="small">超时：ControlRuleTimeout · 条件不符：ControlConditionMismatch · 最大重试：2</text>
+
+  <!-- right inspector -->
+  <rect x="1132" y="88" width="428" height="648" class="panel"/><rect x="1132" y="88" width="428" height="44" class="header"/><text x="1150" y="115" class="ui bold">Inspector · Rule 02</text><text x="1542" y="115" class="small right">有限状态规则</text>
+  <text x="1150" y="154" class="small">Rule ID</text><rect x="1300" y="139" width="242" height="27" class="subpanel round"/><text x="1312" y="158" class="ui">target-controlled-cast-w</text>
+  <text x="1150" y="190" class="small">观察窗口</text><rect x="1300" y="175" width="242" height="27" class="cyanbg round"/><text x="1312" y="194" class="ui">每 Tick 读取 Snapshot ▾</text>
+  <text x="1150" y="226" class="small">条件</text><rect x="1300" y="211" width="242" height="27" class="cyanbg round"/><text x="1312" y="230" class="ui">target.buff has Control.Hard</text>
+  <text x="1150" y="262" class="small">动作序列</text><rect x="1300" y="247" width="242" height="27" class="bluebg round"/><text x="1312" y="266" class="ui">Input Macro · Aim + Release</text>
+  <text x="1150" y="298" class="small">等待成功</text><rect x="1300" y="283" width="242" height="27" class="purplebg round"/><text x="1312" y="302" class="ui">SkillCast / ProjectileLaunch</text>
+  <text x="1150" y="334" class="small">超时 / 重试</text><rect x="1300" y="319" width="242" height="27" class="yellowbg round"/><text x="1312" y="338" class="ui">600 ms · retry 1</text>
+  <line x1="1150" y1="365" x2="1542" y2="365" class="line"/><text x="1150" y="391" class="small bold">实际观测</text><text x="1150" y="418" class="ui">target.hp</text><text x="1542" y="418" class="green right">620</text><text x="1150" y="444" class="ui">target.buff</text><text x="1542" y="444" class="green right">Control.Hard</text><text x="1150" y="470" class="ui">distance</text><text x="1542" y="470" class="green right">5.2</text>
+  <line x1="1150" y1="492" x2="1542" y2="492" class="line"/><text x="1150" y="518" class="small bold">快捷操作</text><text x="1150" y="546" class="ui">跳转到输入帧 85</text><text x="1542" y="546" class="blue right">定位</text><text x="1150" y="572" class="ui">查看 Control Trace</text><text x="1542" y="572" class="blue right">打开</text><text x="1150" y="598" class="ui">生成断言候选</text><text x="1542" y="598" class="blue right">生成</text><rect x="1150" y="625" width="392" height="34" class="redbg round"/><text x="1346" y="647" class="ui center">禁止直接修改 HP / Buff / Damage</text><text x="1150" y="690" class="tiny">控制动作只能提交高层输入，运行时负责权威结果。</text>
+
+  <!-- bottom evidence -->
+  <rect x="30" y="756" width="1530" height="206" class="panel"/><rect x="30" y="756" width="1530" height="42" class="header"/><text x="48" y="783" class="ui bold">Control Trace · 运行证据</text><text x="310" y="783" class="green bold">✓ PASSED</text><text x="410" y="783" class="small">branch: Rule 02 → Input Macro → SkillCast</text><text x="1540" y="783" class="yellow right">回放将比较分支与输入序列</text>
+  <text x="48" y="822" class="small">帧</text><text x="112" y="822" class="small">观察</text><text x="580" y="822" class="small">选择</text><text x="760" y="822" class="small">动作</text><text x="1180" y="822" class="small">结果</text><line x1="48" y1="834" x2="1540" y2="834" class="line"/>
+  <circle cx="58" cy="858" r="5" fill="#54d6d0"/><text x="76" y="862" class="ui">84</text><text x="112" y="862" class="ui">buff=Control.Hard, hp=620, distance=5.2</text><text x="580" y="862" class="green">Rule 02 · TRUE</text><text x="760" y="862" class="ui">move + AimStart(W)</text><text x="1180" y="862" class="green">accepted</text>
+  <circle cx="58" cy="888" r="5" fill="#59a9ff"/><text x="76" y="892" class="ui">92</text><text x="112" y="892" class="ui">commit_snapshot: target.position</text><text x="580" y="892" class="green">Input Macro</text><text x="760" y="892" class="ui">Release(W)</text><text x="1180" y="892" class="green">SkillCast</text>
+  <circle cx="58" cy="918" r="5" fill="#c58cff"/><text x="76" y="922" class="ui">105</text><text x="112" y="922" class="ui">ProjectileLaunch(W) → target</text><text x="580" y="922" class="green">Wait / Verify</text><text x="760" y="922" class="ui">assert damage</text><text x="1180" y="922" class="green">PASSED</text>
+  <text x="48" y="948" class="tiny">固定时间线用于准备和刺激；Control Flow 用于响应状态；两者共享 caseId、输入记录、Trace 和回放证据。</text>
+</svg>

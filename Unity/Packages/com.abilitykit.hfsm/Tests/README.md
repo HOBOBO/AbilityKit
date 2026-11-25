@@ -1,12 +1,12 @@
-# HFSM Integration Tests
+# HFSM 集成测试
 
-This folder contains integration tests for the HFSM behavior system.
+此目录包含 HFSM 行为系统的集成测试。
 
-## Test Files
+## 测试文件
 
-- `ActionStateMachineTests.cs` - Tests for ActionStateMachine and behavior execution
-- `GraphIntegrityTests.cs` - Tests for graph asset integrity and condition evaluation
-- `LegacyGraphImporterTests.cs` - Tests for the legacy graph importer
-- `DefinitionExporterTests.cs` - Tests for the definition exporter
-- `DiagnosticsTests.cs` - Tests for editor diagnostics
-- `LiveRegistryTests.cs` - Tests for the live runtime registry
+- `ActionStateMachineTests.cs`：动作状态机及行为执行测试。
+- `GraphIntegrityTests.cs`：图资产完整性及条件求值测试。
+- `LegacyGraphImporterTests.cs`：旧版图导入器测试。
+- `DefinitionExporterTests.cs`：定义导出器测试。
+- `DiagnosticsTests.cs`：编辑器诊断测试。
+- `LiveRegistryTests.cs`：活动运行时注册表测试。
