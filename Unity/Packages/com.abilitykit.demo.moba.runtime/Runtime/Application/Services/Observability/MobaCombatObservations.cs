@@ -330,7 +330,8 @@ namespace AbilityKit.Demo.Moba.Services.Observability
             long rootContextId = 0L,
             long contextId = 0L,
             int endReason = 0,
-            string displayName = "")
+            string displayName = "",
+            BattleDiagnosticActorKind actorKind = BattleDiagnosticActorKind.Unknown)
         {
             Stage = stage;
             Kind = kind;
@@ -346,6 +347,7 @@ namespace AbilityKit.Demo.Moba.Services.Observability
             ContextId = contextId;
             EndReason = endReason;
             DisplayName = displayName ?? string.Empty;
+            ActorKind = actorKind;
         }
 
         public MobaRuntimeObjectLifecycleStage Stage { get; }
@@ -362,6 +364,10 @@ namespace AbilityKit.Demo.Moba.Services.Observability
         public long ContextId { get; }
         public int EndReason { get; }
         public string DisplayName { get; }
+        /// <summary>
+        /// 仅供诊断目录保留 Actor 实体分类。
+        /// </summary>
+        public BattleDiagnosticActorKind ActorKind { get; }
     }
 
     public interface IMobaTriggerAnalysisHook

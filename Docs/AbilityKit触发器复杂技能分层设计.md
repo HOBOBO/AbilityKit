@@ -54,8 +54,7 @@
 调度层和持续对象层需要分工清楚：
 
 - `ISchedulableBehavior`：适合触发器行为本身的延迟、周期、持续执行。
-- `IScheduleEffect`：适合接入通用调度器，到时间后执行某个效果。
-- `SchedulableBehaviorScheduleAdapter`：负责把可调度触发器行为接入 schedule。
+- 独立业务定时由宿主管理，到期可发布即时事件；扁平计划动作和执行树时间节点分别由各自的调度入口承载。早期通用调度及其 Behavior 适配已退役，不再作为接入方案。
 - `IContinuous` / `ProcessUnit`：适合长期存在、拥有内部状态、可暂停/恢复/中断的运行时对象。
 
 简单说：

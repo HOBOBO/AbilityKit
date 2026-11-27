@@ -89,6 +89,23 @@ public sealed class DelayTaskTests
     }
 
     [Fact]
+    public void Throwing_callback_is_not_retried_by_direct_updates()
+    {
+        var calls = 0;
+        var task = new DelayTask(() =>
+        {
+            calls++;
+            throw new System.InvalidOperationException("callback failed");
+        }, 0f);
+
+        Assert.Throws<System.InvalidOperationException>(() => task.Update(0f));
+        task.Update(0f);
+
+        Assert.Equal(1, calls);
+        Assert.Equal(TaskState.Completed, task.State);
+    }
+
+    [Fact]
     public void Update_after_completion_is_noop()
     {
         int fired = 0;

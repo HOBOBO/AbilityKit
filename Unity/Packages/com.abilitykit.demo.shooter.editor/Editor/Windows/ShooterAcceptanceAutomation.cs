@@ -4,7 +4,6 @@ using System;
 using System.Text;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Demo.Harness;
-using UnityEditor;
 using UnityEngine;
 
 namespace AbilityKit.Demo.Shooter.Editor.Windows
@@ -14,16 +13,16 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
     /// </summary>
     public static class ShooterAcceptanceAutomation
     {
-        private const string MenuRoot = "Tools/AbilityKit/Demos/Shooter/Shooter Demo/Acceptance";
-
-        [MenuItem(MenuRoot + "/Run Catalog Matrix")]
-        public static void RunCatalogMatrixMenu()
+        /// <summary>
+        /// 供 Unity 批处理以零参数调用，运行默认验收矩阵并在未通过时抛出异常。
+        /// </summary>
+        public static DemoHarnessBatchResult RunCatalogMatrixOrThrow()
         {
-            RunCatalogMatrixOrThrow();
+            return RunCatalogMatrixOrThrow(ShooterAcceptanceSession.DefaultStepCount);
         }
 
         /// <summary>
-        /// 供 CI / batchmode 调用的无头入口：运行完整验收矩阵并在失败时抛出异常。
+        /// 使用显式运行参数执行验收矩阵，并沿用默认入口的输出与失败判定。
         /// </summary>
         public static DemoHarnessBatchResult RunCatalogMatrixOrThrow(int stepCount = ShooterAcceptanceSession.DefaultStepCount, float deltaSeconds = 1f / 30f, int seed = 0)
         {

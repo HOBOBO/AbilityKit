@@ -6,6 +6,7 @@ namespace AbilityKit.Starter
     public sealed class StarterMonoDriver : MonoBehaviour
     {
         private StarterFlowManager _starter;
+        private bool _cleanupPending;
 
         private void Start()
         {
@@ -23,7 +24,12 @@ namespace AbilityKit.Starter
         private void OnFinished(AbilityKit.Ability.Flow.FlowStatus status)
         {
             Debug.Log($"[Starter] Finished: {status}");
-            Cleanup();
+            _cleanupPending = true;
+        }
+
+        private void LateUpdate()
+        {
+            if (_cleanupPending) Cleanup();
         }
 
         private void OnDestroy()
@@ -33,10 +39,12 @@ namespace AbilityKit.Starter
 
         private void Cleanup()
         {
-            if (_starter == null) return;
-            _starter.Finished -= OnFinished;
-            _starter.Dispose();
+            _cleanupPending = false;
+            var starter = _starter;
             _starter = null;
+            if (starter == null) return;
+            starter.Finished -= OnFinished;
+            starter.Dispose();
         }
     }
 }

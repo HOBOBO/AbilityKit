@@ -1912,7 +1912,9 @@ namespace AbilityKit.Game.Test.UnitTest
                     harness.TickMilliseconds(1100);
                 }
                 if (shots == 3) harness.AssertSlotSkill(5, 30010502);
-                harness.TickMilliseconds(10500 - 700 - shots * 1100);
+                harness.TickMilliseconds(14500 - 700 - shots * 1100);
+                Assert.IsTrue(harness.HasActorBuff(caster, RModeBuffId));
+                harness.TickMilliseconds(1000);
                 foreach (var id in new[] { RModeBuffId, RFinalCandidateBuffId, RShootingPhaseBuffId, RFinalPhaseBuffId })
                     Assert.IsFalse(harness.HasActorBuff(caster, id), "Expiry left Buff " + id);
                 harness.AssertSlotSkill(5, BasicAttack1SkillId);

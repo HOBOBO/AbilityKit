@@ -4,13 +4,17 @@ using System.Reflection;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Presentation.Features.Loading;
 using AbilityKit.Game.Battle.View.Lib.Skill;
 using AbilityKit.Game.Flow;
+using AbilityKit.Modifiers;
 using NUnit.Framework;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -25,7 +29,7 @@ namespace AbilityKit.Game.Test.UnitTest
         private const float FixedDeltaTime = 1f / 30f;
 
         /// <summary>
-        /// 使用正式本地会话、地图圆柱和 HUD 移动输入，验证贴柱及重叠后可通过普通移动脱离。
+        /// 使用正式本地会话、地图障碍和 HUD 移动输入，验证重叠脱离及圆柱、矩形边缘的连续切向滑动。
         /// </summary>
         [UnityTest]
         public IEnumerator UnifiedGameplayScene_LocalBattle_HudMovementEscapesPublishedPillar()
@@ -84,6 +88,40 @@ namespace AbilityKit.Game.Test.UnitTest
                     ctx.SetHudMove(direction.x, direction.z);
                     yield return TickUntil(flow, () => Vector3.Dot(Position() - center, direction) > 2f,
                         90, $"圆柱重叠后普通移动无法脱离，dir={direction}, offset={offset}");
+                }
+            }
+            foreach (var obstacle in maps.CurrentMap.CollisionObjects.Where(item => item.ObjectType == "StaticObstacle"))
+            {
+                var obstacleCenter = new Vector3(obstacle.Position.X, 0, obstacle.Position.Z);
+                var rotation = Quaternion.Euler(0, obstacle.RotationEuler.Y, 0);
+                foreach (var side in new[] { Vector3.right, Vector3.left, Vector3.forward, Vector3.back })
+                foreach (var sign in new[] { -1f, 1f })
+                foreach (var inward in new[] { .4f, 2f, 20f })
+                {
+                    var outward = rotation * side;
+                    Place(obstacleCenter + outward * 5f);
+                    ctx.SetHudMove(-outward.x, -outward.z);
+                    for (var tick = 0; tick < 65; tick++) { FlowTick(flow, 1); yield return null; }
+                    var contact = Position();
+                    Assert.Greater(Vector3.Dot(obstacleCenter + outward * 5f - contact, outward), .5f);
+                    var tangent = new Vector3(-outward.z, 0, outward.x) * sign;
+                    var input = (tangent - outward * inward).normalized;
+                    ctx.SetHudMove(input.x, input.z);
+                    yield return TickUntil(flow, () => Mathf.Abs(actor.moveInput.Dx - input.x) < .0001f &&
+                        Mathf.Abs(actor.moveInput.Dz - input.z) < .0001f, 30, "HUD 斜向移动输入未应用。");
+                    var slidingStart = Position();
+                    for (var tick = 0; tick < 12; tick++)
+                    {
+                        var previous = Position();
+                        FlowTick(flow, 1);
+                        yield return null;
+                        var expected = actor.motion.Output.DesiredDelta.Magnitude;
+                        var applied = Vector3.Distance(Position(), previous);
+                        Assert.IsTrue(expected > .01f && applied > expected * .9f,
+                            $"HUD 沿边移动应接近正常速度，obstacle={obstacle.Id}, side={side}, sign={sign}, inward={inward}, tick={tick}, expected={expected}, applied={applied}");
+                    }
+                    Assert.Greater(Vector3.Dot(Position() - slidingStart, tangent), .6f,
+                        $"贴边斜向输入应沿切线持续滑动，obstacle={obstacle.Id}, side={side}, sign={sign}, start={slidingStart}, end={Position()}");
                 }
             }
             ctx.SetHudMove(0, 0);
@@ -167,6 +205,213 @@ namespace AbilityKit.Game.Test.UnitTest
             StringAssert.Contains("提交失败", message);
         }
 
+        /// <summary>
+        /// 验证本地等级调试仅作用于当前主控英雄，且不改变技能 Rank。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator UnifiedGameplayScene_LocalBattle_DebugHeroLevelFollowsCurrentControl()
+        {
+            DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            var entry = Object.FindObjectOfType<GameEntry>();
+            Assert.IsNotNull(entry);
+            InvokePrivate(entry, "Awake");
+            var flow = entry.Get<GameFlowDomain>();
+            flow.StartWithPersistentSettingsSync();
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch,
+                18000, "本地战斗未进入 InMatch。");
+            Assert.IsTrue(entry.TryGet(out BattleContext ctx));
+            yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
+            Assert.IsTrue(ctx.Session.TryGetWorld(out var world));
+            var actors = world.Services.Resolve<MobaActorRegistry>();
+            var debug = new BattleLocalDebugController(() => ctx, () => BattleFlowDebugProvider.CurrentHud);
+
+            Assert.IsTrue(actors.TryGet(ctx.LocalActorId, out var firstHero));
+            var firstSkill = firstHero.skillLoadout.ActiveSkills.First(skill => skill != null);
+            var firstSkillRank = firstSkill.Level;
+            var firstLevel = firstHero.championLevel.Value;
+            Assert.AreEqual(firstLevel, debug.CaptureSnapshot().CurrentHeroLevel);
+            Assert.IsTrue(debug.TryIncreaseHeroLevel(out var message), message);
+            Assert.IsTrue(debug.TryIncreaseHeroLevel(out message), message);
+            Assert.AreEqual(firstLevel + 2, firstHero.championLevel.Value);
+            Assert.AreEqual(firstLevel + 2, debug.CaptureSnapshot().CurrentHeroLevel);
+
+            Assert.IsTrue(debug.TrySwitchControl(out message), message);
+            Assert.IsTrue(actors.TryGet(ctx.LocalActorId, out var secondHero));
+            Assert.AreNotSame(firstHero, secondHero);
+            var secondLevel = secondHero.championLevel.Value;
+            Assert.AreEqual(secondLevel, debug.CaptureSnapshot().CurrentHeroLevel);
+            Assert.IsTrue(debug.TryIncreaseHeroLevel(out message), message);
+            Assert.AreEqual(secondLevel + 1, secondHero.championLevel.Value);
+            Assert.IsTrue(debug.TryResetHeroLevel(out message), message);
+            Assert.AreEqual(1, secondHero.championLevel.Value);
+            Assert.AreEqual(1, debug.CaptureSnapshot().CurrentHeroLevel);
+            Assert.AreEqual(firstLevel + 2, firstHero.championLevel.Value);
+
+            Assert.IsTrue(debug.TrySwitchControl(out message), message);
+            Assert.AreEqual(firstLevel + 2, debug.CaptureSnapshot().CurrentHeroLevel);
+            Assert.IsTrue(debug.TryResetHeroLevel(out message), message);
+            Assert.AreEqual(1, firstHero.championLevel.Value);
+            Assert.AreEqual(firstSkillRank, firstHero.skillLoadout.ActiveSkills.First(skill => skill != null).Level);
+        }
+
+        /// <summary>
+        /// 通过实际本地会话的调试命令验证七名正式英雄的已发布成长数据。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator UnifiedGameplayScene_LocalBattle_DebugHeroGrowthAppliesPublishedTemplates()
+        {
+            DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            var entry = Object.FindObjectOfType<GameEntry>();
+            Assert.IsNotNull(entry);
+            InvokePrivate(entry, "Awake");
+            var flow = entry.Get<GameFlowDomain>();
+            flow.StartWithPersistentSettingsSync();
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch,
+                18000, "本地战斗未进入 InMatch。");
+            Assert.IsTrue(entry.TryGet(out BattleContext ctx));
+            yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
+            Assert.IsTrue(ctx.Session.TryGetWorld(out var world));
+            var actors = world.Services.Resolve<MobaActorRegistry>();
+            var config = world.Services.Resolve<MobaConfigDatabase>();
+            var debug = new BattleLocalDebugController(() => ctx, () => BattleFlowDebugProvider.CurrentHud);
+            var heroIds = debug.CaptureSnapshot().HeroOptions.Select(option => option.HeroId).ToArray();
+            CollectionAssert.AreEquivalent(Enumerable.Range(3001, 7), heroIds);
+
+            foreach (var heroId in heroIds)
+            {
+                if (debug.CaptureSnapshot().CurrentHeroId != heroId)
+                {
+                    Assert.IsTrue(debug.TryReplaceHero(heroId, out var replaceMessage), replaceMessage);
+                    yield return TickUntil(flow, () => actors.TryGet(ctx.LocalActorId, out var candidate) &&
+                        candidate.hasSkillLoadout && candidate.skillLoadout.HeroId == heroId,
+                        240, $"英雄 {heroId} 替换未完成。");
+                }
+
+                Assert.IsTrue(config.TryGetCharacter(heroId, out var character));
+                Assert.IsTrue(config.TryGetAttributeTemplate(character.AttributeTemplateId, out var template));
+                Assert.IsTrue(actors.TryGet(ctx.LocalActorId, out var actor));
+                Assert.AreEqual(1, actor.championLevel.Value);
+                var group = actor.attributeGroup.Group;
+                var resources = actor.resourceContainer.Value;
+                var attrs = actor.GetMobaAttrs();
+                var skill = actor.skillLoadout.ActiveSkills.First(item => item != null);
+                var skillRank = skill.Level;
+                skill.CooldownEndTimeMs = 123456;
+                attrs.Hp = attrs.MaxHp * 0.75f;
+                attrs.Mana = attrs.MaxMana * 0.5f;
+                group.AddModifier(MobaAttributeIds.PHYSICS_ATTACK, ModifierOp.Add, 7, 9001);
+
+                foreach (var expectedLevel in new[] { 1, 9, 18, 1 })
+                {
+                    var currentLevel = actor.championLevel.Value;
+                    if (expectedLevel < currentLevel)
+                    {
+                        Assert.IsTrue(debug.TryResetHeroLevel(out var message), message);
+                    }
+                    else
+                    {
+                        for (var level = currentLevel; level < expectedLevel; level++)
+                            Assert.IsTrue(debug.TryIncreaseHeroLevel(out var message), message);
+                    }
+
+                    var offset = expectedLevel - 1;
+                    var context = $"英雄 {heroId} / {expectedLevel} 级";
+                    Assert.AreEqual(expectedLevel, debug.CaptureSnapshot().CurrentHeroLevel, context);
+                    Assert.AreEqual(template.MaxHp + template.MaxHpGrowth * offset, attrs.MaxHp, 0.001f, context);
+                    Assert.AreEqual(template.MaxMana + template.MaxManaGrowth * offset, attrs.MaxMana, 0.001f, context);
+                    Assert.AreEqual(template.PhysicsAttack + template.PhysicsAttackGrowth * offset + 7, attrs.PhysicsAttack, 0.001f, context);
+                    Assert.AreEqual(template.PhysicsDefense + template.PhysicsDefenseGrowth * offset, attrs.PhysicsDefense, 0.001f, context);
+                    Assert.AreEqual(template.MagicDefense + template.MagicDefenseGrowth * offset, attrs.MagicDefense, 0.001f, context);
+                    Assert.AreEqual(template.ManaRegenPerSecond + template.ManaRegenPerSecondGrowth * offset,
+                        group.GetValue(MobaAttributeIds.MANA_REGEN_PER_SECOND), 0.001f, context);
+                    Assert.AreEqual(attrs.MaxHp * 0.75f, attrs.Hp, 0.001f, context);
+                    Assert.AreEqual(attrs.MaxMana * 0.5f, attrs.Mana, 0.001f, context);
+                    Assert.AreSame(group, actor.attributeGroup.Group, context);
+                    Assert.AreSame(resources, actor.resourceContainer.Value, context);
+                    Assert.AreEqual(skillRank, skill.Level, context);
+                    Assert.AreEqual(123456L, skill.CooldownEndTimeMs, context);
+                }
+
+                attrs.Hp = 0f;
+                Assert.IsTrue(debug.TryIncreaseHeroLevel(out var zeroHpMessage), zeroHpMessage);
+                Assert.AreEqual(0f, attrs.Hp, "调试升级不得复活英雄。");
+                Assert.IsTrue(debug.TryResetHeroLevel(out zeroHpMessage), zeroHpMessage);
+                Assert.AreEqual(0f, attrs.Hp, "重置等级不得复活英雄。");
+                attrs.Hp = attrs.MaxHp;
+            }
+        }
+
+        /// <summary>
+        /// 通过面板实际启用敌方大脑；验证无对敌射程的就绪技能不会阻止普攻或造成贴身追击。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator UnifiedGameplayScene_LocalBattle_EnemyAiStopsAtBasicAttackRange()
+        {
+            DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            var entry = Object.FindObjectOfType<GameEntry>();
+            Assert.IsNotNull(entry);
+            InvokePrivate(entry, "Awake");
+            var flow = entry.Get<GameFlowDomain>();
+            flow.StartWithPersistentSettingsSync();
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch,
+                18000, "本地战斗未进入 InMatch。");
+            Assert.IsTrue(entry.TryGet(out BattleContext ctx));
+            yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
+            Assert.IsTrue(ctx.Session.TryGetWorld(out var world));
+            var actors = world.Services.Resolve<MobaActorRegistry>();
+            var players = world.Services.Resolve<MobaPlayerActorMapService>();
+            var config = world.Services.Resolve<MobaConfigDatabase>();
+            var brains = world.Services.Resolve<MobaBrainService>();
+            Assert.IsTrue(actors.TryGet(ctx.LocalActorId, out var player));
+            Assert.IsTrue(players.TryGetActorId(new PlayerId("p2"), out var enemyId));
+            Assert.IsTrue(actors.TryGet(enemyId, out var enemy));
+            Assert.AreEqual(3005, enemy.skillLoadout.HeroId);
+            Assert.IsFalse(enemy.hasActorBrain);
+
+            ActiveSkillRuntime basicAttack = null;
+            var attackRange = 0f;
+            var hasZeroRangeSkill = false;
+            foreach (var runtime in enemy.skillLoadout.ActiveSkills.Where(runtime => runtime != null))
+            {
+                Assert.IsTrue(config.TryGetSkill(runtime.SkillId, out var skill));
+                if (skill.Id == 30050101)
+                {
+                    basicAttack = runtime;
+                    attackRange = skill.Range;
+                }
+                else if (skill.Range > 0f)
+                {
+                    runtime.CooldownEndTimeMs = long.MaxValue;
+                }
+                else
+                {
+                    hasZeroRangeSkill = true;
+                }
+            }
+            Assert.IsNotNull(basicAttack);
+            Assert.IsTrue(hasZeroRangeSkill);
+            Assert.Greater(Distance(), attackRange);
+
+            var debug = new BattleLocalDebugController(() => ctx, () => BattleFlowDebugProvider.CurrentHud);
+            Assert.IsTrue(debug.TryToggleEnemyAi(out var message), message);
+            Assert.IsTrue(brains.TryGetBehavior(enemy.actorBrain.BehaviorInstanceId, out var behavior));
+            FlowTick(flow, 1);
+            Assert.AreEqual(attackRange, MobaBrainIntentReader.Read(behavior).MoveStopRange, 0.001f);
+            var hpBefore = player.GetMobaAttrs().Hp;
+            yield return TickUntil(flow, () => player.GetMobaAttrs().Hp < hpBefore, 300,
+                "敌方 AI 未追到普攻范围内并命中主控英雄。");
+
+            Assert.That(Distance(), Is.InRange(attackRange - 0.5f, attackRange + 0.01f));
+            Assert.IsTrue(debug.TryToggleEnemyAi(out message), message);
+            Assert.IsFalse(enemy.hasActorBrain);
+
+            float Distance()
+            {
+                var delta = player.transform.Value.Position - enemy.transform.Value.Position;
+                return Mathf.Sqrt(delta.X * delta.X + delta.Z * delta.Z);
+            }
+        }
+
         [TearDown]
         public void TearDown()
         {
@@ -177,6 +422,116 @@ namespace AbilityKit.Game.Test.UnitTest
 
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             DemoGameplayTestLauncher.Clear();
+        }
+
+        [UnityTest]
+        public IEnumerator UnifiedGameplayScene_LocalBattle_TrainingCooldownRangesAndFixedDummy()
+        {
+            DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            var entry = Object.FindObjectOfType<GameEntry>();
+            Assert.IsNotNull(entry);
+            InvokePrivate(entry, "Awake");
+            var flow = entry.Get<GameFlowDomain>();
+            flow.StartWithPersistentSettingsSync();
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch,
+                18000, "本地战斗未进入 InMatch。");
+            Assert.IsTrue(entry.TryGet(out BattleContext ctx));
+            yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
+            Assert.IsTrue(ctx.TryGetRuntimeWorld(out var world));
+            var registry = world.Services.Resolve<MobaActorRegistry>();
+            var debug = new BattleLocalDebugController(() => ctx, () => BattleFlowDebugProvider.CurrentHud);
+            const int veigarHeroId = 3004;
+            Assert.IsTrue(registry.TryGet(ctx.LocalActorId, out var actor));
+            if (actor.skillLoadout.HeroId != veigarHeroId)
+            {
+                Assert.IsTrue(debug.TryReplaceHero(veigarHeroId, out var replaceMessage), replaceMessage);
+                yield return TickUntil(flow, () => registry.TryGet(ctx.LocalActorId, out var replacement) &&
+                    replacement.hasSkillLoadout && replacement.skillLoadout.HeroId == veigarHeroId,
+                    240, "维迦替换未完成。");
+                Assert.IsTrue(registry.TryGet(ctx.LocalActorId, out actor));
+            }
+            var before = registry.Entries.Select(pair => pair.Key).ToArray();
+            Assert.IsTrue(debug.TrySpawnDummy(3f, 0f, out var message), message);
+            var dummy = registry.Entries.Single(pair => !before.Contains(pair.Key));
+            Assert.IsFalse(dummy.Value.hasActorBrain);
+            Assert.AreNotEqual(actor.team.Value, dummy.Value.team.Value);
+            var dummyPosition = dummy.Value.transform.Value.Position;
+            Assert.That(dummyPosition.X - actor.transform.Value.Position.X, Is.EqualTo(3f).Within(0.001f));
+            Assert.IsTrue(debug.TryReadRanges(1, dummy.Key, out _, out var attackRange,
+                out var skillRange, out var selected, out var distance));
+            Assert.That(attackRange, Is.Positive);
+            Assert.That(skillRange, Is.Positive);
+            Assert.That(selected, Is.EqualTo(dummy.Key));
+            Assert.That(distance, Is.EqualTo(3f).Within(0.001f));
+            yield return TickUntil(flow, () => ctx.EntityQuery.TryGetTransform(new BattleNetId(dummy.Key), out var view) && view != null,
+                240, "固定靶未创建场景表现。");
+            FlowTick(flow, 12);
+            Assert.AreEqual(dummyPosition, dummy.Value.transform.Value.Position);
+            var skill = actor.skillLoadout.ActiveSkills[0];
+            var heroLevel = actor.championLevel.Value;
+            var otherRank = actor.skillLoadout.ActiveSkills[1].Level;
+            Assert.IsTrue(debug.TryReadSkillRank(1, out var initialRank, out var maxRank));
+            Assert.That(maxRank, Is.GreaterThan(initialRank));
+            skill.CooldownDurationMs = 10000;
+            skill.CooldownEndTimeMs = 100000;
+            Assert.IsFalse(debug.TrySetSkillRank(1, maxRank + 1, out _));
+            Assert.That(skill.Level, Is.EqualTo(initialRank));
+            Assert.IsTrue(debug.TrySetSkillRank(1, maxRank, out message), message);
+            Assert.That(skill.Level, Is.EqualTo(maxRank));
+            Assert.That(skill.CooldownEndTimeMs, Is.EqualTo(100000L));
+            Assert.That(actor.championLevel.Value, Is.EqualTo(heroLevel));
+            Assert.That(actor.skillLoadout.ActiveSkills[1].Level, Is.EqualTo(otherRank));
+            using var readout = new BattleTrainingReadout();
+            readout.Bind(ctx);
+            readout.SetTarget(dummy.Key);
+            var mana = actor.resourceContainer.Value.Map[ResourceType.Mana];
+            var manaBefore = mana.Current;
+            Assert.IsTrue(debug.TrySetTrainingOptions(true, false, out message), message);
+            Assert.That(skill.CooldownEndTimeMs, Is.Zero);
+            Assert.That(mana.Current, Is.EqualTo(manaBefore));
+            var skills = world.Services.Resolve<SkillCastCoordinator>();
+            var direction = new Vec3(1f, 0f, 0f);
+            var hpBefore = dummy.Value.GetMobaAttrs().Hp;
+            var cast = skills.TryCastBySlot(ctx.LocalActorId, 1, in dummyPosition, in direction, dummy.Key);
+            Assert.IsTrue(cast.Success, cast.FailReason);
+            var runtimes = world.Services.Resolve<MobaSkillCastRuntimeService>();
+            Assert.IsTrue(runtimes.TryGet(cast.RuntimeHandle, out var castRuntime));
+            Assert.That(castRuntime.SkillLevel, Is.EqualTo(maxRank));
+            Assert.IsTrue(debug.TrySetSkillRank(1, 1, out message), message);
+            Assert.That(castRuntime.SkillLevel, Is.EqualTo(maxRank));
+            yield return TickUntil(flow, () => dummy.Value.GetMobaAttrs().Hp < hpBefore,
+                120, "技能没有对固定靶结算伤害。");
+            FlowTick(flow, 45);
+            Assert.That(readout.LastHit, Is.Positive);
+            Assert.That(readout.HitCount, Is.EqualTo(1));
+            var firstHit = readout.LastHit;
+            Assert.That(skill.CooldownEndTimeMs, Is.Zero);
+            Assert.That(mana.Current, Is.LessThan(manaBefore));
+            Assert.IsTrue(debug.TrySetTrainingOptions(false, false, out message), message);
+            cast = skills.TryCastBySlot(ctx.LocalActorId, 1, in dummyPosition, in direction, dummy.Key);
+            Assert.IsTrue(cast.Success, cast.FailReason);
+            yield return TickUntil(flow, () => skill.CooldownEndTimeMs > 0L, 120, "关闭开关后技能未恢复冷却。");
+            yield return TickUntil(flow, () => readout.HitCount >= 2, 120, "读数没有累计第二次命中。");
+            Assert.That(readout.TotalDamage, Is.EqualTo(firstHit + readout.LastHit).Within(0.001d));
+            Assert.That(readout.LastHit, Is.LessThan(firstHit), "技能等级表应改变实际伤害。");
+            FlowTick(flow, 20);
+            cast = skills.TryCastBySlot(ctx.LocalActorId, 1, in dummyPosition, in direction, dummy.Key);
+            Assert.IsFalse(cast.Success, "第二次施法仍处于冷却，应拒绝。");
+            readout.RefreshFailure();
+            Assert.That(readout.FailureText, Does.Contain("冷却"));
+            readout.ResetDamage();
+            Assert.That(readout.TotalDamage, Is.Zero);
+            Assert.That(readout.LastHit, Is.Zero);
+            Assert.That(readout.HitCount, Is.Zero);
+            Assert.IsTrue(debug.TryClearDummies(out message), message);
+            yield return TickUntil(flow, () => !registry.TryGet(dummy.Key, out _), 120, "固定靶未清除。");
+            Assert.IsTrue(registry.TryGet(ctx.LocalActorId, out _));
+            Assert.IsTrue(debug.TrySetTrainingOptions(true, true, out message), message);
+            Assert.IsTrue(debug.TrySwitchControl(out message), message);
+            readout.Bind(ctx);
+            Assert.IsNull(readout.FailureText);
+            debug.ReadTrainingOptions(out var noCooldown, out var infiniteMana);
+            Assert.IsFalse(noCooldown || infiniteMana);
         }
 
         [UnityTest]

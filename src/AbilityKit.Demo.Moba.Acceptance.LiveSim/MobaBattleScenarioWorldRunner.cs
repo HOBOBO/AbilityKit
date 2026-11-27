@@ -11,6 +11,7 @@ using AbilityKit.Demo.Moba.Acceptance;
 using AbilityKit.Demo.Moba.Acceptance.LiveSim;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.EnvironmentModel;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EnvironmentModel;
@@ -33,7 +34,9 @@ public sealed class MobaBattleScenarioWorldRunner
     public static MobaBattleScenarioRunOutcome RunDetailed(TestScenario scenario) => RunDetailed(scenario, null);
 
     internal static MobaBattleScenarioRunOutcome RunDetailed(TestScenario scenario,
-        Action<LiveSimSetupActionExecutor, int>? observeTick)
+        Action<LiveSimSetupActionExecutor, int>? observeTick,
+        Action<BattleDiagnosticSessionSnapshot>? captureDiagnosticSnapshot = null,
+        Action<Exception>? reportDiagnosticFailure = null)
     {
         if (scenario == null) throw new ArgumentNullException(nameof(scenario));
         TestScenarioValidator.ThrowIfInvalid(scenario);
@@ -42,6 +45,19 @@ public sealed class MobaBattleScenarioWorldRunner
         ValidateCommands(scenario.Commands);
         using var bootstrapper = Boot();
         var services = bootstrapper.RuntimeServices!;
+        if (captureDiagnosticSnapshot != null)
+            try
+            {
+                var control = services.Resolve<IMobaBattleDiagnosticCaptureControl>();
+                control.CaptureMode = BattleDiagnosticCaptureMode.Full;
+                control.EnabledChannels = BattleDiagnosticEventChannel.All;
+                control.StateSampleIntervalFrames = 1;
+            }
+            catch (Exception error) when (reportDiagnosticFailure != null)
+            {
+                reportDiagnosticFailure(error);
+                captureDiagnosticSnapshot = null;
+            }
         services.TryResolve<MobaTraceRegistry>(out var trace);
         services.TryResolve<IFrameTime>(out var frameClock);
         using var traceCapture = new MobaAcceptanceTraceCapture(trace, frameClock);
@@ -74,6 +90,15 @@ public sealed class MobaBattleScenarioWorldRunner
                 execution.MaxDurationMs);
         }
         simulatedMs = CompleteExecution(executor, execution, simulatedMs);
+        if (captureDiagnosticSnapshot != null)
+            try
+            {
+                captureDiagnosticSnapshot(services.Resolve<IMobaBattleDiagnosticSnapshotCapture>().CaptureSnapshot());
+            }
+            catch (Exception error) when (reportDiagnosticFailure != null)
+            {
+                reportDiagnosticFailure(error);
+            }
 
         var assertions = scenario.Expectations as MobaBattleScenarioAssertions;
         BattleScenarioPredictionRunResult? predictionRun = null;
@@ -111,7 +136,7 @@ public sealed class MobaBattleScenarioWorldRunner
 
         var hasGameplayAssertions = HasAssertions(expectation);
         if (!hasGameplayAssertions && predictionVerdict == null)
-            return CreateOutcome(true, summary, traceNodes, null, networkRun, predictionRun, null, fingerprint);
+            return CreateOutcome(true, summary, traceNodes, records, null, networkRun, predictionRun, null, fingerprint);
 
         MobaAcceptanceSummary? verdict = null;
         var passed = true;
@@ -141,6 +166,7 @@ public sealed class MobaBattleScenarioWorldRunner
             passed,
             summary,
             traceNodes,
+            records,
             verdict,
             networkRun,
             predictionRun,
@@ -197,6 +223,7 @@ public sealed class MobaBattleScenarioWorldRunner
         bool passed,
         string summary,
         BattleScenarioTraceNode[] traceNodes,
+        MobaAcceptanceTraceRecord[] traceRecords,
         MobaAcceptanceSummary? verdict,
         LiveSimVirtualNetworkRunResult? networkRun,
         BattleScenarioPredictionRunResult? predictionRun,
@@ -207,6 +234,7 @@ public sealed class MobaBattleScenarioWorldRunner
         {
             Result = new BattleScenarioRunResult { Passed = passed, Summary = summary },
             TraceNodes = traceNodes,
+            TraceRecords = traceRecords,
             Summary = verdict,
             NetworkTrace = networkRun?.Trace ?? Array.Empty<string>(),
             PredictionTrace = predictionRun?.StateTrace ?? Array.Empty<string>(),
@@ -456,6 +484,7 @@ public sealed class MobaBattleScenarioRunOutcome
 {
     public BattleScenarioRunResult Result { get; init; } = new BattleScenarioRunResult { Passed = false };
     public BattleScenarioTraceNode[] TraceNodes { get; init; } = Array.Empty<BattleScenarioTraceNode>();
+    internal MobaAcceptanceTraceRecord[] TraceRecords { get; init; } = Array.Empty<MobaAcceptanceTraceRecord>();
     public string[] NetworkTrace { get; init; } = Array.Empty<string>();
     public string[] PredictionTrace { get; init; } = Array.Empty<string>();
     public BattleScenarioPredictionRunResult? Prediction { get; init; }

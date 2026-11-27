@@ -2,7 +2,6 @@
     "name": "AbilityKit.Trace",
     "rootNamespace": "AbilityKit",
     "references": [
-        "AbilityKit.Core",
         "AbilityKit.Context"
     ],
     "includePlatforms": [],
@@ -13,5 +12,5 @@
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
-    "noEngineReferences": false
+    "noEngineReferences": true
 }

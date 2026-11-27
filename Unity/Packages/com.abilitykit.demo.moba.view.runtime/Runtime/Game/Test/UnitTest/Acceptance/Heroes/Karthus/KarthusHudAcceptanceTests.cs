@@ -7,10 +7,13 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Deterministic;
+using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.View.Lib.Skill;
+using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Flow;
 using NUnit.Framework;
 using UnityEngine;
@@ -25,8 +28,6 @@ namespace AbilityKit.Game.Test.UnitTest
     {
         public static IEnumerator Run()
         {
-            DemoGameplayTestLauncher.OpenMobaLocalForPlay();
-            yield return new EnterPlayMode();
             Time.captureDeltaTime = 1f / 60f;
             yield return Review();
         }
@@ -75,7 +76,8 @@ namespace AbilityKit.Game.Test.UnitTest
             reviewCamera.transform.LookAt(new Vector3(1, 0, -2));
             reviewCamera.orthographic = true;
             reviewCamera.orthographicSize = 8.5f;
-            var directory = Path.GetFullPath(Path.Combine(Application.dataPath, "../../local/Logs/karthus-hud-1114"));
+            var directory = Path.GetFullPath(Path.Combine(Application.dataPath, "../../local/Logs/karthus-hud-acceptance",
+                DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff")));
             Directory.CreateDirectory(directory);
             Capture(directory, "01-ready");
 
@@ -103,10 +105,23 @@ namespace AbilityKit.Game.Test.UnitTest
             yield return Frames(55);
 
             var w = Button(2);
+            var wallSkill = caster.skillLoadout.ActiveSkills[1];
+            Assert.AreEqual(30060301, wallSkill.SkillId);
+            Assert.AreEqual(1, wallSkill.Level);
             pointer = Pointer(w); w.OnPointerDown(pointer);
             yield return Frames(30);
             pointer.position += new Vector2(0, 90); w.OnDrag(pointer);
-            yield return Frames(3); Capture(directory, "05-w-aim");
+            yield return Frames(3);
+            AssertWallAim(ctx, 8f);
+            Capture(directory, "05-w-aim-rank-one");
+            wallSkill.Level = 5;
+            yield return Until(() => FindWallPreview()?.transform.parent.Find("Line").localScale.z >= 11.99f,
+                90, "rank-five W HUD preview from the live skill snapshot");
+            AssertWallAim(ctx, 12f);
+            Capture(directory, "05-w-aim-rank-five");
+            wallSkill.Level = 1;
+            yield return Until(() => FindWallPreview()?.transform.parent.Find("Line").localScale.z <= 8.01f,
+                90, "rank-one W HUD preview restored before release");
             w.OnPointerUp(pointer);
             yield return Frames(60); Capture(directory, "06-w-wall");
             yield return Frames(40);
@@ -132,26 +147,96 @@ namespace AbilityKit.Game.Test.UnitTest
             Capture(directory, "09-r-hit-and-cooldown");
 
             attributes.Mana = 0;
+            var respawn = world.Services.Resolve<MobaGameplayRespawnService>();
+            var beforeDeath = respawn.ExportState(default);
             var lethal = new AttackInfo { AttackerActorId = enemyId, TargetActorId = ctx.LocalActorId,
                 DamageType = DamageType.True, ReasonKind = DamageReasonKind.Skill };
             lethal.BaseDamage.FixedBaseValue = Fixed64.FromInt32(100000);
             world.Services.Resolve<MobaCombatEffectService>().DealDamage(lethal);
-            yield return Until(() => Button(1).PresentationName != livingQ && caster.hasBuffs && caster.buffs.Active.Any(b => b.BuffId == 30060090), 60, "death HUD replacement");
-            yield return Frames(10); Capture(directory, "10-death-slots-and-aura");
+            respawn.ImportState(default, beforeDeath);
+            var rules = world.Services.Resolve<MobaCombatRulesService>();
+            yield return Until(() => Button(1).PresentationName != livingQ && HasBuff(30060090) &&
+                PlaysModelState("Karthus_Model_Idle") && HasVisibleParticles(90036003), 60, "spirit idle and death aura");
+            var spiritFrame = ctx.LastFrame;
+            Assert.AreEqual(0, attributes.Hp, .001f);
+            Assert.IsFalse(rules.CanMove(ctx.LocalActorId));
+            Assert.IsFalse(rules.CanAttack(ctx.LocalActorId));
+            Capture(directory, "10-death-slots-and-aura");
             submitted = input.SkillSubmitSuccessCount;
             q = Button(1); pointer = Pointer(q); q.OnPointerDown(pointer);
             yield return Frames(30); pointer.position += new Vector2(0, 70); q.OnDrag(pointer);
             yield return Frames(3); q.OnPointerUp(pointer);
             yield return Until(() => input.SkillSubmitSuccessCount == submitted + 1, 30, "death Q HUD submit");
-            yield return Frames(45);
+            yield return Until(() => PlaysModelState("Karthus_Model_SpellQ") && HasVisibleParticles(90036006),
+                60, "spirit Q animation and warning");
+            Capture(directory, "11-death-q-warning");
+            yield return Until(() => HasVisibleParticles(90036008), 90, "spirit Q explosion");
             Assert.AreEqual(0, attributes.Mana, .001f);
-            Capture(directory, "11-death-free-q");
+            Capture(directory, "12-death-q-explosion");
+            yield return Until(() => !HasBuff(30060090) && !HasBuff(30060490) &&
+                PlaysModelState("Karthus_Model_Death") && !IsActiveVfx(90036003) && !IsActiveVfx(90036005),
+                540, "spirit expiration, corpse pose and aura removal");
+            var expiredFrame = ctx.LastFrame;
+            Assert.That(expiredFrame - spiritFrame, Is.InRange(200, 220), "Expected the configured seven-second spirit window at 30 Hz.");
+            Assert.AreEqual(0, attributes.Hp, .001f);
+            Capture(directory, "13-spirit-expired-corpse");
+            yield return Until(() => !IsActiveVfx(90036018), 120, "E deactivation shockwave cleanup");
+            Assert.IsTrue(PlaysModelState("Karthus_Model_Death"));
+            Capture(directory, "14-corpse-after-shockwave");
             File.WriteAllText(Path.Combine(directory, "review.txt"),
                 "Real PlayMode local battle; production HUD Q/W aim, E toggle, R click and death Q.\n" +
                 "Images render the battle camera together with the actual HUD canvases.\n" +
-                "Automated assertions cover input submission, mode Buffs, target warning cleanup, R damage and zero-mana death Q.\n" +
+                "The fixture suppresses respawn after applying real lethal damage so the natural spirit expiry is observable.\n" +
+                $"Spirit first visible at frame {spiritFrame}; corpse and aura removal at frame {expiredFrame}.\n" +
                 "Final appearance requires visual inspection of the PNG files.\n");
+            Debug.Log($"[KarthusHudAcceptance] {directory}");
+
+            bool HasBuff(int id) => caster.hasBuffs && caster.buffs.Active?.Any(buff => buff.BuffId == id) == true;
         }
+
+        private static BattleAreaLengthScaleBinding FindWallPreview() =>
+            Object.FindObjectsOfType<BattleAreaLengthScaleBinding>()
+                .SingleOrDefault(binding => binding.transform.parent != null && binding.transform.parent.name == "SkillAimPreview");
+
+        private static void AssertWallAim(BattleContext context, float expectedLength)
+        {
+            Assert.IsTrue(new BattleHudAimPreviewPositionResolver().TryResolve(context, out var aim));
+            Assert.AreEqual(2, aim.Slot);
+            var wall = FindWallPreview();
+            Assert.IsNotNull(wall);
+            var root = wall.transform.parent;
+            var rectangle = root.Find("Line");
+            Assert.IsTrue(rectangle.gameObject.activeInHierarchy);
+            Assert.IsFalse(root.Find("Circle").gameObject.activeSelf);
+            Assert.IsFalse(root.Find("EdgeRing").gameObject.activeSelf);
+            Assert.AreEqual(expectedLength, rectangle.lossyScale.z, .01f);
+            Assert.AreEqual(.5f, rectangle.lossyScale.x, .01f);
+            Assert.AreEqual(0f, Vector3.Dot(rectangle.forward, aim.AimDirection.normalized), .01f);
+            var expectedCenter = aim.CasterPosition + aim.AimDirection.normalized * aim.AimDistance;
+            Assert.AreEqual(expectedCenter.x, rectangle.position.x, .01f);
+            Assert.AreEqual(expectedCenter.z, rectangle.position.z, .01f);
+
+            var pillars = wall.GetComponentsInChildren<MeshRenderer>()
+                .Where(renderer => renderer.enabled && renderer.name == "pCylinder8").ToArray();
+            Assert.AreEqual(2, pillars.Length);
+            var span = pillars[1].transform.position - pillars[0].transform.position;
+            Assert.AreEqual(expectedLength, Mathf.Abs(Vector3.Dot(span, rectangle.forward)), .02f);
+            Assert.AreEqual(0f, Vector3.Dot(span, rectangle.right), .02f);
+        }
+
+        private static bool PlaysModelState(string state)
+        {
+            var stateHash = Animator.StringToHash(state);
+            return Object.FindObjectsOfType<Animator>().Any(animator => animator.isInitialized &&
+                animator.GetCurrentAnimatorStateInfo(0).shortNameHash == stateHash &&
+                animator.GetComponentsInChildren<SkinnedMeshRenderer>().Any(renderer => renderer.enabled));
+        }
+
+        private static bool HasVisibleParticles(int id) => Object.FindObjectsOfType<BattleVfxPoolableTag>()
+            .Any(tag => tag.VfxId == id && tag.GetComponentsInChildren<ParticleSystem>()
+                .Any(particle => particle.particleCount > 0 && particle.GetComponent<ParticleSystemRenderer>()?.enabled == true));
+
+        private static bool IsActiveVfx(int id) => Object.FindObjectsOfType<BattleVfxPoolableTag>().Any(tag => tag.VfxId == id);
 
         private static SkillButtonView[] Buttons() => Object.FindObjectsOfType<SkillButtonView>()
             .Where(b => b.gameObject.name.StartsWith("Skill", StringComparison.Ordinal)).ToArray();

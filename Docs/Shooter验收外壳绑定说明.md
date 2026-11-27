@@ -156,13 +156,17 @@ var result = ShooterSveltoGameplayBenchmark.Run(runner, in profile);
 
 ### Unity 自动化验收
 
-Unity 侧批处理或 CI 直接调用 [`ShooterAcceptanceAutomation.RunCatalogMatrixOrThrow()`](../Unity/Packages/com.abilitykit.demo.shooter.editor/Editor/Windows/ShooterAcceptanceAutomation.cs#L1) 即可执行完整验收矩阵。典型命令如下：
+交互入口为 `Tools/AbilityKit/Demos/Shooter/Shooter Demo` →「验收规格」→「运行完整验收矩阵」。在编辑模式且没有运行演示时可执行；窗口显示通过或失败摘要，逐项结果见 Console。此操作不连接窗口中配置的服务器，也不写场景或资产。
 
-```bash
-Unity.exe -batchmode -quit -projectPath . -executeMethod AbilityKit.Demo.Shooter.Editor.Windows.ShooterAcceptanceAutomation.RunCatalogMatrixOrThrow
+Unity 批处理或 CI 继续使用 [`ShooterAcceptanceAutomation.RunCatalogMatrixOrThrow()`](../Unity/Packages/com.abilitykit.demo.shooter.editor/Editor/Windows/ShooterAcceptanceAutomation.cs)，方法名不变。以下命令从仓库根目录运行：
+
+```powershell
+$logDir = Join-Path (Get-Location).Path "local/Logs/shooter-acceptance-$(Get-Date -Format 'yyyyMMdd-HHmmssfff')"
+New-Item -ItemType Directory -Path $logDir | Out-Null
+Unity.exe -batchmode -quit -projectPath Unity -executeMethod AbilityKit.Demo.Shooter.Editor.Windows.ShooterAcceptanceAutomation.RunCatalogMatrixOrThrow -logFile (Join-Path $logDir 'Editor.log')
 ```
 
-该入口复用 [`ShooterAcceptanceLab.RunCatalogMatrix()`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs#L791)，因此 CI 与 Unity 菜单的判定完全一致；只要矩阵里出现 `Failed` / `Unsupported` / `Degraded`，方法就会抛异常并让批处理返回非零退出状态。
+窗口与批处理共用 [`ShooterAcceptanceLab.RunCatalogMatrix()`](../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAcceptanceLab.cs) 和原有失败判定：只要有场景未完成，或存在 `Failed` / `Unsupported`，执行器即抛出异常。窗口捕获并显示失败，批处理保留失败退出行为。需要自定义步数、步长或种子的 C# 调用仍可使用参数化重载。
 
 ## 9. 扩展新同步模式的接入点
 

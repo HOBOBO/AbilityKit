@@ -490,10 +490,13 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("帧范围", FormatFrames(in runtimeObject));
             if (runtimeObject.WasBackfilled)
                 EditorGUILayout.LabelField("回填帧", runtimeObject.BackfilledFrame.ToString());
-            EditorGUILayout.LabelField(
-                "关联 / 来源 / 所有者 / 目标",
-                $"{runtimeObject.RelatedActorId} / {runtimeObject.SourceActorId} / " +
-                $"{runtimeObject.OwnerActorId} / {runtimeObject.TargetActorId}");
+            var offlineRelations = BattleDebugOfflineRelations.DrawObjectActors(in ctx, in runtimeObject,
+                BattleDebugOfflineRelations.ObjectFrame(in runtimeObject));
+            if (!offlineRelations)
+                EditorGUILayout.LabelField(
+                    "关联 / 来源 / 所有者 / 目标",
+                    $"{runtimeObject.RelatedActorId} / {runtimeObject.SourceActorId} / " +
+                    $"{runtimeObject.OwnerActorId} / {runtimeObject.TargetActorId}");
             EditorGUILayout.LabelField(
                 "根节点 / 上下文",
                 $"{runtimeObject.RootContextId} / {runtimeObject.ContextId}");
@@ -517,7 +520,7 @@ namespace AbilityKit.Game.Editor
             EditorGUI.EndDisabledGroup();
 
             var actorId = _viewModel.GetPreferredActorId();
-            EditorGUI.BeginDisabledGroup(ctx.SelectActor == null || actorId == 0L);
+            EditorGUI.BeginDisabledGroup(offlineRelations || ctx.SelectActor == null || actorId == 0L);
             if (GUILayout.Button("选择 Actor", GUILayout.Width(88f)))
                 ctx.SelectActor?.Invoke(actorId);
             EditorGUI.EndDisabledGroup();

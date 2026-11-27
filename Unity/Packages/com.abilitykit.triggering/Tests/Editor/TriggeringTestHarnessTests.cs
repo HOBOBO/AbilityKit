@@ -1,8 +1,8 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
-using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Testing;
 using AbilityKit.Triggering.Runtime;
@@ -71,48 +71,23 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
-        public void AdvanceTime_DelayedPlanAction_ExecutesAfterDelay()
+        public void RegisterPlan_WithoutExplicitScheduler_RejectsBeforeSubscribing()
         {
-            var observed = new List<int>();
             var key = new EventKey<Ping>(1002);
             var actionId = new ActionId(2002);
 
             using (var harness = new TriggeringTestHarness<TestContext>(new TestContext(3)))
             {
-                harness.RegisterAction<NamedAction0<Ping, object, TestContext>>(
-                    actionId,
-                    (triggerArgs, actionArgs, ctx) => observed.Add(ctx.Context.Value + triggerArgs.Amount));
-
-                var delayedCall = new ActionCallPlan(
-                    actionId,
-                    0,
-                    default,
-                    default,
-                    null,
-                    EActionScheduleMode.Delayed,
-                    10f,
-                    1,
-                    true,
-                    EActionExecutionPolicy.Immediate);
-
                 var plan = new TriggerPlan<Ping>(
                     phase: 0,
                     priority: 0,
                     triggerId: 3002,
-                    actions: new[] { delayedCall });
+                    actions: new[] { actionId.Delayed(10f) });
 
-                harness.RegisterPlan(key, in plan);
-                harness.Publish(key, new Ping(4));
-
-                Assert.That(observed, Is.Empty);
-
-                harness.AdvanceTime(9f);
-                Assert.That(observed, Is.Empty);
-
-                harness.AdvanceTime(1f);
+                var failure = Assert.Throws<InvalidOperationException>(() => harness.RegisterPlan(key, in plan));
+                StringAssert.Contains(nameof(IFlatActionScheduler), failure.Message);
+                Assert.That(harness.EventBus.HasSubscribers(key), Is.False);
             }
-
-            Assert.That(observed, Is.EqualTo(new[] { 7 }));
         }
     }
 }

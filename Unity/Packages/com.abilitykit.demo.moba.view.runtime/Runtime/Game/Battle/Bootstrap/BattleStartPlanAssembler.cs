@@ -38,7 +38,8 @@ namespace AbilityKit.Game.Flow
             var enableInputRecording = runMode == BattleRunMode.Record;
             var enableInputReplay = runMode == BattleRunMode.Replay;
 
-            var recordPath = BuildRecordPath(runModeSo, overrides);
+            var recordCoverage = runModeSo != null ? runModeSo.RecordCoverage : BattleRecordCoverage.InputsAndHashes;
+            var recordPath = enableInputRecording ? BuildRecordPath(runModeSo, overrides, recordCoverage) : string.Empty;
             var replayPath = runModeSo != null ? runModeSo.ReplayInputFilePath : string.Empty;
             if (overrides != null && overrides.HasReplayInputFilePath) replayPath = overrides.ReplayInputFilePath;
 
@@ -105,7 +106,8 @@ namespace AbilityKit.Game.Flow
                     enableInputRecording: enableInputRecording,
                     inputRecordOutputPath: recordPath,
                     enableInputReplay: enableInputReplay,
-                    inputReplayPath: replayPath)
+                    inputReplayPath: replayPath,
+                    recordCoverage: recordCoverage)
                 .WithCreateWorld(createWorldOpCode, createWorldPayload)
                 .WithTimeSync(
                     opCode: gateway != null ? gateway.TimeSyncOpCode : 1300u,
@@ -121,13 +123,14 @@ namespace AbilityKit.Game.Flow
                 .ToOptions();
         }
 
-        private static string BuildRecordPath(BattleRunModeConfigSO runModeSo, BattleStartRuntimeOverrides overrides)
+        private static string BuildRecordPath(BattleRunModeConfigSO runModeSo, BattleStartRuntimeOverrides overrides, BattleRecordCoverage recordCoverage)
         {
             var recordDirectory = runModeSo != null ? runModeSo.RecordOutputDirectory : "battle_records";
             if (overrides != null && overrides.HasRecordOutputDirectory) recordDirectory = overrides.RecordOutputDirectory;
             if (string.IsNullOrEmpty(recordDirectory)) recordDirectory = "battle_records";
 
-            var recordExt = (runModeSo != null && runModeSo.RecordFormat == BattleRunModeConfigSO.InputRecordFormat.Binary) ? "bin" : "json";
+            var recordExt = recordCoverage == BattleRecordCoverage.WithSnapshots
+                && runModeSo != null && runModeSo.RecordFormat == BattleRunModeConfigSO.InputRecordFormat.Json ? "json" : "bin";
             var recordFileName = $"battle_record_{DateTime.Now:yyyyMMdd_HHmmss}.{recordExt}";
             var recordPath = Path.Combine(recordDirectory, recordFileName);
             return Path.IsPathRooted(recordPath) ? recordPath : Path.Combine(Application.persistentDataPath, recordPath);

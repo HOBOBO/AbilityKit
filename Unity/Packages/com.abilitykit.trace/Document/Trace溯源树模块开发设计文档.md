@@ -10,7 +10,7 @@
 
 本文以 2026-09-16 的实现为准。Trace 是因果结构记录，不是完整战斗状态或实时值仓库。基础记录保持精简；配置名称、效果解释与运行时展示应由业务元数据、配置目录及运行时对象映射补齐，不因工具需要展示而把活对象或序列化大数据写入每个节点。
 
-关联阅读：[Context 基础包](../../com.abilitykit.context/Document/Context上下文注册与快照模块开发设计文档.md)、[MOBA 整体上下文指南](../../com.abilitykit.demo.moba.runtime/Runtime/Docs/MobaCombatContextDesignGuide.md)、[Runtime Context 设计](../../com.abilitykit.demo.moba.runtime/Document/RuntimeContext运行时值与快照设计文档.md)。
+依赖边界：`Runtime` 不引用 Unity 引擎；`TraceContextProperty` 是与 `com.abilitykit.context` 交接的可选属性桥。树窗口和插件位于独立的 `Editor` 程序集。跨包设计和 MOBA 接入的导航由 AbilityKit 仓库《Trace 生命周期与诊断快照》维护。
 
 ## 一、设计理念
 
@@ -46,9 +46,9 @@ Trace ID 在同一 Registry 实例内按创建顺序单调分配；Clear 和预�
 
 Trace 不主动采样业务数值。节点创建/结束属于逻辑层操作，即使编辑器关闭仍应保持正确；诊断 Producer 可以由逻辑诊断开关控制。编辑器只查询或低频采样已有数据，关闭时清理自身缓存和订阅，不反向生成逻辑节点或修改 runtime。
 
-MOBA 的效果入口观察采用独立 `MobaEffectExecutionSnapshotStore`：节点业务 metadata 只保存精确快照引用，必要数值保存在有界的外部受管记录中，基础 TraceContextRecord 不增加业务载荷。诊断模式/通道/冻结状态决定是否采集，树查询附带纯事实 DTO；记录可比树节点更早淘汰，此时明确显示 Evicted 而非回退当前值。Purge、预测撤销、Clear 和世界 Dispose 清理对应记录；不因窗口打开永久保留数据。详细字段和限制见 [Runtime Context 设计的效果入口章节](../../com.abilitykit.demo.moba.runtime/Document/RuntimeContext运行时值与快照设计文档.md#71-效果执行入口的观察快照)。
+MOBA 的效果入口观察采用独立 `MobaEffectExecutionSnapshotStore`：节点业务 metadata 只保存精确快照引用，必要数值保存在有界的外部受管记录中，基础 TraceContextRecord 不增加业务载荷。诊断模式/通道/冻结状态决定是否采集，树查询附带纯事实 DTO；记录可比树节点更早淘汰，此时明确显示 Evicted 而非回退当前值。Purge、预测撤销、Clear 和世界 Dispose 清理对应记录；不因窗口打开永久保留数据。
 
-MOBA 动作前后观察另使用 `moba.action.execution` 受管类型，metadata 仅附加 ActionSnapshot 精确引用。入口与结束冻结 HP/Mana 必要字段，实际 HP 提交复用现有事件按真实树的最近动作归属，默认每动作最多 32 条。调用完成不等于玩法成功，失败可已有部分提交；前后视图不覆盖全部多目标/异步后代，也不是所有伤害计算阶段。开关中途变化、未订阅和截断分别有标记，缺失或淘汰不回退 live。详见 [Runtime Context 设计的动作事实章节](../../com.abilitykit.demo.moba.runtime/Document/RuntimeContext运行时值与快照设计文档.md#72-动作执行前后事实与实际-hp-提交)。基础 Trace 类型不承担这些业务采集。
+MOBA 动作前后观察另使用 `moba.action.execution` 受管类型，metadata 仅附加 ActionSnapshot 精确引用。入口与结束冻结 HP/Mana 必要字段，实际 HP 提交复用现有事件按真实树的最近动作归属，默认每动作最多 32 条。调用完成不等于玩法成功，失败可已有部分提交；前后视图不覆盖全部多目标/异步后代，也不是所有伤害计算阶段。开关中途变化、未订阅和截断分别有标记，缺失或淘汰不回退 live。基础 Trace 类型不承担这些业务采集。
 
 ---
 
@@ -190,7 +190,7 @@ Clear 会把可接受预测边界的下限提升到当前分配游标；更早�
 
 ## 六、扩展点
 
-MOBA 动作观察 v2 关联独立伤害终态列表，复用已接受的 DamageCalculation 诊断事件，区分真实 HP 提交、护盾全吸收、零 HP 伤害和拒绝/异常出口。异常可能已有提交，提交后的通知异常也不回滚事实；未采集计算数值不显示成零，开关覆盖与截断单独标记。基础 Trace 仍仅保存结构与精确外部引用，不读取实时值来重建结果。详见 [未产生 HP 提交的伤害结果](../../com.abilitykit.demo.moba.runtime/Document/RuntimeContext运行时值与快照设计文档.md#73-未产生-hp-提交的伤害管线结果)。
+MOBA 动作观察 v2 关联独立伤害终态列表，复用已接受的 DamageCalculation 诊断事件，区分真实 HP 提交、护盾全吸收、零 HP 伤害和拒绝/异常出口。异常可能已有提交，提交后的通知异常也不回滚事实；未采集计算数值不显示成零，开关覆盖与截断单独标记。基础 Trace 仍仅保存结构与精确外部引用，不读取实时值来重建结果。
 
 - 继承 `TraceMetadata` 定义业务字段，如 SkillId、BuffId、DamageType。
 - 继承 `TraceTreeRegistry<T>`，实现 `CreateMetadata`，并按需覆写 `GetKindName`。

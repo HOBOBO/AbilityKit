@@ -47,6 +47,10 @@ bool hasControlState = tags.HasTag(manager.RequestTag("State.Control"));
 
 推荐在启动阶段一次性注册并校验目录，运行阶段优先使用 `TryGetTag()`。`RequestTag()` 对未知名称可能创建全局标签，不应作为不可信输入的严格读取 API。
 
+`RegisterTags()` 按输入顺序注册有效名称并跳过无效项。`RegisterTagsWithNotification()` 只通知本次显式输入中首次注册的规范化名称；仅首尾空白不同不算新标签，隐式补齐的父标签也不通知。监听器在注册锁外执行，单个监听器失败不影响其他监听器；并发批次之间不保证通知顺序。
+
+宿主需要从资产或配置表加载时，可在装配阶段通过 `GameplayTagConfigLoader.SetLoader()` 安装 `ITagConfigLoader`。`LoadFromData()` 按原顺序传递条目和元数据，不替宿主校验或注册；未设置加载器时不枚举输入。`LoadFromNames()` 不经过宿主加载器，直接注册名称：跳过空白名称，但遇到其他非法名称会中断，已注册的项不回退。
+
 父子匹配方向是查询祖先覆盖候选后代：
 
 ```csharp
@@ -113,7 +117,8 @@ Runtime/GameplayTags/
 ├── Core/          GameplayTag、Manager、Container、Query、Requirements
 ├── Persistence/   DefaultTagSerializer
 ├── Service/       IGameplayTagService 等接口
-└── Template/      GameplayTagTemplate、TagTemplateRuntime
+├── Template/      GameplayTagTemplate、TagTemplateRuntime
+└── Utilities/     GameplayTagConfigLoader 等接入入口
 
 Editor/GameplayTags/
 ├── GameplayTagDatabase.cs

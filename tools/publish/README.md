@@ -59,6 +59,9 @@ node tools/publish/release.js
 # 显式 dry-run 预览指定候选批次，不改变其状态
 node tools/publish/release.js --dry-run --batch batch-1-leaves --include-candidate
 
+# 预览 Triggering 首发的跨批依赖闭包，不限单个批次
+node tools/publish/release.js --dry-run --include-candidate
+
 # 在只读模式进一步检查工作区、HEAD 与已有标签内容；脏输入会拒绝
 node tools/publish/release.js --dry-run --verify-inputs --batch batch-1-leaves --include-candidate
 
@@ -68,6 +71,8 @@ node tools/publish/release.js --tag
 
 新包先核对定位、稳定性与依赖，再加入唯一批次。按依赖顺序组织批次；
 筛选单个批次时，未同时选中的依赖须已具备对应版本标签。
+Triggering 首发计划按 `batch-1-leaves`、`batch-2-triggering-dependencies`、`batch-3-triggering` 组织。
+三个批次目前均为 `candidate`；未打标时应先预览完整计划。即便本地标签满足计划校验，仍需单独确认依赖可安装。
 cohort 升级需按发布流程评审，再显式对齐版本，例如
 `node tools/publish/align-versions.js --apply -V 0.2.0`，并重新执行全部相关验收。
 

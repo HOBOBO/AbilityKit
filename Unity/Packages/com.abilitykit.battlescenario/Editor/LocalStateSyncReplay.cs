@@ -16,6 +16,7 @@ namespace AbilityKit.BattleScenario.Editor
         private const string FormatId = "abilitykit.local-statesync-replay";
         private const int CheckpointOnlyVersion = 1;
         private const int CurrentVersion = 2;
+        internal const int SkillTrackVersion = 3;
         private static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
         {
             Formatting = Formatting.Indented,
@@ -37,6 +38,7 @@ namespace AbilityKit.BattleScenario.Editor
         /// </summary>
         [JsonProperty("positionLabel", NullValueHandling = NullValueHandling.Ignore)] internal string? PositionLabel = null;
         [JsonProperty("actorModelId", NullValueHandling = NullValueHandling.Ignore)] internal int? ActorModelId = null;
+        [JsonProperty("skillDelivery", NullValueHandling = NullValueHandling.Ignore)] internal SkillDeliveryObservation? SkillDelivery;
         [JsonProperty(Required = Required.Always)] internal Checkpoint[] Checkpoints = Array.Empty<Checkpoint>();
 
         internal bool HasStepPositions => Version == CurrentVersion;
@@ -56,7 +58,7 @@ namespace AbilityKit.BattleScenario.Editor
             return replay;
         }
 
-        internal Timeline BuildTimeline()
+        internal Timeline BuildTimeline(bool inspectSteps = true)
         {
             var frames = new List<Frame>(Checkpoints.Length);
             var deliveries = new DeliveryRange[Checkpoints.Length];
@@ -67,7 +69,25 @@ namespace AbilityKit.BattleScenario.Editor
                 var prior = deliveryIndex > 0 ? Checkpoints[deliveryIndex - 1] : null;
                 if (prior?.Generation != point.Generation) prior = null;
                 var previousPrediction = prior?.Prediction;
-                if (point.Steps is { Length: > 0 } steps)
+                if (inspectSteps && SkillDelivery is { Fallback: null } skill && point.DeliveryTick == skill.DeliveryTick)
+                {
+                    var anchor = Checkpoints[skill.AnchorTick - Checkpoints[0].DeliveryTick];
+                    frames.Add(new Frame(point, deliveryIndex, FramePhase.Compare, skillReference: anchor));
+                    if (skill.Steps.Length > 0)
+                    {
+                        frames.Add(new Frame(point, deliveryIndex, FramePhase.Anchor, skillReference: anchor));
+                        foreach (var step in skill.Steps)
+                        {
+                            var reference = Checkpoints[step.Tick - Checkpoints[0].DeliveryTick];
+                            frames.Add(new Frame(point, deliveryIndex, FramePhase.ReplayTick, skillReference: reference, skillStep: step));
+                        }
+                    }
+                }
+                if (!inspectSteps && SkillDelivery?.DeliveryTick == point.DeliveryTick && prior != null &&
+                    (SkillDelivery.FormalFlight || point.Skill?.OldPrediction.Pose != null && prior.AuthorityPose != null))
+                    frames.Add(new Frame(point, deliveryIndex, FramePhase.BeforePublication, previousPose: prior.AuthorityPose,
+                        previousFlight: prior.CommittedFlight));
+                if (inspectSteps && point.Steps is { Length: > 0 } steps)
                 {
                     var comparison = point.ComparisonTick.HasValue ? FindComparison(deliveryIndex, point) : prior;
                     if (comparison?.Prediction is int comparedPosition && point.Authority.HasValue)
@@ -85,12 +105,15 @@ namespace AbilityKit.BattleScenario.Editor
 
         internal void Validate()
         {
-            if (Format != FormatId || (Version != CheckpointOnlyVersion && Version != CurrentVersion))
+            if (Format != FormatId || (Version != CheckpointOnlyVersion && Version != CurrentVersion && Version != SkillTrackVersion))
                 throw new InvalidDataException("不支持的本地状态同步回放格式或版本。");
             if (string.IsNullOrWhiteSpace(CaseId) || string.IsNullOrWhiteSpace(Variant) || TickRate <= 0 || Checkpoints.Length == 0)
                 throw new InvalidDataException("本地状态同步回放缺少用例、变体、Tick 频率或检查点。");
-            if (ActorModelId.HasValue && (Version != CurrentVersion || ActorModelId <= 0))
+            if (ActorModelId.HasValue && (ActorModelId <= 0 ||
+                (Version != CurrentVersion && SkillDelivery?.FormalMovement != true && SkillDelivery?.FormalFlight != true)))
                 throw new InvalidDataException("演员投影需要有效模型标识和逐 Tick 回放格式。");
+            if ((Version == SkillTrackVersion) != (SkillDelivery != null))
+                throw new InvalidDataException("技能轨道需要独立的交付观测和对应回放版本。");
 
             var previousTick = 0;
             for (var index = 0; index < Checkpoints.Length; index++)
@@ -100,15 +123,128 @@ namespace AbilityKit.BattleScenario.Editor
                     throw new InvalidDataException("本地状态同步回放存在空检查点、无名命令或倒序检查点。");
                 ValidateSteps(point);
                 ValidatePresentation(point, index == 0 ? null : Checkpoints[index - 1]);
+                if (point.CommittedFlight != null && (SkillDelivery?.FormalFlight != true || !point.CommittedFlight.IsValid))
+                    throw new InvalidDataException("权威弹体样本仅属于正式飞行轨道。");
+                if ((SkillDelivery != null) != (point.Skill != null))
+                    throw new InvalidDataException("每个技能 Tick 必须包含独立的权威、旧预测和发布观测。");
                 if (point.ComparisonTick.HasValue && (point.ComparisonTick != point.AppliedTick ||
                     point.Steps is not { Length: > 0 } || !point.Authority.HasValue || FindComparison(index, point) == null))
                     throw new InvalidDataException("同 Tick 对照缺少同代预测或权威样本。");
-                ValidatePose(point.AuthorityPose, point.Authority);
+                if (SkillDelivery != null)
+                {
+                    if (point.AuthorityPose?.IsValid != (ActorModelId.HasValue ? true : (bool?)null))
+                        throw new InvalidDataException("技能预览需要每个 Tick 的已提交权威姿态。");
+                }
+                else ValidatePose(point.AuthorityPose, point.Authority);
                 ValidatePose(point.PredictionPose, point.Prediction);
                 if (point.Steps != null)
                     foreach (var step in point.Steps) ValidatePose(step.AfterPose, step.After);
                 previousTick = point.DeliveryTick;
             }
+            if (SkillDelivery is { } skill) ValidateSkillDelivery(skill);
+        }
+
+        private void ValidateSkillDelivery(SkillDeliveryObservation skill)
+        {
+            var firstTick = Checkpoints[0].DeliveryTick;
+            var lastTick = Checkpoints[Checkpoints.Length - 1].DeliveryTick;
+            var inputRangeValid = skill.FormalWindup && !skill.FormalMovement
+                ? skill.FormalBattleCandidate && skill.InputTick == 0 && skill.PendingSequence == 0 &&
+                    !skill.ReplayedSequence.HasValue && skill.OldInputRejectCode == null
+                : skill.InputTick > skill.AnchorTick && skill.DeliveryTick > skill.InputTick &&
+                    skill.PendingSequence > skill.TerminalThroughSequence;
+            if (!inputRangeValid || skill.FirstInputTick < firstTick || skill.AnchorTick <= skill.FirstInputTick ||
+                skill.DeliveryTick <= skill.AnchorTick || skill.DeliveryTick > lastTick || skill.TerminalThroughSequence < 0 ||
+                string.IsNullOrWhiteSpace(skill.PrimaryLabel) ||
+                string.IsNullOrWhiteSpace(skill.SecondaryLabel) || (skill.CastEconomy && skill.CastProgressOnly) ||
+                (skill.FormalBattleCandidate && (!skill.CastEconomy || skill.Fallback != null)) ||
+                (skill.FormalMovement && !skill.FormalBattleCandidate) ||
+                (skill.FormalFlight && (!skill.FormalBattleCandidate || skill.FormalMovement || skill.FormalWindup)))
+                throw new InvalidDataException("技能交付的输入序号、名称或 Tick 范围无效。");
+
+            var recordsPosition = skill.FormalMovement || (skill.FormalFlight && ActorModelId.HasValue);
+            for (var index = 0; index < Checkpoints.Length; index++)
+            {
+                var point = Checkpoints[index];
+                var sample = point.Skill!;
+                if ((long)point.DeliveryTick != (long)firstTick + index || point.Authority.HasValue || point.Prediction.HasValue ||
+                    point.ReplayTicks.Length != 0 || point.Commit != null || point.PublishedPosition.HasValue ||
+                    !sample.Authority.IsValid || !sample.OldPrediction.IsValid || !sample.Published.IsValid ||
+                    sample.Authority.PositionX.HasValue != recordsPosition ||
+                    sample.OldPrediction.PositionX.HasValue != recordsPosition ||
+                    sample.Published.PositionX.HasValue != recordsPosition ||
+                    !HasExpectedSkillPose(sample.Authority) || !HasExpectedSkillPose(sample.OldPrediction) ||
+                    !HasExpectedSkillPose(sample.Published) ||
+                    (!skill.FormalFlight && (sample.Authority.Flight != null || sample.OldPrediction.Flight != null ||
+                        sample.Published.Flight != null)) ||
+                    (point.DeliveryTick < skill.DeliveryTick && !sample.OldPrediction.Matches(sample.Published)))
+                    throw new InvalidDataException("技能 Tick 不连续、混入位置轨道，或在交付前发布了候选状态。");
+            }
+
+            var anchorPoint = Checkpoints[skill.AnchorTick - firstTick];
+            var deliveryPoint = Checkpoints[skill.DeliveryTick - firstTick];
+            var anchor = anchorPoint.Skill!;
+            var delivery = deliveryPoint.Skill!;
+            if (skill.Fallback is { } fallback)
+            {
+                ValidateSkillFallback(skill, fallback, anchorPoint, deliveryPoint);
+                return;
+            }
+
+            if (skill.TerminalThroughSequence == 0)
+                throw new InvalidDataException("技能和解需要已终结的输入前缀。");
+            var matches = anchor.Authority.Matches(anchor.OldPrediction);
+            if (skill.FormalWindup && (!anchor.Authority.CastElapsedMs.HasValue || !anchor.OldPrediction.CastElapsedMs.HasValue))
+                throw new InvalidDataException("正式前摇回放缺少同 Tick 的前摇进度对照。");
+            if (matches && !skill.FormalBattleCandidate)
+            {
+                if (skill.Steps.Length != 0 || skill.ReplayedSequence.HasValue || !delivery.OldPrediction.Matches(delivery.Published))
+                    throw new InvalidDataException("确认分支必须保留原预测，不应包含重演。");
+                return;
+            }
+
+            if (skill.Steps.Length != skill.DeliveryTick - skill.AnchorTick ||
+                ((!skill.FormalWindup || skill.FormalMovement) && skill.ReplayedSequence != skill.PendingSequence))
+                throw new InvalidDataException("技能重演必须覆盖锚点后的所有 Tick 和仍待终结的输入。");
+            for (var index = 0; index < skill.Steps.Length; index++)
+            {
+                var step = skill.Steps[index];
+                if (step == null || step.Tick != skill.AnchorTick + index + 1 || !step.State.IsValid ||
+                    step.State.PositionX.HasValue != recordsPosition || !HasExpectedSkillPose(step.State) ||
+                    (!skill.FormalFlight && step.State.Flight != null) ||
+                    (step.InputRejection != null &&
+                        (!skill.CastEconomy || step.Tick != skill.InputTick || string.IsNullOrWhiteSpace(step.InputRejection))))
+                    throw new InvalidDataException("技能重演缺少连续的候选观测。");
+            }
+            if (!skill.Steps[skill.Steps.Length - 1].State.Matches(delivery.Published))
+                throw new InvalidDataException("技能重演后的发布结果与最后一个候选状态不一致。");
+            if (skill.FormalBattleCandidate && deliveryPoint.AppliedTick != skill.AnchorTick)
+                throw new InvalidDataException("正式战斗候选的追平不得推进已提交的权威 Tick。");
+        }
+
+        private bool HasExpectedSkillPose(SkillState state) => state.Pose is { } pose
+            ? ActorModelId.HasValue && pose.IsValid && pose.X == state.PositionX && pose.Y == state.PositionY && pose.Z == state.PositionZ
+            : !ActorModelId.HasValue;
+
+        private static void ValidateSkillFallback(SkillDeliveryObservation skill, SkillFallbackObservation fallback,
+            Checkpoint anchor, Checkpoint delivery)
+        {
+            var changedGeneration = fallback.Reason == SkillReplayCase.GenerationChanged;
+            var adopted = changedGeneration ? delivery : anchor;
+            var validReason = fallback.Reason switch
+            {
+                SkillReplayCase.HistoryGap => skill.TerminalThroughSequence > 0 && fallback.RetainedInputCount > 0 &&
+                    fallback.MissingHistoryTick > skill.AnchorTick && fallback.MissingHistoryTick <= skill.DeliveryTick,
+                SkillReplayCase.MissingProof => skill.TerminalThroughSequence == 0 && fallback.RetainedInputCount > 0 &&
+                    !fallback.MissingHistoryTick.HasValue,
+                SkillReplayCase.GenerationChanged => skill.TerminalThroughSequence == 0 && fallback.RetainedInputCount == 0 &&
+                    !fallback.MissingHistoryTick.HasValue,
+                _ => false,
+            };
+            if (!validReason || !skill.CastProgressOnly || skill.Steps.Length != 0 || skill.ReplayedSequence.HasValue ||
+                (changedGeneration ? delivery.Generation <= anchor.Generation : delivery.Generation != anchor.Generation) ||
+                delivery.AppliedTick != adopted.DeliveryTick || !adopted.Skill!.Authority.Matches(delivery.Skill!.Published))
+                throw new InvalidDataException("技能降级必须采用有效的权威截面，不得发布重演候选或混用旧代历史。");
         }
 
         private void ValidatePresentation(Checkpoint point, Checkpoint? prior)
@@ -164,14 +300,17 @@ namespace AbilityKit.BattleScenario.Editor
                 Math.Abs(Qx * Qx + Qy * Qy + Qz * Qz + Qw * Qw - 1f) < 0.01f;
 
             private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+            internal bool Matches(ActorPose other) => X == other.X && Y == other.Y && Z == other.Z &&
+                Qx == other.Qx && Qy == other.Qy && Qz == other.Qz && Qw == other.Qw;
         }
 
         private void ValidateSteps(Checkpoint point)
         {
-            if (Version == CheckpointOnlyVersion)
+            if (Version != CurrentVersion)
             {
                 if (point.Steps != null)
-                    throw new InvalidDataException("旧版检查点不包含逐 Tick 重演位置。");
+                    throw new InvalidDataException("此回放版本不包含逐 Tick 重演位置。");
                 return;
             }
 
@@ -228,6 +367,126 @@ namespace AbilityKit.BattleScenario.Editor
             [JsonProperty("replaySteps", NullValueHandling = NullValueHandling.Ignore)] internal ReplayStep[]? Steps;
             [JsonProperty("commit", NullValueHandling = NullValueHandling.Ignore)] internal CommitObservation? Commit;
             [JsonProperty("presentation", NullValueHandling = NullValueHandling.Ignore)] internal PresentationObservation? Presentation;
+            [JsonProperty("skill", NullValueHandling = NullValueHandling.Ignore)] internal SkillTickObservation? Skill;
+            [JsonProperty("committedFlight", NullValueHandling = NullValueHandling.Ignore)] internal FlightSample? CommittedFlight;
+
+            /// <summary>
+            /// 独立权威世界有位置观测，但该检查点尚未提交快照。
+            /// </summary>
+            internal bool HasUndeliveredAuthorityReference => Authority.HasValue && AppliedTick < 0 && !PublishedRevision.HasValue;
+        }
+
+        /// <summary>
+        /// 离线技能样例的一次权威交付及原样保留的候选步进；不参与正式会话。
+        /// </summary>
+        internal sealed class SkillDeliveryObservation
+        {
+            [JsonProperty(Required = Required.Always)] internal string PrimaryLabel = string.Empty;
+            [JsonProperty(Required = Required.Always)] internal string SecondaryLabel = string.Empty;
+            [JsonProperty(Required = Required.Always)] internal int FirstInputTick;
+            [JsonProperty(Required = Required.Always)] internal int AnchorTick;
+            [JsonProperty(Required = Required.Always)] internal int InputTick;
+            [JsonProperty(Required = Required.Always)] internal int DeliveryTick;
+            [JsonProperty(Required = Required.Always)] internal long TerminalThroughSequence;
+            [JsonProperty(Required = Required.Always)] internal long PendingSequence;
+            [JsonProperty(Required = Required.AllowNull)] internal long? ReplayedSequence;
+            [JsonProperty(Required = Required.AllowNull)] internal string? OldInputRejectCode;
+            [JsonProperty("castProgressOnly", DefaultValueHandling = DefaultValueHandling.Ignore)] internal bool CastProgressOnly;
+            [JsonProperty("castEconomy", DefaultValueHandling = DefaultValueHandling.Ignore)] internal bool CastEconomy;
+            [JsonProperty("formalBattleCandidate", DefaultValueHandling = DefaultValueHandling.Ignore)] internal bool FormalBattleCandidate;
+            [JsonProperty("formalWindup", DefaultValueHandling = DefaultValueHandling.Ignore)] internal bool FormalWindup;
+            [JsonProperty("formalMovement", DefaultValueHandling = DefaultValueHandling.Ignore)] internal bool FormalMovement;
+            [JsonProperty("formalFlight", DefaultValueHandling = DefaultValueHandling.Ignore)] internal bool FormalFlight;
+            [JsonProperty("fallback", NullValueHandling = NullValueHandling.Ignore)] internal SkillFallbackObservation? Fallback;
+            [JsonProperty(Required = Required.Always)] internal SkillReplayStep[] Steps = Array.Empty<SkillReplayStep>();
+        }
+
+        /// <summary>
+        /// 离线施法配方的选择项，不定义任何线上协议语义。
+        /// </summary>
+        internal enum SkillReplayCase
+        {
+            Confirmed, Rejected, HistoryGap, MissingProof, GenerationChanged, EconomyConfirmed, EconomyRejected,
+            BattleCastConfirmed, BattleCastRejected, BattleCastWindup, BattleCastMoveWindup, BattleCastMoveRejectBeforeRelease,
+            BattleFlightRestore, BattleFlightReplay, BattleFlightReject,
+        }
+
+        /// <summary>
+        /// 降级时不发布候选，仅记录原因、保留的待确认输入数量和缺失的封存 Tick。
+        /// </summary>
+        internal sealed class SkillFallbackObservation
+        {
+            [JsonProperty(Required = Required.Always)]
+            [JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+            internal SkillReplayCase Reason;
+            [JsonProperty(Required = Required.Always)] internal int RetainedInputCount;
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] internal int? MissingHistoryTick;
+        }
+
+        /// <summary>
+        /// 同一 Tick 的三条技能观测轨道，不插值、不推导缺失结果。
+        /// </summary>
+        internal sealed class SkillTickObservation
+        {
+            [JsonProperty(Required = Required.Always)] internal SkillState Authority = null!;
+            [JsonProperty(Required = Required.Always)] internal SkillState OldPrediction = null!;
+            [JsonProperty(Required = Required.Always)] internal SkillState Published = null!;
+        }
+
+        /// <summary>
+        /// 追平期间单步执行产生的候选状态，尚未发布。
+        /// </summary>
+        internal sealed class SkillReplayStep
+        {
+            [JsonProperty(Required = Required.Always)] internal int Tick;
+            [JsonProperty(Required = Required.Always)] internal SkillState State = null!;
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] internal string? InputRejection;
+        }
+
+        /// <summary>
+        /// 魔力、目标生命值以定点原值比较；冷却记录世界时钟的毫秒结束时刻。
+        /// </summary>
+        internal sealed class SkillState
+        {
+            [JsonProperty(Required = Required.Always)] internal long ManaRaw;
+            [JsonProperty(Required = Required.Always)] internal long TargetHealthRaw;
+            [JsonProperty(Required = Required.Always)] internal long PrimaryCooldownEndMs;
+            [JsonProperty(Required = Required.Always)] internal long SecondaryCooldownEndMs;
+            [JsonProperty("castElapsedMs", NullValueHandling = NullValueHandling.Ignore)] internal int? CastElapsedMs;
+            [JsonProperty("positionX", NullValueHandling = NullValueHandling.Ignore)] internal float? PositionX;
+            [JsonProperty("positionY", NullValueHandling = NullValueHandling.Ignore)] internal float? PositionY;
+            [JsonProperty("positionZ", NullValueHandling = NullValueHandling.Ignore)] internal float? PositionZ;
+            [JsonProperty("pose", NullValueHandling = NullValueHandling.Ignore)] internal ActorPose? Pose;
+            [JsonProperty("flight", NullValueHandling = NullValueHandling.Ignore)] internal FlightSample? Flight;
+
+            internal bool IsValid => ManaRaw >= 0 && TargetHealthRaw >= 0 && PrimaryCooldownEndMs >= 0 &&
+                SecondaryCooldownEndMs >= 0 && (!CastElapsedMs.HasValue || CastElapsedMs >= 0) &&
+                (PositionX.HasValue == PositionY.HasValue && PositionX.HasValue == PositionZ.HasValue) &&
+                (!PositionX.HasValue || (Finite(PositionX.Value) && Finite(PositionY!.Value) && Finite(PositionZ!.Value))) &&
+                (Flight == null || Flight.IsValid);
+
+            private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+            internal bool Matches(SkillState other) => ManaRaw == other.ManaRaw && TargetHealthRaw == other.TargetHealthRaw &&
+                PrimaryCooldownEndMs == other.PrimaryCooldownEndMs && SecondaryCooldownEndMs == other.SecondaryCooldownEndMs &&
+                CastElapsedMs == other.CastElapsedMs && PositionX == other.PositionX &&
+                PositionY == other.PositionY && PositionZ == other.PositionZ &&
+                (Pose == null ? other.Pose == null : other.Pose != null && Pose.Matches(other.Pose)) &&
+                (Flight == null ? other.Flight == null : Flight.Matches(other.Flight));
+        }
+
+        /// <summary>
+        /// 已提交或已发布的逻辑弹体观测；位置以千分之一世界单位记录，不是表现句柄。
+        /// </summary>
+        internal sealed class FlightSample
+        {
+            [JsonProperty(Required = Required.Always)] internal int ProjectileId, ActorId, EntityVersion, LifeLeft, X, Y, Z;
+            [JsonProperty(Required = Required.Always)] internal long DistanceLeftRaw;
+            internal bool IsValid => ProjectileId > 0 && ActorId > 0 && EntityVersion > 0 && LifeLeft >= 0 && DistanceLeftRaw > 0;
+
+            internal bool Matches(FlightSample? other) => other != null && ProjectileId == other.ProjectileId &&
+                ActorId == other.ActorId && EntityVersion == other.EntityVersion && LifeLeft == other.LifeLeft &&
+                X == other.X && Y == other.Y && Z == other.Z && DistanceLeftRaw == other.DistanceLeftRaw;
         }
 
         /// <summary>
@@ -284,7 +543,7 @@ namespace AbilityKit.BattleScenario.Editor
         /// <summary>
         /// 同一次交付内依次对照旧预测、显示重演起点和实际步进，最后显示交付后的检查点。
         /// </summary>
-        internal enum FramePhase { Compare, Anchor, ReplayTick, Checkpoint }
+        internal enum FramePhase { Compare, Anchor, ReplayTick, Checkpoint, BeforePublication }
 
         /// <summary>
         /// 时间线游标指向的实际观测；不插值、不为旧版文件合成重演位置。
@@ -297,21 +556,40 @@ namespace AbilityKit.BattleScenario.Editor
             internal readonly ReplayStep? Step;
             internal readonly int? PreviousPrediction;
             internal readonly ActorPose? PredictionPose;
+            private readonly ActorPose? _previewAuthorityPose;
+            internal readonly Checkpoint? SkillReference;
+            internal readonly SkillReplayStep? SkillStep;
+            internal readonly FlightSample? FlightAuthority;
+            internal readonly FlightSample? FlightPrediction;
 
             internal Frame(Checkpoint point, int deliveryIndex, FramePhase phase, ReplayStep? step = null,
-                int? previousPrediction = null, ActorPose? previousPose = null)
+                int? previousPrediction = null, ActorPose? previousPose = null,
+                Checkpoint? skillReference = null, SkillReplayStep? skillStep = null, FlightSample? previousFlight = null)
             {
                 Point = point;
                 DeliveryIndex = deliveryIndex;
                 Phase = phase;
                 Step = step;
                 PreviousPrediction = previousPrediction;
+                SkillReference = skillReference;
+                SkillStep = skillStep;
+                FlightAuthority = phase == FramePhase.BeforePublication ? previousFlight : point.CommittedFlight;
+                FlightPrediction = phase switch
+                {
+                    FramePhase.BeforePublication => point.Skill?.OldPrediction.Flight,
+                    FramePhase.Compare => skillReference?.Skill?.OldPrediction.Flight,
+                    FramePhase.Anchor => point.CommittedFlight,
+                    FramePhase.ReplayTick => skillStep?.State.Flight,
+                    _ => point.Skill?.Published.Flight,
+                };
+                _previewAuthorityPose = phase == FramePhase.BeforePublication ? previousPose : point.AuthorityPose;
                 PredictionPose = phase switch
                 {
-                    FramePhase.Compare => previousPose,
+                    FramePhase.BeforePublication => point.Skill?.OldPrediction.Pose,
+                    FramePhase.Compare => skillReference?.Skill?.OldPrediction.Pose ?? previousPose,
                     FramePhase.Anchor => point.AuthorityPose,
-                    FramePhase.ReplayTick => step?.AfterPose,
-                    _ => point.PredictionPose,
+                    FramePhase.ReplayTick => skillStep?.State.Pose ?? step?.AfterPose,
+                    _ => point.Skill?.Published.Pose ?? point.PredictionPose,
                 };
             }
 
@@ -322,7 +600,7 @@ namespace AbilityKit.BattleScenario.Editor
             /// </summary>
             internal bool SharesAnchorPose => Phase == FramePhase.Anchor && PredictionPose != null;
 
-            internal ActorPose? AuthorityProjectionPose => SharesAnchorPose ? null : Point.AuthorityPose;
+            internal ActorPose? AuthorityProjectionPose => SharesAnchorPose ? null : _previewAuthorityPose;
         }
 
         /// <summary>

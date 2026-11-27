@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
@@ -27,6 +28,83 @@ namespace AbilityKit.Game.Test.UnitTest
     /// Rendering here is an isolated projection check; HUD PlayMode acceptance is separate.</summary>
     public sealed class BattleAreaPresentationTests
     {
+        [Test]
+        public void KarthusWall_StateSyncBaselineRetainsCastLengthAndPoolRebindsNewLength()
+        {
+            const int wallTemplate = 42060301;
+            var visualWorld = new EntityWorld();
+            var root = visualWorld.Create("wall-baseline-vfx");
+            var query = new BattleEntityQuery(visualWorld, new BattleEntityLookup());
+            var manager = new BattleVfxManager(BattleViewFactory.GetOrLoadVfxDb());
+            GameObject previous = null;
+            try
+            {
+                foreach (var rank in new[] { 1, 5 })
+                {
+                    using var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(
+                        new[] { 30060201, 30060301, 30060401, 30060501 },
+                        worldId: "wall_baseline_rank_" + rank, heroId: 3006, attributeTemplateId: 3006);
+                    harness.EnterGameAndWarmup();
+                    var owner = harness.AssertPlayerActorBound();
+                    var skill = harness.AssertActorEntity(owner).skillLoadout.ActiveSkills[1];
+                    Assert.AreEqual(30060301, skill.SkillId);
+                    skill.Level = rank;
+                    var cast = harness.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(owner, 2,
+                        aimPos: new Vec3(2.4f, 0f, 3.2f), aimDir: new Vec3(0.6f, 0f, 0.8f), targetActorId: 0);
+                    Assert.IsTrue(cast.Success, "Real cast failed: " + cast.FailReason);
+
+                    var service = harness.World.Services.Resolve<MobaPresentationCueSnapshotService>();
+                    PresentationCueData[] baseline = null;
+                    for (var attempt = 0; attempt < 60; attempt++)
+                    {
+                        harness.Tick(1);
+                        if (!service.TryCaptureStateSyncBaseline(harness.FrameTime.Frame, out var snapshot)) continue;
+                        var entries = MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload);
+                        if (!entries.Any(entry => entry.TemplateId == wallTemplate)) continue;
+                        Assert.IsTrue(harness.World.Services.Resolve<MobaAreaRuntimeService>()
+                            .TryGetArea((int)entries.Single(entry => entry.TemplateId == wallTemplate).InstanceId, out var area));
+                        Assert.AreEqual(rank == 1 ? 8f : 12f, area.Length);
+
+                        skill.Level = rank == 1 ? 5 : 1;
+                        harness.Tick(1);
+                        Assert.IsTrue(service.TryCaptureStateSyncBaseline(harness.FrameTime.Frame, out snapshot));
+                        baseline = MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload)
+                            .Where(entry => entry.TemplateId == wallTemplate ||
+                                entry.SnapshotKind == (int)PresentationCueSnapshotKind.ActiveBaselineEnd)
+                            .Select(entry => PresentationCueSnapshotMapper.Map(in entry)).ToArray();
+                        break;
+                    }
+
+                    Assert.IsNotNull(baseline, "StateSync must expose the real active area baseline.");
+                    var handler = new BattlePresentationCueViewEventHandler(visualWorld, query, manager, root);
+                    handler.HandleSnapshot(baseline);
+                    handler.HandleSnapshot(baseline);
+                    Assert.AreEqual(1, root.ChildCount, $"Rank {rank} baseline must project one visual.");
+                    Assert.IsTrue(root.GetChild(0).TryGetRef(out BattleViewGameObjectComponent component));
+                    var visual = component.GameObject;
+                    Assert.IsNotNull(visual);
+                    if (previous != null) Assert.AreSame(previous, visual, "Both lengths must use the same pooled instance.");
+                    previous = visual;
+
+                    var pillars = visual.GetComponentsInChildren<Transform>(true)
+                        .Where(node => node.name == "pCylinder8").ToArray();
+                    Assert.AreEqual(2, pillars.Length);
+                    Assert.AreEqual(rank == 1 ? 8f : 12f,
+                        Mathf.Abs(Vector3.Dot(pillars[0].position - pillars[1].position, visual.transform.forward)), .03f);
+                    Assert.AreEqual(6f, visual.transform.lossyScale.x, .01f);
+                    Assert.AreEqual(6f, visual.transform.lossyScale.y, .01f);
+                    handler.Clear();
+                    Assert.AreEqual(0, root.ChildCount);
+                    Assert.IsFalse(visual.activeSelf);
+                }
+            }
+            finally
+            {
+                manager.Clear(root);
+                if (root.IsValid) root.Destroy();
+            }
+        }
+
         [Test]
         public void AreaSnapshotPositionAlreadyIncludesConfiguredSpawnOffset()
         {
@@ -55,9 +133,9 @@ namespace AbilityKit.Game.Test.UnitTest
         [TestCase(3002, 30020301, 3, 42020303, 1, false)]
         [TestCase(3003, 30030301, 2, 42030301, 1, false)]
         [TestCase(3004, 30040301, 2, 42040301, 1, false)]
-        [TestCase(3004, 30040401, 3, 42040401, 1, false)]
+        [TestCase(3004, 30040401, 3, 42040402, 1, false)]
         [TestCase(3002, 30020301, 3, 42020301, 1, true)]
-        [TestCase(3004, 30040401, 3, 42040401, 1, true)]
+        [TestCase(3004, 30040401, 3, 42040402, 1, true)]
         public void RealAreaCuesProjectConfiguredVisualAndReleaseWithArea(
             int heroId, int skillId, int slot, int areaTemplateId, int expectedCount, bool removeEarly)
         {
@@ -78,7 +156,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 (Hero: 3002, Skill: 30020301, Slot: 3, Area: 42020301, Count: 1),
                 (Hero: 3003, Skill: 30030301, Slot: 2, Area: 42030301, Count: 1),
                 (Hero: 3004, Skill: 30040301, Slot: 2, Area: 42040301, Count: 1),
-                (Hero: 3004, Skill: 30040401, Slot: 3, Area: 42040401, Count: 1),
+                (Hero: 3004, Skill: 30040401, Slot: 3, Area: 42040402, Count: 1),
             })
             {
                 using var routine = RunRealArea(entry.Hero, entry.Skill, entry.Slot, entry.Area, entry.Count, false);

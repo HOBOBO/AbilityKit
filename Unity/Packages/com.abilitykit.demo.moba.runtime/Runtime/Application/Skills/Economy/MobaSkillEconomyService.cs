@@ -5,6 +5,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Deterministic;
@@ -182,6 +183,11 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IFrameTime _time;
         private readonly IMobaBattleDiagnosticEventSink _diagnosticEvents;
         private MobaSkillParamModifierService _parameters;
+        private MobaConfigDatabase _trainingConfig;
+        private Func<int> _trainingControlledActor;
+        private int _trainingActorId;
+        private bool _trainingNoCooldown;
+        private bool _trainingInfiniteMana;
         private readonly Dictionary<long, Transaction> _transactions = new Dictionary<long, Transaction>();
         private readonly Dictionary<long, KillRefund> _killRefunds = new Dictionary<long, KillRefund>();
         private readonly Dictionary<ActorGroupKey, long> _cooldownGroups = new Dictionary<ActorGroupKey, long>();
@@ -213,7 +219,61 @@ namespace AbilityKit.Demo.Moba.Services
         public void OnInit(IWorldResolver services)
         {
             services?.TryResolve(out _parameters);
+            services?.TryResolve(out _trainingConfig);
         }
+
+        /// <summary>
+        /// 设置本地训练开关；仅在调用方仍控制指定角色时应用。
+        /// </summary>
+        public void SetLocalTraining(int actorId, Func<int> controlledActor, bool noCooldown, bool infiniteMana)
+        {
+            var clearCooldown = noCooldown && !IsTrainingNoCooldown(actorId);
+            _trainingActorId = actorId;
+            _trainingControlledActor = controlledActor;
+            _trainingNoCooldown = noCooldown;
+            _trainingInfiniteMana = infiniteMana;
+            if (clearCooldown && IsTrainingNoCooldown(actorId)) ResetLocalTrainingCooldowns(actorId);
+        }
+
+        /// <summary>
+        /// 只清除主动技能自身的冷却，不清理资源、事务、共享冷却或充能。
+        /// </summary>
+        public int ResetLocalTrainingCooldowns(int actorId)
+        {
+            if (!_actors.TryGetActorEntity(actorId, out var actor) || !actor.hasSkillLoadout ||
+                actor.skillLoadout.ActiveSkills == null) return 0;
+
+            var count = 0;
+            foreach (var skill in actor.skillLoadout.ActiveSkills)
+            {
+                if (skill == null || !IsTrainingCooldownSkill(skill.SkillId)) continue;
+                skill.CooldownDurationMs = 0;
+                skill.CooldownEndTimeMs = 0L;
+                count++;
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// 查询本地训练的技能冷却开关。
+        /// </summary>
+        public bool IsTrainingNoCooldown(int actorId) => _trainingNoCooldown && IsTrainingActor(actorId);
+
+        /// <summary>
+        /// 查询本地训练的无限法力开关。
+        /// </summary>
+        public bool IsTrainingInfiniteMana(int actorId) => _trainingInfiniteMana && IsTrainingActor(actorId);
+
+        internal bool SkipsTrainingCooldown(int actorId, int skillId) =>
+            IsTrainingNoCooldown(actorId) && IsTrainingCooldownSkill(skillId);
+
+        private bool IsTrainingActor(int actorId) => actorId > 0 && actorId == _trainingActorId &&
+            _trainingControlledActor?.Invoke() == actorId;
+
+        private bool IsTrainingCooldownSkill(int skillId) =>
+            _trainingConfig != null && _trainingConfig.TryGetSkill(skillId, out var skill) && skill != null &&
+            (skill.SkillType == SkillType.Active || skill.SkillType == SkillType.Ultimate ||
+             skill.SkillType == SkillType.ParallelActive);
 
         /// <summary>
         /// Returns true when the cast already has an economy transaction. Generic
@@ -360,7 +420,9 @@ namespace AbilityKit.Demo.Moba.Services
                 skill.IgnoreGlobalCooldown = specification.IgnoreGlobalCooldown;
             }
 
-            var resourceConsumed = !specification.IgnoreResourceConsumption;
+            var freeMana = resourceType == ResourceType.Mana && IsTrainingInfiniteMana(context.CasterActorId);
+            var resourceConsumed = !specification.IgnoreResourceConsumption && !freeMana;
+            var ignoreResourceCostCheck = specification.IgnoreResourceCostCheck || freeMana;
             long resourceBeforeRaw;
             long resourceAfterRaw;
             if (resourceConsumed)
@@ -376,7 +438,7 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
             else if (!TryReadResource(context.CasterActorId, resourceType, resourceAmount,
-                         specification.IgnoreResourceCostCheck, out failure,
+                         ignoreResourceCostCheck, out failure,
                          out resourceBeforeRaw, out resourceAfterRaw))
             {
                 TryCollectEconomy(context, specification,
@@ -409,7 +471,7 @@ namespace AbilityKit.Demo.Moba.Services
                 RefundBeforeCommit = specification.RefundBeforeCommit,
                 RequireExplicitCommit = specification.RequireExplicitCommit,
                 ResourceConsumed = resourceConsumed,
-                IgnoreResourceCostCheck = specification.IgnoreResourceCostCheck,
+                IgnoreResourceCostCheck = ignoreResourceCostCheck,
                 CooldownMs = cooldownMs,
                 CooldownGroupId = cooldownGroupId,
                 SharedCooldownMs = Math.Max(0, specification.SharedCooldownMs),
@@ -456,7 +518,8 @@ namespace AbilityKit.Demo.Moba.Services
             var amount = specification.UseResolvedResourceCost
                 ? context.ResolvedConfiguration.ResourceCost
                 : specification.ResourceAmount;
-            if (specification.IgnoreResourceConsumption)
+            if (specification.IgnoreResourceConsumption ||
+                (resourceType == ResourceType.Mana && IsTrainingInfiniteMana(context.CasterActorId)))
             {
                 TryCollectEconomy(context, specification,
                     BattleDiagnosticSkillExecutionStage.ResourceConsumed,
@@ -510,8 +573,9 @@ namespace AbilityKit.Demo.Moba.Services
             if ((transaction.CooldownMs > 0 || commitCooldown) && MobaSkillRuntimeAccess.TryGetActiveSkill(
                     _actors, transaction.ActorId, transaction.SkillSlot, transaction.SkillId, out var skill))
             {
-                skill.CooldownDurationMs = transaction.CooldownMs;
-                skill.CooldownEndTimeMs = nowMs + transaction.CooldownMs;
+                var skip = SkipsTrainingCooldown(transaction.ActorId, transaction.SkillId);
+                skill.CooldownDurationMs = skip ? 0 : transaction.CooldownMs;
+                skill.CooldownEndTimeMs = skip ? 0L : nowMs + transaction.CooldownMs;
             }
 
             if (transaction.CooldownGroupId != 0 && transaction.SharedCooldownMs > 0)

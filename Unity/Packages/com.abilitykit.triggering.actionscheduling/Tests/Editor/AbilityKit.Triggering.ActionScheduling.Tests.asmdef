@@ -1,0 +1,16 @@
+{
+  "name": "AbilityKit.Triggering.ActionScheduling.Tests",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.Triggering",
+    "AbilityKit.Triggering.ActionScheduling",
+    "AbilityKit.Triggering.TestSupport",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": ["Editor"],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

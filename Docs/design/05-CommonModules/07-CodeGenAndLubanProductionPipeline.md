@@ -1,207 +1,166 @@
 # 5.7 MOBA CodeGen 与 Luban 生产链：项目清单、候选数据和发布边界
 
-> 下文的 `.generated` 候选流程和 `LubanGen` 路径是历史审计记录，对应代码已清理。当前生产入口是 [export_pipeline.py](../../../LubanConfig/Moba/export_pipeline.py)，规则模块及发布命令见 [MOBA Luban 配置管线](../../../LubanConfig/Moba/README.md)。
-
-> 本文说明当前仓库真实存在的编译期与导表链路。MOBA CodeGen 是示例项目的应用层编译资产，Luban 脚本是项目内容生产工具；二者都不构成 AbilityKit 框架默认的战斗应用套件。
-
----
+> 文档类型：Canonical 设计与生产链审计
+> 事实基线：2026-11-25；按当前工作区源码核对，不代表现有包根 DLL 已与源码对齐。
+> 核校状态：已核校本文生成所有权、生产导出/发布源码、局部测试与只读发布一致性；Unity 编辑器发布、完整 gate 和 CI 未在本批验收。
 
 ## 1. 能力定位
 
-这条生产链解决两类问题：
+本专题解释两条相互衔接但所有权不同的链：Roslyn 将 MOBA 项目声明转成编译期清单与强类型工厂；Luban 管线将生产 authoring 输入转成同批 JSON、二进制和生成 C#，再与编辑器创作的 Flow、Trigger、状态机交接。
 
-1. 将 MOBA 项目中可静态发现的配置表、动作、事件、查询、发射器和路由编译为确定性 manifest，减少手写目录与运行时扫描。
-2. 将 Luban authoring 数据导出为候选 JSON 和 C#，经审查后把权威 JSON 发布到 Console 等消费副本。
+包的独立使用契约分别由 [MOBA CodeGen](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/README.md)、[Ability ConfigDatabase](../../../Unity/Packages/com.abilitykit.ability/Documentation~/ConfigDatabase.md) 和 [Luban Runtime](../../../Unity/Packages/com.abilitykit.thirdparty.luban.runtime/README.md) 维护。导表操作唯一入口是 [MOBA Luban 配置管线](../../../LubanConfig/Moba/README.md)，本篇不再复制完整表目录和英雄配置规则。
 
-当前仓库不存在 `Unity/Packages/com.abilitykit.codegen`，也不存在 `src/AbilityKit.CodeGen.Tests`。因此不能继续把旧通用 Source Generator、运行时 GeneratorRegistry 或对应测试工程描述为现行框架能力。
+| 所有者 | 负责 | 边界 |
+| --- | --- | --- |
+| Ability 配置内核 | 输入适配、构表、查询和 reload 提交 | 不规定 MOBA 表和内容生产方式 |
+| MOBA CodeGen | 项目清单、工厂、字段/Schema 派生代码及编译诊断 | 不作为所有游戏的默认生成器，不执行内容发布 |
+| Luban Runtime | 二进制读取与生成代码所需兼容层 | 不包含 CLI、业务表或完整发布能力 |
+| MOBA authoring 与发布工具 | 定义表、编辑源、规则、生成物和发布清单 | 不接管运行期缓存、战斗规则或恢复机制 |
+| 项目维护者 | 内容审查、批次一致性、业务验收和回退决策 | 生成或副本一致不能替代业务正确性 |
 
-| 层级 | 应负责 | 不应由该层统一规定 |
-|------|--------|--------------------|
-| 通用框架包 | 提供稳定的运行时扩展契约及必要 fallback | 预设每个游戏的类型目录、命名规则和生成清单 |
-| MOBA CodeGen 包 | 根据 MOBA Contracts 生成项目 manifest，并由 Analyzer 诊断无效声明 | 作为所有 AbilityKit 游戏必须引用的生成器 |
-| MOBA Runtime | 消费生成 manifest，保留明确的外部/legacy fallback | 让生成器决定业务数据和失败补偿语义 |
-| Luban/发布工具 | 生成候选数据、维护权威源与副本一致性、提供人工或门禁入口 | 自动把未审查候选直接晋升为生产数据 |
-| 项目团队 | 拥有 schema、ID、内容审查、版本、回滚和 gate 修复 | 把“生成成功”当作业务配置正确 |
-
-这一边界适合战斗工具集：编译期技术可以复用，但清单内容天然依赖游戏。其他项目应复用模式和契约思想，按需建立自己的生成包，而不是继承 MOBA 的应用目录。
-
----
+旧 `com.abilitykit.codegen` 已移除；框架分析器归 `com.abilitykit.analyzer`。不得继续引用不存在的框架生成器工程来定义现行能力。`.generated`、`MiniTemplate` 和旧 `Runtime/LubanGen` 是历史流程；当前候选 staging 在 `local/luban-export`，代码目标为 `LubanBinaryGen`。
 
 ## 2. 当前源码与工具入口
 
 ### 2.1 MOBA 编译期组件
 
 | 入口 | 作用 |
-|------|------|
-| [CodeGen README](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/README.md) | 包级能力、诊断编号、构建与 gate 入口 |
-| [CodeGen 工程](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen/AbilityKit.Demo.Moba.CodeGen.csproj) | Roslyn Generator/Analyzer 构建工程 |
-| [Generators](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen/Generators) | 十组 MOBA manifest/字段生成器 |
-| [Analyzers](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen/Analyzers) | 对应编译期诊断 |
-| [Contracts](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen/Contracts) | Generator 与 Analyzer 共享的项目契约 |
-| [生成配置表 manifest 壳](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/MobaGeneratedConfigTableManifest.cs) | 消费生成 specs，并控制反射 fallback |
-| [MOBA 配置 registry](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MobaConfigRegistry.cs) | 从生成 manifest 创建运行时表目录 |
+| --- | --- |
+| [CodeGen 使用指南](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/Documentation~/Usage.md) | 本包环境、构建副作用、编译输入、DLL 导入与排错 |
+| [工程](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen/AbilityKit.Demo.Moba.CodeGen.csproj) | netstandard2.0 / Roslyn 3.9；Build 后将 DLL 复制到包根 |
+| [Generators](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen/Generators)、[Analyzers](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen/Analyzers)、[Contracts](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen/Contracts) | 项目编译资产、共享声明规则及诊断 |
+| [配置表 manifest 壳](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/MobaGeneratedConfigTableManifest.cs) | 消费生成 specs、排序与唯一性校验，控制反射 fallback |
+| [配置 registry](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MobaConfigRegistry.cs) | 项目表目录与运行时使用 |
+| [契约测试工程](../../../Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen.Tests/AbilityKit.Demo.Moba.CodeGen.Tests.csproj) | Roslyn compilation tests；不再把该工程写为待建立 |
 
-包根 DLL 通过 Unity importer 标记为 `RoslynAnalyzer`，所以 Unity 编译消费的是已构建 DLL，而不是直接执行包内 csproj。工程可构建、DLL 存在、DLL 与当前源码一致是三项不同证据。包 README 当前仍称框架级 `com.abilitykit.codegen` generator 存在，与仓库实际文件树矛盾；生产判断应以 csproj、package import 设置和真实构建结果为准，README 需要随 gate 一起修正。
-
-当前生成域包括：
-
-- 配置表。
-- PlanAction 模块。
-- Payload 字段 ID。
-- 事件映射。
-- 目标查询工厂。
-- 投射物发射器。
-- Bootstrap stage。
-- 行为树节点。
-- 快照发射器。
-- 战斗路由。
+生成域以目录为准，包括配置、PlanAction manifest/Schema、Payload、事件、目标查询、投射物、引导/注册、World/回滚、快照及战斗路由等；不维护“固定十组”的静态计数。Unity 实际使用包根带 `RoslynAnalyzer` 标签的 DLL，不直接执行包内 csproj。工程存在、构建成功、DLL 与当前源码对应、消费编译产生预期结果应分别验收。
 
 ### 2.2 Luban 与发布
 
-| 入口 | 作用 |
-|------|------|
-| [export_moba_configs.ps1](../../../LubanConfig/Moba/export_moba_configs.ps1) | 调用 Luban 生成候选 JSON 与 staged C#，再复制 C# 到 Runtime `LubanGen` |
-| [sync_moba_json_configs.ps1](../../../tools/sync_moba_json_configs.ps1) | 以 package Resources 为唯一权威源，检查或发布 Console JSON 副本 |
-| [test-gates.json](../../../tools/test-gates.json) | 声明 `moba-codegen` 与 `moba-content-contracts` 等门禁 |
-| [门禁执行与 CI 状态](../../AbilityKit测试门禁与批量回归规范.md#8-ci-接入与静态校验) | 区分本地 gate 和 CI 接入；`moba-codegen` 的步骤以配置为准 |
-| [ownership validator](../../../tools/validate_moba_codegen_ownership.ps1) | 检查框架 Analyzer 与 MOBA 编译期所有权 |
-
----
+| 入口 | 当前职责 |
+| --- | --- |
+| [export_pipeline.py](../../../LubanConfig/Moba/export_pipeline.py) | 从 Production 构建 JSON/bin/cs-bin，运行规则和引用校验，形成发布计划 |
+| [export_moba_configs.ps1](../../../LubanConfig/Moba/export_moba_configs.ps1) | 转发默认验证、`-Apply` 或 `-CheckPublished`，互斥参数并传播 Python 非零退出码 |
+| [pipeline_rules.py](../../../LubanConfig/Moba/pipeline_rules.py)、[business](../../../LubanConfig/Moba/business) | 分阶段规则、业务投影、校验与生成，不把英雄分支塞进通用调度器 |
+| [publication.py](../../../LubanConfig/Moba/publication.py) | 目标归属、去重、预期内容、差异、哈希与写入失败恢复 |
+| [sync_moba_json_configs.ps1](../../../tools/sync_moba_json_configs.ps1) | 兼容的 package → Console `moba`/`ability` JSON 同步；不覆盖 Luban 全部产物 |
+| [test-gates.json](../../../tools/test-gates.json)、[ownership validator](../../../tools/validate_moba_codegen_ownership.ps1) | 声明步骤与所有权检查；完整执行、单步和 CI 证据分开 |
 
 ## 3. 生成资产所有权
 
 ```mermaid
 flowchart LR
-    Source["MOBA Runtime 声明"] --> Contracts["MOBA Contracts"]
-    Contracts --> Generator["Source Generators"]
-    Contracts --> Analyzer["Analyzers"]
-    Generator --> Manifest["Generated partial manifests"]
-    Manifest --> Runtime["MOBA Runtime registries"]
-    Runtime --> Fallback["Explicit reflection / DI fallback"]
-    Analyzer --> Diagnostics["Compile-time diagnostics"]
+    Decl[MOBA 源声明与 partial 壳] --> Contract[共享声明契约]
+    Contract --> Generator[项目 Generator]
+    Contract --> Analyzer[配对 Analyzer]
+    Generator --> Derived[清单 / 工厂 / Schema]
+    Derived --> Consumer[Runtime registry 与业务消费者]
+    Generator --> Complete[空清单等生成完整性诊断]
+    Analyzer --> Shape[声明形态与冲突诊断]
 ```
 
-生成器和分析器使用同一组 Contracts，但职责不同：
+成对 Generator/Analyzer 复用 Contracts 检查声明；Generator 过滤无效项并产生确定性源码。部分 Generator 自身还报告空清单等诊断，因此旧的“生成器绝不报告诊断”表述不符合当前实现。注册/World 等生成器另有各自规则，不能把所有域的约束机械合并。
 
-- Generator 只为有效声明生成确定性源码，不应自行发出另一套业务诊断。
-- Analyzer 报告无效形态、重复键、不可访问类型和不满足构造契约等问题。
-- Runtime partial 壳定义消费 API、排序、唯一性检查和 fallback；生成代码只填充清单。
-- 外部程序集或 legacy 注册项是否允许反射/DI fallback，由具体运行时显式决定。
-
-配置表 manifest 的默认路径包含强类型 `DtoTableFactory`、`EntryTableFactory` 和 `ChangedIdCollector`。只有生成 specs 为空时，`MobaGeneratedConfigTableManifest` 才反射读取程序集特性；AppContext switch `AbilityKit.Moba.DisableConfigTableReflectionFallback` 可以禁止该兼容路径。
-
-生成代码是派生产物，不是独立权威源。其权威输入是项目声明、共享 Contracts、生成器版本和编译配置；DLL 也应由对应 csproj 重建，不能仅凭文件存在就宣称与源码一致。
-
----
+配置 manifest 提供 `DtoTableFactory`、`EntryTableFactory` 和 `ChangedIdCollector`。字段转换依旧由 `MO(DTO)` 或显式 factory 拥有，变更收集器不是行级差异算法。输出由编译器持有，不能直接编辑 `.g.cs`；包根 DLL 由工程构建，不能用旧 DLL 的存在证明新源码已经生效。
 
 ## 4. 运行时装配边界
 
 ```mermaid
 sequenceDiagram
-    participant Compiler as Roslyn
-    participant Gen as MOBA Generator
-    participant Manifest as Runtime partial manifest
-    participant Bootstrap as MOBA bootstrap
-    participant Service as Runtime service
-
-    Compiler->>Gen: symbols + attributes
-    Gen->>Manifest: generated AddGenerated(...)
-    Bootstrap->>Manifest: Create descriptors/specs
-    Manifest->>Manifest: sort + validate uniqueness
-    Manifest-->>Bootstrap: deterministic manifest
-    Bootstrap->>Service: register factories/modules/routes
+    participant C as 消费编译
+    participant G as CodeGen DLL
+    participant M as Runtime partial manifest
+    participant R as registry / bootstrap
+    C->>G: 源符号、特性与壳
+    G-->>C: 派生源码与诊断
+    C-->>M: 编译后的清单实现
+    R->>M: 获取并校验清单
+    M-->>R: 工厂与描述符
+    R->>R: 按项目生命周期装配
 ```
 
-编译期清单降低的是发现和装配成本，不替代运行时职责：
+配置表壳仅在 `generatedCount == 0` 时考虑反射 fallback，并受 `AbilityKit.Moba.DisableConfigTableReflectionFallback` 控制。当前源码的 `#if !UNITY_EDITOR && !DEVELOPMENT_BUILD` 分支会强制禁用；不能概括为“外部或非 Unity 环境始终有反射兜底”。其他 manifest 的 DI/反射规则由各自消费者定义。
 
-- 配置 DTO 到 MO 的字段转换仍由 `MO(DTO)` 或显式 factory 负责。
-- PlanAction 参数解析与业务校验仍由模块和 Schema 负责。
-- 事件、查询、发射器和路由的运行期副作用及失败策略仍属于消费者。
-- 生成清单为空时是否失败、回退或允许外部扩展，必须在各 manifest 壳中明确。
-
-因此“有 generator”不能外推为“业务模块自动正确注册”，更不能外推为“所有游戏已经有统一应用层”。
-
----
+生成清单降低发现成本，业务有效性、业务副作用与资源释放仍归消费者。配置 reload 的表/条目身份、版本与同步通知语义见 [配置系统](04-ConfigurationSystem.md)；编译期工厂不把 reload 升级为分布式事务，也不负责帧同步或状态同步恢复。
 
 ## 5. Luban 候选与发布模型
 
+这里的候选指本次构建的 staging 与预期发布计划，**不是**旧的 `.generated/json` 人工复制流程。内容主源与生成产物分开：数值/映射在 Production；Flow、Timeline、Trigger、状态机在各自 authoring 源；Resources 与 Console 是受发布器管理的消费产物。
+
 ```mermaid
-flowchart LR
-    Authoring["Luban authoring input"] --> Export["export_moba_configs.ps1"]
-    Export --> Candidate[".generated/json 候选"]
-    Export --> StageCode[".generated/code"]
-    StageCode --> LubanGen["Runtime LubanGen"]
-    Candidate --> Review["人工校验与审查"]
-    Review --> Authority["MOBA package Resources 权威 JSON"]
-    Authority --> Sync["sync_moba_json_configs.ps1"]
-    Sync --> Console["Console Configs 副本"]
+flowchart TB
+    Excel[Production Datas / Defines / conf / rules] --> Input[authoring-input 临时副本]
+    Input --> Luban[Luban JSON / bin / cs-bin]
+    Luban --> Stage[staging 清理与同批候选]
+    Stage --> Rules[投影 / 变换 / 校验 / 生成]
+    Editor[编辑器发布的 Flow / Trigger / 状态机] --> Check[跨来源引用与副本检查]
+    Rules --> Check
+    Check --> Plan[PublicationPlan 与报告]
+    Plan --> Verify[check-published 只比对]
+    Plan --> Apply[显式 apply 写入并复核]
+    Apply --> Unity[Unity Resources]
+    Apply --> Console[Console Configs]
+    Apply --> Code[Runtime LubanBinaryGen]
 ```
 
-JSON 与 C# 当前是非对称链路：
+管线将 `moba-skill-level-parameters.xlsx` 明细表物化到临时 Production 副本中的旧嵌套技能等级结构，不回写原表。每次先清理 `json/bin/code/normalized-json/ability` staging 子目录，再分别调用 Luban；`subprocess.run(..., check=True)` 在原生失败时阻断后续阶段。
 
-- JSON 留在 `.generated/json` 作为候选，不会被导出脚本直接晋升。
-- 审查后的生产 JSON 由 `com.abilitykit.demo.moba.view.runtime/Resources` 持有唯一权威副本。
-- 同步脚本默认是 Check；只有显式 `-Apply` 才写 Console 副本，`-DryRun` 用于预览。
-- staged C# 会由导出脚本直接复制到 MOBA Runtime 的 `LubanGen`。
+`PublicationPlan` 的范围是 Unity Resources、Console Configs 和 Runtime `LubanBinaryGen` 三类已允许根；每个目标只能有一个 owner。计划包含 JSON、`.bytes`、C#、标签 bundle manifest 及按规则重建的资源文档；Flow/Trigger/状态机的编辑器源不由该计划重新创作。具体目录与例外以 `build_publication_plan` 为准。
 
-非对称设计保护了内容审查，但也意味着 C# 生成物和 JSON 权威数据可能来自不同一次导出。生产评审应同时记录 authoring input、Luban 版本、生成批次和两类产物 hash。
+| 模式 | 当前行为与副作用 |
+| --- | --- |
+| 无参数 | 重建 staging、运行规则/引用验证、生成报告，不调用发布写入；不会做全部 `check-published` 分支中的编辑器副本检查 |
+| `--check-published` | 同样重新生成；额外检查两端 Flow/Trigger、状态机发布，随后按计划比对现有产物；不写正式产物 |
+| `--apply` | 完整验证后按计划写入并 `check()`；会写两端资源与生成 C#，日常任务必须明确授权该内容发布 |
+| `--apply-prerequisites` | 独立的写入入口；筛到前置表/代码等 owner，跳过部分完整跨来源校验；不是无副作用预览，也不代表完整发布成功 |
+| `--check-baseline` | 迁移时比较旧 JSON 形状；不能代替日常发布一致性或当前业务验收 |
 
----
+Python 参数本身并非全部互斥；尤其 `--apply-prerequisites` 无需 `--apply` 也会写入。PowerShell 包装器仅暴露 Apply/CheckPublished 且二者互斥；不要把 Python 内部可组合参数推断成已批准的发布流程。
 
 ## 6. 失败传播与已知限制
 
-| 环节 | 当前事实 | 工程含义 |
-|------|----------|----------|
-| Luban 原生调用 | 脚本设置 `$ErrorActionPreference = "Stop"`，但两次 `dotnet` 后未显式检查 `$LASTEXITCODE` | PowerShell 的 Stop 策略不会自动把所有原生非零退出码变成异常；前一次失败后仍可能继续生成/复制，需补逐步退出码阻断 |
-| staging | 只确保目录存在，导出前不预清理 | 已删除或改名输出可能残留并被复制 |
-| JSON 晋升 | 候选不自动写权威目录 | 需要人工审查或独立晋升步骤，这是设计保护也是操作责任 |
-| C# 发布 | staged code 直接递归覆盖 `LubanGen` | 没有 manifest、完整性校验或原子替换 |
-| 副本同步 | Check/DryRun/Apply 权限清晰，支持语义化 JSON 比较 | 只能证明目录副本一致，不能证明业务引用正确 |
-| 运行时 fallback | 部分 manifest 保留 reflection/DI 兼容路径 | 可能掩盖 Analyzer DLL 未生效或生成清单为空 |
-| `moba-codegen` gate | 当前配置与 ownership validator 不再引用已移除的框架 Source Generator 目录和测试工程 | 本地可从 gate 入口发起，静态路径核验不证明完整构建或 CI 阻断 |
-| `moba-content-contracts` | gate 已定义 | CI 状态同上，以实际接入事实为准 |
-
-2026-08-17 发现的已移除框架 Source Generator 项目、测试工程和 ownership 扫描根，是历史入口问题，不再作为当前失败项。
-
----
+| 环节 | 已核校事实 | 限制与责任 |
+| --- | --- | --- |
+| 原生退出与 staging | 三次 Luban 调用 `check=True`；包装器传播非零码；重建前清理指定候选子目录 | 旧脚本退出码/stale staging 缺口不再当当前待修项；仍无并发运行锁 |
+| 目标边界 | 计划根目录约束、casefold 去重与 owner 冲突拒绝 | 校验受控目标不等于检查所有历史文件；未纳入计划的额外旧文件不会自动删除 |
+| 一致性 | JSON 比语义、C# 统一 CRLF/LF 后比较，其余逐字节 | 对齐不代表业务行为正确；报告 SHA-256 记录内容字节，可能与语义比较结果的含义不同 |
+| 写入恢复 | 先备份并准备同目录临时文件，逐文件 `os.replace`，异常后逆序恢复已应用项 | 不是跨文件原子事务；并发读者可见中间状态，进程崩溃不保证恢复；恢复自身失败会报错 |
+| 来源报告 | 报告列入 Excel、XML、conf 及几份生产 JSON 清单和输出哈希 | 当前列表不覆盖全部 Python 规则实现、Luban DLL 或编辑器 authoring 输入，不能称完整供应链证明 |
+| 编辑器交接 | 完整发布检查已发布的 Flow/Trigger 两端一致与状态机源/副本 | Python 不加载 Unity Flow/Trigger 原始资产；仍需对应编辑器 Check |
+| 报告位置 | 原生默认将部分报告与候选同放固定 `local/luban-export` | 运行日志按规范在 `local/Logs/`；本批临时将 STAGE 指向本次日志目录，未改正式工具默认归属 |
+| 兼容 JSON 同步 | 仅拥有 `moba` / `ability` JSON 子目录 | 不能代替现行 Luban bytes/C# 全发布，不据此删除或覆盖生产资产 |
 
 ## 7. 验证矩阵
 
-| 证据 | 当前等级 | 可声明范围 |
-|------|----------|------------|
-| MOBA CodeGen、Contracts、Analyzer 源码 | E0 | 当前生成域、共享契约和诊断设计可审计 |
-| Runtime manifest/registry 消费 | E2 | 生成清单是 MOBA 默认运行路径，部分域保留 fallback |
-| 生成器工程及 DLL | E1 候选 | 存在可构建工程和包根 RoslynAnalyzer DLL；只有直接构建能证明源码可编译，仍需 hash/版本记录证明 DLL 对应当前源码 |
-| MOBA 配置/清单相关测试 | 局部 E3 | 可覆盖具体运行时清单契约，不能替代完整 Generator/Analyzer compilation tests |
-| `moba-codegen` | E0：gate 入口及引用路径 | 本次未执行完整 gate，不计为 E5 |
-| `moba-content-contracts` | E0：gate 入口 | 配置存在，不计为 E5 |
+2026-11-25 的本批证据，运行路径为 `local/Logs/documentation/D4-ConfigPublishing-20261125-164915/`：
 
-生产声明应限定为：“MOBA 已建立项目专用生成清单与候选/权威/副本数据模型；现有运行时有真实消费，但编译期 gate 和 Luban 失败传播仍需收敛。”
+| 证据 | 本次结果 | 可声明范围 |
+| --- | --- | --- |
+| CodeGen 源码相同的隔离包执行测试 | 19 项通过，含构建；原包 DLL 保留 | 局部 E3，非现有 DLL 与源码对应或 Unity 导入验收 |
+| Ability ConfigDatabase 过滤测试 | 17 项通过 | 局部 E3，具体输入/提交/扩展合同 |
+| Luban Python 现有 unittest discovery | 187 项通过 | 局部 E3，包括引用、规则和 PublicationPlan 写入失败恢复 |
+| 实际 `--check-published` | 通过；临时将 STAGE 改为本次日志目录，执行原管线；未 Apply | 当次工作区 Production → 计划 → 当前产物一致性，不证明 Unity authoring 已重新导出或业务 Smoke |
+| 所有权 gate 单步 | 通过 | `moba-codegen` 的 SingleStep，非完整 gate |
+| `moba-codegen` / `moba-content-contracts` / `moba-luban-unity` | 完整 gate 本次未运行 | 配置存在记 E0，不算 E5；CI 是否执行需另查实际接线和 artifact |
 
----
+本检出未发现 `.github/workflows`，不沿用旧文“某 CI job 正在持续运行”的结论。这里只确认当前 gate 配置和实际本地结果，不能据此认定所有其他 CI 平台都没有接入。Unity GUI、主工程编译、独立安装、正式发布和跨平台 E4/E5 未覆盖。
 
 ## 8. 推荐收敛顺序
 
-1. 从 `moba-codegen` gate 和 ownership validator 移除或替换不存在的通用 CodeGen 目标。
-2. 为十组 Generator/Analyzer 增加 compilation contract tests，验证生成源码、诊断、排序、重复项和空清单策略。
-3. 验证包根 Analyzer DLL 确由当前 csproj 重建，并记录可比较版本/hash。
-4. 在 `export_moba_configs.ps1` 每次 `dotnet` 后检查退出码，导出前清理 staging，并生成输出 manifest。
-5. 保持 JSON 候选审查模式，为 candidate 到 package authority 建立显式晋升记录。
-6. 根据内容变更频率决定是否将 `moba-content-contracts` 加入 PR/push；在此之前继续称其为手动 gate。
-7. 新游戏按自己的应用目录建立生成清单，不把 MOBA Contracts 下沉为框架公共契约。
-
----
+1. 维护入口时继续使用现行导表 README、包内使用指南和本篇所有权说明，删除当前正文中已取代的故障描述，保留历史版本记录。
+2. 编译期变更前按现行 gate 完整验证；在可受控工作区建立源码、包根 DLL、消费生成结果的对应证据，不用本批隔离测试替代交付 DLL 验收。
+3. 内容变更后在 authoring 源审阅并按各编辑器 Check、完整导表发布与一致性、业务 Smoke/Unity 验收交接。本批未授权内容发布，不运行 Apply。
+4. 另行评估 staging 并发锁、报告归属、来源哈希完整性与陈旧输出退役；这些是待讨论的工程改进，不是本次已实现承诺。
+5. 新游戏保持自己的声明和生产目录；复用稳定框架契约，不将 MOBA Contracts 或英雄规则自动下沉。
 
 ## 9. 关联文档
 
-- [配置系统](04-ConfigurationSystem.md)：通用数据库、MOBA 强类型 factory 与热重载提交语义。
-- [ActionTimeline 数据与播放](08-ActionTimelineDataAndPlayback.md)：另一条编辑器数据协议，不属于 Luban 表目录。
-- [Excel 与 ScriptableObject 同步](09-ExcelScriptableObjectSync.md)：Editor authoring 工具，不是运行时发布链。
-- [Triggering 系统](../08-GameplayModules/02-TriggeringSystem.md)：PlanAction 与 Schema 的运行时执行边界。
-- [工程测试流程](../10-EngineeringQuality/01-TestingWorkflow.md)：gate、artifact 与证据等级的通用要求。
+- [配置系统](04-ConfigurationSystem.md)：框架数据库、MOBA 门面与运行期失败边界。
+- [ActionTimeline 数据与播放](08-ActionTimelineDataAndPlayback.md)：编辑器数据协议与双通道发布。
+- [Excel 与 ScriptableObject 同步](09-ExcelScriptableObjectSync.md)：Editor 双向编辑，不等于当前 Luban 发布器。
+- [MOBA 创作与发布](../../../LubanConfig/Moba/README.md)：日常操作、源目录与规则扩展。
+- [测试门禁规范](../../AbilityKit测试门禁与批量回归规范.md)：完整、单步、手工和 CI 的证据区分。
 
----
+文档类型：Canonical 设计与生产链审计 | 事实基线：2026-11-25 | 证据等级：E0 源码、E2 项目消费者、局部 E3 与当次只读产物一致性；无新增 E4/E5
 
-文档类型：Canonical 设计与生产链审计 | 事实基线：2026-11-21 仅复核门禁入口与 CI；其余沿用 2026-08-17 | 证据等级：E0 编译期/脚本源码、E2 MOBA Runtime 消费、局部 E3；无本次新增 E5 证据
-
-*文档版本：v3.2 | 最后更新：2026-11-21*
+*文档版本：v3.3 | 最后更新：2026-11-25*

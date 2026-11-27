@@ -146,7 +146,7 @@ HFSM 的状态拓扑、状态 ID 和转换条件/优先级是玩法与表现共�
 1. 先完成 HFSM 状态层级图与参数契约，确认持续模式、单次技能流程和每次输入的技能槽位如何衔接；需要新增/修改角色状态机时，先在 Authoring 定义并验证它们。
 2. 再列清 Skill ID、Flow ID、Effect/Trigger ID、Buff/Area/Query ID 及标签契约；确认每个引用的生产来源和运行时消费者。
 3. 再按依赖编辑 ActionEditor、Pipeline、Trigger Authoring 和 Excel。先导出 ActionEditor 逻辑/表现 JSON，再发布 Pipeline 和 Trigger Authoring，最后执行 `python LubanConfig/Moba/export_pipeline.py --apply`；新技能的 Flow ID 需先由 Pipeline 发布，Luban 才能校验 Excel 中的 Flow 引用。
-4. 修改角色或投射物状态机时，先在 MOBA 状态机编辑器保存并运行 `MobaStateMachinePublisher.Publish`。用 `MobaSkillPipelineExporter.Check`、`TriggerAuthoringMobaMigration.CheckRuntimeBatch`、`MobaStateMachinePublisher.Check` 和 `python LubanConfig/Moba/export_pipeline.py --check-published` 检查发布一致性。Trigger Authoring 的 `GenerateBatch` 会从迁移旧文件覆盖生产模块，日常开发不可运行。
+4. 修改角色或投射物状态机时，先在 MOBA 状态机编辑器保存，再在该窗口预检并确认发布；批处理沿用 `MobaStateMachinePublisher.Publish`。用 `MobaSkillPipelineExporter.Check`、`TriggerAuthoringMobaMigration.CheckRuntimeBatch`、`MobaStateMachinePublisher.Check` 和 `python LubanConfig/Moba/export_pipeline.py --check-published` 检查发布一致性；窗口「校验」同样只读取磁盘文件。Trigger Authoring 的 `GenerateBatch` 会从迁移旧文件覆盖生产模块，日常开发不可运行。
 5. 先跑受影响技能的 Unity EditMode 验收，再跑六英雄 .NET 冒烟和 `MobaLubanConfigPipelineTests`。Unity 测试必须等待 Test Runner 完成，并检查 NUnit XML 中匹配用例数及 `total/passed/failed/skipped`；仅有进程退出码、日志文件或 XML 文件存在不构成通过证据。复杂技能至少断言 HFSM 状态与参数变化、真实战斗结果及关键 trace；只看到 Action trace 不代表状态转移、位移、击飞或 Buff 生效。
 
 标签模板要区分施法者自身运动与对敌控制。施法期霸体可以保护自身，但不能让自身 `jump` 套用“目标霸体免疫击飞”的阻断模板；对敌 `pull`/击飞仍应按目标有效标签检查免疫。涉及位移时分别验证墙体穿越、起跳/落地、目标击飞高度和霸体免疫，不用一条效果触发断言代替这些行为。

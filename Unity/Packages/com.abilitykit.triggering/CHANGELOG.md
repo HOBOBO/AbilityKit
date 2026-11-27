@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- 移除扁平动作调度扩展中未被正式计划使用的批量登记、暂停和主动批量中断入口、实例查询索引、重复活动计数与池裁剪转发。保留按槽替换、清理中断、异常隔离与正式宿主 API。
+- 收敛可选扁平动作调度扩展的首发公开面：保留宿主管理器和池的装配、推进、清理及观测入口；分组、实例、执行器、池配置和最近更新统计不再公开。不改变调度行为或核心的登记接口。
+- 首发前将原内置扁平动作调度及专用对象池迁至可选包 `com.abilitykit.triggering.actionscheduling`。命名空间和 Unity GUID 不变，程序集改为 `AbilityKit.Triggering.ActionScheduling`；核心不再包含具体管理器，也不依赖扩展。执行树调度留在核心，扁平调度行为不变。
+- 首发前把扁平调度池收归默认调度实现：`TriggeringRuntimePools` / `TriggeringPoolProfile` 改为 `ActionSchedulerPools` / `ActionSchedulerPoolProfile`，以 `Prewarm()` 预热，不再接受外部池作用域；`QueuedActionExecutor` 随调度实现迁移，行为不变。
+- 首发前将扁平动作调度从 `TriggerRunner` 和 `ExecCtx` 的具体管理器依赖改为可选 `IFlatActionScheduler`；更新命名参数为 `flatActionScheduler:`。保留内置实现，验证包外可实现默认执行策略的一次性延迟，不扩展回滚或其他模式承诺。
+- 首发前退役 `Runtime.RuleScheduler` 和 `RuleSchedulePlanValidator`。定时示例改由样例包展示宿主 Timer 到期发布即时事件；Triggering 不引入 Timer 依赖，保留扁平动作与执行树调度。
+- 退役无正式消费者的旧装饰器注册与构建链、`ScheduledExecutor` 及其空控制器；保留普通执行器、配置转换包装器和正式执行树调度。
+- 退役无正式消费者的旧实例注册、生命周期和同步快照链及专用实例键池；保留计划订阅、动作与函数注册表、执行树进度恢复和黑板快照。
+- 首发前移除未被仓库内消费的 `TriggerWaitHandle`、`TriggerMutex` 和 `SynchronizedActionExecutor`，退役最后一组可选兼容源码及裁剪探针；保留 `QueuedActionExecutor` 的单实例防重入行为和独立的事件队列派发。
 - 移除 Unity 运行时对 Analyzer 的包与程序集引用；`world.di` 显式声明由 OpenUPM 提供的 Unsafe，消费工程需配置对应 registry scope。
 - 补齐扁平动作与业务规则调度入口的时钟、状态归属及失败边界；不改变调度行为。
 - 移除无生产调用的内部 `Timed` 数据派发试点；通过公开调度接口保留宿主重绑定回归，不改调度时序或快照格式。

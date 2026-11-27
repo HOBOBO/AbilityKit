@@ -54,7 +54,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     menu.ShowAsContext();
                 });
                 if (GUILayout.Button("扫描 / 预览差异", EditorStyles.toolbarButton)) Run(Scan);
-                using (new EditorGUI.DisabledScope(_scan == null))
+                using (new EditorGUI.DisabledScope(_scan == null || _scan.Errors.Count > 0 ||
+                           !_scan.Rows.Any(row => row.Selected) || EditorApplication.isPlayingOrWillChangePlaymode))
                 {
                     if (GUILayout.Button("应用选中差异", EditorStyles.toolbarButton)) Apply(false);
                     if (GUILayout.Button("同步并发布", EditorStyles.toolbarButton)) Apply(true);
@@ -133,11 +134,28 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             EditorGUILayout.EndScrollView();
         }
 
-        private void Apply(bool publish) => Run(() =>
+        private void Apply(bool publish)
         {
-            MobaCharacterAnimationSync.Apply(_scan, _scan.Rows.Where(row => row.Selected), publish);
-            Scan();
-        });
+            var scan = _scan;
+            var selected = scan.Rows.Where(row => row.Selected).ToArray();
+            if (publish)
+            {
+                var workbook = scan.ModelId > 0 ? "model-animations.xlsx" : "M-模型表.xlsx";
+                var target = scan.ModelId > 0 ? $"模型 {scan.ModelId}" :
+                    scan.EntityCode > 0 ? $"角色 {scan.EntityCode} 的旧节点" : "全部角色的旧节点";
+                if (!EditorUtility.DisplayDialog("同步动画并发布 MOBA 配置",
+                        $"{target}：将同步选中的 {selected.Length} 个动作，更新 {workbook} 和动画绑定。\n\n" +
+                        "随后运行完整 MOBA Luban 发布和校验，可能更新 Unity 与 Console 的生成配置，" +
+                        "不只发布本次选中的动画。中途失败不会回滚已完成的源文件更新。",
+                        "确认同步并发布", "取消")) return;
+            }
+
+            Run(() =>
+            {
+                MobaCharacterAnimationSync.Apply(scan, selected, publish);
+                Scan();
+            });
+        }
 
         private void Scan() => _scan = _modelMode ? MobaCharacterAnimationSync.ScanModel(_modelId) :
             MobaCharacterAnimationSync.Scan(_entityCode);

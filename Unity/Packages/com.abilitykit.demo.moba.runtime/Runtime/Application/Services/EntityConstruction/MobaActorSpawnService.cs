@@ -261,7 +261,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             }
         }
 
-        private bool TryRegisterCollision(global::ActorEntity entity)
+        internal bool TryRegisterCollision(global::ActorEntity entity)
         {
             if (_collision == null || entity == null || !entity.isEnabled ||
                 !entity.hasTransform || !entity.hasCollider || entity.hasCollisionId)

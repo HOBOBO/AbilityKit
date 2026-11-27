@@ -3,8 +3,11 @@
 本文说明 AbilityKit 当前碰撞包的代码结构、设计目的和使用边界。文中的“当前实现”以仓库中的接口、实现和测试为准；尚未接入运行时的能力单独列在演进章节，不作为现有契约。
 
 > **文档类型：Canonical 设计**
-> **事实基线：2026-08-16**
+> **事实基线：2026-11-25，当前工作区 Runtime 与 .NET 镜像**
+> **核校状态：限定核校生命周期、能力端口、过滤、后端及当前证据；MOBA 适配只读定位，不重跑完整业务。**
 > **适用范围：`com.abilitykit.combat.collision.abstractions` 公共查询原语；MOBA Actor 同步、Motion、Projectile、Area 与 Navigation 适配属于消费者策略。**
+
+独立安装、完整调用与排错见[包内使用指南](../../../Unity/Packages/com.abilitykit.combat.collision.abstractions/Documentation~/Usage.md)。本文持有宿主/几何/广相/业务消费者之间的所有权和设计约束，不复制操作手册。
 
 ## 一、系统定位
 
@@ -138,6 +141,12 @@ flowchart TD
 ```
 
 该回退属于 MOBA 领域适配策略，不是碰撞包的公共协议。球扫掠对 Sphere、AABB 和 OBB 使用 Minkowski 膨胀后的查询；Capsule 沿用现有近似，不能扩写为对所有形状都精确的通用 CCD。
+
+### 3.4 可选形状重叠
+
+当前 Naive/Grid 也实现 `IShapeOverlapCollisionWorld.OverlapShape`。它接收 XZ 平面的 Circle/Sector/Rectangle/Ring，追加 ColliderId 到调用方列表，使用 Collider 保守中心/半径作最终判定。它不是向基础接口新增任意三维精确 Overlap，也不自动执行 Actor/阵营资格。
+
+Projectile 的 Area 可消费此能力，宿主仍负责 ColliderId 到实体的映射及效果提交。能力探测不能省略，第三方 ICollisionWorld 未必实现该端口。
 
 ## 四、形状和空间变换
 
@@ -323,37 +332,28 @@ ProjectileWorld 与 AreaWorld 直接依赖 `ICollisionWorld` 执行命中和范�
 
 ## 十、测试证据
 
-当前测试已覆盖以下行为：
+2026-11-25 在 Windows / .NET 10 Release 对当前工作区实际执行：
 
-| 能力 | 已有证据 |
+| 验证 | 结果与范围 |
 | --- | --- |
-| 基础原语 | AABB Contains/Intersects、OBB 轴、Sphere 半径钳制、ColliderShape 构造 |
-| Naive/Grid 等价 | Raycast、OverlapSphere、OBB Sweep、Sphere Sweep |
-| 查询过滤 | LayerFilter 和 ignored collider |
-| 旋转形状 | 旋转 OBB 世界 AABB与 Sweep 回归 |
-| Grid 更新 | 多 Cell 对象移动与移除后无旧 ID 残留 |
-| 业务适配 | MOBA Motion Adapter 的扫掠与忽略逻辑 |
+| 公共直属 suite | `./tools/run_test_gate.ps1 -Gate core-stability -StepName "Combat collision deterministic query tests" -Configuration Release -NoRestore -ResultsDirectory <本批目录>/tests/collision`，16/16；SingleStep，非完整 gate |
+| 指南完整示例 | 从包内 Usage 原样提取并引用 .NET 镜像；Naive/Grid 注册、Raycast、Overlap、None 过滤与删除通过 |
+| 本地限制探针 | 复现 int 层掩码别名、矩阵不参与 Raycast、Grid 容量 2 截断 3 个匹配候选；未改实现 |
+| 消费者定位 | MOBA 同步/运动入口只读核对；Projectile suite 的 97 项是公共消费者证据，不能外推为完整 MOBA 运动或技能验收 |
 
-本次验证中，公共碰撞测试工程 `AbilityKit.Combat.Collision.Abstractions.Tests` 为 13/13 通过；`core-stability` workflow 的实际 gate 配置包含该工程，因此这 13 项同时具备局部 E3 和对应 E5 编排证据。MOBA 过滤运行中的 16 项碰撞消费者测试也通过，但它们证明的是业务适配，不覆盖底层所有容量、坐标和 Dynamic Tree 契约，且未发现同等专项 gate 接线。
+历史 2026-08-16 的公共 13/13 与 MOBA 碰撞消费者 16 项保留为日期化结论，不作当前测试计数。原表将构建称为 E2、将 gate 配置称为 E5 不准确：E1–E2 看真实消费者，E5 需实际 CI/发布运行及阻断证据，本轮只提供局部 E3。
 
 | 等级 | 当前证据 | 可得结论 |
-|------|----------|----------|
-| E0 | 公共契约、Naive/Grid/Tree 和工厂源码 | 可确认后端选择、层协议和静默截断风险 |
-| E1 | MOBA Collision/Motion/Projectile/Area/Navigation 消费 | 证明多种战斗工具复用公共查询原语 |
-| E2 | 测试工程构建并执行成功 | 当前公共包与测试可编译 |
-| E3 | 公共包直属测试 13/13；MOBA 碰撞消费者 16 项通过 | 仅覆盖已有 fixture，不含高密度、负坐标键和动态树完整矩阵 |
-| E4 | 无正式碰撞性能 artifact | 不承诺固定规模耗时、GC 或 Grid 收益 |
-| E5 | `core-stability` 实际编排公共包 13 项测试 | E5 只覆盖该工程当前测试面，不代表缺失契约已被保护 |
+| --- | --- | --- |
+| E0 | 公共契约、Naive/Grid、工厂及 Tree 数据结构 | 可定位过滤、容量和未接入的后端 |
+| E1–E2 | MOBA Collision/Motion/Projectile/Area/Navigation 源码消费者 | 多条主链复用几何，未在本批执行完整业务 |
+| E3 | 直属 16/16、完整示例及本地限制探针 | 仅覆盖这些契约，不证明所有几何、坐标和容量配置正确 |
+| E4 | 本批未运行场景或性能验收 | 不承诺固定规模耗时、GC、跨平台或 Grid 收益 |
+| E5 | core-stability 配置含该工程；本批只执行单步 | 配置可追溯，不据此宣称本次 CI/发布已通过 |
 
-仍缺少的关键门禁：
+证据位于 `local/Logs/documentation/D4-Combat-20261125-134952/`，批次范围见[核校记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#14-d4-战斗索引碰撞与投射物核校记录2026-11-25)。未执行 Unity、干净 UPM 安装、压力预算、跨平台或完整 gate。
 
-1. Grid 候选数超过 Initial Capacity 时必须报告或扩容，不能静默漏检。
-2. 0、负数和极端 Cell Size 的配置校验。
-3. 32 到 63 层的掩码冲突测试与协议修正。
-4. 同距离命中的稳定 tie-break。
-5. DynamicAabbTree 的插入、移动、移除、深树、节点复用和平衡测试。
-6. 长时间 Add/Remove 后 Naive 与 Grid 的内存和查询退化测试。
-7. 不同形状和非均匀缩放组合的查询矩阵。
+待修或待补测试的范围仍包括：候选缓冲扩容/溢出报告、CellSize 配置校验、32/64 层协议、等距 tie-break、负坐标 Cell Key、Dynamic Tree 深树/复用/平衡、长期增删成本与非均匀缩放矩阵。探针复现已知限制不等于完成修复或机制验收。
 
 ## 十一、演进顺序
 
@@ -403,4 +403,6 @@ ProjectileWorld 与 AreaWorld 直接依赖 `ICollisionWorld` 执行命中和范�
 
 ---
 
-*文档版本：v3.0 | 最后更新：2026-08-16*
+文档类型：Canonical 设计 | 事实基线：2026-11-25 | 证据等级：E0、消费者 E1–E2、局部 E3；本批无 E4/E5
+
+*文档版本：v3.1 | 最后更新：2026-11-25*

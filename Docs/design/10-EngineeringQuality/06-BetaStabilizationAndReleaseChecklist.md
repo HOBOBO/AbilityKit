@@ -31,7 +31,7 @@
 
 仓库现有发布策略把可发布 Framework package 统一到单一 cohort，当前为 `0.1.0`；`com.abilitykit.thirdparty.*` 与 `com.abilitykit.demo.*` 明确列入 never-released 范围。2026-08-16 执行 `audit-versions.js` 的结果为 version mismatch、BOM remaining、framework off cohort 均为 `0`。这只能证明当前版本声明一致，不等于每个 Framework package 都已进入发布批次或达到 Beta 准入。
 
-`release-manifest.json` 当前只定义 `batch-1-leaves`，状态为 `candidate`，包含 Core、Deterministic、GameplayTags、Threading、Diagnostics、AI Abstractions、Protocol 和 Network Runtime 共 8 个 package。`release.js --include-candidate` dry-run 能列出这 8 个候选；只有批次改为 `ready` 才允许 `--tag`，且工具只创建本地 git tag，不 push、不等待 OpenUPM 发布结果。Demo、Editor、ThirdParty、Runtime 和协议的资产分类仍需逐项评审，不能因 cohort 一致就一起承诺成熟度。
+批次及其状态以 `release-manifest.json` 为准。`node tools/publish/release.js --dry-run --include-candidate` 预览全体候选及其内部依赖闭包；只有批次改为 `ready` 才允许 `--tag`，且工具只创建本地 Git 标签，不推送、不等待 OpenUPM 发布结果。Demo、Editor、ThirdParty、Runtime 和协议的资产分类仍需逐项评审，不能因 cohort 一致就一起承诺成熟度。
 
 当前还应注意以下仓库事实：
 

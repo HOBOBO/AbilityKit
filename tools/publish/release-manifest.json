@@ -16,7 +16,7 @@
       "id": "batch-1-leaves",
       "status": "candidate",
       "_comment": "status: candidate (awaiting stability sign-off) -> ready (cleared to tag) -> shipped (tagged).",
-      "description": "Leaf framework packages with no internal AbilityKit dependencies. Ships first to validate the registry + tag pipeline end-to-end before broader rollout. deterministic joins this batch (2026-08): core depends on it (MathUtil.Sqrt routes through the fixed-point kernel), so they must ship together.",
+      "description": "Initial framework cohort for validating the registry and tag pipeline. Includes Deterministic to satisfy Core's internal dependency.",
       "packages": [
         "com.abilitykit.core",
         "com.abilitykit.deterministic",
@@ -25,6 +25,24 @@
         "com.abilitykit.ai.abstractions",
         "com.abilitykit.protocol",
         "com.abilitykit.network.runtime"
+      ]
+    },
+    {
+      "id": "batch-2-triggering-dependencies",
+      "status": "candidate",
+      "description": "Upstream packages for Triggering. Candidate preview includes the foundation batch until the required exact-version local tags exist.",
+      "packages": [
+        "com.abilitykit.continuous",
+        "com.abilitykit.modifiers",
+        "com.abilitykit.world.di"
+      ]
+    },
+    {
+      "id": "batch-3-triggering",
+      "status": "candidate",
+      "description": "First stable Triggering candidate. Requires an installable dependency closure and separate clean-consumer and Player evidence before sign-off.",
+      "packages": [
+        "com.abilitykit.triggering"
       ]
     }
   ]

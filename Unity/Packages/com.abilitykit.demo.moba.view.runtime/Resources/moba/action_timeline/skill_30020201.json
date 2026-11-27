@@ -13,12 +13,26 @@
               "effectId": 30020203,
               "eventTag": "jinx_w_cast",
               "abortOnFailure": false,
-              "startTime": 0.0,
+              "startTime": 0.5,
               "name": "ExecuteEffect",
               "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
             }
           ],
           "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        },
+        {
+          "name": "ZapRangeWindup",
+          "active": true,
+          "actionClips": [
+            {
+              "presentationTemplateId": 90032030,
+              "startTime": 0,
+              "length": 0.5,
+              "name": "PlayParticle",
+              "$type": "AbilityKit.ActionEditorImpl.PlayParticle"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.EffectTrack"
         }
       ]
     }

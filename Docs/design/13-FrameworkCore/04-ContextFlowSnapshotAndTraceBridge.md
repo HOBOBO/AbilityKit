@@ -2,8 +2,17 @@
 
 > 文档类型：FrameworkCore canonical
 > 事实基线：2026-09-22
-> 文档版本：v4.0
+> 文档版本：v4.1
+> 核校状态：部分核校；2026-11-25 补包内接入分工与局部验证，其余设计主体保留 2026-09-22 基线。
 >
+## 包内接入与 D4 核校
+
+本包的安装、完整示例、Flow 清理、精确实时引用与受管快照操作统一由 [Context 使用指南](../../../Unity/Packages/com.abilitykit.context/Documentation~/Usage.md)维护；本篇负责 Context、Trace、项目生命周期和恢复之间的交接，不复制第二份 API 手册。
+
+`TraceContextProperty` 实际由 [Trace 包](../../../Unity/Packages/com.abilitykit.trace/Runtime/TraceContextProperty.cs)持有，Context 不引用 Trace。MOBA 的[战斗执行上下文](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Docs/MobaCombatContextDesignGuide.md)与[运行时快照](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Document/RuntimeContext运行时值与快照设计文档.md)属于项目适配，不能当基础包默认。原包设计中的跨包链接转由这里导航，旧文件路径保留。
+
+2026-11-25 通过 `core-stability` 的 `Context tests` SingleStep（Release / NoRestore，38/38）及从包指南提取的完整本地示例。该结果为 E0 与局部 E3；没有执行完整 gate、Unity、独立安装或完整世界恢复，不替代帧同步输入检查点/重演与状态同步快照重建/导入的分别验收。[D4 记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#13-d4-上下文数据流与战斗查询核校记录2026-11-25)保存命令、边界和未覆盖项。
+
 ## 一、文档定位
 
 `com.abilitykit.context` 提供一组轻量运行时关联工具：用实体 ID 关联属性，用 Flow 记录一批实体所属的执行阶段，用 Snapshot 保留最新记录或有界历史，再通过读取器显式选择实时数据或快照。
@@ -268,7 +277,7 @@ MOBA 的 `MobaRuntimeContextIdentityTests` 与 `MobaBuffContextRecoveryTests` �
 5. 跨 provider 传播正式 identity 时使用字段级状态和显式冲突策略，不依赖隐式优先级覆盖非零值。
 6. 明确 Flow 终态后实体及子 Flow 的清理策略，并监控长期增长。
 7. 对显式 Snapshot 版本执行单调性检查，决定重复版本是否允许覆盖。
-8. 新快照优先实现 `IContextValueProvider`，调用 `GetValue()` 时检查 `Source`。
+8. 新快照使用 `IImmutableContextSnapshot` 与显式采集元数据，按 `ReadSnapshot<TSnapshot,TValue>` 的精确引用读取并检查 `Found` / `Status`；旧 `GetValue()` / `Source` 用法不再是当前 API。
 9. 事件订阅者保持短小、幂等；异常后依据 registry 实际状态恢复。
 10. 把多组件生命周期操作放在同一逻辑线程，避免把独立锁误认为事务保证。
 
@@ -285,4 +294,4 @@ MOBA 的 `MobaRuntimeContextIdentityTests` 与 `MobaBuffContextRecoveryTests` �
 
 ---
 
-*文档版本：v4.0 | 最后更新：2026-09-22 | 正式边界：Context 主导执行身份、生命周期与回滚；Trace 通过可选 observer 投影*
+*文档类型：Canonical 设计 | 文档版本：v4.1 | 最后更新：2026-11-25 | 事实基线：主体 2026-09-22，D4 限定核校 2026-11-25 | 证据等级：E0 与局部 E3；Trace 通过可选 observer 投影*

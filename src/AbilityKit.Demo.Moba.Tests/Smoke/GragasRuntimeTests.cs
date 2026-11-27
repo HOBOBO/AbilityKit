@@ -226,6 +226,48 @@ public sealed class GragasRuntimeTests
         Assert.Equal(1, b.Count(MobaExecutionKind.DamageApply, 30050401));
     }
 
+    [Theory]
+    [InlineData(3f)]
+    [InlineData(8f)]
+    public void R_rebuilds_in_flight_state_sync_baseline_for_actual_travel(float distance)
+    {
+        using var battle = new Battle();
+        var cues = battle.Services.Resolve<MobaPresentationCueSnapshotService>();
+        var links = battle.Services.Resolve<MobaProjectileLinkService>();
+        const string cueKind = "projectile.flight_arc";
+        battle.Cast(4, new Vec3(100, 0, 100 + distance));
+        battle.Until(() =>
+        {
+            var active = new List<MobaProjectileLinkDiagnostics>();
+            links.CopyDiagnosticsTo(active);
+            return active.Any(link => link.Source.ProjectileConfigId == 32050501);
+        });
+
+        battle.Setup.Tick(1);
+        var inFlight = Assert.Single(ReadBaseline(), entry => entry.CueKind == cueKind);
+        Assert.Equal(PresentationCueSnapshotKind.ActiveBaseline, (PresentationCueSnapshotKind)inFlight.SnapshotKind);
+        Assert.False(string.IsNullOrWhiteSpace(inFlight.RequestKey));
+        Assert.Equal(90035013, inFlight.VfxId);
+        var travel = Assert.Single(inFlight.Parameters, p => p.Key == PresentationCueParameterKeys.ProjectileFlightDistance).FloatValue;
+        Assert.Equal(100 + distance - inFlight.Positions[2], travel, .02f);
+        Assert.Equal(1.25f, Assert.Single(inFlight.Parameters, p => p.Key == PresentationCueParameterKeys.ProjectileFlightArcHeight).FloatValue);
+        Assert.True(links.TryGetProjectileId(inFlight.TargetActorId, out var id));
+        Assert.True(battle.Services.Resolve<IProjectileService>().TryGetRuntimeState(id, out var projectile));
+        Assert.InRange(projectile.Position.Z - inFlight.Positions[2], .01f, travel - .01f);
+
+        battle.Setup.TickMilliseconds(2000);
+        var finished = ReadBaseline();
+        Assert.DoesNotContain(finished, entry => entry.CueKind == cueKind);
+        Assert.Equal(PresentationCueSnapshotKind.ActiveBaselineEnd, (PresentationCueSnapshotKind)finished[^1].SnapshotKind);
+
+        MobaPresentationCueSnapshotEntry[] ReadBaseline()
+        {
+            Assert.True(cues.TryCaptureStateSyncBaseline(battle.Services.Resolve<IFrameTime>().Frame, out var snapshot));
+            return MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload);
+        }
+
+    }
+
     [Fact]
     public void R_explodes_at_aim_point_and_pushes_targets_radially_away()
     {

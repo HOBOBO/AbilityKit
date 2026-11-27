@@ -2,6 +2,7 @@
 #nullable enable annotations
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace AbilityKit.BattleScenario.Editor
@@ -31,7 +32,15 @@ namespace AbilityKit.BattleScenario.Editor
         /// </summary>
         public static Func<int, IActorReplayPreview?>? CreateActorReplayPreview { get; set; }
 
-        internal static Func<LocalStateSyncReplay>? CaptureStateSyncClientReplay { get; set; }
+        /// <summary>
+        /// 运行指定的离线施法和解或降级配方。
+        /// </summary>
+        internal static Func<LocalStateSyncReplay.SkillReplayCase, LocalStateSyncReplay>? CaptureStateSyncSkillReplay { get; set; }
+
+        /// <summary>
+        /// 运行离线弹体表现样例并返回逐 Tick 观察；布尔值指定权威确认或拒绝。
+        /// </summary>
+        internal static Func<bool, Task<LocalStateSyncReplay>>? CaptureProjectilePresentationReplay { get; set; }
     }
 
     /// <summary>
@@ -43,6 +52,14 @@ namespace AbilityKit.BattleScenario.Editor
         /// 同镜头绘制权威与预测模型。空姿态隐藏对应模型，镜头范围在整份录制内固定。
         /// </summary>
         void Draw(Rect rect, Bounds recordedBounds, Pose? authority, Pose? prediction);
+    }
+
+    /// <summary>
+    /// 可选的同镜头弹体标记，仅消费已录制位置。
+    /// </summary>
+    public interface IFlightReplayPreview : IActorReplayPreview
+    {
+        void SetFlightPositions(Vector3? authority, Vector3? prediction);
     }
 }
 #endif

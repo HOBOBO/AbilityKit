@@ -143,7 +143,7 @@ public sealed class MobaOwnerBlackboardMembershipRollbackTests
         var store = CreateStore();
         store.GetOrCreate(11);
         Assert.True(store.TryCaptureSnapshotSet(out var snapshot, out _));
-        var payload = Encoding.UTF8.GetBytes(snapshot.ToJson());
+        var payload = Encoding.UTF8.GetBytes(BlackboardSnapshotJsonCodec.Serialize(snapshot));
         var provider = new MobaOwnerBlackboardRollbackProvider(store, new[] { new Actors(store, 11, 12) });
         provider.Import(Frame, payload);
         store.GetOrCreate(12);

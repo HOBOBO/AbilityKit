@@ -599,7 +599,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public BattleDiagnosticRuntimeObjectFilter(
             BattleDiagnosticRuntimeObjectKind kind = BattleDiagnosticRuntimeObjectKind.Unknown,
             BattleDiagnosticRuntimeObjectState state = BattleDiagnosticRuntimeObjectState.Unknown,
-            BattleDiagnosticDataCompleteness completeness = BattleDiagnosticDataCompleteness.Unknown)
+            BattleDiagnosticDataCompleteness completeness = BattleDiagnosticDataCompleteness.Unknown,
+            long rootContextId = 0)
         {
             if (!Enum.IsDefined(typeof(BattleDiagnosticRuntimeObjectKind), kind))
                 throw new ArgumentOutOfRangeException(nameof(kind));
@@ -610,30 +611,34 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             Kind = kind;
             State = state;
             Completeness = completeness;
+            RootContextId = rootContextId;
         }
 
         public BattleDiagnosticRuntimeObjectKind Kind { get; }
         public BattleDiagnosticRuntimeObjectState State { get; }
         public BattleDiagnosticDataCompleteness Completeness { get; }
+        public long RootContextId { get; }
 
         public bool Matches(in BattleDiagnosticRuntimeObject item)
         {
             return (Kind == BattleDiagnosticRuntimeObjectKind.Unknown || item.Kind == Kind) &&
                    (State == BattleDiagnosticRuntimeObjectState.Unknown || item.State == State) &&
                    (Completeness == BattleDiagnosticDataCompleteness.Unknown ||
-                    item.Completeness == Completeness);
+                    item.Completeness == Completeness) &&
+                   (RootContextId == 0 || item.RootContextId == RootContextId);
         }
 
         public bool Equals(BattleDiagnosticRuntimeObjectFilter other)
         {
-            return Kind == other.Kind && State == other.State && Completeness == other.Completeness;
+            return Kind == other.Kind && State == other.State && Completeness == other.Completeness &&
+                   RootContextId == other.RootContextId;
         }
 
         public override bool Equals(object obj) =>
             obj is BattleDiagnosticRuntimeObjectFilter other && Equals(other);
 
         public override int GetHashCode() =>
-            (((int)Kind * 397) ^ (int)State) * 397 ^ (int)Completeness;
+            (((((int)Kind * 397) ^ (int)State) * 397) ^ (int)Completeness) * 397 ^ RootContextId.GetHashCode();
     }
 
     public readonly struct BattleDiagnosticRuntimeObjectQuery

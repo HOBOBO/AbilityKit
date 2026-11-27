@@ -127,6 +127,180 @@ public sealed class FlowRunnerTests
     }
 
     [Fact]
+    public void Stop_cleans_scope_and_notifies_finished_even_when_status_notification_throws()
+    {
+        using var runner = NewRunner();
+        var error = new InvalidOperationException("status callback failed");
+        var faults = new List<Exception>();
+        var finished = new List<FlowStatus>();
+        runner.ExceptionHandler = faults.Add;
+        runner.Start(new RecordingNode(FlowStatus.Running), finished.Add, (_, next) =>
+        {
+            if (next == FlowStatus.Canceled) throw error;
+        });
+
+        runner.Stop();
+
+        Assert.Same(error, Assert.Single(faults));
+        Assert.Equal(FlowStatus.Canceled, Assert.Single(finished));
+        Assert.False(runner.Context.TryGet<FlowWakeUp>(out _));
+        Assert.False(runner.Context.TryGet<FlowRuntimeDiagnostics>(out _));
+    }
+
+    [Fact]
+    public void Throwing_start_notification_does_not_leave_an_unentered_root_or_scope()
+    {
+        using var runner = NewRunner();
+        var root = new RecordingNode(FlowStatus.Running);
+        var error = new InvalidOperationException("start failed");
+        var finished = new List<FlowStatus>();
+
+        Assert.Same(error, Assert.Throws<InvalidOperationException>(() => runner.Start(root, finished.Add, (_, next) =>
+        {
+            if (next == FlowStatus.Running) throw error;
+        })));
+
+        Assert.Equal(0, root.EnterCount);
+        Assert.Equal(0, root.InterruptCount);
+        Assert.Equal(FlowStatus.Failed, Assert.Single(finished));
+        Assert.False(runner.Context.TryGet<FlowWakeUp>(out _));
+        runner.Start(new RecordingNode(FlowStatus.Succeeded));
+        Assert.Equal(FlowStatus.Succeeded, runner.Status);
+    }
+
+    [Fact]
+    public void Failing_node_cannot_leave_a_child_scope_or_pop_the_next_run()
+    {
+        using var runner = NewRunner();
+        using var outerScope = runner.Context.BeginScope();
+        runner.Context.Set("outer");
+        IDisposable childScope = null;
+        runner.Start(new RecordingNode
+        {
+            OnEnter = context =>
+            {
+                context.Set("run");
+                childScope = context.BeginScope();
+                context.Set("child");
+                throw new InvalidOperationException("enter failed");
+            },
+        });
+
+        Assert.Equal(FlowStatus.Failed, runner.Status);
+        Assert.Equal("outer", runner.Context.Get<string>());
+        Assert.False(runner.Context.TryGet<FlowWakeUp>(out _));
+
+        runner.Start(new RecordingNode(FlowStatus.Running) { OnEnter = context => context.Set("next") });
+        using (runner.Context.BeginScope())
+        {
+            runner.Context.Set("current child");
+            childScope.Dispose();
+            Assert.Equal("current child", runner.Context.Get<string>());
+        }
+        runner.Stop();
+        Assert.Equal("outer", runner.Context.Get<string>());
+    }
+
+    [Fact]
+    public void Stop_cannot_reenter_its_interrupt_callback()
+    {
+        using var runner = NewRunner();
+        var root = new RecordingNode(FlowStatus.Running);
+        Exception reentry = null;
+        root.OnInterrupt = _ =>
+        {
+            if (root.InterruptCount == 1) reentry = Record.Exception(runner.Stop);
+        };
+        runner.Start(root);
+
+        runner.Stop();
+
+        Assert.IsType<InvalidOperationException>(reentry);
+        Assert.Equal(1, root.InterruptCount);
+        Assert.Equal(FlowStatus.Canceled, runner.Status);
+    }
+
+    [Fact]
+    public void Step_from_start_notification_does_not_enter_root_before_startup_finishes()
+    {
+        using var runner = NewRunner();
+        var root = new RecordingNode(FlowStatus.Running);
+        var enterCountInNotification = -1;
+        runner.Start(root, null, (_, next) =>
+        {
+            if (next != FlowStatus.Running) return;
+            runner.Step(1f);
+            enterCountInNotification = root.EnterCount;
+        });
+
+        Assert.Equal(0, enterCountInNotification);
+        Assert.Equal(1, root.EnterCount);
+        Assert.Equal(new[] { 0f }, root.TickDeltaTimes);
+    }
+
+    [Fact]
+    public void Pump_limit_report_cannot_reenter_node_execution()
+    {
+        using var runner = NewRunner();
+        runner.MaxPumpIterationsPerWake = 1;
+        runner.ExceptionHandler = _ => runner.Step(1f);
+        var root = new RecordingNode(FlowStatus.Running)
+        {
+            BeforeTick = (context, _) => context.Get<FlowWakeUp>().Wake(),
+        };
+
+        runner.Start(root);
+
+        Assert.Equal(new[] { 0f, 0f }, root.TickDeltaTimes);
+        Assert.Equal(1, root.InterruptCount);
+        Assert.Equal(FlowStatus.Failed, runner.Status);
+        Assert.False(runner.Context.TryGet<FlowWakeUp>(out _));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Cleanup_trace_failure_does_not_skip_cleanup_or_finished_notification(bool stop)
+    {
+        using var runner = NewRunner();
+        var trace = new ThrowingCleanupTrace(stop ? FlowTraceEventType.NodeInterrupt : FlowTraceEventType.NodeExit);
+        var root = new RecordingNode(stop ? FlowStatus.Running : FlowStatus.Succeeded);
+        var finished = new List<FlowStatus>();
+        var seen = new List<Exception>();
+        runner.TraceRecorder = trace;
+        runner.ExceptionHandler = seen.Add;
+        runner.Start(root, finished.Add, null);
+
+        if (stop)
+        {
+            Assert.Same(trace.Error, Assert.Throws<InvalidOperationException>(runner.Stop));
+        }
+
+        Assert.Same(trace.Error, Assert.Single(seen));
+        Assert.Equal(stop ? 1 : 0, root.InterruptCount);
+        Assert.Equal(stop ? 0 : 1, root.ExitCount);
+        Assert.Equal(stop ? FlowStatus.Canceled : FlowStatus.Succeeded, Assert.Single(finished));
+        Assert.False(runner.Context.TryGet<FlowWakeUp>(out _));
+    }
+
+    private sealed class ThrowingCleanupTrace : IFlowTraceRecorder
+    {
+        private readonly FlowTraceEventType _type;
+        public InvalidOperationException Error { get; } = new InvalidOperationException("trace failed");
+        public bool IsEnabled => true;
+
+        public ThrowingCleanupTrace(FlowTraceEventType type) => _type = type;
+
+        public void Record(in FlowTraceData data)
+        {
+            if (data.Type == _type) throw Error;
+        }
+
+        public IReadOnlyList<FlowTraceData> GetSnapshot() => Array.Empty<FlowTraceData>();
+        public void Clear() { }
+    }
+
+    [Fact]
     public void Stop_before_Start_is_noop()
     {
         using var runner = NewRunner();
@@ -386,6 +560,25 @@ public sealed class FlowRunnerTests
 
         Assert.Equal(FlowStatus.Succeeded, runner.Status);
         Assert.Equal(FlowStatus.Succeeded, finished);
+    }
+
+    [Fact]
+    public void Wake_from_previous_run_does_not_advance_replacement_run()
+    {
+        using var runner = NewRunner();
+        runner.Start(new RecordingNode(FlowStatus.Running));
+        var previousWake = runner.Context.Get<FlowWakeUp>();
+
+        var next = new RecordingNode(FlowStatus.Running, FlowStatus.Succeeded);
+        runner.Start(next);
+        var currentWake = runner.Context.Get<FlowWakeUp>();
+        previousWake.Wake();
+
+        Assert.Equal(1, next.TickCount);
+        Assert.Equal(FlowStatus.Running, runner.Status);
+        currentWake.Wake();
+        Assert.Equal(2, next.TickCount);
+        Assert.Equal(FlowStatus.Succeeded, runner.Status);
     }
 
     [Fact]

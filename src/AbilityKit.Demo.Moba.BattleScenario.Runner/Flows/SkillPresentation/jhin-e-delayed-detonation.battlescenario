@@ -9,9 +9,7 @@
     "setup": [
       {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3001, "attributeTemplateId": 3001, "teamId": 1, "position": {"x": -4, "y": 0, "z": -6}, "playerId": "player_1"},
       {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "runner", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 5, "y": 0, "z": -6}},
-      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "stayer", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": -5, "y": 0, "z": -4}},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.SetMobaActorAttributeBlock, AbilityKit.Demo.Moba.Environment", "actorAlias": "runner", "property": "hp", "value": 400},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.SetMobaActorAttributeBlock, AbilityKit.Demo.Moba.Environment", "actorAlias": "stayer", "property": "hp", "value": 400}
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "stayer", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": -5, "y": 0, "z": -4}}
     ],
     "timeline": [
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 3, "position": {"x": 0, "y": 0, "z": -6}, "direction": {"x": 1, "y": 0, "z": 0}},
@@ -20,6 +18,7 @@
       {"$type": "AbilityKit.BattleScenario.MoveToBlock, AbilityKit.BattleScenario", "atMs": 2600, "actorAlias": "runner", "position": {"x": 5, "y": 0, "z": -6}}
     ],
     "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30010301, "maxCount": 1},
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42010301, "minCount": 1, "maxCount": 1},
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaEnter", "configId": 42010301, "minCount": 1, "maxCount": 1},
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42010302, "minCount": 1, "maxCount": 1},
@@ -28,8 +27,8 @@
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "EffectExecution", "configId": 30010313, "minCount": 1, "maxCount": 1},
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30010301, "minCount": 1, "maxCount": 1},
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaExpire", "configId": 42010301, "minCount": 1, "maxCount": 1},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "runner", "property": "hp", "comparator": "eq", "expectedValue": "400"},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "stayer", "property": "hp", "comparator": "lt", "expectedValue": "400"}
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "runner", "property": "hp", "comparator": "eq", "expectedValue": "50000"},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "stayer", "property": "hp", "comparator": "lt", "expectedValue": "50000"}
     ]
   }
 }

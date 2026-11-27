@@ -17,6 +17,7 @@
              Link="LocalStateSyncReplay.cs" />
     <None Update="Flows/PredictionPrerequisites/*.battlescenario" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Flows/SkillPresentation/jinx-w.battlescenario" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Flows/SkillPresentation/annie-w.battlescenario;Flows/SkillPresentation/annie-e.battlescenario" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance.LiveSim\AbilityKit.Demo.Moba.Acceptance.LiveSim.csproj" />
   </ItemGroup>
 </Project>

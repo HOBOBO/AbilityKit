@@ -215,6 +215,7 @@ namespace AbilityKit.Game.Editor
             {
                 case BattleDiagnosticSelectionKind.Frame: return "帧";
                 case BattleDiagnosticSelectionKind.Actor: return "Actor";
+                case BattleDiagnosticSelectionKind.ActorAttributeEvidence: return "Actor 属性证据";
                 case BattleDiagnosticSelectionKind.Event: return "事件";
                 case BattleDiagnosticSelectionKind.TraceRoot: return "Trace 根节点";
                 case BattleDiagnosticSelectionKind.TraceNode: return "Trace 节点";

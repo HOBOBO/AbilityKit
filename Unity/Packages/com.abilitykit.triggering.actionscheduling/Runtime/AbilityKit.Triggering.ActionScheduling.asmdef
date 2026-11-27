@@ -1,0 +1,6 @@
+{
+  "name": "AbilityKit.Triggering.ActionScheduling",
+  "references": ["AbilityKit.Triggering", "AbilityKit.Core"],
+  "autoReferenced": false,
+  "noEngineReferences": true
+}

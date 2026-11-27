@@ -272,38 +272,13 @@ public readonly struct ExecCtx<TCtx>
 
 #### AbilityKit 实现
 
-```csharp
-public sealed class TriggerRunner<TCtx>
-{
-    private readonly Dictionary<Type, object> _triggerListsByArgsType = new();
-    
-    public IDisposable Register<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, 
-        int phase = 0, int priority = 0);
-    
-    public HierarchicalTriggerRunner<TCtx> CreateChild(HierarchicalOptions options = default);
-}
-
-// HierarchicalOptions - 层级选项
-public readonly struct HierarchicalOptions
-{
-    public bool ExecuteParentFirst;           // 父级先执行
-    public bool ShortCircuitStopsParent;       // 短路停止父级
-    public bool PropagateToParent;             // 向上传播
-    
-    public static HierarchicalOptions SkillScope => new(
-        executeParentFirst: false,             // 技能优先
-        shortCircuitStopsParent: true,
-        propagateToParent: false,
-        scopeName: "Skill");
-}
-```
+`TriggerRunner<TCtx>.Register` 通过类型化事件键注册规则，宿主持有并释放注册句柄。首发不包含旧父子层级派发试点；父子作用域编排由宿主决定。
 
 #### 独有特性
 
-1. **分层触发器** - 支持父子层级，子级可覆盖/补充父级
-2. **Phase + Priority** - 双重排序
-3. **中断策略** - EInterruptPolicy.None / Strict
-4. **生命周期追踪** - ITriggerLifecycle
+1. **Phase + Priority** - 先按阶段、再按优先级排序，同值按注册顺序
+2. **中断策略** - `EInterruptPolicy.None` / `Strict`
+3. **生命周期追踪** - `ITriggerLifecycle`
 
 **结论：✅ AbilityKit 触发器系统更强大**
 
@@ -994,7 +969,7 @@ public sealed class ClientPredictionRunner
 ## AbilityKit 独特优势
 
 1. **统一 Blackboard 抽象** - 替代 GAS 中分散的数据存储
-2. **分层触发器** - 支持父子层级覆盖
+2. **类型化触发器** - 宿主绑定事件、条件和动作
 3. **Pipeline Phase 机制** - 显式阶段，易于组合
 4. **零 GC 设计** - ReadOnlySpan，避免装箱
 5. **原生帧同步** - 不依赖第三方
@@ -1320,16 +1295,15 @@ public readonly struct EventKey<TArgs>
 }
 
 // 触发器运行器
-HierarchicalTriggerRunner<TCtx>
-├── Register<TArgs>(EventKey<TArgs>, ITrigger)
-├── CreateChild(HierarchicalOptions)
-└── Dispatch<TArgs>(EventKey<TArgs>, TArgs)
+TriggerRunner<TCtx>
+└── Register<TArgs>(EventKey<TArgs>, ITrigger<TArgs, TCtx>)
+// 宿主通过 EventBus.Publish 发布事件
 ```
 
 | 对比项 | GAS | AbilityKit |
 |--------|-----|-----------|
 | 触发条件 | Tag Based | 自定义 Predicate |
-| 层级结构 | 无 | HierarchicalTriggerRunner |
+| 父子级联派发 | 本节不比较 | 不由框架提供，需宿主编排 |
 | 优先级 | 固定 | Phase + Priority |
 | 短路策略 | 无 | 可配置 |
 

@@ -1,6 +1,8 @@
 using System;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Core.Logging;
 using AbilityKit.GameplayTags;
 using AbilityKit.Pipeline;
@@ -20,11 +22,14 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly int _recoveryStartMs;
         private readonly int _gateTemplateId;
         private readonly int _gateEndMs;
+        private readonly SkillTimelineWindupDTO _windup;
+        private int _frozenWindupMs;
+        private int _windupStartFrame;
         private bool _gateActive;
         private SkillPipelineContinuousRuntime _gateOwner;
 
         internal bool CanHandoff => !IsComplete && !_gateActive && _recoveryStartMs >= 0 &&
-            ((_elapsedRaw * 1000L) >> 32) >= _recoveryStartMs &&
+            ToAuthoredMs(_elapsedRaw, _frozenWindupMs) >= _recoveryStartMs &&
             _nextEventIndex >= (_events?.Length ?? 0);
 
         internal void FinishRecovery(SkillPipelineContext context)
@@ -34,7 +39,8 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public SkillTimelinePhase(AbilityPipelinePhaseId phaseId, int durationMs, SkillTimelineEventDTO[] events,
-            MobaEffectInvokerService effects, int recoveryStartMs = -1, int gateTemplateId = 0, int gateEndMs = 0)
+            MobaEffectInvokerService effects, int recoveryStartMs = -1, int gateTemplateId = 0, int gateEndMs = 0,
+            SkillTimelineWindupDTO windup = null)
             : base(phaseId)
         {
             _durationMs = durationMs;
@@ -43,6 +49,8 @@ namespace AbilityKit.Demo.Moba.Services
             _recoveryStartMs = recoveryStartMs;
             _gateTemplateId = gateTemplateId;
             _gateEndMs = gateEndMs;
+            _windup = windup;
+            _windup?.Validate(durationMs);
             SkillRecoveryContract.ValidateTimelineGate(durationMs, recoveryStartMs, gateTemplateId, gateEndMs);
             if (recoveryStartMs < -1 || recoveryStartMs >= 0 && recoveryStartMs >= durationMs)
                 throw new ArgumentException("Recovery entry must be within the full Timeline duration.");
@@ -56,6 +64,22 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _elapsedRaw = 0L;
             _nextEventIndex = 0;
+            if (_windup != null)
+            {
+                if (context?.WorldServices == null ||
+                    !context.WorldServices.TryResolve<MobaActorLookupService>(out var actors) ||
+                    !actors.TryGetActorEntity(context.CasterActorId, out var caster) ||
+                    !caster.hasAttributeGroup || caster.attributeGroup.Group == null)
+                    throw new InvalidOperationException("Configured Timeline windup requires caster attributes.");
+                var speed = caster.attributeGroup.Group.GetValue(MobaAttributeIds.ATTACK_SPEED_R);
+                if (float.IsNaN(speed) || float.IsInfinity(speed))
+                    throw new InvalidOperationException("Invalid caster attack speed for Timeline windup.");
+                var fraction = Math.Min(_windup.AttackSpeedPercentAtMinimum, Math.Max(0d, speed)) /
+                    _windup.AttackSpeedPercentAtMinimum;
+                _frozenWindupMs = (int)Math.Round(_windup.BaseMs - (_windup.BaseMs - _windup.MinimumMs) * fraction,
+                    MidpointRounding.AwayFromZero);
+                _windupStartFrame = context.Frame;
+            }
             context?.SetTimelineNextEventIndex(0);
             if (_gateTemplateId != 0) BindGate(context, restoring: false);
         }
@@ -75,7 +99,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var nextIndex = _nextEventIndex;
-            var elapsedMs = (int)((_elapsedRaw * 1000L) >> 32);
+            var elapsedMs = ToAuthoredMs(_elapsedRaw, _frozenWindupMs);
 
             if (_events != null)
             {
@@ -148,10 +172,23 @@ namespace AbilityKit.Demo.Moba.Services
             base.Reset();
             _elapsedRaw = 0L;
             _nextEventIndex = 0;
+            _frozenWindupMs = 0;
+            _windupStartFrame = 0;
         }
 
         public IAbilityPipelinePhase<SkillPipelineContext> CreateRunPhase()
-            => new SkillTimelinePhase(PhaseId, _durationMs, _events, _effects, _recoveryStartMs, _gateTemplateId, _gateEndMs);
+            => new SkillTimelinePhase(PhaseId, _durationMs, _events, _effects, _recoveryStartMs, _gateTemplateId, _gateEndMs, _windup);
+
+        internal CastWindupTiming WindupTiming => _frozenWindupMs > 0
+            ? new CastWindupTiming(_windupStartFrame, _windup.AuthoredMs, _frozenWindupMs)
+            : default;
+
+        private long ToAuthoredMs(long raw, int frozenWindupMs)
+        {
+            var elapsedMs = (raw * 1000L) >> 32;
+            return frozenWindupMs == 0 ? elapsedMs :
+                new CastWindupTiming(0, _windup.AuthoredMs, frozenWindupMs).ToAuthoredMilliseconds(elapsedMs);
+        }
 
         protected override void OnExit(SkillPipelineContext context) => ReleaseGate(restoring: false);
 
@@ -198,7 +235,8 @@ namespace AbilityKit.Demo.Moba.Services
         public override PipelinePhaseRollbackState CaptureRollbackState()
         {
             var state = base.CaptureRollbackState();
-            state.Longs = new[] { _elapsedRaw };
+            state.Longs = _windup == null ? new[] { _elapsedRaw } :
+                new[] { _elapsedRaw, (long)_frozenWindupMs, _windupStartFrame };
             state.Integers = _gateTemplateId == 0 ? new[] { _nextEventIndex } :
                 new[] { _nextEventIndex, _gateActive ? 1 : 0 };
             return state;
@@ -207,11 +245,15 @@ namespace AbilityKit.Demo.Moba.Services
         public override void ValidateRollbackState(PipelinePhaseRollbackState state)
         {
             base.ValidateRollbackState(state);
-            if (state?.Longs == null || state.Longs.Length != 1 || state.Longs[0] < 0 ||
+            if (state?.Longs == null || state.Longs.Length != (_windup == null ? 1 : 3) || state.Longs[0] < 0 ||
+                state.Longs[0] > long.MaxValue / 1000 ||
+                _windup != null && (state.Longs[1] == 0 ? state.Longs[0] != 0 || state.Longs[2] != 0 :
+                    state.Longs[1] < _windup.MinimumMs || state.Longs[1] > _windup.BaseMs ||
+                    state.Longs[2] < 0 || state.Longs[2] > int.MaxValue) ||
                 state.Integers == null || state.Integers.Length != (_gateTemplateId == 0 ? 1 : 2) ||
                 state.Integers[0] < 0 || state.Integers[0] > (_events?.Length ?? 0) ||
                 _gateTemplateId != 0 && (state.Integers[1] is < 0 or > 1 || state.Integers[1] == 1 &&
-                    (state.IsComplete || ((state.Longs[0] * 1000L) >> 32) >= _gateEndMs)))
+                    (state.IsComplete || ToAuthoredMs(state.Longs[0], _windup == null ? 0 : (int)state.Longs[1]) >= _gateEndMs)))
                 throw new InvalidOperationException("Invalid skill timeline rollback state.");
         }
 
@@ -222,6 +264,8 @@ namespace AbilityKit.Demo.Moba.Services
             _elapsedRaw = state.Longs[0];
             _nextEventIndex = state.Integers[0];
             _gateActive = _gateTemplateId != 0 && state.Integers[1] == 1;
+            _frozenWindupMs = _windup == null ? 0 : (int)state.Longs[1];
+            _windupStartFrame = _windup == null ? 0 : (int)state.Longs[2];
         }
 
         private MobaEffectInvokerService ResolveEffects(SkillPipelineContext context)

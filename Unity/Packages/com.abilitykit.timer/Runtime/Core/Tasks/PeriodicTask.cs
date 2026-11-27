@@ -5,28 +5,32 @@ using AbilityKit.Deterministic;
 namespace AbilityKit.Timer
 {
     /// <summary>
-    /// 周期任务。
-    /// 以固定间隔重复执行回调。
-    ///
-    /// 确定性说明：内部用 Fixed64 raw 累加（对外 float 无感）。
-    /// duration 语义：duration 是总时长截止（-1 表示无限）；触发时刻为 period 的整数倍且
-    /// ≤ duration，到 duration 后完成。ElapsedTime 是自启动以来的总耗时（只增不减）。
+    /// 用定点时间累计推进，以固定间隔执行回调；支持正数总时长截止和执行次数上限。
     /// </summary>
     public sealed class PeriodicTask : ScheduledTaskBase
     {
         private readonly Action _callback;
-        private readonly float _period;
         private readonly float _duration;
         private readonly int _maxExecutions;
         private readonly Fixed64 _periodRaw;
         private readonly Fixed64 _durationRaw;
-        private Fixed64 _elapsedRaw;     // 总耗时，只增不减
-        private Fixed64 _nextFireRaw;    // 下一次触发的绝对时刻
+        private Fixed64 _elapsedRaw;
+        private Fixed64 _nextFireRaw;
         private int _executionCount;
 
+        /// <summary>
+        /// 获取累计推进时间的浮点秒数视图。
+        /// </summary>
         public override float ElapsedTime => DeterministicMathBridge.ToSingle(_elapsedRaw);
+
+        /// <summary>
+        /// 获取配置的总时长；负数配置以 <see cref="Single.MaxValue"/> 表示。
+        /// </summary>
         public override float Duration => _duration < 0 ? float.MaxValue : _duration;
 
+        /// <summary>
+        /// 获取当前状态；取消优先于完成。
+        /// </summary>
         public override TaskState State
         {
             get
@@ -39,6 +43,9 @@ namespace AbilityKit.Timer
             }
         }
 
+        /// <summary>
+        /// 获取任务是否已取消、已完成或达到时长或次数上限。
+        /// </summary>
         public override bool IsCompleted
         {
             get
@@ -51,32 +58,39 @@ namespace AbilityKit.Timer
             }
         }
 
-        /// <summary>当前执行次数</summary>
+        /// <summary>
+        /// 获取已经结束的触发次数，不包含仍在执行中的回调。
+        /// </summary>
         public int ExecutionCount => _executionCount;
 
         /// <summary>
-        /// 构造周期任务
+        /// 创建周期任务，首次触发在一个间隔后。
         /// </summary>
         /// <param name="callback">周期执行的回调</param>
         /// <param name="periodSeconds">周期间隔（秒）</param>
-        /// <param name="durationSeconds">持续时间（秒），-1 表示无限</param>
-        /// <param name="maxExecutions">最大执行次数，-1 表示无限</param>
+        /// <param name="durationSeconds">总时长（秒），非正值不设截止。</param>
+        /// <param name="maxExecutions">触发次数上限，非正值不限次。</param>
+        /// <exception cref="ArgumentOutOfRangeException">间隔转换为定点时间后不是正数。</exception>
         public PeriodicTask(Action callback, float periodSeconds, float durationSeconds = -1, int maxExecutions = -1)
         {
-            if (periodSeconds <= 0f)
-                throw new ArgumentOutOfRangeException(nameof(periodSeconds), periodSeconds, "Period must be positive; non-positive periods would loop forever in Update.");
+            _periodRaw = periodSeconds > 0f ? DeterministicMathBridge.ToFixed(periodSeconds) : Fixed64.Zero;
+            if (_periodRaw <= Fixed64.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(periodSeconds), periodSeconds, "Period must be positive after conversion to fixed-point seconds.");
+            }
 
             _callback = callback;
-            _period = periodSeconds;
             _duration = durationSeconds;
             _maxExecutions = maxExecutions;
-            _periodRaw = DeterministicMathBridge.ToFixed(periodSeconds);
             _durationRaw = DeterministicMathBridge.ToFixed(durationSeconds);
             _elapsedRaw = Fixed64.Zero;
             _nextFireRaw = _periodRaw;
             _executionCount = 0;
         }
 
+        /// <summary>
+        /// 累加秒增量并补齐本次已到期且不晚于截止的触发；回调主动停止任务后不再补触发。
+        /// </summary>
         public override void Update(float deltaTime)
         {
             if (IsCompleted || _canceled) return;
@@ -90,6 +104,7 @@ namespace AbilityKit.Timer
 
                 _callback?.Invoke();
                 _executionCount++;
+                if (_canceled || _completed) break;
                 _nextFireRaw += _periodRaw;
             }
         }

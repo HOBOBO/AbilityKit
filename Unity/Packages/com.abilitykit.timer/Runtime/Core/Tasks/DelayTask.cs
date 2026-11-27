@@ -5,11 +5,7 @@ using AbilityKit.Deterministic;
 namespace AbilityKit.Timer
 {
     /// <summary>
-    /// 延时任务。
-    /// 在指定延迟后执行一次回调。
-    ///
-    /// 确定性说明：内部用 Fixed64 raw 累加（对外 float 无感），避免 float 多次累加的漂移；
-    /// 边界处单次 IEEE 换算（跨平台位一致）。
+    /// 使用定点时间判断延时是否到期；自然到期最多调用一次回调。
     /// </summary>
     public sealed class DelayTask : ScheduledTaskBase
     {
@@ -18,9 +14,19 @@ namespace AbilityKit.Timer
         private readonly Fixed64 _delayRaw;
         private Fixed64 _elapsedRaw;
 
+        /// <summary>
+        /// 获取累计推进时间的浮点秒数视图。
+        /// </summary>
         public override float ElapsedTime => DeterministicMathBridge.ToSingle(_elapsedRaw);
+
+        /// <summary>
+        /// 获取配置的延迟秒数。
+        /// </summary>
         public override float Duration => _delay;
 
+        /// <summary>
+        /// 获取当前状态；取消优先于完成，达到时限即视为完成。
+        /// </summary>
         public override TaskState State
         {
             get
@@ -32,6 +38,9 @@ namespace AbilityKit.Timer
             }
         }
 
+        /// <summary>
+        /// 获取任务是否达到时限或被显式完成；此属性不表示到期回调已执行。
+        /// </summary>
         public override bool IsCompleted => _elapsedRaw >= _delayRaw || _completed;
 
         /// <summary>
@@ -47,18 +56,22 @@ namespace AbilityKit.Timer
             _elapsedRaw = Fixed64.Zero;
         }
 
+        /// <summary>
+        /// 推进秒增量；自然到期时先标记完成，再调用回调，回调抛错也不会重试。
+        /// </summary>
         public override void Update(float deltaTime)
         {
-            // 不能用 IsCompleted 做守卫：零/负延迟任务在构造后即为 IsCompleted，
-            // 会导致回调被永久吞掉。只检查“已触发完成”与“已取消”。
+            /*
+             * 不使用 IsCompleted 作守卫，否则零延迟任务会跳过首次到期回调。
+             */
             if (_completed || _canceled) return;
 
             _elapsedRaw += DeterministicMathBridge.ToFixed(deltaTime);
 
             if (_elapsedRaw >= _delayRaw)
             {
-                _callback?.Invoke();
                 _completed = true;
+                _callback?.Invoke();
             }
         }
     }

@@ -207,9 +207,12 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             {
                 var value = new Vec3(bb.GetFixed64(MobaBTreeKeys.MoveX).ToSingle(),
                     bb.GetFixed64(MobaBTreeKeys.MoveY).ToSingle(), bb.GetFixed64(MobaBTreeKeys.MoveZ).ToSingle());
+                var stopRange = bb.GetFixed64(MobaBTreeKeys.MoveStopRange).ToSingle();
                 intent = bb.GetBool(MobaBTreeKeys.MoveIsDirection)
                     ? MobaActorIntent.MoveDirection(value.X, value.Z)
-                    : MobaActorIntent.MoveTo(in value, bb.GetFixed64(MobaBTreeKeys.MoveStopRange).ToSingle());
+                    : bb.GetBool(MobaBTreeKeys.MoveFollowsOwner)
+                        ? MobaActorIntent.FollowOwner(in value, stopRange)
+                        : MobaActorIntent.MoveTo(in value, stopRange);
             }
             if (bb.GetBool(MobaBTreeKeys.HasCast))
                 intent = intent.WithCast((int)bb.GetInt64(MobaBTreeKeys.CastSkillSlot),

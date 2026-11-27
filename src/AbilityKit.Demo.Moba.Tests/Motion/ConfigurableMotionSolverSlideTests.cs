@@ -67,6 +67,19 @@ public sealed class ConfigurableMotionSolverSlideTests
         Assert.False(result.Hit.Hit);
     }
 
+    [Fact]
+    public void Full_speed_recovery_does_not_invent_a_tangent_for_head_on_input()
+    {
+        var solver = MakeSolver(slide: true, wallSlideSpeedRecovery: 1f);
+        var state = new MotionState(new Vec3(4f, 0f, 0f));
+        var output = new MotionOutput { DesiredDelta = new Vec3(.1f, 0f, 0f) };
+
+        var result = solver.Solve(0, in state, in output, 1f / 30f);
+
+        Assert.True(result.Hit.Hit);
+        Assert.Equal(Vec3.Zero, result.AppliedDelta);
+    }
+
     private static ConfigurableMotionSolver MakeSolver(
         bool slide,
         float wallSlideSpeedRecovery = 0f,

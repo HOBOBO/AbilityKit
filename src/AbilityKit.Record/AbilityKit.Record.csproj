@@ -11,14 +11,9 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <!-- 引用 Packages 目录下的源码 (排除有 Unity 直接引用的文件和依赖它们的文件) -->
+  <!-- 与 Unity 的 AbilityKit.Record 程序集共享核心源码，不编译平台装配。 -->
   <ItemGroup>
-    <!-- 排除有 UnityEngine 引用的文件及依赖它们的文件 -->
-    <Compile Include="../../Unity/Packages/com.abilitykit.record/Runtime/**/*.cs"
-             Exclude="
-               ../../Unity/Packages/com.abilitykit.record/Runtime/Record/Core/Session/RecordFileStore.cs;
-               ../../Unity/Packages/com.abilitykit.record/Runtime/Record/Core/Session/RecordSessionFactory.cs
-             " />
+    <Compile Include="../../Unity/Packages/com.abilitykit.record/Runtime/Record/**/*.cs" />
   </ItemGroup>
 
   <!-- 项目引用 -->

@@ -15,7 +15,7 @@
 1. 在 Unity 中打开 MOBA 示例工程。
 2. 打开可启动 `BattleLogicSession` 的 MOBA 战斗场景。
 3. 进入 Play Mode，并等待战斗会话启动。
-4. 选择菜单 `Tools/AbilityKit/Battle/战斗调试`。
+4. 选择菜单 `Tools/AbilityKit/Demos/Moba/Battle/战斗调试`。
 5. 在“角色”的实体导航选择 Actor；顶部可切换“技能与对象”“事件与 Trace”“帧同步”“会话”工作区。窄窗口使用下拉菜单切换。
 
 窗口只在 Play Mode 下工作。未进入 Play Mode、`BattleDebugFacadeProvider.Current` 为空或没有活动 `BattleLogicSession` 时，窗口会显示对应提示。
@@ -76,43 +76,58 @@
 
 ## 其他 Editor 工具入口
 
-工具入口分布在 Unity 顶部的 `Tools`、`AbilityKit` 和 `Moba` 三个菜单根下。窗口类工具会打开独立窗口；命令类工具执行后在 Console 输出结果；Scene Gizmo 是 Scene View 叠加层，不会打开窗口。
+从下表进入各领域工作台或场景命令；Scene Gizmo 是 Scene View 叠加层，不会打开新窗口。
 
 ### 窗口与场景命令
 
 | 类型 | 工具 | 菜单入口 | 使用前提 |
 | --- | --- | --- | --- |
-| 窗口 | 战斗调试 | `Tools/AbilityKit/Battle/战斗调试` | 进入 Play Mode 并启动战斗会话 |
-| 命令 | 打开 Demo 场景 | `Tools/AbilityKit/MOBA Demo/Open Demo Scene` | 无 |
-| 命令 | 创建或刷新 Demo 场景 | `Tools/AbilityKit/MOBA Demo/Create Or Refresh Demo Scene` | 会创建或改写 Demo 场景资产 |
-| 命令 | 播放 Demo 场景 | `Tools/AbilityKit/MOBA Demo/Play Demo Scene` | 自动打开场景并进入 Play Mode |
-| 窗口 | Editor Flow Pump | `Tools/AbilityKit/Preview/编辑器驱动(Flow Pump)` | 按窗口内流程驱动预览 |
-| 窗口 | 帧同步测试 | `Tools/AbilityKit/FrameSync Test` | 按窗口内配置运行测试 |
+| 窗口 | 战斗调试 | `Tools/AbilityKit/Demos/Moba/Battle/战斗调试` | 场景叠加可在编辑模式配置；实时诊断需启动战斗 |
+| 窗口 | MOBA 状态机编辑器 | `Window/AbilityKit/MOBA 状态机编辑器` | 在工作台保存、只读校验已保存文件或预检后发布；不从战斗调试发布 |
+| 窗口 | MOBA 角色动画同步 | `Window/AbilityKit/MOBA 角色动画同步`；也可从状态机编辑器带角色打开 | 在工作台扫描差异和检查已绑定动画；同步并发布须确认完整 Luban 发布范围 |
+| 项目子菜单 | MOBA 地图工具 | `Tools/AbilityKit/Demos/Moba/Map` | 地图与兵线校验只读；刷新地图 Prefab、兵线发布和建筑发布各自预检并确认，不互相触发 |
+| Inspector | MOBA 生产技能流程 | 选择生产 `SkillFlowCO.asset` →「MOBA 生产技能流程」 | 编辑模式下先保存源资产；校验不修改正式产物，发布先预检再确认 |
+| 命令 | 打开现有 Demo 场景 | `Tools/AbilityKit/Demos/Moba/Open Demo Scene` | 只打开已有场景，不生成装配；切换场景前由用户决定是否保存当前修改 |
+| 命令 | 播放现有 Demo 场景 | `Tools/AbilityKit/Demos/Moba/Play Existing Demo Scene` | 打开已有场景并进入本地 Play Mode，不生成装配 |
+| 命令 | 生成两套 Demo 装配 | `Tools/AbilityKit/Demos/Build Package-Owned Gameplay Composition` | 预检并确认后才重建 MOBA 与 Shooter；可能迁移或删除旧资产、更新 Starter 和替换 Build Settings 场景列表 |
+| 窗口 | Editor Flow Pump | 战斗调试 → 数据与工具 → 预览 → 编辑器驱动（Flow Pump） | 打开不启动；在编辑模式下从窗口显式启动预览 |
+| 窗口 | 帧同步测试 | 战斗调试 → 数据与工具 → 同步诊断 → 帧同步测试 | 打开只查找场景中的 Harness；创建对象、启动会话、连接均由窗口内按钮触发 |
 | 命令 | 编译 Hotfix | `Tools/AbilityKit/Hot Reload/Compile Hotfix` | 工程需具备 Hotfix 编译环境 |
 | 命令 | 重载 Hotfix | `Tools/AbilityKit/Hot Reload/Reload Hotfix` | 先完成 Hotfix 编译 |
 | 窗口 | 创建英雄 | `AbilityKit/Moba/Hero/Create New Hero…` | 按向导填写英雄资源信息 |
 
 ### 场景辅助图形
 
-进入 Play Mode 并启动战斗会话后，在 Unity 顶部 `Moba/Gizmos` 菜单勾选需要的叠加层，然后查看 Scene View。它们读取逻辑战斗 World，表示判定位置和范围；表现模型启用插值时，移动中的模型可能与逻辑位置存在短暂视觉差异。
+在「战斗调试」窗口的顶部工具栏点击「场景叠加」，即可独立开关碰撞世界、攻击范围、Buff 范围、出生区域、导航网格、寻路路径和活动 AOE 区域。开关沿用原有个人编辑器偏好，在编辑模式也可调整；关闭面板不会关闭已启用的叠加层。
 
-| 功能 | 菜单入口 |
-| --- | --- |
-| 攻击范围开关 | `Moba/Gizmos/Attack Range` |
-| Buff 范围开关 | `Moba/Gizmos/Buff Range` |
-| 出生区域开关 | `Moba/Gizmos/Spawn Area` |
-| 恢复默认开关 | `Moba/Gizmos/Reset Defaults` |
-| 清空出生点缓存 | `Moba/Gizmos/Clear Spawn Cache` |
+启动战斗后在 Scene View 查看实际绘制。叠加层读取逻辑战斗 World，表示判定位置和范围；表现模型启用插值时，移动中的模型可能与逻辑位置存在短暂视觉差异。「恢复默认设置」只重置开关；「清空出生点缓存」让绘制器在下次采集时重新记录当前角色位置，不改变开关、场景或战斗状态。
 
-### 配置 JSON 与 VFX
+### P1/P2 示例同步
 
-| 命令 | 菜单入口 | Project 窗口选择要求 |
-| --- | --- | --- |
-| 发布 MOBA 生产配置 | `python LubanConfig/Moba/export_pipeline.py --apply` | 编辑 `Production/Datas/*.xlsx` 后在仓库根目录运行 |
-| 导出选中目录的 VFX 配置 | `AbilityKit/Vfx/Export Vfx Json` | 选择目标目录或目录内资产；未选择时扫描 `Assets` |
-| 导出全部 Assets 下的 VFX 配置 | `AbilityKit/Vfx/Export Vfx Json (Assets)` | 无 |
+在编辑模式打开「战斗调试 → 数据与工具 → 示例维护」，选择相应的 P1 或 P2 预检。弹窗显示读取的 JSON、将新建或覆盖的资产，以及 P2 可能更新的触发器项目资产。预检不写入，也不做字段级比较；必须点「确认同步」才会调用原同步实现。缺失输入、目标类型错误或目标有未保存修改时不能确认。
 
-导入命令会修改配置资产或 JSON 文件；执行前应确认版本控制状态。导出结果写入 `com.abilitykit.demo.moba.view.runtime` 包的 Resources 目录，并在完成后刷新 AssetDatabase。
+P1/P2 的 `SyncBatch` 原样保留，批处理直接调用时没有确认弹窗。同步复用现有 `AssetDatabase.SaveAssets()`，可能保存其他脏资产，而且不是事务；执行前先处理其他改动，失败后按版本控制检查并恢复受影响的文件。本入口只维护示例，不用于生产发布。
+
+### 表现资源维护与离线复核
+
+- **头顶 HUD 结构**：从 `Tools/AbilityKit/Demos/Moba/HUD/预检并重建头顶 HUD Prefab` 查看新建或覆盖目标，确认后才生成。播放、导入或 Prefab Mode 下不可用，目标有未保存修改时阻止重建。批处理仍可直接调用 `AbilityKit.Demo.Moba.Editor.MobaOverheadPrefabBuilder.Build`。生成会覆盖 `Resources/ui/battle/hud_overhead.prefab` 的手工结构调整，并可能保存其他未保存资产；布局和数值配置不用重建 Prefab。失败后按版本控制核对差异再重试。
+- **Lux 表现审计**：`AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.LuxPresentationAudit.Capture` 只用于独立 Unity 工程的批处理，不提供菜单。`-luxReviewOutput` 必须指向 `local/Logs/` 下新的或空的绝对路径；另用 `-logFile` 指定 Unity 日志路径，不要把日志写在采样目录里。默认只采样已发布资源，产生 PNG 与 `bounds.json`；仅显式传入 `-luxRebuild` 才会写入派生 Prefab，须使用可丢弃且资源不链接回主工程的副本。
+- **角色动画时序审计**：批处理 `AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.MobaCharacterAnimationTimingAudit.Capture` 接受 `-mobaAnimationAuditHeroes <逗号分隔的模型ID>`，可选 `-mobaAnimationAuditSamplePoses`。用 `-mobaAnimationAuditOutput <绝对目录>` 指定 `local/Logs/` 下新的或空的目录，`-logFile` 指向该目录之外的日志。历史调用省略输出参数时会在 `local/Logs/character-animation-timing/` 下创建独立运行目录；以本次日志中的路径为准。`imported-clips.json` 和可选的 `sampled-poses-<模型ID>.json` 在同一目录，只读采样不发布资源。
+
+### 历史英雄资源检查
+
+`KarthusSkillSync.Inspect`、`LuxSkillSync.Inspect`、`GragasSkillSync.Inspect` 和 `GragasSkillSync.InspectQAnimationSegments` 是历史迁移或验收复现所用的只读批处理，不是日常发布入口。方法位于 `AbilityKit.Ability.Impl.BattleDemo.Moba.Editor`；用 Unity `-executeMethod` 调用时，传 `-mobaResourceFactsOutput <绝对目录>` 和 `-logFile <日志路径>`，均放在 `local/Logs/` 下。报告文件名和 JSON 结构不变，已存在的同名报告不会被覆盖。
+
+四个方法省略输出参数时统一在 `local/Logs/moba-resource-facts/` 下分配独立运行目录，不再写 `local/` 根下的固定 JSON。以本次 Unity 日志打印的路径为准；不要用新的审计报告直接触发历史迁移。
+
+### 单英雄工具与生产发布
+
+Annie、Jinx、Veigar 不再提供独立的发布或检查菜单。改动技能流程后，保存生产 `SkillFlowCO.asset`，使用 Inspector 的「MOBA 生产技能流程」校验或预检发布；触发器、时间轴、HFSM 和配置表分别走各自正式工具。历史同步方法不作为日常入口，可能改写聚合资产或派生 Prefab，也不保证写入只限一个英雄。
+
+### 特效模板检查与生产配置发布
+
+- **只读检查**：从 `Tools/AbilityKit/Demos/Moba/Vfx/Inspect Published Templates` 打开检查器，查看已发布的模板估算和运行时实例。无需在 Project 窗口选目录；检查不会扫描目录导出 JSON、修改配置或触发发布。
+- **生产发布**：在 AbilityKit 仓库中维护 `LubanConfig/Moba/Production/Datas/T-特效表.xlsx`。确认版本控制状态后，在仓库根目录运行 `python LubanConfig/Moba/export_pipeline.py --apply`。这是 MOBA 生产配置的统一发布命令，会写入 Unity 和 Console 的生成物，不是仅导出特效的命令。
 
 ## 文档导航
 

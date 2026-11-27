@@ -329,6 +329,183 @@ public sealed class MobaSkillFlowAcceptanceTests
         restored.Interrupt();
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Typed_cast_anchor_replays_pending_input_without_spending_twice_or_restarting_cooldown(bool accepted)
+    {
+        const int anchorTick = 12, pendingTick = 14, deliveryTick = 15;
+        const long confirmedCooldownEnd = 1100, replayedCooldownEnd = 1200;
+        using var authority = new EconomyWindup();
+        using var prediction = new EconomyWindup();
+        using var candidate = new EconomyWindup();
+
+        Assert.True(prediction.Advance(11, press: true));
+        for (var tick = anchorTick; tick <= deliveryTick; tick++)
+            Assert.False(prediction.Advance(tick, press: tick == pendingTick));
+        Assert.Equal(accepted, authority.Advance(anchorTick, press: accepted));
+        var anchor = authority.Observe();
+        Assert.Equal(accepted ? (90, confirmedCooldownEnd, 500, (int?)50) : (100, 0L, 0, null), anchor);
+        if (accepted) candidate.SeedCastIdentity(anchorTick);
+        candidate.RestoreFrom(authority, anchorTick);
+        Assert.Equal(anchor, candidate.Observe());
+        Assert.Equal(0, candidate.Starts);
+
+        for (var tick = anchorTick + 1; tick <= deliveryTick; tick++)
+        {
+            var pending = tick == pendingTick;
+            var commitPending = pending && !accepted;
+            Assert.Equal(commitPending, authority.Advance(tick, press: pending));
+            Assert.Equal(commitPending, candidate.Advance(tick, press: pending));
+            var castStarted = accepted || tick >= pendingTick;
+            var end = accepted ? confirmedCooldownEnd : castStarted ? replayedCooldownEnd : 0;
+            var startTick = accepted ? anchorTick : pendingTick;
+            var expected = castStarted ? (90, end, 500, (int?)((tick - startTick + 1) * 50)) : (100, 0L, 0, null);
+            Assert.Equal(expected, authority.Observe());
+            Assert.Equal(expected, candidate.Observe());
+            Assert.Equal(tick >= pendingTick && !accepted ? 1 : 0, candidate.Starts);
+        }
+
+        Assert.Equal((90, 1050L, 500, (int?)250), prediction.Observe());
+        Assert.Equal(1, authority.Starts);
+        Assert.Equal(1, prediction.Starts);
+    }
+
+    /// <summary>
+    /// 用独立夹具验证资源、槽冷却、事务、运行身份和管线进度的类型化恢复。
+    /// 不导入帧同步检查点，不代表线上提供该施法截面。
+    /// </summary>
+    private sealed class EconomyWindup : IDisposable
+    {
+        private const float FixedDelta = 0.05f;
+        private readonly FrameTime _clock = new();
+        private readonly Scope _scope;
+        private readonly MobaSkillWindowRuntimeService _windows;
+        private readonly IAbilityPipelineConfig _config;
+        private readonly SkillCastPipeline _pipeline;
+        private IAbilityPipelineRun<SkillPipelineContext>? _run;
+        private SkillPipelineContext? _context;
+
+        internal EconomyWindup()
+        {
+            _scope = new Scope(frameTime: _clock);
+            _windows = new MobaSkillWindowRuntimeService(_scope.Runtimes);
+            _scope.Services.Add(_windows);
+            Assert.True(_scope.Library.TryGet(Instant, out _, out _, out _config, out _));
+            _pipeline = BuildPipeline(_scope, () => Starts++);
+        }
+
+        internal int Starts { get; private set; }
+
+        internal bool Advance(int tick, bool press)
+        {
+            Assert.True(_clock.AlignTo(new FrameIndex(tick), FixedDelta));
+            var started = false;
+            if (press)
+            {
+                var availability = _scope.Economy.GetAvailability(ActorId, _scope.SkillOne, 0, string.Empty, false);
+                if (availability.Available)
+                {
+                    Assert.Null(_run);
+                    _context = _scope.NewContext(Instant, 1, frame: tick);
+                    _run = _pipeline.Start(_config, _context);
+                    _run.Tick(0f);
+                    started = true;
+                }
+                else
+                {
+                    Assert.Equal(_scope.SkillOne.CooldownEndTimeMs, availability.ReadyTimeMs);
+                    Assert.True(availability.ReadyTimeMs > _clock.TimeMilliseconds);
+                }
+            }
+            _run?.Tick(FixedDelta);
+            return started;
+        }
+
+        internal (int Mana, long CooldownEnd, int CooldownDuration, int? Elapsed) Observe()
+        {
+            var economy = _scope.Economy.CaptureRollbackSnapshot();
+            int? elapsed = null;
+            if (_context is { } context)
+            {
+                var handle = context.RuntimeHandle;
+                var transaction = Assert.Single(economy.Transactions);
+                Assert.Equal(handle, transaction.Handle);
+                Assert.Equal(MobaSkillEconomyTransactionState.Committed, transaction.State);
+                Assert.Equal(Fixed64.FromInt32(10).RawValue, transaction.ResourceAmountRaw);
+                Assert.True(_windows.TryGetSnapshot(in handle, out var window));
+                elapsed = window.ElapsedMs;
+            }
+            else Assert.Empty(economy.Transactions);
+
+            var mana = _scope.Mana.Current;
+            var wholeMana = mana.ToInt32();
+            Assert.Equal(Fixed64.FromInt32(wholeMana), mana);
+            return (wholeMana, _scope.SkillOne.CooldownEndTimeMs, _scope.SkillOne.CooldownDurationMs, elapsed);
+        }
+
+        internal void SeedCastIdentity(int tick) => _scope.ExecutionContexts.Create(new MobaExecutionContextCreateRequest(
+            MobaExecutionKind.SkillCast, Instant, ActorId, 0, frame: tick));
+
+        internal void RestoreFrom(EconomyWindup authority, int tick)
+        {
+            Assert.True(_clock.AlignTo(new FrameIndex(tick), FixedDelta));
+            var runtimeState = authority._scope.Runtimes.CaptureRollbackSnapshot();
+            var economy = authority._scope.Economy.CaptureRollbackSnapshot();
+            _scope.ExecutionContexts.RestoreLifecycle(authority._scope.ExecutionContexts.CaptureLifecycleSnapshot());
+            _scope.Runtimes.RestoreRollbackSnapshot(in runtimeState);
+            _scope.Economy.RestoreRollbackSnapshot(in economy);
+            _scope.Mana.Current = authority._scope.Mana.Current;
+            _scope.SkillOne.CooldownEndTimeMs = authority._scope.SkillOne.CooldownEndTimeMs;
+            _scope.SkillOne.CooldownDurationMs = authority._scope.SkillOne.CooldownDurationMs;
+            if (authority._run == null || authority._context is not { } active) return;
+
+            var run = SkillPipelineRollback.Capture(authority._run, authority._config);
+            var context = active.CaptureRollbackState();
+            var aimPos = context.AimPos;
+            var aimDir = context.AimDir;
+            var request = new SkillCastRequest(Instant, 1, ActorId, 0, in aimPos, in aimDir,
+                _scope.Services, null, null, null);
+            var trigger = new SkillCastContext();
+            trigger.Initialize(in request, 1);
+            trigger.RuntimeHandle = active.RuntimeHandle;
+            trigger.RuntimeId = active.RuntimeHandle.RuntimeId;
+            trigger.SourceContextId = active.SourceContextId;
+            _context = new SkillPipelineContext();
+            _context.Initialize(null, in request, trigger);
+            _context.RestoreRollbackState(in context);
+            _run = SkillPipelineRollback.Restore(_pipeline, _config, _context, run);
+        }
+
+        public void Dispose()
+        {
+            SkillPipelineRollback.Detach(_run);
+            _scope.Dispose();
+        }
+
+        private static SkillCastPipeline BuildPipeline(Scope scope, Action onStart)
+        {
+            var pipeline = new SkillCastPipeline();
+            pipeline.AddPhase(new AbilityActionPhase<SkillPipelineContext>(new AbilityPipelinePhaseId("reserve"), context =>
+            {
+                onStart();
+                var spec = new SkillEconomyPhaseDTO
+                {
+                    ResourceType = (int)ResourceType.Mana, UseResolvedResourceCost = false, ResourceAmount = 10,
+                    RequireExplicitCommit = true, StartSkillCooldown = true, UseResolvedSkillCooldown = false,
+                    SkillCooldownMs = 500,
+                };
+                Assert.True(scope.Economy.TryReserve(context, spec, out var failure), failure);
+                Assert.True(scope.Economy.Commit(context.RuntimeHandle));
+            }));
+            pipeline.AddPhase(new SkillWindowPhase(new AbilityPipelinePhaseId("windup"), new SkillWindowPhaseDTO
+            {
+                WindowId = "mid-cast-anchor", Kind = (int)SkillWindowKind.Timed, DurationMs = 400,
+            }, null));
+            return pipeline;
+        }
+    }
+
     [Fact]
     public void Timeline_rollback_restores_mid_cast_without_replaying_prior_effects()
     {
@@ -693,7 +870,7 @@ public sealed class MobaSkillFlowAcceptanceTests
         private readonly MobaExecutionContextRegistry _executionContexts = new();
         private int _sequence;
 
-        public Scope(int recoveryStartMs = -1, bool withPreCastCommit = false)
+        public Scope(int recoveryStartMs = -1, bool withPreCastCommit = false, IFrameTime? frameTime = null)
         {
             var actor = _contexts.actor.CreateEntity();
             actor.AddActorId(ActorId);
@@ -710,7 +887,7 @@ public sealed class MobaSkillFlowAcceptanceTests
             _index = new ActorIdIndex(_contexts);
             var lookup = new MobaActorLookupService(_index, _registry, _entities, _contexts);
             Runtimes = new MobaSkillCastRuntimeService();
-            var frame = new FixedFrameTime();
+            var frame = frameTime ?? new FixedFrameTime();
             Economy = new MobaSkillEconomyService(Runtimes, lookup, frame);
             Services = new Resolver(frame, Economy, Runtimes);
             Services.Add<IContinuousManager>(new DefaultContinuousManager());
@@ -887,12 +1064,12 @@ public sealed class MobaSkillFlowAcceptanceTests
                 new object(), in request, trigger);
         }
 
-        public SkillPipelineContext NewContext(int id, int slot, int baseSkillId = 0)
+        public SkillPipelineContext NewContext(int id, int slot, int baseSkillId = 0, int frame = 10)
         {
             var aim = Vec3.Zero;
             var direction = Vec3.Forward;
             var root = _executionContexts.Create(new MobaExecutionContextCreateRequest(
-                MobaExecutionKind.SkillCast, id, ActorId, 0, frame: 10));
+                MobaExecutionKind.SkillCast, id, ActorId, 0, frame: frame));
             var runtime = Runtimes.Create(new MobaSkillCastRuntimeCreateRequest(
                 id, slot, 1, ++_sequence, ActorId, 0, in aim, in direction, root.ContextId,
                 baseSkillId: baseSkillId > 0 ? baseSkillId : id));

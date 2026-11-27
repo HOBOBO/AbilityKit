@@ -2,11 +2,20 @@
 
 > 文档类型：Canonical 设计（含 MOBA 结算示例）
 > 事实基线：2026-08-16
-> 文档版本：v3.0
+> 文档版本：v3.2
+> 核校状态：部分核校；2026-11-25 核对通用 Damage/Dataflow 使用边界及下述限制，MOBA 主体保留原事实基线，未在本批重验。
 >
 > 基于真实源码说明 AbilityKit 的伤害计算模型：既包括通用 `AbilityKit.Combat` 伤害数据流管线，也包括 `com.abilitykit.demo.moba.runtime` 中的 MOBA 伤害服务、减伤、护盾、触发事件与快照输出。
 
 ---
+
+## 包内契约与 D4 核校
+
+通用计算的安装、参数、复用和结果语义以 [Damage 使用指南](../../../Unity/Packages/com.abilitykit.combat.damage/Documentation~/Usage.md)为操作入口；[Dataflow 使用指南](../../../Unity/Packages/com.abilitykit.dataflow/Documentation~/Usage.md)维护阶段执行、typed slot、异常与 Abort 契约。本文继续负责“通用计算 → 项目结算 → 事件/快照”的跨包所有权，MOBA 的独立 Fixed64 结算不等同于通用 float 链。
+
+2026-11-25 Damage 手工 suite 5/5、Dataflow gate SingleStep 20/20，两个包的完整指南示例编译运行成功。另用本地可控探针复现四项当前行为：暴击阶段新增标记在下一阶段丢失；Final=100 / HP=50 / Shield=10 得到 Actual=90、Overkill=50；Mixed 跳过精确类型分支；IgnoreShield 标志未消费。它们是明确限制，局部测试通过不代表已经修复。本批未修改机制、源码或基线，详见 [D4 记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#13-d4-上下文数据流与战斗查询核校记录2026-11-25)。
+
+证据限 E0 与局部 E3；未覆盖 Unity、独立安装、数值/Flags 全矩阵、跨端确定性、完整扣血或恢复链。MOBA 历史测试不以本次通用包结果刷新。
 
 ## 目录
 
@@ -221,7 +230,7 @@ Dataflow Context 以 `(slot.Name, typeof(T))` 为键，同名不同类型槽位�
 
 - 攻击者不能为空；
 - 目标不能为空；
-- 伤害值必须大于 0，或满足持续伤害条件。
+- 基础伤害值必须大于 0；当前 DOT 条件本身也要求正值，不豁免非正基础值。
 
 不合法时直接 `Abort()`。
 
@@ -233,7 +242,7 @@ Dataflow Context 以 `(slot.Name, typeof(T))` 为键，同名不同类型槽位�
 - 暴击倍数
 - 暴击随机值
 
-如果 `critRoll < critChance`，则设置 `DamageFlags.Critical` 并记录暴击倍数。
+如果 `critChance > 0 && critRoll < critChance`，则在本阶段输出中设置 `DamageFlags.Critical` 并记录暴击倍数。但每个 `DamageProcessor.GetCurrentResult` 会用原 input 重写 Result.Request，下一阶段丢失本阶段新增标记；只注入概率与随机值不足以得到默认链最终暴击。完整限制见包指南。
 
 #### 基础伤害阶段
 
@@ -271,7 +280,7 @@ final = damage * (1 - reduction)
 
 - 计算是否超过目标当前生命值；
 - 区分 `Overkill` 与 `ActualDamage`；
-- 若存在护盾，优先计算护盾吸收。
+- 先按正的目标生命计算溢出和 ActualDamage，再按 FinalDamage 处理正护盾；护盾分支可能覆盖先前的生命钳制。生命非正时跳过此分支。该输出不等于已经提交的真实扣血。
 
 ---
 
@@ -551,4 +560,4 @@ sequenceDiagram
 
 ---
 
-*文档类型：Canonical 设计（含 MOBA 结算示例） | 事实基线：2026-08-17 | 证据等级：通用 Runtime 局部 E3 + MOBA 项目证据分层 | 文档版本：v3.1*
+*文档类型：Canonical 设计（含 MOBA 结算示例） | 事实基线：主体 2026-08-17，D4 通用包限定核校 2026-11-25 | 最后更新：2026-11-25 | 证据等级：通用 Runtime 局部 E3 + MOBA 历史项目证据分层 | 文档版本：v3.2*

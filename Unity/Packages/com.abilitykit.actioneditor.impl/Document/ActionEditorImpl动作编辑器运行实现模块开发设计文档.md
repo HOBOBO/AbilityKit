@@ -66,8 +66,7 @@ Track 主要声明分类、颜色、图标和可附着关系。`ActionTrack` 仍
 
 ### MOBA 分层导出（首阶段）
 
-`SkillAsset.exportMobaRuntime` 默认关闭。启用后，保存编辑器资产时除兼容用的
-`<name>.logic.json` 外，额外生成 `<name>.moba.logic.json` 和
+`SkillAsset.exportMobaRuntime` 默认关闭。启用后，导出器改为写出 `<name>.moba.logic.json` 和
 `<name>.moba.presentation.json`。两个新产物的 `schemaVersion` 为 1，
 Asset 与 Clip 均声明 `runtimeType`（`logic` 或 `presentation`）；活动 Clip
 没有声明运行类型、时间非法时导出失败，不会生成新的分层产物。
@@ -77,9 +76,9 @@ Asset 与 Clip 均声明 `runtimeType`（`logic` 或 `presentation`）；活动 
 - 在 `SkillTimelinePhaseDef.MobaLogicTimeline` 指定 `.moba.logic.json`，SkillFlow 导出时将其编译成已有的 `SkillTimelineEventDTO`；留空仍使用手填 Timeline。正式逻辑运行时保持 `SkillTimelinePhase`，不执行 View 动画。
 - View 侧 `MobaSkillPresentationTimelineRuntime` 仅接受 `.moba.presentation.json`，按 long 型施法实例输出表现片段及停止通知。临时接入的小乔一技能 `10020101` 通过角色 HFSM 的 `CastInstanceId` 逐帧 seek，角色 View 的 sink 播放和清理 Resources 特效；逻辑层仍由 release/commit 后的 `SkillTimelinePhase` 执行。起手提示以 HFSM casting 开始帧计时，不能将该时钟等同于逻辑 Timeline 阶段的起点。
 
-小乔一技能可在 Unity 菜单 `Tools/AbilityKit/Demos/Moba/ActionEditor/Export XiaoQiao Skill 1` 调用真实 ActionEditor 导出器重新生成分层产物；随后执行 `Sync XiaoQiao Skill 1 Flow`，只同步该技能的权威 Flow JSON。修改编辑器资产后应按此顺序重新导出和同步。
+修改时间轴后，在 Unity 选择对应的时间轴源资产，使用 `Tools/AbilityKit/Demos/Moba/ActionEditor/Export Selected Timeline` 重新生成逻辑与表现产物。技能流程 JSON 由 MOBA 项目另行发布：先保存生产 `SkillFlowCO.asset`，再在其 Inspector 预检并发布。旧菜单 `Sync XiaoQiao Skill 1 Flow` 已退役，它实际发布全部 MOBA Flow，不是单技能同步。
 
-旧 `.logic.json` 是兼容用的混合结构，不能作为新逻辑或表现运行时的输入。
+旧 `.logic.json` 仅供未启用分层的兼容导出；分层分支不写也不自动清理这一文件。它不能作为新逻辑或表现运行时的输入。
 
 ### 后续扩展：时间轴碰撞区域（规划，未实现）
 
@@ -97,9 +96,9 @@ logic JSON 的真实导出器是 third-party ActionEditor 包中的 `LogicJsonEx
 
 1. 编辑器读取 ActionEditor `Asset`；
 2. `LogicJsonExporter` 转换为 `SkillAssetDto`；
-3. Group、Track 和 Clip 的完整类型名写入 DTO；
+3. Track 和 Clip 的 CLR 全名写入 DTO，Group 保留名称及角色等信息；
 4. 只有 Clip 实现 `ILogicJsonExportable` 时，导出器才调用 `FillLogicArgs()` 写入参数；
-5. 最终写出 `<name>.logic.json`。
+5. 未启用分层时写 `<name>.logic.json`；启用分层时只写两个带 `.moba.` 的文件。两文件顺序写入，不保证失败时原子回滚。
 
 当前搜索确认 `PlayAnimation` 和 `TriggerLog` 实现 `ILogicJsonExportable`。其他 Clip 即使会出现在结构 DTO 中，也可能没有业务参数进入 logic JSON。消费者必须按 Clip 类型建立导出支持矩阵，不能假定所有公开字段都会被序列化。
 
@@ -194,11 +193,8 @@ ActionEditorImpl 应只拥有 authoring 类型及其导出参数，不应反向�
 3. [TriggerEvent.cs](../Runtime/ActionEditorImpl/Runtime/Directables/Clips/Event/TriggerEvent.cs)：Signal 数据与最小校验；
 4. [TriggerLog.cs](../Runtime/ActionEditorImpl/Runtime/Directables/Clips/Event/TriggerLog.cs)：可导出的日志 Clip；
 5. [PlayAnimation.cs](../Runtime/ActionEditorImpl/Runtime/Directables/Clips/Animation/PlayAnimation.cs)：可导出的动画 Clip；
-6. [LogicJsonExporter.cs](../../com.abilitykit.thirdparty.actioneditor/ActionEditor/Editor/LogicJsonExporter.cs)：真实 DTO 导出桥；
-7. [ActionTimelineDtos.cs](../../com.abilitykit.actionschema/Runtime/Ability/Share/ActionSchema/ActionTimelineDtos.cs)：DTO 契约；
-8. [ActionTimelineRuntime.cs](../../com.abilitykit.actionschema/Runtime/Ability/Share/ActionSchema/ActionTimelineRuntime.cs)：基础 Player 支持范围；
-9. [MobaTimelinePlayer.cs](../../com.abilitykit.demo.moba.runtime/Runtime/Domain/ActionTimeline/MobaTimelinePlayer.cs)：MOBA 专用执行链；
-10. [AbilityTimelinePhase.cs](../../com.abilitykit.demo.moba.runtime/Runtime/Domain/Ability/Pipeline/Timeline/AbilityTimelinePhase.cs)：技能流水线消费者。
+
+跨包源码由仓库时间线设计索引维护：`com.abilitykit.thirdparty.actioneditor` 的 `LogicJsonExporter` 负责导出，`com.abilitykit.actionschema` 的 `ActionTimelineDtos` / `ActionTimelineRuntime` 负责 DTO 和加载，MOBA 项目负责正式逻辑编译和施法表现消费。
 
 ## 十一、后续治理顺序
 

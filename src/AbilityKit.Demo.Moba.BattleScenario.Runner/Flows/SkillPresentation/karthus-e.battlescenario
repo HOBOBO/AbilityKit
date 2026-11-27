@@ -1,22 +1,27 @@
 {
-  "schemaVersion": 3, "caseId": "karthus-e", "displayName": "Karthus E",
+  "schemaVersion": 3, "caseId": "karthus-e", "displayName": "Karthus E - aura follows, then closes",
   "tags": ["skill-presentation", "karthus"],
   "sections": {
     "settings": [
-      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 4500},
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 2200},
       {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
     ],
     "setup": [
       {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3006, "attributeTemplateId": 3006, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"},
-      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": -2}}
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": -7}},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "arrival", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": 6}}
     ],
     "timeline": [
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 3},
-      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 3400, "action": "cast_skill", "actorAlias": "caster", "slot": 3}
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 2900, "action": "move_to", "actorAlias": "caster", "position": {"x": 7, "y": 0, "z": 4}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 4400, "action": "cast_skill", "actorAlias": "caster", "slot": 3}
     ],
     "assertions": [
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30060401},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30060401}
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30060401, "minCount": 2, "maxCount": 2},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "BuffApply", "configId": 30060490, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30060401},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "target", "property": "hp", "comparator": "lt", "expectedValue": "50000"},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "arrival", "property": "hp", "comparator": "lt", "expectedValue": "50000"}
     ]
   }
 }

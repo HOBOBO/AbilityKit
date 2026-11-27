@@ -10,7 +10,7 @@ namespace AbilityKit.Core.Recording.FrameRecord
 
         public static FrameRecordFile Load(string path)
         {
-            var resolved = ResolvePath(path);
+            var resolved = RecordPathResolver.Resolve(path);
 
             using (var fs = new FileStream(resolved, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var br = new BinaryReader(fs))
@@ -118,18 +118,5 @@ namespace AbilityKit.Core.Recording.FrameRecord
             return br.ReadBytes(len);
         }
 
-        private static string ResolvePath(string path)
-        {
-            if (string.IsNullOrEmpty(path)) return path;
-            if (Path.IsPathRooted(path)) return path;
-
-#if UNITY_2020_3_OR_NEWER
-            var baseDir = UnityEngine.Application.persistentDataPath;
-            if (string.IsNullOrEmpty(baseDir)) baseDir = UnityEngine.Application.dataPath;
-#else
-            var baseDir = Environment.CurrentDirectory;
-#endif
-            return Path.Combine(baseDir, path);
-        }
     }
 }

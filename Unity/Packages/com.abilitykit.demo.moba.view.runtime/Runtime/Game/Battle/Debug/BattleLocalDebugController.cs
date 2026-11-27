@@ -1,11 +1,20 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
+using AbilityKit.Demo.Moba.Services.EntityConstruction;
+using AbilityKit.Demo.Moba.Util.Converter;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Game.Flow
 {
@@ -31,6 +40,10 @@ namespace AbilityKit.Game.Flow
         public readonly bool IsEnemyAiEnabled;
         public readonly BattleDebugHeroOption[] HeroOptions;
         public readonly int CurrentHeroId;
+        /// <summary>
+        /// 主控英雄的当前等级；零表示无法解析可调试的英雄。
+        /// </summary>
+        public readonly int CurrentHeroLevel;
         public readonly bool IncludePlaceholderHeroes;
 
         public BattleLocalDebugSnapshot(
@@ -42,6 +55,7 @@ namespace AbilityKit.Game.Flow
             bool isEnemyAiEnabled,
             BattleDebugHeroOption[] heroOptions,
             int currentHeroId,
+            int currentHeroLevel,
             bool includePlaceholderHeroes)
         {
             IsAvailable = isAvailable;
@@ -52,6 +66,7 @@ namespace AbilityKit.Game.Flow
             IsEnemyAiEnabled = isEnemyAiEnabled;
             HeroOptions = heroOptions ?? Array.Empty<BattleDebugHeroOption>();
             CurrentHeroId = currentHeroId;
+            CurrentHeroLevel = currentHeroLevel;
             IncludePlaceholderHeroes = includePlaceholderHeroes;
         }
     }
@@ -72,6 +87,74 @@ namespace AbilityKit.Game.Flow
         }
 
         internal BattleContext Context => _ctxResolver?.Invoke();
+
+        internal bool TryResolveSkillRank(int slot, out ActiveSkillRuntime skill, out int maxRank)
+        {
+            skill = null;
+            maxRank = 0;
+            if (!TryResolveCurrentHero(out var actor) || !actor.hasSkillLoadout || actor.hasActorDespawnRequest ||
+                !TryResolveWorldService(Context, out MobaConfigDatabase config)) return false;
+
+            var skills = actor.skillLoadout.ActiveSkills;
+            if (slot < 1 || skills == null || slot > skills.Length || skills[slot - 1] == null) return false;
+            skill = skills[slot - 1];
+            if (!config.TryGetSkill(skill.SkillId, out var definition) || definition == null ||
+                definition.LevelTableId <= 0 || !config.TryGetSkillLevelTable(definition.LevelTableId, out var table) ||
+                table?.Levels == null) return false;
+
+            foreach (var row in table.Levels)
+            {
+                if (row == null) break;
+                maxRank++;
+            }
+            return maxRank > 0;
+        }
+
+        internal void ReadTrainingOptions(out bool noCooldown, out bool infiniteMana)
+        {
+            noCooldown = false;
+            infiniteMana = false;
+            var ctx = Context;
+            if (!IsAvailable || !TryResolveWorldService(ctx, out MobaSkillEconomyService economy)) return;
+            noCooldown = economy.IsTrainingNoCooldown(ctx.LocalActorId);
+            infiniteMana = economy.IsTrainingInfiniteMana(ctx.LocalActorId);
+        }
+
+        internal bool TryReadRanges(int skillSlot, int targetId, out Vec3 position, out float attackRange,
+            out float skillRange, out int resolvedTargetId, out float distance)
+        {
+            position = default;
+            attackRange = skillRange = 0f;
+            resolvedTargetId = 0;
+            distance = float.PositiveInfinity;
+            var ctx = Context;
+            if (!TryResolveCurrentHero(out var actor) || !actor.hasTransform || !actor.hasTeam ||
+                !ctx.TryGetRuntimeWorld(out var world) || world.Services == null) return false;
+
+            position = actor.transform.Value.Position;
+            var skills = actor.hasSkillLoadout ? actor.skillLoadout.ActiveSkills : null;
+            for (var slot = 1; skills != null && slot <= skills.Length; slot++)
+            {
+                if (!MobaSkillRuntimeAccess.TryReadCastRange(world.Services, actor, slot, out _, out var kind, out var range))
+                    continue;
+                if (kind == SkillType.NormalAttack) attackRange = Math.Max(attackRange, range);
+                if (slot == skillSlot) skillRange = range;
+            }
+
+            if (!TryResolveWorldService(ctx, out MobaActorRegistry registry)) return true;
+            foreach (var id in registry.CopyActorIdsInOrder())
+            {
+                if ((targetId > 0 && id != targetId) || !registry.TryGet(id, out var target) ||
+                    !target.isEnabled || !target.hasTeam || target.team.Value == actor.team.Value ||
+                    !target.hasTransform || !target.hasSkillLoadout || target.hasActorDespawnRequest) continue;
+                var delta = target.transform.Value.Position - position;
+                var planarDistance = MathF.Sqrt(delta.X * delta.X + delta.Z * delta.Z);
+                if (planarDistance >= distance) continue;
+                distance = planarDistance;
+                resolvedTargetId = id;
+            }
+            return true;
+        }
 
         public bool IsAvailable
         {
@@ -224,7 +307,28 @@ namespace AbilityKit.Game.Flow
                 IsEnemyAiEnabled,
                 HeroOptions,
                 CurrentHeroId,
+                TryResolveCurrentHero(out var hero) ? hero.championLevel.Value : 0,
                 IncludePlaceholderHeroes);
+        }
+
+        /// <summary>
+        /// 解析本地调试面板当前控制且具有等级组件的英雄实体。
+        /// </summary>
+        internal bool TryResolveCurrentHero(out global::ActorEntity hero)
+        {
+            hero = null;
+            var ctx = Context;
+            if (ctx == null || ctx.Session == null || ctx.Plan.HostMode != BattleHostMode.Local ||
+                ctx.LocalActorId <= 0 ||
+                !TryResolveWorldService(ctx, out MobaActorLookupService actors) ||
+                !actors.TryGetActorEntity(ctx.LocalActorId, out var actor) ||
+                !actor.hasUnitSubType || actor.unitSubType.Value != UnitSubType.Hero || !actor.hasChampionLevel)
+            {
+                return false;
+            }
+
+            hero = actor;
+            return true;
         }
 
         private void RefreshHeroOptions()
@@ -320,6 +424,8 @@ namespace AbilityKit.Game.Flow
     {
         private readonly BattleLocalDebugQuery _query;
         private readonly Func<BattleHudFeature> _hudResolver;
+        private readonly List<(int Id, int CreationIndex)> _dummies = new List<(int, int)>();
+        private BattleContext _dummyContext;
 
         public BattleLocalDebugCommandService(
             BattleLocalDebugQuery query,
@@ -400,6 +506,8 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
+            if (ctx.LocalActorId != actorId && TryResolveWorldService(ctx, out MobaSkillEconomyService training))
+                training.SetLocalTraining(0, null, false, false);
             ctx.LocalControlPlayerId = playerId.Value;
             ctx.ApplyLocalActorIdentity(actorId);
             _hudResolver?.Invoke()?.RefreshLocalControlSkillTemplates();
@@ -409,42 +517,195 @@ namespace AbilityKit.Game.Flow
 
         public bool TryResetCooldowns(out string message)
         {
-            message = string.Empty;
+            if (!TryResolveTraining(out var economy, out message)) return false;
+            var count = economy.ResetLocalTrainingCooldowns(Context.LocalActorId);
+            message = $"已重置 {count} 个技能的冷却时间";
+            return count > 0;
+        }
+
+        public bool TrySetTrainingOptions(bool noCooldown, bool infiniteMana, out string message)
+        {
+            if (!TryResolveTraining(out var economy, out message)) return false;
             var ctx = Context;
-            if (!TryResolveCurrentActor(out var actor, out message)) return false;
-            if (!TryResolveWorldService(ctx, out MobaActorLookupService actors) || actors == null)
+            economy.SetLocalTraining(ctx.LocalActorId, () => _query.IsAvailable && ReferenceEquals(Context, ctx)
+                ? ctx.LocalActorId : 0, noCooldown, infiniteMana);
+            message = $"技能无冷却：{(noCooldown ? "开" : "关")}；无限法力：{(infiniteMana ? "开" : "关")}";
+            return true;
+        }
+
+        public bool TryRestoreResources(out string message)
+        {
+            if (!TryResolveCurrentActor(out _, out message)) return false;
+            var ctx = Context;
+            if (!TryResolveWorldService(ctx, out MobaActorLookupService actors) ||
+                !MobaSkillRuntimeAccess.TryRestoreSkillResources(actors, ctx.LocalActorId, out var restored))
             {
-                message = "角色查询服务缺失";
+                message = "技能资源不可用";
                 return false;
             }
 
-            if (!actor.hasSkillLoadout || actor.skillLoadout.ActiveSkills == null)
+            message = $"已补满 {restored} 项技能资源（不含生命）";
+            return true;
+        }
+
+        /// <inheritdoc />
+        public bool TrySetSkillRank(int slot, int rank, out string message)
+        {
+            if (!_query.TryResolveSkillRank(slot, out var skill, out var maximum))
             {
-                message = "角色主动技能缺失";
+                message = "当前技能槽没有可调整的等级表";
+                return false;
+            }
+            if (rank < 1 || rank > maximum || !TryResolveWorldService(Context, out MobaConfigDatabase config) ||
+                !ResolvedSkillCastConfiguration.TryResolve(config, skill.SkillId, rank, out _, out _))
+            {
+                message = $"槽 {slot} 的技能 Rank 无效（可用范围 1–{maximum}）";
                 return false;
             }
 
+            skill.Level = rank;
+            message = $"槽 {slot} 技能 Rank：{rank}/{maximum}";
+            return true;
+        }
+
+        private bool TryResolveTraining(out MobaSkillEconomyService economy, out string message)
+        {
+            economy = null;
+            if (!TryResolveCurrentActor(out _, out message)) return false;
+            if (TryResolveWorldService(Context, out economy)) return true;
+            message = "技能经济服务缺失";
+            return false;
+        }
+
+        public bool TrySpawnDummy(float offsetX, float offsetZ, out string message)
+        {
+            if (!TryResolveCurrentActor(out var source, out message)) return false;
+            var ctx = Context;
+            if (!source.hasTransform || !source.hasTeam || !source.hasSkillLoadout ||
+                !TryResolveWorldService(ctx, out MobaConfigDatabase config) ||
+                !TryResolveWorldService(ctx, out IMobaActorSpawnService spawn) ||
+                !TryResolveWorldService(ctx, out ActorEntityInitPipeline initializer) ||
+                !TryResolveWorldService(ctx, out MobaActorRegistry registry) ||
+                !TryResolveWorldService(ctx, out MobaActorSpawnSnapshotService snapshots))
+            {
+                message = "训练靶生成依赖缺失";
+                return false;
+            }
+            if (float.IsNaN(offsetX) || float.IsNaN(offsetZ) || Math.Abs(offsetX) > 100f || Math.Abs(offsetZ) > 100f)
+            {
+                message = "偏移 X/Z 必须在 -100 到 100 之间";
+                return false;
+            }
+
+            var position = source.transform.Value.Position + new Vec3(offsetX, 0f, offsetZ);
+            var opposingTeam = (int)source.team.Value == (int)Team.Team1 ? (int)Team.Team2 : (int)Team.Team1;
+            var level = source.hasChampionLevel ? source.championLevel.Value : 1;
+            if (!MobaHeroLoadoutResolver.TryResolve(config, new PlayerId(_query.CurrentPlayerId), opposingTeam,
+                    source.skillLoadout.HeroId, level, 0, in position, out var loadout, out message)) return false;
+
+            var spec = MobaConverter.ToActorBuildSpec(0, in loadout);
+            var request = MobaActorSpawnRequest.FromSpec(in spec);
+            request.AllocateActorIdIfMissing = true;
+            request.Initializer = (entity, _) =>
+            {
+                if (!initializer.TryInitializeFromLoadout(entity, in loadout, out var error))
+                    throw new InvalidOperationException(error ?? "训练靶初始化失败");
+                if (entity.hasActorBrain) entity.RemoveActorBrain();
+            };
+            if (!spawn.TrySpawn(in request, out var result) || !result.Success ||
+                !registry.TryGet(result.ActorId, out var dummy))
+            {
+                message = result.Error ?? "训练靶生成失败";
+                return false;
+            }
+
+            ResetDummyTrackingFor(ctx);
+            if (!snapshots.TryEnqueueActorSpawn(registry, result.ActorId, SpawnEntityKind.Character,
+                    loadout.HeroId, ctx.LocalActorId))
+            {
+                ActorLifecycleRequests.RequestDespawn(dummy, ctx.LastFrame, ActorDespawnReason.SceneCleanup);
+                message = "训练靶生成事件发布失败";
+                return false;
+            }
+            _dummies.Add((result.ActorId, dummy.creationIndex));
+            message = $"已放置固定靶 #{result.ActorId}";
+            return true;
+        }
+
+        public bool TryClearDummies(out string message)
+        {
+            var ctx = Context;
+            if (!_query.IsAvailable || !TryResolveWorldService(ctx, out MobaActorLookupService actors))
+            {
+                message = "本地战斗不可用";
+                return false;
+            }
+            ResetDummyTrackingFor(ctx);
             var count = 0;
-            var skills = actor.skillLoadout.ActiveSkills;
-            for (var i = 0; i < skills.Length; i++)
+            foreach (var dummy in _dummies)
             {
-                var skill = skills[i];
-                if (skill == null) continue;
-                if (MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, ctx.LocalActorId, i + 1, skill.SkillId, 0L, 0))
+                if (actors.TryGetActorEntity(dummy.Id, out var actor) && actor.creationIndex == dummy.CreationIndex &&
+                    ActorLifecycleRequests.RequestDespawn(actor, ctx.LastFrame, ActorDespawnReason.SceneCleanup)) count++;
+            }
+            _dummies.Clear();
+            message = $"已请求清除 {count} 个训练靶";
+            return true;
+        }
+
+        private void ResetDummyTrackingFor(BattleContext ctx)
+        {
+            if (ReferenceEquals(_dummyContext, ctx)) return;
+            _dummyContext = ctx;
+            _dummies.Clear();
+        }
+
+        /// <inheritdoc />
+        public bool TryIncreaseHeroLevel(out string message) => TryChangeHeroLevel(reset: false, out message);
+
+        /// <inheritdoc />
+        public bool TryResetHeroLevel(out string message) => TryChangeHeroLevel(reset: true, out message);
+
+        private bool TryChangeHeroLevel(bool reset, out string message)
+        {
+            if (!_query.IsAvailable)
+            {
+                message = "本地战斗不可用";
+                return false;
+            }
+
+            if (!_query.TryResolveCurrentHero(out var hero))
+            {
+                message = "当前主控英雄尚未就绪";
+                return false;
+            }
+
+            var previousLevel = hero.championLevel.Value;
+            if (!reset && previousLevel == int.MaxValue)
+            {
+                message = "当前英雄等级无法继续增加";
+                return false;
+            }
+
+            var level = reset ? 1 : previousLevel + 1;
+            if (level != previousLevel)
+            {
+                if (!hero.hasSkillLoadout ||
+                    !TryResolveWorldService(Context, out MobaConfigDatabase config) ||
+                    !config.TryGetCharacter(hero.skillLoadout.HeroId, out var character) || character == null ||
+                    !config.TryGetAttributeTemplate(character.AttributeTemplateId, out var template) || template == null)
                 {
-                    count++;
+                    message = "当前主控英雄的属性模板缺失";
+                    return false;
+                }
+
+                if (!MobaActorAttributeInitializer.TryApplyDebugLevel(hero, template, level))
+                {
+                    message = "当前主控英雄的属性或资源尚未就绪，等级未改变";
+                    return false;
                 }
             }
-
-            message = $"已重置 {count} 个技能的冷却时间";
-            if (TryResolveWorldService(ctx, out MobaSkillEconomyService economy) && economy != null)
-            {
-                economy.RemoveActor(ctx.LocalActorId);
-            }
-
-            MobaSkillRuntimeAccess.TryRestoreSkillResources(actors, ctx.LocalActorId, out var restoredResources);
-            message += $"；已恢复 {restoredResources} 项技能资源";
-            return count > 0;
+            message = reset ? "英雄等级已重置为 1 级" : $"英雄等级已提升至 {level} 级";
+            return true;
         }
 
         public bool TryToggleEnemyAi(out string message)
@@ -727,9 +988,189 @@ namespace AbilityKit.Game.Flow
             _commands.TrySetControlPlayer(playerId, out message);
 
         public bool TryResetCooldowns(out string message) => _commands.TryResetCooldowns(out message);
+
+        internal void ReadTrainingOptions(out bool noCooldown, out bool infiniteMana) =>
+            _query.ReadTrainingOptions(out noCooldown, out infiniteMana);
+
+        internal bool TrySetTrainingOptions(bool noCooldown, bool infiniteMana, out string message) =>
+            _commands.TrySetTrainingOptions(noCooldown, infiniteMana, out message);
+
+        internal bool TryRestoreResources(out string message) => _commands.TryRestoreResources(out message);
+
+        internal bool TryReadSkillRank(int slot, out int rank, out int maximum)
+        {
+            var hasRank = _query.TryResolveSkillRank(slot, out var skill, out maximum);
+            rank = skill?.Level ?? 0;
+            return hasRank;
+        }
+
+        internal bool TrySetSkillRank(int slot, int rank, out string message) =>
+            _commands.TrySetSkillRank(slot, rank, out message);
+
+        internal bool TrySpawnDummy(float offsetX, float offsetZ, out string message) =>
+            _commands.TrySpawnDummy(offsetX, offsetZ, out message);
+
+        internal bool TryClearDummies(out string message) => _commands.TryClearDummies(out message);
+
+        internal bool TryReadRanges(int skillSlot, int targetId, out Vec3 position, out float attackRange,
+            out float skillRange, out int resolvedTargetId, out float distance) =>
+            _query.TryReadRanges(skillSlot, targetId, out position, out attackRange, out skillRange,
+                out resolvedTargetId, out distance);
+
+        /// <summary>
+        /// 将当前主控英雄的调试等级提高一级。
+        /// </summary>
+        public bool TryIncreaseHeroLevel(out string message) => _commands.TryIncreaseHeroLevel(out message);
+
+        /// <summary>
+        /// 将当前主控英雄的调试等级重置为一级。
+        /// </summary>
+        public bool TryResetHeroLevel(out string message) => _commands.TryResetHeroLevel(out message);
+
         public bool TryToggleEnemyAi(out string message) => _commands.TryToggleEnemyAi(out message);
         public bool TryReplaceHero(int heroId, out string message) => _commands.TryReplaceHero(heroId, out message);
         public bool TrySpawnAlly(out string message) => _commands.TrySpawnAlly(out message);
         public bool TrySpawnEnemy(out string message) => _commands.TrySpawnEnemy(out message);
+    }
+
+    /// <summary>
+    /// 仅在本地训练 HUD 中使用的读数：累计已发布的伤害事件，读取既有施法诊断。
+    /// </summary>
+    internal sealed class BattleTrainingReadout : IDisposable
+    {
+        private BattleContext _context;
+        private IEventBus _eventBus;
+        private IDisposable _damageSubscription;
+        private int _actorId;
+        private int _entityVersion;
+        private int _targetId;
+        private int _firstFrame;
+        private long _failureSequence;
+        private long _lastRevision = -1;
+
+        internal float LastHit { get; private set; }
+        internal double TotalDamage { get; private set; }
+        internal int HitCount { get; private set; }
+        internal string FailureText { get; private set; }
+
+        internal void Bind(BattleContext context)
+        {
+            IWorld world = null;
+            IEventBus eventBus = null;
+            if (context != null && context.TryGetRuntimeWorld(out world))
+                world.Services.TryResolve(out eventBus);
+            var actorId = context?.LocalActorId ?? 0;
+            var version = context?.GetActorEntityVersion(actorId) ?? 0;
+            if (!ReferenceEquals(context, _context) || !ReferenceEquals(eventBus, _eventBus))
+            {
+                _damageSubscription?.Dispose();
+                _context = context;
+                _eventBus = eventBus;
+                _damageSubscription = eventBus?.Subscribe(
+                    new EventKey<MobaHealthChangeResult>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.HealthCommitted)),
+                    AddDamage);
+                _actorId = 0;
+                _entityVersion = 0;
+                _targetId = 0;
+                ResetDamage();
+            }
+            if (_actorId != actorId || _entityVersion != version)
+            {
+                _actorId = actorId;
+                _entityVersion = version;
+                _firstFrame = (context?.LastFrame ?? 0);
+                _failureSequence = 0;
+                _lastRevision = -1;
+                FailureText = null;
+                ResetDamage();
+                if (world != null && world.Services.TryResolve<IMobaBattleDiagnosticCaptureControl>(out var control))
+                    _failureSequence = control.LastSequence;
+            }
+            if (context == null) FailureText = null;
+        }
+
+        internal void SetTarget(int targetId)
+        {
+            if (_targetId == targetId) return;
+            _targetId = targetId;
+            ResetDamage();
+        }
+
+        internal void ResetDamage()
+        {
+            LastHit = 0;
+            TotalDamage = 0;
+            HitCount = 0;
+        }
+
+        private void AddDamage(MobaHealthChangeResult result)
+        {
+            if (_actorId <= 0 || result.SourceActorId != _actorId || result.Kind != MobaHealthChangeKind.Damage ||
+                (_targetId > 0 && result.TargetActorId != _targetId) || !(result.AppliedValue > 0) ||
+                float.IsInfinity(result.AppliedValue)) return;
+            LastHit = result.AppliedValue;
+            TotalDamage += result.AppliedValue;
+            HitCount++;
+        }
+
+        internal void RefreshFailure()
+        {
+            if (_actorId <= 0 || _context == null || !_context.TryGetRuntimeWorld(out var world) ||
+                !world.Services.TryResolve<IBattleDiagnosticEventReadStore>(out var store)) return;
+            var revision = store.Revision;
+            if (revision == _lastRevision) return;
+            _lastRevision = revision;
+            var filter = new BattleDiagnosticFilter(new BattleDiagnosticFrameFilter(_firstFrame, int.MaxValue),
+                BattleDiagnosticEventChannel.Skill, _actorId, BattleDiagnosticActorRelation.Source,
+                failuresOnly: true, searchText: nameof(BattleDiagnosticEventKind.SkillFailure));
+            var query = new BattleDiagnosticEventQuery(1, filter,
+                new BattleDiagnosticPageRequest(revision, 0, 1), newestFirst: true);
+            var events = store.Query(query).Items;
+            if (events == null || events.Count == 0 || events[0].Sequence <= _failureSequence ||
+                !events[0].Payload.TryGetSkillFailure(out var failure)) return;
+            var failedEvent = events[0];
+            _failureSequence = failedEvent.Sequence;
+            var detail = FormatFailure(ReadEconomyRejection(store, revision, in failedEvent) ?? failure.Message,
+                failure.Code);
+            var source = failure.Slot > 0 ? $"槽 {failure.Slot}" : "技能";
+            FailureText = $"{source} · {detail}（帧 {failedEvent.Frame}）";
+        }
+
+        private static string ReadEconomyRejection(IBattleDiagnosticEventReadStore store, long revision,
+            in BattleDiagnosticEvent failedEvent)
+        {
+            if (!failedEvent.SkillRuntime.IsValid) return null;
+            var filter = new BattleDiagnosticFilter(new BattleDiagnosticFrameFilter(failedEvent.Frame, failedEvent.Frame),
+                BattleDiagnosticEventChannel.Skill, failedEvent.SourceActorId, BattleDiagnosticActorRelation.Source,
+                skillRuntimeId: failedEvent.SkillRuntime.RuntimeId, failuresOnly: true,
+                searchText: nameof(BattleDiagnosticSkillExecutionStage.EconomyRejected));
+            var query = new BattleDiagnosticEventQuery(1, filter,
+                new BattleDiagnosticPageRequest(revision, 0, 1), newestFirst: true);
+            var events = store.Query(query).Items;
+            if (events == null || events.Count == 0) return null;
+            var rejection = events[0];
+            return rejection.Kind == BattleDiagnosticEventKind.SkillEconomy &&
+                   rejection.SkillRuntime.Equals(failedEvent.SkillRuntime) && rejection.Sequence < failedEvent.Sequence &&
+                   rejection.Payload.TryGetSkillExecution(out var execution) &&
+                   execution.Stage == BattleDiagnosticSkillExecutionStage.EconomyRejected &&
+                   !string.IsNullOrWhiteSpace(execution.Detail) ? execution.Detail : null;
+        }
+
+        private static string FormatFailure(string detail, string code)
+        {
+            if (detail.IndexOf("within cast range", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "范围内没有有效目标";
+            if (detail.IndexOf("resource", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                detail.IndexOf("insufficient", StringComparison.OrdinalIgnoreCase) >= 0) return "资源不足";
+            if (detail.IndexOf("no available charges", StringComparison.OrdinalIgnoreCase) >= 0) return "充能不足";
+            if (detail.IndexOf("cooling down", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                detail.IndexOf("cooldown", StringComparison.OrdinalIgnoreCase) >= 0) return $"冷却中：{detail}";
+            return string.IsNullOrWhiteSpace(detail) ? code : detail;
+        }
+
+        /// <summary>
+        /// 解绑当前战斗事件，不保留跨会话读数。
+        /// </summary>
+        public void Dispose() => Bind(null);
     }
 }

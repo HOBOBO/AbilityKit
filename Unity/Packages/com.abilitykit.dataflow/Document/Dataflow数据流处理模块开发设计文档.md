@@ -1,10 +1,13 @@
 # Ability-Kit Dataflow：处理器链、异形结果传递与执行边界
 
+> 文档类型：包内局部设计分析
+> 核校状态：2026-11-25 部分核校；首次接入与公开操作契约见[使用指南](../Documentation~/Usage.md)。下述内部分析和原测试数字保留其历史含义，本次运行结果由仓库 D4 记录持有。
+>
 > **阅读对象**：需要编写战斗计算、规则校验、数值修正或可组合处理流程的框架开发者。
 >
 > **文档目标**：以当前源码为准，说明处理器链、上下文槽位、同形/异形输入输出、结果状态和实例所有权；同时区分已实现能力、Samples 采用与尚未建立的测试证据。
 >
-> **当前成熟度：Runtime 局部 E3（契约测试）**。Dataflow 有 Unity package 与 .NET 镜像，`AbilityKit.Combat.Damage` 基于它实现伤害管线，`AbilityKit.Samples.Logic` 有两个真实调用；`AbilityKit.Dataflow.Tests` 的 `20/20` 与 `AbilityKit.Combat.Damage.Tests` 的 `5/5` 已覆盖本轮关键运行时契约。该结论不外推为 Unity 场景、生产主链路、性能预算或发布门禁。
+> **当前成熟度：Runtime 局部 E3（契约测试）**。Dataflow 有 Unity package 与 .NET 镜像，`AbilityKit.Combat.Damage` 基于它实现伤害管线，`AbilityKit.Samples.Logic` 有两个真实调用；`AbilityKit.Dataflow.Tests` 的 `20/20` 与 `AbilityKit.Combat.Damage.Tests` 的 `5/5` 在该次验证中覆盖关键运行时契约。该结论不外推为 Unity 场景、生产主链路、性能预算或发布门禁。
 
 ---
 

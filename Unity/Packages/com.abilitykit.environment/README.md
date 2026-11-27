@@ -24,7 +24,7 @@
 - **组间叠加**：不同关注点各自贡献一个取值。
 - **常用组是压缩快捷方式，原语是未压缩的真相**：`unit-class: jungle` 经 `IEnvironmentGroupExpander` 展开成原语，
   而 `Primitives` 里的显式原语是直接写死的具体构造（某只怪 HP 特别调、某堵墙的尺寸）。两者都是数据，binder 只认原语。
-- Profile 可继承 `BaseProfileId`，派生取值覆盖基础。
+- Profile 可通过 `BaseProfileId` 继承：派生的关注点取值和参数覆盖基础；显式原语按基础到派生顺序追加，不按别名覆盖。常用组只展开合并后的选择，展开结果追加到显式原语之后。
 
 ## 最小用法
 
@@ -38,7 +38,7 @@ var catalog = new EnvironmentProfileCatalog()
         Selections = new Dictionary<string, string> { ["unit-class"] = "jungle", ["geometry"] = "walled" },
         Primitives = new EnvironmentPrimitive[]
         {
-            // 显式覆盖：单独把某只怪的血调高
+            // 追加一个有独立别名和血量的实体
             new SpawnPrimitive { EntityKind = "jungle_elite", Alias = "elite", Components = new Dictionary<string,string>{ ["hp"]="5000" } },
         },
     });

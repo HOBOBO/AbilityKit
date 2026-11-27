@@ -5,6 +5,7 @@ AbilityKit 整体仍处于开发期，0.x 版本不承诺向后兼容；重大�
 
 ## [Unreleased]
 
+- `AbilityKit.Record` 不再直接引用 Unity 引擎；同包的 Unity 专用程序集自动装配相对文件路径策略，保留原有目录及格式。提前使用相对路径的调用方见[录制文件路径](Documentation~/Usage.md#录制文件路径)。包清单显式声明 Newtonsoft JSON 依赖。
 - `CanonicalStateDiffAnalyzer` 和同文件的规范状态 DTO、枚举从 `AbilityKit.Core.Recording.FrameRecord` 迁至 `AbilityKit.Record.FrameRecord`，不保留旧类型名。升级时更新这些类型的命名空间并重新编译；仍使用其他旧帧记录 API 的调用方可同时导入两者。JSON 字段、枚举值、格式版本和差异分析行为不变。
 
 ## [0.1.0] — 2026-07-31 — Beta

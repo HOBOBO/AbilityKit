@@ -43,6 +43,33 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void TrainingMana_KeepsCostAndRefundIndependentOfCooldown()
+        {
+            using var scope = new EconomyTestScope();
+            scope.Mana.Current = Fixed64.Zero;
+            var actorId = EconomyTestScope.ActorId;
+            var controlledActorId = actorId;
+            scope.Economy.SetLocalTraining(actorId, () => controlledActorId, false, true);
+            var cast = scope.CreateCast(1, EconomyTestScope.SkillOneId);
+            Assert.That(scope.Economy.TryReserve(cast, scope.Reservation(cooldownGroup: "training",
+                sharedCooldownMs: 400, globalCooldownMs: 200), out var failure), Is.True, failure);
+            Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.Zero));
+            var handle = cast.RuntimeHandle;
+            Assert.That(scope.Economy.Commit(in handle), Is.True);
+            Assert.That(scope.SkillOne.CooldownEndTimeMs, Is.EqualTo(500));
+            Assert.That(scope.Economy.GetCooldownGroupEndTimeMs(actorId, "training"), Is.EqualTo(400));
+            Assert.That(scope.Economy.GetGlobalCooldownEndTimeMs(actorId), Is.EqualTo(200));
+
+            controlledActorId = actorId + 1;
+            Assert.That(scope.Economy.IsTrainingInfiniteMana(actorId), Is.False);
+            scope.Economy.SetLocalTraining(actorId, () => actorId, false, false);
+            scope.Time.TimeSeconds = 1f;
+            var next = scope.CreateCast(2, EconomyTestScope.SkillTwoId);
+            Assert.That(scope.Economy.TryReserve(next, scope.Reservation(), out failure), Is.False);
+            Assert.That(failure, Does.Contain("Insufficient skill resource"));
+        }
+
+        [Test]
         public void SkillSnapshotCodec_RoundTripsChargeAndActorCooldownFields()
         {
             var source = new MobaSkillStateSnapshotEntry

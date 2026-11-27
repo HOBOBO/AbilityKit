@@ -131,6 +131,43 @@ public sealed class MobaBrainSkillSelectionPolicyTests
             decision.Blackboard.GetInt64(MobaBTreeKeys.SkillType));
     }
 
+    [Theory]
+    [InlineData(false, false, 1001L, 8f)]
+    [InlineData(true, false, 1002L, 3f)]
+    [InlineData(true, true, 0L, 8f)]
+    public void Zero_range_skill_does_not_override_combat_candidate_or_stop_range(
+        bool activeCoolingDown, bool attackCoolingDown, long expectedSkillId, float expectedApproachRange)
+    {
+        var actor = new ActorContext().CreateEntity();
+        actor.AddActorId(1);
+        actor.AddSkillLoadout(0, new[]
+        {
+            new ActiveSkillRuntime { SkillId = 1003 },
+            new ActiveSkillRuntime { SkillId = 1001, CooldownEndTimeMs = activeCoolingDown ? 10000L : 0L },
+            new ActiveSkillRuntime { SkillId = 1002, CooldownEndTimeMs = attackCoolingDown ? 10000L : 0L },
+        }, Array.Empty<PassiveSkillRuntime>());
+
+        var registry = new MobaActorRegistry();
+        registry.Register(1, actor);
+        var decision = MobaBTreeDecision.Create(CreateSelectReadySkillTreeJson(), registry,
+            CreateConfigDatabaseWithAttackAndActiveSkills());
+        Assert.NotNull(decision);
+
+        var manager = new BehaviorManager();
+        manager.CreateBehavior(new BehaviorCreateConfig
+        {
+            BehaviorKind = "test",
+            OwnerId = new BehaviorEntityId(1),
+            Decision = decision,
+            World = new DefaultWorldQuery(),
+        });
+        manager.Tick(0.016f, frame: 1);
+
+        Assert.Equal(expectedSkillId > 0, decision.Blackboard.GetBool(MobaBTreeKeys.SkillValid));
+        Assert.Equal(expectedSkillId, decision.Blackboard.GetInt64(MobaBTreeKeys.SkillId));
+        Assert.Equal(expectedApproachRange, decision.Blackboard.GetFixed64(MobaBTreeKeys.SkillApproachRange).ToSingle());
+    }
+
     [Fact]
     public void Normal_attack_filter_does_not_use_other_skill_range_for_approach_fallback()
     {
@@ -262,6 +299,14 @@ public sealed class MobaBrainSkillSelectionPolicyTests
                         Name = "normal_attack",
                         Range = 3,
                         SkillType = (int)moba_luban.SkillType.NormalAttack,
+                        Tags = Array.Empty<int>(),
+                    },
+                    new SkillDTO
+                    {
+                        Id = 1003,
+                        Name = "self_skill_without_combat_range",
+                        Range = 0,
+                        SkillType = (int)moba_luban.SkillType.Active,
                         Tags = Array.Empty<int>(),
                     },
                 },

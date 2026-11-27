@@ -1,6 +1,7 @@
 using AbilityKit.Ability.Behavior;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Combat.MotionSystem.Generic;
 using AbilityKit.Combat.Navigation;
 using AbilityKit.Core.Mathematics;
@@ -23,7 +24,8 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
     /// 通过 <see cref="INavigationService"/> 规划路径并喂入移动管线，由 policy（Path 抑制 Locomotion）接管移动。
     ///
     /// 与 <see cref="MobaBrainOutputApplySystem"/> 的直线 <c>MoveInput</c> 互为兜底：
-    /// - 导航世界可用且能规划路径：本系统驱动 Path 源，policy 抑制 Locomotion。
+    /// - 所有者跟随成功挂接路径后，仅 Path 源贡献位移；无路径时由直线兜底。
+    /// - 其他目标位置意图沿用原有管线策略。
     /// - 导航不可用或寻路失败：本系统不挂源，BrainOutputApply 的直线 MoveInput 驱动移动（旧行为）。
     ///
     /// Path 运行数据由业务服务持有；本系统只在正式帧中执行导航与来源更新。
@@ -50,7 +52,9 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
         private MobaPathFollowingRuntimeService _pathRuntime;
+        private MobaLocomotionRuntimeService _locomotion;
         private MobaActorRegistry _actors;
+        private IWorldClock _clock;
 
         /// <summary>
         /// 使用当前世界的组件上下文和服务建立正式路径规划系统。
@@ -70,7 +74,9 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
             Services.TryResolve(out _navigation);
             Services.TryResolve(out _navDebug);
             _pathRuntime = Services.Resolve<MobaPathFollowingRuntimeService>();
+            Services.TryResolve(out _locomotion);
             _actors = Services.Resolve<MobaActorRegistry>();
+            Services.TryResolve(out _clock);
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.ActorBrain,
@@ -136,7 +142,11 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                 var target = intent.MoveTarget;
                 var ownerPos = e.transform.Value.Position;
                 var speed = new MobaAttrs(e).MoveSpeed;
-                if (speed <= 0f || DistanceXZSquared(in ownerPos, in target) <= intent.MoveStopRange * intent.MoveStopRange)
+                var followLimit = intent.FollowsOwner
+                    ? MobaOwnerFollowMovement.ResolveSpeed(e, _actors, in intent, speed, _clock?.DeltaTime ?? 0f)
+                    : float.PositiveInfinity;
+                if (speed <= 0f || followLimit <= 0f || (!intent.FollowsOwner &&
+                    DistanceXZSquared(in ownerPos, in target) <= intent.MoveStopRange * intent.MoveStopRange))
                 {
                     CancelPath(actorId);
                     continue;
@@ -152,6 +162,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
 
                 if (!needRepath)
                 {
+                    ApplyFollowLimit(e, version, state.Source, followLimit);
                     data.FramesSinceRepath++;
                     continue;
                 }
@@ -167,6 +178,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                     if (path.HasPath)
                     {
                         _pathRuntime.Attach(state, path.Waypoints, speed, ArriveEpsilon, PathPriority);
+                        ApplyFollowLimit(e, version, state.Source, followLimit);
                     }
                     else
                     {
@@ -180,6 +192,14 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
 
             _pathRuntime.EndFrame();
             _pathRuntime.ProjectDebugState(_navDebug);
+        }
+
+        private void ApplyFollowLimit(global::ActorEntity actor, int version, PathFollowerMotionSource source, float limit)
+        {
+            source.LimitNextTickSpeed(limit);
+            if (!float.IsPositiveInfinity(limit) && source.IsActive && _locomotion != null &&
+                _locomotion.TryGetBinding(actor.actorId.Value, actor, version, actor.motion.Pipeline, out var fallback))
+                fallback.SetInput(0f, 0f);
         }
 
         private void CancelPath(int actorId)

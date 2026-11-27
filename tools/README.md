@@ -63,6 +63,8 @@
 
 | 脚本 | 用途 |
 |------|------|
+| [`run_moba_training_rollout.py`](run_moba_training_rollout.py) | 纯 .NET MOBA 1v1 的 Python 采样，见下方训练管道 |
+| [`train_moba_policy.py`](train_moba_policy.py) | 训练轻量策略选择器，并在留出对局对照随机和脚本策略 |
 | [`run_moba_unity_headless_multiplayer.ps1`](run_moba_unity_headless_multiplayer.ps1) | MOBA Unity 无头双实例冒烟，不替代 `moba-smoke` / `moba-multiprocess` 的服务端验证 |
 | [`run_moba_skill_analysis.ps1`](run_moba_skill_analysis.ps1) | MOBA 技能分析报告 |
 | [`validate_moba_codegen_ownership.ps1`](validate_moba_codegen_ownership.ps1) | MOBA 代码生成归属校验 |
@@ -76,6 +78,87 @@
 | [`new_moba_hero_manifest.ps1`](new_moba_hero_manifest.ps1) | 新建 MOBA 英雄清单 |
 | [`moba-content-dependency-contract.json`](moba-content-dependency-contract.json) | 声明 MOBA 配置表、静态引用、外部引用 authority 与资源质量规则 |
 | [`moba-content-graph.schema.json`](moba-content-graph.schema.json) / [`moba-content-diagnostics.schema.json`](moba-content-diagnostics.schema.json) | 通用分析数据的 JSON Schema；查看器和 Unity DTO 以此为边界 |
+
+#### MOBA 训练管道
+
+从仓库根运行；使用 .NET 10 SDK 和 Python 3，不需要 Unity 或 Python 第三方包。先构建现有 Console 项目，再运行采样脚本：
+
+```powershell
+$run = New-Item -ItemType Directory -Force "local/Logs/moba-training/$(Get-Date -Format yyyyMMdd-HHmmss)"
+dotnet build src/AbilityKit.Demo.Moba.Console/AbilityKit.Demo.Moba.Console.csproj *> "$($run.FullName)/build.log"
+if ($LASTEXITCODE -ne 0) { throw "Console build failed; see $($run.FullName)/build.log" }
+python -X utf8 tools/run_moba_training_rollout.py `
+  --console-dll src/AbilityKit.Demo.Moba.Console/bin/Debug/net10.0/AbilityKit.Demo.Moba.Console.dll `
+  --output "$($run.FullName)/rollout.ndjson" --server-log "$($run.FullName)/console.log"
+```
+
+默认对手使用现有规则 AI；可用 `--match-config` 换成本地 Lockstep 1v1 配置。脚本以一个 Console 进程串行处理 `--seeds`，每局最多 `--steps` 帧，默认策略尝试施放 `--skill-slot`。NDJSON 每行包含观察、**客户端提交的动作**、奖励和下一帧观察；奖励是 `己方 HP 比例 − 敌方 HP 比例` 的单步变化，仅在 Python 端计算。轨迹不包含对手 AI 的动作标签，也不执行模型训练。
+
+训练端可复用脚本中的 `MobaTrainingClient`，或直接启动 Console 的 `--training-stdio [match.json]`。管道按行交换 UTF-8 JSON，stdout 只输出回复，stderr 是宿主日志：
+
+| 请求 | 结果 |
+| --- | --- |
+| `{"op":"reset","seed":101,"maxSteps":150}` | 重建世界，返回帧 0 的 `observation` |
+| `{"op":"step","action":{"move":{"x":0,"z":0}}}` | 发送移动输入并固定推进 1 帧；省略 `move` 表示不发送新移动命令 |
+| `{"op":"step","action":{"skill":{"slot":1,"phase":"press","targetActorId":2,"aimPosition":{"x":7,"y":0,"z":1}}}}` | 发送技能输入；目标 ID 从当前观察取得，也可省略；`phase` 还支持 `hold`、`release`、`cancel` |
+| `{"op":"close"}` | 结束进程并释放对局 |
+
+回复包含 `version: 1` 和 `ok`。请求错误返回 `error.code` 和 `error.message`；帧观察包含 `terminated`（战斗结束）和 `truncated`（达到步数上限），任何一个为真后需重新 `reset`。
+
+#### MOBA 小型策略实验
+
+构建同一份 Console 后运行（`--output-dir` 必须尚不存在）：
+
+```powershell
+python -B -X utf8 tools/train_moba_policy.py `
+  --console-dll src/AbilityKit.Demo.Moba.Console/bin/Debug/net10.0/AbilityKit.Demo.Moba.Console.dll `
+  --output-dir "local/Logs/moba-training/$(Get-Date -Format yyyyMMdd-HHmmss)-policy"
+```
+
+选择器按初始距离分成近、远两类，各自比较原脚本、接近、后撤、横移四种候选策略在训练对局的平均回报，保存每类得分最高的策略。留出组同时使用未参与训练的初始站位和种子，模型在评估前冻结。随机基线枚举每局开局均匀选取四种候选策略的期望得分，不是逐帧随机；原脚本只尝试施法。奖励和普通采样一致。
+
+`policy.json` 保存策略与训练得分，`training.json` 和 `evaluation.json` 保存每局结果。评估报告 v2 同时提供整体（`metrics`）和近、远分组（`metricsByContext`）的均值：`HpLost` 是首尾净掉血，`NetHpLossRatio` 是首尾 HP 比例之差；`ObservedHpDropRatio` / `ObservedHpRecoveryRatio` 分别累加相邻帧 HP 下降 / 上升，再除以该方开局最大 HP。后两项可能超过 100%，只反映可见 HP 变化，不是伤害、治疗或命中事件；同一帧内相抵的变化不可见。
+
+`pairedVsScripted` 按同一留出站位和种子比较训练策略和原脚本，分别统计敌方可见掉血是否增加、己方可见掉血是否减少，两项差值均以正值为改善。总奖励提高不等于输出提高。该实验只验证训练评估闭环，不代表训练了神经网络，也不衡量跨英雄或地图的泛化。
+
+#### MOBA 扩展对照实验
+
+在同一脚本上加 `--suite expanded`，默认的 `classic` 不变：
+
+```powershell
+$run = New-Item -ItemType Directory "local/Logs/moba-training/$(Get-Date -Format yyyyMMdd-HHmmss)-expanded"
+python -B -X utf8 tools/train_moba_policy.py --suite expanded `
+  --console-dll src/AbilityKit.Demo.Moba.Console/bin/Debug/net10.0/AbilityKit.Demo.Moba.Console.dll `
+  --output-dir "$($run.FullName)/experiment" *> "$($run.FullName)/experiment.log"
+```
+
+- 训练和留出评估各用两组近距离、两组远距离站位，评估用不同坐标与种子。规则 AI 不变；训练对手是古拉加斯、卡尔萨斯，评估另加入未参与训练的拉克丝。默认玩家、技能槽和奖励不变，随机基线仍均匀选择原有四个候选。
+- 新增 `approach-in-range`，与 `approach` 使用同一移动决策；只在目标距离不超过 Console 随包 Luban 技能表的 `Range` 时，才提交原有的施法输入。这个距离只用于实验策略，不是技能命中或可释放性的保证。
+- 扩展评估报告 v3 用 `scenarioId` 和种子配对；`metricsByOpponent` 分对手汇总，`castTimingAblation` 对比两种接近策略。每局记录首次提交的帧与距离、总技能提交数和超距提交数；这些都是客户端输入，不代表引擎接受施法或命中。留出对手的结果单独看，不作为跨英雄泛化的结论。
+
+#### MOBA 离线奖励权重对照
+
+用同一份 Console 和配置复用 `expanded` 运行目录中的 `training.json`、`policy.json`，不读取旧评估结果。`--steps` 和 `--skill-slot` 必须与训练批次一致：
+
+```powershell
+$training = 'local/Logs/moba-training/<expanded-run>/experiment'
+$run = New-Item -ItemType Directory "local/Logs/moba-training/$(Get-Date -Format yyyyMMdd-HHmmss)-reward-sweep"
+python -B -X utf8 tools/train_moba_policy.py --suite reward-sweep --training-run $training `
+  --console-dll src/AbilityKit.Demo.Moba.Console/bin/Debug/net10.0/AbilityKit.Demo.Moba.Console.dll `
+  --output-dir "$($run.FullName)/experiment" *> "$($run.FullName)/experiment.log"
+```
+
+- 离线按 `输出权重 × 敌方净 HP 比例损失 − 己方净 HP 比例损失` 对同一组候选重新评分，比较 `1.0 / 1.5 / 2.0 / 4.0`。`1.0` 是现行奖励；本实验不改变其他模式的奖励。
+- 用新站位和种子在古拉加斯、卡尔萨斯对局中选择权重：相对 `1.0`，敌方平均可见掉血至少多 1 个百分点，且每个站位与对手组合的己方平均可见掉血最多多 3 个百分点。选择输出增益最大的合格权重，同分取较低权重；没有合格项就保留 `1.0`。
+- 写入 `selection.json` 后才跑另一组站位和种子，加入未参与训练或选权重的拉克丝，只复核选定策略和 `1.0`，不再调参。同一场景、种子和策略相同则复用真实采样，不把重复计分当作独立对局。`reward-sweep.json` 记录训练样本哈希、去重后的策略数和两阶段结果。
+
+要比较主动进攻，在同一命令加 `--include-offense`。它在既有训练站位和种子上补采 `basic-attack`（只普攻）与 `skill-basic-attack`（射程内技能就绪时优先尝试技能，否则尝试射程内普攻）。两者都只接近到普攻距离；普攻 ID 和距离取自随包配置，槽位由开局观测按 ID 解析，通过原有 `skill` 输入提交。客户端只判断观察到的冷却和配置距离，不判断能否实际释放或命中。
+
+开启后，同一套七个候选用于 `1.0` 和其余权重，验证和留出用不同于上一批的新站位与种子。补采记录在 `offense-training.json`；每局 `basicAttackSubmissions` 是普攻输入数，计入 `skillSubmissions` 总数。报告额外列出两种距离上下文的各候选训练均值。不加此参数时，候选和验证设置均保持不变。
+
+再加 `--include-kiting` 可测试横移走 A（`kite-strafe`）和后撤走 A（`kite-retreat`）。两者都沿用技能优先、射程内补普攻；提交攻击时停步，未提交时在普攻范围外接近，范围内分别横移或在低于普攻距离的 85% 时后撤。`inRangeKitingMoveFrames` 记录未提交攻击、又在普攻范围内发送移动的帧数。该模式使用新验证和留出设置；完整跑通时 `kitingVsStationary` 直接比较走 A 与不走位的技能／普攻轮换，不影响选权重规则。
+
+当前 Console 的完整走 A 扫描可能因投射物退出触发伤害时缺失 `ResourceContainer` 而停止。失败局不会按正常结束或步数截断计分，也不会据此生成选权重结果。不启用 `--include-kiting` 的模式不受该实验改动影响。
 
 ## 文档与导出工具
 

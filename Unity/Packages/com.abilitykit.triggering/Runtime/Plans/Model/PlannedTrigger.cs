@@ -4,10 +4,7 @@ using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
-using AbilityKit.Triggering.Runtime.ActionScheduler;
 using AbilityKit.Triggering.Runtime.Config;
-using AbilityKit.Triggering.Runtime.Dispatcher;
-using RuntimeActionScheduler = AbilityKit.Triggering.Runtime.ActionScheduler.ActionScheduler;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
@@ -25,6 +22,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             in ExecCtx<TCtx> ctx);
 
         private readonly PlannedTriggerActionExecutor<TArgs, TCtx> _actionExecutor;
+        private object _scheduleOwner;
 
         /// <inheritdoc />
         public ITriggerCue Cue => _plan.Cue;
@@ -43,18 +41,14 @@ namespace AbilityKit.Triggering.Runtime.Plan
             _executionRoot = executionRoot;
             _actionExecutor = new PlannedTriggerActionExecutor<TArgs, TCtx>(in plan);
             _resolved = false;
-            _execCtx = default;
         }
 
         private readonly TriggerPlan<TArgs> _plan;
         private readonly ExecutionRootDelegate _executionRoot;
         private bool _resolved;
-        private ExecCtx<TCtx> _execCtx;
         private int _executionCount;
         private float _lastExecutionTimeMs;
         private bool _hasLastExecutionTime;
-
-        private ExecCtx<TCtx> ExecCtx => _execCtx;
 
         public bool Evaluate(in TArgs args, in ExecCtx<TCtx> ctx)
         {
@@ -65,7 +59,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// 执行计划的有效分支；执行根优先于扁平动作列表。
         /// 执行根一旦调用即记一次执行资格尝试；正常返回时不按返回状态区分自动优先级中断。
         /// </summary>
-        /// <exception cref="InvalidOperationException">扁平动作需要调度而上下文未提供管理器；不会执行部分动作。</exception>
+        /// <exception cref="InvalidOperationException">
+        /// 扁平动作缺少登记实现，或分组无法取得；不会执行部分动作。
+        /// </exception>
         public void Execute(in TArgs args, in ExecCtx<TCtx> ctx)
         {
             var actions = _plan.Actions;
@@ -73,10 +69,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
             var hasActions = hasExecutionRoot || (actions != null && actions.Length > 0);
             var shouldExecute = hasActions && CanExecuteByControl(in ctx);
             var firstScheduledAction = shouldExecute && !hasExecutionRoot ? FindFirstScheduledAction(actions) : -1;
-            if (firstScheduledAction >= 0 && ctx.ActionSchedulerManager == null)
+            if (firstScheduledAction >= 0 && ctx.FlatActionScheduler == null)
                 throw MissingScheduler(in _plan, firstScheduledAction);
 
-            _execCtx = ctx;
             if (!shouldExecute) return;
 
             if (hasExecutionRoot)
@@ -132,7 +127,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         {
             var mode = plan.Actions[actionIndex].Schedule.Mode;
             return new InvalidOperationException(
-                $"TriggerId={plan.TriggerId}, Actions[{actionIndex}], Mode={mode}：非即时扁平动作需要宿主显式装配并推进 ActionSchedulerManager。");
+                $"TriggerId={plan.TriggerId}, Actions[{actionIndex}], Mode={mode}：非即时扁平动作需要宿主显式装配并推进 IFlatActionScheduler 实现。");
         }
 
         private static bool IsScheduledAction(in ActionCallPlan call)
@@ -142,8 +137,11 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         private void ExecuteMixedActions(in TArgs args, in ExecCtx<TCtx> ctx, ActionCallPlan[] actions)
         {
-            var actionScheduler = ctx.ActionSchedulerManager.GetOrCreateScheduler(_plan.TriggerId);
+            var group = ctx.FlatActionScheduler.BindPlan(_plan.TriggerId, _scheduleOwner ??= new object(), actions);
+            if (group == null)
+                throw new InvalidOperationException($"TriggerId={_plan.TriggerId} 的扁平动作调度实现没有返回登记分组。");
             var control = ctx.Control ?? new ExecutionControl();
+            var registrationContext = ctx;
 
             try
             {
@@ -152,7 +150,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     var call = actions[i];
                     if (IsScheduledAction(in call))
                     {
-                        RegisterScheduledAction(actionScheduler, call, i, in args);
+                        group.RegisterOrReplace(
+                            i,
+                            in call,
+                            _actionExecutor.CreateActionDelegate(i, in registrationContext),
+                            PlannedTriggerPredicateEvaluator<TArgs, TCtx>.CreateConditionDelegate(in _plan, in registrationContext),
+                            args);
                     }
                     else
                     {
@@ -171,20 +174,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
 
             ApplyInterruptControl(control);
-        }
-
-        /// <summary>
-        /// 将单个 Action 计划注册到触发器级调度器，并按计划索引替换旧实例。
-        /// </summary>
-        private void RegisterScheduledAction(RuntimeActionScheduler actionScheduler, ActionCallPlan call, int planIndex, in TArgs args)
-        {
-            PlannedTriggerScheduleRegistrar.RegisterOrReplace(
-                actionScheduler,
-                in call,
-                planIndex,
-                in args,
-                CreateActionDelegate,
-                CreateConditionDelegate());
         }
 
         /// <summary>
@@ -258,23 +247,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
             _executionCount++;
             _lastExecutionTimeMs = ctx.Policy.TotalTimeMs;
             _hasLastExecutionTime = true;
-        }
-
-        /// <summary>
-        /// 创建 Action 委托适配器。
-        /// 调度器执行时复用立即执行路径中的单 Action 解析与调用逻辑，避免调度路径维护另一套参数解析分支。
-        /// </summary>
-        private Action<object, ITriggerDispatcherContext> CreateActionDelegate(int index)
-        {
-            return _actionExecutor.CreateActionDelegate(index, () => ExecCtx);
-        }
-
-        /// <summary>
-        /// 创建条件委托（如果 TriggerPlan 包含 Predicate）
-        /// </summary>
-        private TriggerPredicate<object> CreateConditionDelegate()
-        {
-            return PlannedTriggerPredicateEvaluator<TArgs, TCtx>.CreateConditionDelegate(in _plan, in _execCtx);
         }
 
         private void Resolve(in ExecCtx<TCtx> ctx)

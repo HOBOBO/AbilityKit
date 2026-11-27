@@ -5,6 +5,68 @@ using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Game.Editor
 {
+    internal sealed class BattleDebugTraceTimelineEvents
+    {
+        private const int PageSize = 200;
+        private IBattleDiagnosticReadOnlySession _session;
+        private BattleDiagnosticSessionScope _scope;
+        private long _rootId;
+        private long _revision;
+        private long _requestId;
+        private BattleDiagnosticQueryResult<BattleDiagnosticEvent> _result;
+
+        internal IReadOnlyList<BattleDiagnosticEvent> Items => _result.Status.CanDisplayResults
+            ? _result.Items : Array.Empty<BattleDiagnosticEvent>();
+        internal BattleDiagnosticQueryStatus Status => _result.Status;
+
+        internal void Refresh(IBattleDiagnosticReadOnlySession session, long rootId)
+        {
+            if (session == null || rootId <= 0)
+            {
+                Clear();
+                return;
+            }
+
+            var scope = session.SessionInfo.Scope;
+            var revision = session.EventStoreRevision;
+            if (ReferenceEquals(_session, session) && _scope == scope && _rootId == rootId && _revision == revision)
+                return;
+
+            _session = session;
+            _scope = scope;
+            _rootId = rootId;
+            _revision = revision;
+            var requestId = ++_requestId;
+            var frames = new BattleDiagnosticFrameFilter(BattleDiagnosticFrames.Invalid, BattleDiagnosticFrames.Invalid);
+            _result = session.SessionInfo.Supports(BattleDiagnosticCapabilities.Events)
+                ? session.QueryEvents(new BattleDiagnosticEventQuery(requestId,
+                    new BattleDiagnosticFilter(frames, BattleDiagnosticEventChannel.All, rootContextId: rootId),
+                    new BattleDiagnosticPageRequest(revision, 0, PageSize)))
+                : BattleDiagnosticQueryResult<BattleDiagnosticEvent>.Unavailable(requestId, revision,
+                    BattleDiagnosticDataAvailability.Unsupported);
+        }
+
+        internal void Clear()
+        {
+            _session = null;
+            _result = default;
+        }
+    }
+
+    internal static class BattleDebugTraceObjectSpan
+    {
+        internal static bool TryProject(int createdFrame, int destroyedFrame, int backfilledFrame,
+            out int start, out int end, out bool point)
+        {
+            var hasStart = BattleDiagnosticFrames.IsValid(createdFrame);
+            var hasEnd = BattleDiagnosticFrames.IsValid(destroyedFrame);
+            start = hasStart ? createdFrame : hasEnd ? destroyedFrame : backfilledFrame;
+            point = !hasStart || !hasEnd || destroyedFrame <= createdFrame;
+            end = point ? start : destroyedFrame;
+            return BattleDiagnosticFrames.IsValid(start);
+        }
+    }
+
     internal enum BattleDebugTraceViewMode
     {
         Flow = 0,
@@ -278,6 +340,36 @@ namespace AbilityKit.Game.Editor
             RebuildSelectedPath();
             if (FocusSelectedFlow) RebuildVisibleRows();
             return true;
+        }
+
+        /// <summary>
+        /// 精确解析同一会话、同一根中保留下来的节点，不以根节点替代缺失引用。
+        /// </summary>
+        public bool TryGetLinkedNode(BattleDiagnosticSessionScope scope, long rootContextId, long contextId,
+            out BattleDiagnosticTraceNodeSummary node)
+        {
+            node = default;
+            if (!scope.IsValid || scope != _lastScope || rootContextId != RootContextId || contextId <= 0 ||
+                !_nodesById.TryGetValue(contextId, out var match) ||
+                match.Scope != scope || match.RootContextId != rootContextId) return false;
+            node = match;
+            return true;
+        }
+
+        /// <summary>
+        /// 展开已选节点的父路径；仅在筛选仍隐藏该节点时回到完整流程。
+        /// </summary>
+        public void RevealSelection()
+        {
+            if (SelectedContextId <= 0 || GetVisibleRowIndex(SelectedContextId) >= 0) return;
+            for (var index = 0; index < _selectedPath.Count - 1; index++)
+                _collapsedContextIds.Remove(_selectedPath[index].ContextId);
+            RebuildVisibleRows();
+            if (GetVisibleRowIndex(SelectedContextId) >= 0) return;
+
+            _searchText = string.Empty;
+            ViewMode = BattleDebugTraceViewMode.Flow;
+            RebuildVisibleRows();
         }
 
         public void SetFocusSelectedFlow(bool value)

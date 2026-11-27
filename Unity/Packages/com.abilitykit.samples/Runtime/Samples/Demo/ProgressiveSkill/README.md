@@ -14,7 +14,7 @@ Phase1: IContinuous               (com.abilitykit.core)
 Phase2: Flow                     (com.abilitykit.flow)
 Phase3: Triggering               (com.abilitykit.triggering)
 Phase4: Pipeline                 (com.abilitykit.pipeline)
-Phase5: HFSM                    (com.abilitykit.hfsm)
+Phase5: HFSM                    (com.abilitykit.hfsm.core)
 ```
 
 ## 框架模块对应
@@ -26,7 +26,7 @@ Phase5: HFSM                    (com.abilitykit.hfsm)
 | Phase2 | Flow | `com.abilitykit.flow/Runtime/` |
 | Phase3 | Triggering | `com.abilitykit.triggering/Runtime/` |
 | Phase4 | Pipeline | `com.abilitykit.pipeline/Runtime/` |
-| Phase5 | HFSM | `com.abilitykit.hfsm/Runtime/` |
+| Phase5 | HFSM | `com.abilitykit.hfsm.core/Runtime/Core/` |
 
 ## JSON 配置驱动
 
@@ -86,7 +86,7 @@ Phase5: HFSM                    (com.abilitykit.hfsm)
 
 **需求**: 角色行为状态：Idle → Combat → Dead，支持状态转换。
 
-**框架模块**: `com.abilitykit.hfsm` 的 `StateMachine` (AbilityKit.HFSM)。
+**框架模块**: `com.abilitykit.hfsm.core` 的 `StateMachine` (AbilityKit.HFSM)。
 
 **配置**: 嵌入的 `Phase5Config` JSON 定义状态和转换。
 

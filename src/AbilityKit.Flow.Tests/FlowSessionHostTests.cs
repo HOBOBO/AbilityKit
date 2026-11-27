@@ -114,6 +114,37 @@ public sealed class FlowSessionHostTests
     }
 
     [Fact]
+    public void Session_started_callback_cannot_dispose_session()
+    {
+        using var session = new FlowSession();
+        var context = session.Context;
+        Exception? rejection = null;
+        FlowStatus? finished = null;
+        session.Started += () => rejection = Record.Exception(session.Dispose);
+        session.Finished += status => finished = status;
+
+        session.Start(new RecordingNode(FlowStatus.Succeeded));
+
+        Assert.IsType<InvalidOperationException>(rejection);
+        Assert.Same(context, session.Context);
+        Assert.Equal(FlowStatus.Succeeded, finished);
+    }
+
+    [Fact]
+    public void Session_dispose_leaves_no_active_lease_when_interrupt_throws()
+    {
+        var session = new FlowSession();
+        var error = new InvalidOperationException("interrupt");
+        var root = new RecordingNode(FlowStatus.Running) { OnInterrupt = _ => throw error };
+        session.Start(root);
+
+        Assert.Same(error, Assert.Throws<InvalidOperationException>(session.Dispose));
+        Assert.Throws<ObjectDisposedException>(() => _ = session.Context);
+        session.Dispose();
+        Assert.Equal(1, root.InterruptCount);
+    }
+
+    [Fact]
     public void Session_after_use_can_start_new_flow()
     {
         using var session = new FlowSession();
@@ -210,6 +241,42 @@ public sealed class FlowSessionHostTests
         finally
         {
             FlowPools.ReleaseHost(rented);
+        }
+    }
+
+    [Fact]
+    public void Host_rejects_release_while_provider_or_started_callback_is_running()
+    {
+        FlowHost<string> host = null!;
+        Exception? providerReentry = null;
+        Exception? startedReentry = null;
+        var root = new RecordingNode(FlowStatus.Running);
+        var provider = new DelegateRootProvider<string>(_ =>
+        {
+            providerReentry = Record.Exception(() => FlowPools.ReleaseHost(host));
+            return root;
+        });
+        host = FlowPools.RentHost(provider);
+        try
+        {
+            var context = host.Context;
+            host.Started += () => startedReentry = Record.Exception(host.Dispose);
+            FlowStatus? finished = null;
+            host.Finished += status => finished = status;
+
+            host.Start("args");
+
+            Assert.IsType<InvalidOperationException>(providerReentry);
+            Assert.IsType<InvalidOperationException>(startedReentry);
+            Assert.Same(context, host.Context);
+            Assert.Equal(FlowStatus.Running, host.Status);
+            host.Stop();
+            Assert.Equal(FlowStatus.Canceled, finished);
+            Assert.Equal(1, root.InterruptCount);
+        }
+        finally
+        {
+            FlowPools.ReleaseHost(host);
         }
     }
 

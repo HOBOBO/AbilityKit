@@ -11,12 +11,12 @@ namespace AbilityKit.Triggering.Runtime
     public interface ITriggerLifecycle<TCtx>
     {
         /// <summary>
-        /// 触发器被注册时调用
+        /// 通知触发器已注册。由普通 TriggerRunner 调用时，异常只记日志，不阻止注册句柄返回。
         /// </summary>
         void OnRegistered<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order);
 
         /// <summary>
-        /// 触发器被注销时调用
+        /// 通知触发器已从注册列表移除。由普通 TriggerRunner 调用时，异常只记日志，不阻止检查是否应解除总线订阅。
         /// </summary>
         void OnUnregistered<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger);
 
@@ -26,7 +26,8 @@ namespace AbilityKit.Triggering.Runtime
         void OnEventDispatching<TArgs>(EventKey<TArgs> key, in TArgs args);
 
         /// <summary>
-        /// 事件派发完成后调用
+        /// 事件派发完成后报告执行和短路计数，不用于控制派发。
+        /// 由普通 TriggerRunner 调用时，回调异常只记日志，不改变已确定的传播结果。
         /// </summary>
         void OnEventDispatched<TArgs>(EventKey<TArgs> key, in TArgs args, int executedCount, int shortCircuitedCount);
 

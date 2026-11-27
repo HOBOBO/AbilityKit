@@ -8,7 +8,6 @@ using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
-using AbilityKit.Triggering.Runtime.Instance;
 
 namespace AbilityKit.Triggering.Runtime.Context
 {
@@ -56,39 +55,5 @@ namespace AbilityKit.Triggering.Runtime.Context
             NumericDomains = numericDomains;
             Functions = functions;
         }
-    }
-}
-
-namespace AbilityKit.Triggering.Runtime
-{
-    using System.Collections.Generic;
-
-    /// <summary>
-    /// 触发器注册表接口
-    /// </summary>
-    public interface ITriggerRegistry
-    {
-        int Count { get; }
-        bool Unregister(int triggerId);
-        bool TryGet(int triggerId, out ITriggerInstance trigger);
-        IEnumerable<ITriggerInstance> GetAllTriggers();
-        void Clear();
-    }
-
-    /// <summary>
-    /// 触发器句柄接口
-    /// </summary>
-    public interface ITriggerHandle : IDisposable
-    {
-        int TriggerId { get; }
-    }
-
-    /// <summary>
-    /// 触发器快照接口
-    /// </summary>
-    public interface ITriggerSnapshot
-    {
-        int TriggerId { get; }
-        byte[] Data { get; }
     }
 }

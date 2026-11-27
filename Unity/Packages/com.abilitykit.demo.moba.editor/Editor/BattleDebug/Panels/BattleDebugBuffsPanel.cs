@@ -218,6 +218,13 @@ namespace AbilityKit.Game.Editor
                 $"技能运行时={buff.SkillRuntime}  修改器绑定数={buff.ModifierBindingCount}  " +
                 $"修改器来源={buff.ModifierSourceId}",
                 EditorStyles.miniLabel);
+            if (BattleDebugOfflineRelations.DrawActor(in ctx, buff.Scope, "Buff 来源引用", buff.SourceActorId,
+                    BattleDiagnosticFrames.Invalid))
+            {
+                BattleDebugOfflineRelations.DrawActor(in ctx, buff.Scope, "宿主", buff.ActorId, buff.Frame);
+                if (buff.RootContextId > 0 && ctx.OpenTrace != null && GUILayout.Button("打开来源 Trace", GUILayout.Width(106)))
+                    ctx.OpenTrace.Invoke(buff.RootContextId, buff.SourceContextId);
+            }
             EditorGUI.BeginDisabledGroup(buff.BuffId <= 0 || ctx.OpenConfig == null);
             if (GUILayout.Button("打开配置", GUILayout.Width(80)))
             {

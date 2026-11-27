@@ -5,11 +5,15 @@ using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
+using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Demo.Moba.Triggering;
 using AbilityKit.Deterministic;
 using AbilityKit.Game.Test.UnitTest;
 using AbilityKit.Trace;
+using AbilityKit.Triggering.Eventing;
 using Xunit;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
@@ -52,16 +56,21 @@ public sealed class KarthusRuntimeTests
     public void E_pays_even_without_targets_and_stops_before_an_unaffordable_tick()
     {
         using var b=new Battle(); b.Set(b.Caster,"mana",15); b.Setup.Tick(2);
+        var cues = new List<int>();
+        using var capture = b.CaptureDefileCues(cues);
         b.Cast(3,Vec3.Zero); b.Setup.TickMilliseconds(900);
         Assert.InRange(b.Mana(),0,0.001f);
         Assert.Equal(0,b.Setup.CountActorBuffs(b.Caster,30060490));
         Assert.Equal(0,b.Count(30060401));
+        Assert.Equal(new[] { 90036017, 90036018 }, cues);
     }
 
     [Fact]
     public void E_active_close_has_one_free_final_tick_and_removes_the_mode()
     {
         using var b=new Battle(); var enemy=b.Spawn("enemy",1001,2,100,103);
+        var cues = new List<int>();
+        using var capture = b.CaptureDefileCues(cues);
         b.Setup.Tick(2); b.Cast(3,Vec3.Zero); b.Setup.TickMilliseconds(600);
         var before=b.Count(30060401); var mana=b.Mana();
         b.Cast(3,Vec3.Zero); b.Setup.TickMilliseconds(100);
@@ -69,6 +78,33 @@ public sealed class KarthusRuntimeTests
         Assert.Equal(mana,b.Mana(),3);
         Assert.Equal(0,b.Setup.CountActorBuffs(b.Caster,30060490));
         b.Setup.TickMilliseconds(1000); Assert.Equal(before+1,b.Count(30060401));
+        Assert.Equal(new[] { 90036017, 90036018 }, cues);
+    }
+
+    [Fact]
+    public void E_ticks_switch_targets_when_the_caster_moves_then_stop_on_close()
+    {
+        using var battle = new Battle();
+        var initial = battle.Spawn("initial", 1001, 2, 100, 97);
+        var arrival = battle.Spawn("arrival", 1001, 2, 100, 110);
+        battle.Setup.Tick(2);
+        battle.Cast(3, Vec3.Zero);
+        battle.Setup.TickMilliseconds(800);
+        var initialHits = battle.Count(30060401, initial);
+        Assert.True(initialHits >= 3);
+        Assert.Equal(0, battle.Count(30060401, arrival));
+
+        battle.Setup.MoveScenarioActor(battle.Caster, new MobaAcceptanceVector3Expectation { x = 100, z = 108 });
+        battle.Setup.TickMilliseconds(600);
+        Assert.Equal(initialHits, battle.Count(30060401, initial));
+        var arrivalHits = battle.Count(30060401, arrival);
+        Assert.True(arrivalHits >= 2);
+
+        battle.Cast(3, Vec3.Zero);
+        battle.Setup.TickMilliseconds(1200);
+        Assert.Equal(0, battle.Setup.CountActorBuffs(battle.Caster, 30060490));
+        Assert.Equal(initialHits, battle.Count(30060401, initial));
+        Assert.Equal(arrivalHits + 1, battle.Count(30060401, arrival));
     }
 
     [Fact]
@@ -265,8 +301,17 @@ public sealed class KarthusRuntimeTests
         using var b=new Battle();var enemy=b.Spawn("enemy",1001,2,100,109);
         b.Kill(enemy);b.Setup.Tick(2);
         Assert.Equal(1,b.Setup.CountActorBuffs(b.Caster,30060090));
+        Assert.Equal(1,b.Setup.CountActorBuffs(b.Caster,30060490));
+        int? deathBuffsAtRespawn = null;
+        var respawnKey = new EventKey<UnitEventPayload>(TriggeringIdUtil.GetEventEid(MobaUnitTriggering.Events.Respawn));
+        using var respawn = b.Services.Resolve<IEventBus>().Subscribe(respawnKey, payload =>
+        {
+            if (payload.ActorId == b.Caster)
+                deathBuffsAtRespawn = b.Setup.CountActorBuffs(b.Caster, 30060090) + b.Setup.CountActorBuffs(b.Caster, 30060490);
+        });
         b.Setup.TickMilliseconds(6200);
         Assert.True(b.Services.Resolve<MobaCombatRulesService>().IsAlive(b.Caster));
+        Assert.Equal(0, deathBuffsAtRespawn);
         Assert.Equal(0,b.Setup.CountActorBuffs(b.Caster,30060090));
         Assert.Equal(0,b.Setup.CountActorBuffs(b.Caster,30060490));
         var loadout=b.Services.Resolve<MobaSkillLoadoutService>();
@@ -392,7 +437,18 @@ public sealed class KarthusRuntimeTests
         }
         public MobaSkillCastResult TryCast(int slot,Vec3 point)=>Services.Resolve<SkillCastCoordinator>().TryCastBySlot(Caster,slot,point,Vec3.Forward,0);
         public void Cast(int slot,Vec3 point){var r=TryCast(slot,point);Assert.True(r.Success,r.FailReason+"\n"+Dump());}
-        public int Count(int skill)=>Services.Resolve<MobaTraceRegistry>().GetNodesByKind((int)MobaExecutionKind.DamageApply).Count(n=>n.Metadata?.ConfigId==skill);
+        public int Count(int skill, int? target = null) => Services.Resolve<MobaTraceRegistry>()
+            .GetNodesByKind((int)MobaExecutionKind.DamageApply)
+            .Count(node => node.Metadata?.ConfigId == skill && (!target.HasValue || node.Metadata.TargetActorId == target.Value));
+        public IDisposable CaptureDefileCues(List<int> cues)
+        {
+            var key = new EventKey<PresentationEventArgs>(TriggeringIdUtil.GetEventEid(MobaPresentationTriggering.Events.Play));
+            return Services.Resolve<IEventBus>().Subscribe(key, cue =>
+            {
+                if (cue.SourceActorId == Caster && cue.TemplateId is 90036017 or 90036018)
+                    cues.Add(cue.TemplateId);
+            });
+        }
         public void Kill(int enemy,bool suspendRespawn=false)
         {
             var respawn=Services.Resolve<AbilityKit.Demo.Moba.Gameplay.MobaGameplayRespawnService>();

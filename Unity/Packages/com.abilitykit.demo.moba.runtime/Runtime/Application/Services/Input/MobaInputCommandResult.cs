@@ -51,6 +51,15 @@ namespace AbilityKit.Demo.Moba.Services
         public readonly int TargetActorId;
         public readonly MobaSkillCastRuntimeHandle SkillRuntimeHandle;
         internal readonly bool IsDuplicate;
+        private readonly bool _isDefinitiveSkillInputRejection;
+
+        internal MobaFrameInputDisposition ClassifyStateSyncDisposition()
+        {
+            var disposition = ClassifyAuthorityDisposition();
+            return disposition == MobaFrameInputDisposition.Unknown && _isDefinitiveSkillInputRejection
+                ? MobaFrameInputDisposition.Rejected
+                : disposition;
+        }
 
         internal MobaFrameInputDisposition ClassifyAuthorityDisposition()
         {
@@ -84,13 +93,14 @@ namespace AbilityKit.Demo.Moba.Services
             int targetActorId = 0,
             MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
             : this(succeeded, failureCode, message, playerId, actorId, opCode,
-                diagnosticCommandId, skillSlot, skillPhase, targetActorId, skillRuntimeHandle, false)
+                diagnosticCommandId, skillSlot, skillPhase, targetActorId, skillRuntimeHandle, false, false)
         {
         }
 
         private MobaInputCommandResult(bool succeeded, MobaInputCommandFailureCode failureCode, string message,
             string playerId, int actorId, int opCode, long diagnosticCommandId, int skillSlot, int skillPhase,
-            int targetActorId, MobaSkillCastRuntimeHandle skillRuntimeHandle, bool isDuplicate)
+            int targetActorId, MobaSkillCastRuntimeHandle skillRuntimeHandle, bool isDuplicate,
+            bool isDefinitiveSkillInputRejection)
         {
             Succeeded = succeeded;
             FailureCode = failureCode;
@@ -104,24 +114,33 @@ namespace AbilityKit.Demo.Moba.Services
             TargetActorId = targetActorId;
             SkillRuntimeHandle = skillRuntimeHandle;
             IsDuplicate = isDuplicate;
+            _isDefinitiveSkillInputRejection = isDefinitiveSkillInputRejection;
         }
 
         public MobaInputCommandResult WithDiagnosticCommandId(long commandId)
         {
             return new MobaInputCommandResult(Succeeded, FailureCode, Message, PlayerId, ActorId,
-                OpCode, commandId, SkillSlot, SkillPhase, TargetActorId, SkillRuntimeHandle, IsDuplicate);
+                OpCode, commandId, SkillSlot, SkillPhase, TargetActorId, SkillRuntimeHandle, IsDuplicate,
+                _isDefinitiveSkillInputRejection);
         }
 
         public MobaInputCommandResult WithSkillDiagnostic(int slot, int phase, int targetActorId,
             in MobaSkillCastRuntimeHandle runtimeHandle)
         {
             return new MobaInputCommandResult(Succeeded, FailureCode, Message, PlayerId, ActorId,
-                OpCode, DiagnosticCommandId, slot, phase, targetActorId, runtimeHandle, IsDuplicate);
+                OpCode, DiagnosticCommandId, slot, phase, targetActorId, runtimeHandle, IsDuplicate,
+                _isDefinitiveSkillInputRejection);
         }
+
+        internal MobaInputCommandResult WithSkillInputRejection(in MobaSkillInputHandleResult result) =>
+            new MobaInputCommandResult(Succeeded, FailureCode, Message, PlayerId, ActorId, OpCode,
+                DiagnosticCommandId, SkillSlot, SkillPhase, TargetActorId, SkillRuntimeHandle, IsDuplicate,
+                !Succeeded && FailureCode == MobaInputCommandFailureCode.SkillRejected && result.IsDefinitiveInputRejection);
 
         internal MobaInputCommandResult AsDuplicate() =>
             new MobaInputCommandResult(Succeeded, FailureCode, Message, PlayerId, ActorId,
-                OpCode, DiagnosticCommandId, SkillSlot, SkillPhase, TargetActorId, SkillRuntimeHandle, true);
+                OpCode, DiagnosticCommandId, SkillSlot, SkillPhase, TargetActorId, SkillRuntimeHandle, true,
+                _isDefinitiveSkillInputRejection);
 
         public static MobaInputCommandResult Accepted(PlayerInputCommand command, int actorId = 0)
         {

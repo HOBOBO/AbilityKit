@@ -178,6 +178,67 @@ public sealed class EnvironmentProfileCatalogTests
     }
 
     [Fact]
+    public void Resolve_DeepInheritance_PreservesMergeOrderWithoutRecursion()
+    {
+        const int depth = 30_000;
+        var basePrimitive = new SpawnPrimitive { EntityKind = "base-unit" };
+        var derivedPrimitive = new SpawnPrimitive { EntityKind = "derived-unit" };
+        var catalog = BuildTaxonomy().AddProfile(new EnvironmentProfile
+        {
+            Id = "profile-0",
+            Selections = new Dictionary<string, string> { ["geometry"] = "open", ["state"] = "full" },
+            Parameters = new Dictionary<string, string> { ["difficulty"] = "easy" },
+            Primitives = new EnvironmentPrimitive[] { basePrimitive },
+        });
+        for (var level = 1; level < depth; level++)
+            catalog.AddProfile(new EnvironmentProfile { Id = $"profile-{level}", BaseProfileId = $"PROFILE-{level - 1}" });
+        catalog.AddProfile(new EnvironmentProfile
+        {
+            Id = "deepest",
+            BaseProfileId = $"profile-{depth - 1}",
+            Selections = new Dictionary<string, string> { ["GEOMETRY"] = "walled", ["unit-class"] = "jungle" },
+            Parameters = new Dictionary<string, string> { ["DIFFICULTY"] = "hard" },
+            Primitives = new EnvironmentPrimitive[] { derivedPrimitive },
+        });
+
+        Assert.Empty(catalog.Validate());
+        Assert.True(catalog.TryResolve("DEEPEST", new JungleExpander(), out var resolved));
+        Assert.Equal("walled", resolved.Selections["geometry"]);
+        Assert.Equal("full", resolved.Selections["state"]);
+        Assert.Equal("hard", resolved.Parameters["difficulty"]);
+        Assert.Collection(resolved.Primitives,
+            primitive => Assert.Same(basePrimitive, primitive),
+            primitive => Assert.Same(derivedPrimitive, primitive),
+            primitive => Assert.Equal("jungle_warrior", Assert.IsType<SpawnPrimitive>(primitive).EntityKind));
+    }
+
+    [Fact]
+    public void Validate_SharedAncestors_DistinguishesMissingBaseFromCycle()
+    {
+        var catalog = new EnvironmentProfileCatalog()
+            .AddProfile(new EnvironmentProfile { Id = "base" })
+            .AddProfile(new EnvironmentProfile { Id = "left", BaseProfileId = "base" })
+            .AddProfile(new EnvironmentProfile { Id = "right", BaseProfileId = "BASE" })
+            .AddProfile(new EnvironmentProfile { Id = "dangling-child", BaseProfileId = "DANGLING" })
+            .AddProfile(new EnvironmentProfile { Id = "dangling", BaseProfileId = "absent" })
+            .AddProfile(new EnvironmentProfile { Id = "cycle-entry", BaseProfileId = "one" })
+            .AddProfile(new EnvironmentProfile { Id = "one", BaseProfileId = "two" })
+            .AddProfile(new EnvironmentProfile { Id = "two", BaseProfileId = "ONE" });
+
+        Assert.Collection(catalog.Validate(),
+            error => Assert.Equal("profile 'dangling' base 'absent' was not found", error),
+            error => Assert.Equal("profile 'cycle-entry' participates in a base-profile cycle", error));
+        Assert.True(catalog.TryResolve("right", out _));
+        Assert.False(catalog.TryResolve("cycle-entry", out var cyclic));
+        Assert.Null(cyclic);
+        Assert.False(catalog.TryResolve("dangling-child", out var dangling));
+        Assert.Null(dangling);
+
+        catalog.AddProfile(new EnvironmentProfile { Id = "absent", BaseProfileId = "cycle-entry" });
+        Assert.Equal("profile 'dangling-child' participates in a base-profile cycle", Assert.Single(catalog.Validate()));
+    }
+
+    [Fact]
     public void Validate_SpawnMissingEntityKind_ReportsError()
     {
         var catalog = BuildTaxonomy();

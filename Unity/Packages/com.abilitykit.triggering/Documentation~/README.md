@@ -15,7 +15,6 @@
 - [`ProductAcceptanceGuide.md`](ProductAcceptanceGuide.md)：产品化验收基线。
 - [`Triggering-Commercial-Remediation-Checklist.md`](Triggering-Commercial-Remediation-Checklist.md)：商业化整改清单。
 - [`Samples~/FormalMainline/FormalTriggeringMainlineExample.cs`](../Samples~/FormalMainline/FormalTriggeringMainlineExample.cs)：不装配时间调度的即时接入样板。
-- [`Samples~/RuleScheduling/RuleSchedulingExample.cs`](../Samples~/RuleScheduling/RuleSchedulingExample.cs)：单独导入的业务定时规则样例。
 - [`SampleInventory.md`](SampleInventory.md)：可选导入样例与历史源码处置记录。
 
 消费者建议顺序：包 README → [正式 API 边界](FormalApiBoundary.md) → [Overview](Overview.md) → 导入 Mainline 样例。维护源码再看 SourceLayout；商业化、回滚与下线清单属于限定范围的维护材料，不是安装或首个调用的前置步骤。

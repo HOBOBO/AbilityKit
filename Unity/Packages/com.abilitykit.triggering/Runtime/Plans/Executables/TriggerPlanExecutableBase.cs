@@ -10,6 +10,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public abstract ETriggerPlanExecutableKind Kind { get; }
         public float Weight { get; }
 
+        /// <summary>
+        /// 表示节点持有执行前条件；只供静态准入检查，不求值。
+        /// </summary>
+
         protected TriggerPlanExecutableBase(ITriggerPlanCondition condition = null, float weight = 1f)
         {
             _condition = condition;

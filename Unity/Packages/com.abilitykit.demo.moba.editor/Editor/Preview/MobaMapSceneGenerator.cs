@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Minions;
 using AbilityKit.Demo.Moba.Gameplay.Structures;
@@ -24,23 +25,49 @@ namespace AbilityKit.Game.Editor
         private const string GeneratedMobaPath = "Assets/Generated/Moba";
         private const string MapRootName = "GeneratedBattleMap";
 
-        private const string ValidateMenuPath = "Tools/AbilityKit/Demos/MOBA/Validate Map And Minion Routes";
+        internal const string MenuRoot = "Tools/AbilityKit/Demos/Moba/Map/";
+        private const string RefreshMenuPath = MenuRoot + "预检并刷新地图 Prefab（Map 1）";
+        private const int InteractiveMapId = 1;
 
-        [MenuItem(ValidateMenuPath, priority = 19)]
+        [MenuItem(MenuRoot + "校验地图与兵线（Map 1）", priority = 10)]
         private static void ValidateMapAndMinionRoutesMenu()
         {
-            ValidateMapAndMinionRoutes(1);
+            ValidateMapAndMinionRoutes(InteractiveMapId);
             Debug.Log("[MobaMapSceneGenerator] Map and minion route resources are valid.");
         }
 
-        [MenuItem("Tools/AbilityKit/Demos/MOBA/Refresh Generated Map (Map 1)", priority = 20)]
+        [MenuItem(RefreshMenuPath, priority = 11)]
         private static void RefreshActiveSceneMap()
         {
             var scene = SceneManager.GetActiveScene();
-            if (!scene.IsValid()) throw new InvalidOperationException("There is no valid active scene to refresh.");
-            Refresh(scene, 1);
+            if (!CanRefreshActiveSceneMap()) return;
+
+            ValidateMapAndMinionRoutes(InteractiveMapId);
+            LoadStructures(InteractiveMapId);
+            var prefabPath = GetPrefabPath(InteractiveMapId);
+            var prefabExists = File.Exists(Path.Combine(Application.dataPath, "..", prefabPath));
+            var sceneLabel = string.IsNullOrEmpty(scene.path) ? $"{scene.name}（未保存）" : scene.path;
+            var existingRoots = scene.GetRootGameObjects().Count(IsGeneratedMapRoot);
+            if (!EditorUtility.DisplayDialog("刷新生成的 MOBA 地图",
+                    $"地图 {InteractiveMapId}：{(prefabExists ? "覆盖" : "新建")} {prefabPath}\n\n" +
+                    $"场景：{sceneLabel}\n移除 {existingRoots} 个名为 {MapRootName} 的场景根对象，再实例化新地图。" +
+                    "不会自动保存场景；Prefab 写入与场景替换不是事务。",
+                    "确认刷新", "取消")) return;
+
+            Refresh(scene, InteractiveMapId);
             EditorSceneManager.MarkSceneDirty(scene);
         }
+
+        [MenuItem(RefreshMenuPath, true)]
+        private static bool CanRefreshActiveSceneMap()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode || PrefabStageUtility.GetCurrentPrefabStage() != null)
+                return false;
+            var scene = SceneManager.GetActiveScene();
+            return scene.IsValid() && scene.isLoaded;
+        }
+
+        private static string GetPrefabPath(int mapId) => $"{GeneratedMobaPath}/BattleMap_{mapId}.prefab";
 
         public static void ValidateMapAndMinionRoutes(int mapId)
         {
@@ -76,7 +103,7 @@ namespace AbilityKit.Game.Editor
             var structures = LoadStructures(mapId);
             EnsureAssetFolders();
 
-            var prefabPath = $"{GeneratedMobaPath}/BattleMap_{map.Id}.prefab";
+            var prefabPath = GetPrefabPath(map.Id);
             var prefabSource = BuildMapRoot(map, structures);
             var prefab = PrefabUtility.SaveAsPrefabAsset(prefabSource, prefabPath);
             Object.DestroyImmediate(prefabSource);
@@ -304,12 +331,15 @@ namespace AbilityKit.Game.Editor
             var roots = scene.GetRootGameObjects();
             for (int i = 0; i < roots.Length; i++)
             {
-                if (roots[i] != null && string.Equals(roots[i].name, MapRootName, StringComparison.Ordinal))
+                if (IsGeneratedMapRoot(roots[i]))
                 {
                     Object.DestroyImmediate(roots[i]);
                 }
             }
         }
+
+        private static bool IsGeneratedMapRoot(GameObject root) =>
+            root != null && string.Equals(root.name, MapRootName, StringComparison.Ordinal);
 
         private static void RemoveCollider(GameObject gameObject)
         {

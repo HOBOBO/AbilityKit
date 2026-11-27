@@ -165,7 +165,7 @@ Triggering 解决的是“玩法逻辑如何被数据化、可排序、可观察
 | TriggerRunnerRuntimeServices | `Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunnerRuntimeServices.cs` | 创建 ExecCtx 所需的 registry 和 resolver |
 | TriggerRunnerEntry | `Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runner/TriggerRunnerEntry.cs` | 保存 phase/priority/order 和 trigger |
 | TriggerPlan | `Unity/Packages/com.abilitykit.triggering/Runtime/Plans` | 数据化触发器计划 |
-| ActionSchedulerManager | `Unity/Packages/com.abilitykit.triggering/Runtime/Runtime/ActionScheduler` | 延迟动作/计划内调度 |
+| ActionSchedulerManager | `Unity/Packages/com.abilitykit.triggering.actionscheduling/Runtime` | 可选扁平动作调度；宿主负责推进 |
 
 ### 2.2 执行流程
 

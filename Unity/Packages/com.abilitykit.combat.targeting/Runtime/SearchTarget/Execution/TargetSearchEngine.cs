@@ -4,10 +4,13 @@ using System.Collections.Generic;
 namespace AbilityKit.Battle.SearchTarget
 {
     /// <summary>
-    /// 目标搜索引擎
+    /// 同步执行候选遍历、评估与选择的目标搜索引擎。
     /// </summary>
     public sealed class TargetSearchEngine
     {
+        /// <summary>
+        /// 查询目标 ID，并将结果租约交给调用方释放；失败时由引擎自行归还结果。
+        /// </summary>
         public SearchResult SearchIds(in SearchQuery query, SearchContext context)
         {
             var result = TargetingPool.RentResult();
@@ -23,6 +26,13 @@ namespace AbilityKit.Battle.SearchTarget
             }
         }
 
+        /// <summary>
+        /// 清空调用方的列表，并写入当前查询选中的目标 ID。
+        /// </summary>
+        /// <remarks>
+        /// 查询失败时不回滚已写入的结果，调用方应丢弃部分输出。
+        /// 不得在并发查询之间共享可变上下文或输出列表。
+        /// </remarks>
         public void SearchIds(in SearchQuery query, SearchContext context, List<EntityId> results)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -52,31 +62,27 @@ namespace AbilityKit.Battle.SearchTarget
                 : null;
             try
             {
-                var consumer2 = new CandidateConsumer(
-                    in query,
-                    context,
-                    hits,
-                    scoreBuffer,
-                    keyProvider,
-                    stats,
-                    seenKeys);
-                query.Provider.ForEachCandidate(in query, context, ref consumer2);
+                var evaluator = new CandidateEvaluator(context, scoreBuffer, keyProvider, stats, seenKeys);
+                var consumer = new FullSearchConsumer(in query, hits, in evaluator);
+                query.Provider.ForEachCandidate(in query, context, ref consumer);
 
-                if (hits.Count == 0) return;
-
-                if (query.Selector != null)
+                if (hits.Count > 0)
                 {
-                    query.Selector.Select(
-                        in query,
-                        context,
-                        new SearchHitView(hits),
-                        new SearchResultWriter(results, query.MaxCount));
-                    stats?.OnResult(results.Count);
-                    return;
+                    if (query.Selector != null)
+                    {
+                        query.Selector.Select(
+                            in query,
+                            context,
+                            new SearchHitView(hits),
+                            new SearchResultWriter(results, query.MaxCount));
+                    }
+                    else
+                    {
+                        SearchOrdering.Sort(hits, in query);
+                        WriteAll(in query, hits, results);
+                    }
                 }
 
-                SearchOrdering.Sort(hits, in query);
-                WriteAll(in query, hits, results);
                 stats?.OnResult(results.Count);
             }
             finally
@@ -87,6 +93,12 @@ namespace AbilityKit.Battle.SearchTarget
             }
         }
 
+        /// <summary>
+        /// 清空输出列表，按目标 ID 的选择顺序映射并写入成功项，不替失败项另外补选。
+        /// </summary>
+        /// <remarks>
+        /// 搜索统计在映射前完成；映射异常向调用方传播，不回滚已写入的成功项。
+        /// </remarks>
         public void Search<T>(in SearchQuery query, SearchContext context, List<T> results, ITargetMapper<T> mapper)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -128,15 +140,8 @@ namespace AbilityKit.Battle.SearchTarget
                 : null;
             try
             {
-                var consumer = new StreamingTopKConsumer(
-                    in query,
-                    context,
-                    hitBuffer.Items,
-                    query.MaxCount,
-                    scoreBuffer,
-                    keyProvider,
-                    stats,
-                    seenKeys);
+                var evaluator = new CandidateEvaluator(context, scoreBuffer, keyProvider, stats, seenKeys);
+                var consumer = new StreamingTopKConsumer(in query, hitBuffer.Items, scoreBuffer, in evaluator);
                 query.Provider.ForEachCandidate(in query, context, ref consumer);
                 consumer.WriteResults(results);
                 stats?.OnResult(results.Count);
@@ -176,148 +181,134 @@ namespace AbilityKit.Battle.SearchTarget
             if (stats is ISearchDetailedStats detailed)
             {
                 try { detailed.OnDecision(id, decision, ruleIndex, ruleName, primaryScore); }
-                catch { /* Diagnostic observation cannot change search results. */ }
+                catch
+                {
+                    /*
+                     * 详细诊断仅用于观察，回调异常不能中断搜索。
+                     */
+                }
             }
         }
 
-        private readonly struct CandidateConsumer : ICandidateConsumer
+        private readonly struct CandidateEvaluator
         {
-            private readonly SearchQuery _query;
             private readonly SearchContext _context;
-            private readonly List<SearchHit> _hits;
             private readonly SearchScoreBuffer _scoreBuffer;
             private readonly IEntityKeyProvider _keyProvider;
             private readonly ISearchStats _stats;
             private readonly HashSet<ulong> _seenKeys;
 
-            public CandidateConsumer(
-                in SearchQuery query,
+            public CandidateEvaluator(
                 SearchContext context,
-                List<SearchHit> hits,
                 SearchScoreBuffer scoreBuffer,
                 IEntityKeyProvider keyProvider,
                 ISearchStats stats,
                 HashSet<ulong> seenKeys)
             {
-                _query = query;
                 _context = context;
-                _hits = hits;
                 _scoreBuffer = scoreBuffer;
                 _keyProvider = keyProvider;
                 _stats = stats;
                 _seenKeys = seenKeys;
             }
 
-            public void Consume(EntityId id)
+            public bool TryEvaluate(in SearchQuery query, EntityId id, out SearchHit hit, int? fixedScoreOffset = null)
             {
+                hit = default;
                 _stats?.OnCandidate();
                 if (!id.IsValid)
                 {
                     ReportDecision(_stats, id, SearchCandidateDecision.Invalid);
-                    return;
+                    return false;
                 }
 
                 var key = _keyProvider != null ? _keyProvider.GetKey(id) : id.Value;
                 if (_seenKeys != null && _seenKeys.Contains(key))
                 {
                     ReportDecision(_stats, id, SearchCandidateDecision.Duplicate);
-                    return;
+                    return false;
                 }
-                if (!PassRules(in _query, _context, id, _stats)) return;
+                if (!PassRules(in query, _context, id, _stats)) return false;
 
-                var scoreOffset = _scoreBuffer.Add(_query.Orders, in _query, _context, id);
+                var scoreOffset = fixedScoreOffset.HasValue
+                    ? _scoreBuffer.WriteAt(fixedScoreOffset.Value, query.Orders, in query, _context, id)
+                    : _scoreBuffer.Add(query.Orders, in query, _context, id);
                 if (scoreOffset < 0)
                 {
                     ReportDecision(_stats, id, SearchCandidateDecision.ScoreUnavailable);
-                    return;
+                    return false;
                 }
+
+                /*
+                 * 去重记录的是通过规则和评分的候选，而不是最终入选的结果。
+                 */
                 if (_seenKeys != null && !_seenKeys.Add(key))
                 {
                     ReportDecision(_stats, id, SearchCandidateDecision.Duplicate);
-                    return;
+                    return false;
                 }
 
+                hit = new SearchHit(id, key, _scoreBuffer, scoreOffset);
                 _stats?.OnHit();
                 ReportDecision(_stats, id, SearchCandidateDecision.Eligible,
-                    primaryScore: _query.Orders.Count > 0
-                        ? new SearchHit(id, key, _scoreBuffer, scoreOffset).GetScore(0) : (float?)null);
-                _hits.Add(new SearchHit(id, key, _scoreBuffer, scoreOffset));
+                    primaryScore: query.Orders.Count > 0 ? hit.GetScore(0) : (float?)null);
+                return true;
+            }
+        }
+
+        private readonly struct FullSearchConsumer : ICandidateConsumer
+        {
+            private readonly SearchQuery _query;
+            private readonly List<SearchHit> _hits;
+            private readonly CandidateEvaluator _evaluator;
+
+            public FullSearchConsumer(in SearchQuery query, List<SearchHit> hits, in CandidateEvaluator evaluator)
+            {
+                _query = query;
+                _hits = hits;
+                _evaluator = evaluator;
+            }
+
+            public void Consume(EntityId id)
+            {
+                if (_evaluator.TryEvaluate(in _query, id, out var hit))
+                {
+                    _hits.Add(hit);
+                }
             }
         }
 
         private struct StreamingTopKConsumer : ICandidateConsumer
         {
             private readonly SearchQuery _query;
-            private readonly SearchContext _context;
             private readonly SearchHit[] _hits;
-            private readonly int _capacity;
             private readonly SearchScoreBuffer _scoreBuffer;
-            private readonly IEntityKeyProvider _keyProvider;
-            private readonly ISearchStats _stats;
-            private readonly HashSet<ulong> _seenKeys;
+            private readonly CandidateEvaluator _evaluator;
+            private readonly int _scoreCount;
+            private readonly int _temporaryOffset;
             private int _count;
 
             public StreamingTopKConsumer(
                 in SearchQuery query,
-                SearchContext context,
                 SearchHit[] hits,
-                int capacity,
                 SearchScoreBuffer scoreBuffer,
-                IEntityKeyProvider keyProvider,
-                ISearchStats stats,
-                HashSet<ulong> seenKeys)
+                in CandidateEvaluator evaluator)
             {
                 _query = query;
-                _context = context;
                 _hits = hits;
-                _capacity = capacity;
                 _scoreBuffer = scoreBuffer;
-                _keyProvider = keyProvider;
-                _stats = stats;
-                _seenKeys = seenKeys;
+                _evaluator = evaluator;
+                _scoreCount = query.Orders.Count;
+                _temporaryOffset = query.MaxCount * _scoreCount;
                 _count = 0;
             }
 
             public void Consume(EntityId id)
             {
-                _stats?.OnCandidate();
-                if (!id.IsValid)
+                if (_evaluator.TryEvaluate(in _query, id, out var hit, _temporaryOffset))
                 {
-                    ReportDecision(_stats, id, SearchCandidateDecision.Invalid);
-                    return;
+                    Offer(in hit);
                 }
-
-                var key = _keyProvider != null ? _keyProvider.GetKey(id) : id.Value;
-                if (_seenKeys != null && _seenKeys.Contains(key))
-                {
-                    ReportDecision(_stats, id, SearchCandidateDecision.Duplicate);
-                    return;
-                }
-                if (!PassRules(in _query, _context, id, _stats)) return;
-
-                var scoreCount = _query.Orders.Count;
-                var temporaryOffset = _capacity * scoreCount;
-                if (_scoreBuffer.WriteAt(
-                        temporaryOffset,
-                        _query.Orders,
-                        in _query,
-                        _context,
-                        id) < 0)
-                {
-                    ReportDecision(_stats, id, SearchCandidateDecision.ScoreUnavailable);
-                    return;
-                }
-                if (_seenKeys != null && !_seenKeys.Add(key))
-                {
-                    ReportDecision(_stats, id, SearchCandidateDecision.Duplicate);
-                    return;
-                }
-
-                _stats?.OnHit();
-                ReportDecision(_stats, id, SearchCandidateDecision.Eligible,
-                    primaryScore: scoreCount > 0
-                        ? new SearchHit(id, key, _scoreBuffer, temporaryOffset).GetScore(0) : (float?)null);
-                Offer(id, key, temporaryOffset, scoreCount);
             }
 
             public void WriteResults(List<EntityId> results)
@@ -328,9 +319,8 @@ namespace AbilityKit.Battle.SearchTarget
                 }
             }
 
-            private void Offer(EntityId id, ulong key, int temporaryOffset, int scoreCount)
+            private void Offer(in SearchHit hit)
             {
-                var hit = new SearchHit(id, key, _scoreBuffer, temporaryOffset);
                 var insertIndex = 0;
                 while (insertIndex < _count &&
                        SearchOrdering.IsBetter(in _query, in _hits[insertIndex], in hit))
@@ -338,14 +328,15 @@ namespace AbilityKit.Battle.SearchTarget
                     insertIndex++;
                 }
 
-                if (insertIndex >= _capacity) return;
+                var capacity = _query.MaxCount;
+                if (insertIndex >= capacity) return;
 
-                var lastIndex = _count < _capacity ? _count : _capacity - 1;
+                var lastIndex = _count < capacity ? _count : capacity - 1;
                 for (int i = lastIndex; i > insertIndex; i--)
                 {
                     var source = _hits[i - 1];
-                    var destinationOffset = i * scoreCount;
-                    _scoreBuffer.Copy((i - 1) * scoreCount, destinationOffset, scoreCount);
+                    var destinationOffset = i * _scoreCount;
+                    _scoreBuffer.Copy((i - 1) * _scoreCount, destinationOffset, _scoreCount);
                     _hits[i] = new SearchHit(
                         source.Id,
                         source.Key,
@@ -353,10 +344,10 @@ namespace AbilityKit.Battle.SearchTarget
                         destinationOffset);
                 }
 
-                var insertOffset = insertIndex * scoreCount;
-                _scoreBuffer.Copy(temporaryOffset, insertOffset, scoreCount);
-                _hits[insertIndex] = new SearchHit(id, key, _scoreBuffer, insertOffset);
-                if (_count < _capacity) _count++;
+                var insertOffset = insertIndex * _scoreCount;
+                _scoreBuffer.Copy(_temporaryOffset, insertOffset, _scoreCount);
+                _hits[insertIndex] = new SearchHit(hit.Id, hit.Key, _scoreBuffer, insertOffset);
+                if (_count < capacity) _count++;
             }
         }
 

@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Host;
 using AbilityKit.Combat.Projectile;
@@ -9,6 +11,7 @@ using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Projectile;
@@ -316,8 +319,12 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
-        [Test]
-        public void W_FiresDirectionalProjectileDealsRankDamageOnceAndStopsAtFirstEnemy()
+        [TestCase(-25f, 600)]
+        [TestCase(0f, 600)]
+        [TestCase(125f, 500)]
+        [TestCase(250f, 400)]
+        [TestCase(400f, 400)]
+        public void W_FiresDirectionalProjectileDealsRankDamageOnceAndStopsAtFirstEnemy(float attackSpeed, int windupMs)
         {
             using (var harness = HeroSkillHeadlessContract.CreateHarness(
                 Jinx, "jinx_w_directional_projectile_damage_contract_world"))
@@ -367,6 +374,9 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 harness.EnterGameAndWarmup(reason: "Jinx W directional projectile hit closure");
                 var casterActorId = harness.AssertPlayerActorBound();
+                var attributes = harness.AssertActorEntity(casterActorId).attributeGroup.Group;
+                attributes.SetBase(MobaAttributeIds.ATTACK_SPEED_R, attackSpeed);
+                Assert.That(attributes.GetValue(MobaAttributeIds.ATTACK_SPEED_R), Is.EqualTo(attackSpeed));
                 harness.AssertSlotSkill(2, WSkillId);
                 var baseline = harness.CaptureTraceBaseline();
                 var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
@@ -374,9 +384,18 @@ namespace AbilityKit.Game.Test.UnitTest
                     aimPos: Vec3.Zero, aimDir: Vec3.Forward, targetActorId: 0);
                 Assert.IsTrue(cast.Success,
                     "Jinx W should release from slot 2 with a directional aim. " + DescribeCastFailure(cast));
-                harness.TickUntilTraceNodeAfter(
+                var castTrace = harness.TickUntilTraceNodeAfter(
                     baseline, MobaExecutionKind.SkillCast, WSkillId, maxTicks: 10,
                     message: "Jinx W should start its own cast before the projectile closure is checked.");
+                attributes.SetBase(MobaAttributeIds.ATTACK_SPEED_R, windupMs == 400 ? 0f : 250f);
+                harness.Tick(2);
+                var snapshots = harness.World.Services.Resolve<MobaCharacterActionSnapshotService>();
+                Assert.IsTrue(snapshots.TryGetSnapshot(harness.FrameTime.Frame, out var snapshot));
+                Assert.IsTrue(CharacterActionSnapshotCodec.TryDecode(snapshot.Payload, out var actions));
+                var casterAction = actions.Single(action => action.ActorId == casterActorId);
+                Assert.That(casterAction.SkillId, Is.EqualTo(WSkillId));
+                Assert.That(casterAction.WindupTiming,
+                    Is.EqualTo(new CastWindupTiming(castTrace.CreatedFrame, 500, windupMs)));
 
                 TraceSnapshot<MobaTraceMetadata> effect;
                 try
@@ -404,6 +423,9 @@ namespace AbilityKit.Game.Test.UnitTest
                                 " castTrace=" + (trace.Length > 0 ? trace : "<empty>"));
                     return;
                 }
+                var expectedTicks = Mathf.CeilToInt(windupMs * harness.TickRate / 1000f);
+                Assert.That(effect.CreatedFrame - castTrace.CreatedFrame, Is.EqualTo(expectedTicks),
+                    "Zap must fire once at the attack speed frozen on entry, not the updated value.");
                 harness.AssertProjectileLaunchedUnderEffect(effect.RootId, WLauncherId, WProjectileId);
 
                 var firstTarget = HeroSkillHeadlessContract.SpawnEnemyHero(
@@ -1193,6 +1215,66 @@ namespace AbilityKit.Game.Test.UnitTest
             yield return new EnterPlayMode();
             Time.captureDeltaTime = 1f / 60f;
             yield return LocalHudActiveSkillClosure(true);
+        }
+
+        [Test]
+        public void W_CancelBeforeTheMarkerNeverLaunches()
+        {
+            using var harness = HeroSkillHeadlessContract.CreateHarness(Jinx, "jinx_w_cancelled_before_launch");
+            harness.EnterGameAndWarmup(reason: "Jinx W cast cancellation");
+            var caster = harness.AssertPlayerActorBound();
+            var baseline = harness.CaptureTraceBaseline();
+            BeginZap(harness, caster);
+            harness.TickUntilTraceNodeAfter(baseline, MobaExecutionKind.SkillCast, WSkillId, 10, "W did not start.");
+            harness.Tick(2);
+            harness.World.Services.Resolve<SkillCastCoordinator>().CancelAll(caster);
+            harness.Tick(harness.TickRate * 2);
+            var records = MobaAcceptanceTraceExporter.CaptureTraceRecords(harness, "jinx_w_cancelled_before_launch");
+            Assert.That(records.Any(record => record.nodeId > baseline && record.kind == "EffectExecution" &&
+                record.configId == WLaunchTriggerId), Is.False);
+        }
+
+        [Test]
+        public void W_FrameCheckpointRetainsFrozenTimingAndReplaysOneLaunch()
+        {
+            using var harness = HeroSkillHeadlessContract.CreateHarness(Jinx, "jinx_w_windup_rollback");
+            harness.EnterGameAndWarmup(reason: "Jinx W frame checkpoint");
+            var caster = harness.AssertPlayerActorBound();
+            var attributes = harness.AssertActorEntity(caster).attributeGroup.Group;
+            attributes.SetBase(MobaAttributeIds.ATTACK_SPEED_R, 125f);
+            var baseline = harness.CaptureTraceBaseline();
+            BeginZap(harness, caster);
+            var cast = harness.TickUntilTraceNodeAfter(baseline, MobaExecutionKind.SkillCast, WSkillId, 10, "W did not start.");
+            harness.Tick(3);
+            var rollback = new RollbackCoordinator(MobaRollbackRegistryBuilder.Create(harness.World),
+                new RollbackSnapshotRingBuffer(4));
+            var checkpoint = rollback.Capture(harness.FrameTime.Frame);
+            var checkpointPipeline = checkpoint.Entries.Single(entry => entry.Key == MobaSkillLifecycleRollbackProvider.DefaultKey);
+            harness.Tick(4);
+            var advanced = rollback.Capture(harness.FrameTime.Frame);
+            Assert.That(advanced.Entries.Single(entry => entry.Key == MobaSkillLifecycleRollbackProvider.DefaultKey).Payload,
+                Is.Not.EqualTo(checkpointPipeline.Payload));
+            Assert.IsTrue(rollback.TryRestore(in checkpoint, out var result), result.ToString());
+            var restored = rollback.Capture(harness.FrameTime.Frame);
+            Assert.That(restored.Frame, Is.EqualTo(checkpoint.Frame));
+            CollectionAssert.AreEqual(checkpointPipeline.Payload,
+                restored.Entries.Single(entry => entry.Key == MobaSkillLifecycleRollbackProvider.DefaultKey).Payload);
+            harness.AssertActorEntity(caster).attributeGroup.Group.SetBase(MobaAttributeIds.ATTACK_SPEED_R, 250f);
+            var replayBaseline = harness.CaptureTraceBaseline();
+            var replay = harness.TickUntilTraceNodeAfter(replayBaseline, MobaExecutionKind.EffectExecution, WLaunchTriggerId, 25,
+                "W did not launch after replay.");
+            Assert.That(replay.CreatedFrame - cast.CreatedFrame, Is.EqualTo(15));
+            harness.Tick(harness.TickRate * 2);
+            var records = MobaAcceptanceTraceExporter.CaptureTraceRecords(harness, "jinx_w_windup_rollback");
+            Assert.That(records.Count(record => record.nodeId > replayBaseline &&
+                record.kind == "EffectExecution" && record.configId == WLaunchTriggerId), Is.EqualTo(1));
+        }
+
+        private static void BeginZap(MobaSkillConfigTestHarness harness, int caster)
+        {
+            var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+            var result = skills.TryCastBySlot(caster, slot: 2, aimPos: Vec3.Zero, aimDir: Vec3.Forward, targetActorId: 0);
+            Assert.IsTrue(result.Success, DescribeCastFailure(result));
         }
 
         [UnityTest]

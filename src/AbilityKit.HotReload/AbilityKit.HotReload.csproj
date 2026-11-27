@@ -10,15 +10,12 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <!-- 排除 Unity 相关文件 -->
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.hotreload/Runtime/**/*.cs" 
-             Exclude="../../Unity/Packages/com.abilitykit.hotreload/Runtime/**/*.asmdef;
-                     ../../Unity/Packages/com.abilitykit.hotreload/Runtime/HotReload/ConfigReloadDebugListener.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.hotreload/Runtime/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
+    <PackageReference Include="Entitas" Version="1.5.0" />
     <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.Entitas/AbilityKit.World.Entitas.csproj" />
   </ItemGroup>

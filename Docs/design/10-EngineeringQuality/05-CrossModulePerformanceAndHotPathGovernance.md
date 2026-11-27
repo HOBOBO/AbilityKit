@@ -62,7 +62,7 @@ workflow 已有 `runtime-performance-measurement` job，也把 `shooter-performa
 - `attributes.recompute.modifiers-{1|16|64}`：修改基础值后读取脏 Attribute 的重算成本，以 dirty-recompute 归一化；注册、修改器构造和预热位于测量区间外。
 - `modifiers.compose-sorted.count-{4|32|128}`：预排序固定值修改器的组合成本，以 modifier-composition 归一化；排序位于测量区间外。
 - `record.id-hash.utf8.length-{16|64|256}`：Record 稳定 ID 的 UTF-8 FNV-1a 计算成本，以 name-hash 归一化。实现直接把 UTF-16 code point 混合为 UTF-8 字节，兼容代理对与非法代理项 fallback，稳态不创建中间 byte array。
-- `targeting.streaming-top-k.candidates-{128|1024|4096}.top-{8|16|32}`：预热对象池后执行完整候选遍历、评分和 descending Streaming Top-K，以 candidate-evaluation 归一化；查询、候选数组、结果容量和 selector 构造位于测量区间外。
+- `targeting.{buffered-top-k|streaming-top-k}.candidates-{128|1024|4096}.top-{8|16|32}`：在相同的候选流、评分方向和 K 下，对照完整命中排序与融合 Top-K。预热后按候选数归一化（`candidate-evaluation`）；查询、候选数组、写入列表和选择器的构造，以及对输出数量、校验和与顺序的检查，都不计入测量。
 - `event-dispatcher.publish.fanout-{1|64|256}`：固定整数 event ID 和持久订阅下的同步派发，以 handler-invocation 归一化；订阅注册位于测量区间外，参数自动回收关闭，从而不混入装箱和 pool release 分支。
 - `pipeline.synchronous.phases-{4|32|64}`：Run 创建、阶段实例隔离、同步完成和清理的端到端成本，以 phase 归一化。
 - `pipeline.active-runs.count-{1000|5000}`：跨帧活跃 Run 的 Tick 成本，以 run-tick 归一化。

@@ -159,35 +159,4 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public string Scope;
         public bool HasValue => !string.IsNullOrEmpty(Kind);
     }
-
-    /// <summary>
-    /// 可序列化的触发器计划 DTO
-    /// </summary>
-    [Serializable]
-    public class TriggerPlanDto
-    {
-        public int TriggerId;
-        public string EventName;
-        public int EventId;
-        public bool AllowExternal;
-        public int Phase;
-        public int Priority;
-        public int InterruptPriority;
-        public ConditionConfig Predicate;
-        public List<ExecutableConfig> Executables;
-        public string CueId;
-        public string CuePrimaryAssetId;
-        public string CueSecondaryAssetId;
-        public string CuePayload;
-    }
-
-    /// <summary>
-    /// 可序列化的触发器数据库 DTO
-    /// </summary>
-    [Serializable]
-    public class TriggerDatabaseDto
-    {
-        public List<TriggerPlanDto> Triggers;
-        public Dictionary<int, string> Strings;
-    }
 }

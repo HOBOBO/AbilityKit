@@ -425,7 +425,7 @@ namespace AbilityKit.BattleScenario.Editor
         private static string BlockLabel(BattleBlock block) =>
             string.IsNullOrEmpty(block.DisplayName) ? block.GetType().Name : block.DisplayName;
 
-        private static readonly string[] SkillActions = { "cast_skill", "wait", "move_to", "cancel", "press", "release", "hold" };
+        private static readonly string[] SkillActions = { "cast_skill", "wait", "move_to", "move_direction", "cancel", "press", "release", "hold" };
         private static readonly string[] EndConditions = { TestEndConditionKinds.TimelineComplete, TestEndConditionKinds.Duration };
 
         private void DrawBlockFields(BattleBlock block)
@@ -490,8 +490,17 @@ namespace AbilityKit.BattleScenario.Editor
                     actionIndex = EditorGUILayout.Popup("Action", actionIndex, SkillActions);
                     step.Action = SkillActions[actionIndex];
                     step.ActorAlias = EditorGUILayout.TextField("ActorAlias", step.ActorAlias);
-                    step.TargetAlias = EditorGUILayout.TextField("TargetAlias", step.TargetAlias);
-                    step.Slot = EditorGUILayout.IntField("Slot", step.Slot);
+                    if (step.Action == "move_direction")
+                    {
+                        var direction = step.Direction.GetValueOrDefault();
+                        var value = EditorGUILayout.Vector2Field("Direction (X/Z)", new Vector2((float)direction.X, (float)direction.Z));
+                        step.Direction = new AbilityKit.Scenario.TestVector3(value.x, 0, value.y);
+                    }
+                    else
+                    {
+                        step.TargetAlias = EditorGUILayout.TextField("TargetAlias", step.TargetAlias);
+                        step.Slot = EditorGUILayout.IntField("Slot", step.Slot);
+                    }
                     return;
                 case WaitBlock wait:
                     wait.AtMs = EditorGUILayout.IntField("AtMs", wait.AtMs);

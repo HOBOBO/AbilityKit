@@ -650,7 +650,7 @@ Context 负责创建、传播和派发；trace adapter 只观察同一条执行�
 
 ### 7.1 两者不冲突
 
-触发器包中的 `IScheduleManager` / `GroupedScheduleManager` 是合理的，但它处在更低一层。
+本节区分低层计时与业务持续对象。下文 `ScheduleManager` 是概念名称：触发器包的早期通用调度实现已退役，图表不代表当前 MOBA 装配，也不是接入建议。
 
 
 | 维度     | ScheduleManager                         | ContinuousManager                                    |

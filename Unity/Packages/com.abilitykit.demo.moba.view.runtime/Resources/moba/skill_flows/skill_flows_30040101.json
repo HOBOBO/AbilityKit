@@ -7,6 +7,7 @@
   "QueueRecastInFlight": false,
   "ContinueThroughControl": false,
   "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": false,
   "RequiredBuffQualificationId": 0,
   "Phases": [
     {
@@ -48,9 +49,11 @@
       "Timeline": {
         "DurationMs": 2000,
         "RecoveryStartMs": 250,
+        "CastGateTagTemplateId": 0,
+        "CastGateEndMs": 0,
         "Events": [
           {
-            "AtMs": 0,
+            "AtMs": 250,
             "EffectId": 30040101,
             "ExecuteMode": 0,
             "AbortOnFailure": false,

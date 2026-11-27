@@ -126,6 +126,12 @@ namespace AbilityKit.Demo.Moba.Services
                 return Failed(actorId, MobaUnitRespawnFailure.MissingAttributes);
             }
 
+            TryPostCommitStep(() =>
+            {
+                if (restoredHp > 0f && actor.hasCharacterHfsm)
+                    actor.characterHfsm.Runtime?.OnRespawnCommitted();
+            }, ref firstFailure);
+
             var committedRespawnPosition = respawnPosition;
             TryPostCommitStep(() =>
             {

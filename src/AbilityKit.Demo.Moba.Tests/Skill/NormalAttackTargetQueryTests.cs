@@ -2,6 +2,7 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Demo.Moba.Share.Config;
 using Xunit;
@@ -193,6 +194,36 @@ public sealed class NormalAttackTargetQueryTests
         service.TrySearchActorIds(template, 1, in hitPoint, explicitTargetActorId: 2, results: results);
 
         Assert.Equal(new[] { 4 }, results);
+    }
+
+    [Fact]
+    public void Combat_health_filter_preserves_the_single_slot_for_a_unit()
+    {
+        var context = new ActorContext();
+        using var actors = new MobaActorRegistry();
+        AddActor(context, actors, 1, Team.Team1, UnitSubType.Hero, 0f);
+        AddActor(context, actors, 2, Team.Team2, UnitSubType.Bullet, 1f);
+        AddActor(context, actors, 3, Team.Team2, UnitSubType.Minion, 2f);
+        Assert.True(actors.TryGet(2, out var projectile));
+        Assert.True(actors.TryGet(3, out var unit));
+        projectile.AddEntityMainType(EntityMainType.Projectile);
+        unit.AddEntityMainType(EntityMainType.Unit);
+        new MobaActorAttributeInitializer().EnsureContainers(unit);
+        var service = new SearchTargetService(actors);
+        var template = new SearchQueryTemplateMO(79, "Combat health before top K", 1,
+            (int)SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget,
+            new SearchTargetProviderConfig(0, (int)SearchTargetProviderKind.EnemyTeam),
+            new[] { new SearchTargetRuleConfig(0, (int)SearchTargetRuleKind.RequireCombatHealth) },
+            new[] { new SearchTargetScorerConfig(0, (int)SearchTargetScorerKind.DistanceToCaster) },
+            new SearchTargetSelectorConfig(0, (int)SearchTargetSelectorKind.TopKByScore));
+        var results = new List<int>();
+
+        Assert.True(service.TrySearchActorIds(template, 1, Vec3.Zero, 0, results));
+        Assert.Equal(3, Assert.Single(results));
+
+        unit.RemoveResourceContainer();
+        Assert.Contains("ResourceContainer", Assert.Throws<InvalidOperationException>(() =>
+            service.TrySearchActorIds(template, 1, Vec3.Zero, 0, results)).Message);
     }
 
     [Theory]

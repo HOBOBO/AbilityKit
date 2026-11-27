@@ -21,6 +21,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         private const string ConsoleFolder = "../src/AbilityKit.Demo.Moba.Console/Configs/moba";
         private const string ConsoleLubanFolder = "../src/AbilityKit.Demo.Moba.Console/Configs/luban/moba";
         private const string ActorStateMachinesName = "actor_state_machines";
+        private const string RetiredFileName = "character_hfsm.json";
+        private static readonly string[] PublicationFolders = { UnityFolder, ConsoleFolder, ConsoleLubanFolder };
 
         public static string[] CharacterProfileNames()
         {
@@ -40,22 +42,21 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         private static string ProjectPath(string relative) =>
             Path.GetFullPath(Path.Combine(Application.dataPath, "..", relative));
 
-        [MenuItem("Tools/AbilityKit/MOBA/Publish State Machines")]
+        /// <summary>
+        /// 校验并发布磁盘上的状态机源文件，供交互发布和既有批处理复用。
+        /// </summary>
         public static void Publish()
         {
-            var names = SourceNames();
-            var documents = names.Select(name => File.ReadAllText(SourcePath(name))).ToArray();
-            for (var i = 0; i < names.Length; i++)
-                Validate(names[i], documents[i]);
+            var (names, documents) = ReadValidatedSources();
             for (var i = 0; i < names.Length; i++)
             {
                 var name = names[i];
-                foreach (var folder in new[] { UnityFolder, ConsoleFolder, ConsoleLubanFolder })
+                foreach (var folder in PublicationFolders)
                     WriteIfChanged(ProjectPath(folder + "/" + name + ".json"), documents[i]);
             }
-            foreach (var folder in new[] { UnityFolder, ConsoleFolder, ConsoleLubanFolder })
+            foreach (var folder in PublicationFolders)
             {
-                var retired = ProjectPath(folder + "/character_hfsm.json");
+                var retired = ProjectPath(folder + "/" + RetiredFileName);
                 if (File.Exists(retired)) File.Delete(retired);
                 if (File.Exists(retired + ".meta")) File.Delete(retired + ".meta");
             }
@@ -63,7 +64,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Debug.Log("MOBA 状态机已发布到 Unity 和 Console。");
         }
 
-        [MenuItem("Tools/AbilityKit/MOBA/Check State Machines")]
+        /// <summary>
+        /// 只读校验磁盘源文件及三个发布目录内的 JSON 内容一致性。
+        /// </summary>
         public static void Check()
         {
             foreach (var name in SourceNames())
@@ -71,7 +74,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 var json = File.ReadAllText(SourcePath(name));
                 Validate(name, json);
                 var expected = JToken.Parse(json);
-                foreach (var path in new[] { UnityFolder, ConsoleFolder, ConsoleLubanFolder })
+                foreach (var path in PublicationFolders)
                 {
                     var target = ProjectPath(path + "/" + name + ".json");
                     if (!File.Exists(target) || !JToken.DeepEquals(expected, JToken.Parse(File.ReadAllText(target))))
@@ -79,6 +82,39 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 }
             }
             Debug.Log("MOBA 状态机源文件与两端发布产物一致。");
+        }
+
+        private static (string[] Names, string[] Documents) ReadValidatedSources()
+        {
+            var names = SourceNames();
+            var documents = names.Select(name => File.ReadAllText(SourcePath(name))).ToArray();
+            for (var index = 0; index < names.Length; index++)
+                Validate(names[index], documents[index]);
+            return (names, documents);
+        }
+
+        internal static string BuildPublishPreview()
+        {
+            var (names, documents) = ReadValidatedSources();
+            var targets = new List<string>();
+            foreach (var folder in PublicationFolders)
+            {
+                var create = 0;
+                var update = 0;
+                for (var index = 0; index < names.Length; index++)
+                {
+                    var target = ProjectPath(folder + "/" + names[index] + ".json");
+                    if (!File.Exists(target)) create++;
+                    else if (File.ReadAllText(target) != documents[index]) update++;
+                }
+
+                var retired = ProjectPath(folder + "/" + RetiredFileName);
+                var remove = (File.Exists(retired) ? 1 : 0) + (File.Exists(retired + ".meta") ? 1 : 0);
+                targets.Add($"{folder}\n  新建 {create}，覆盖 {update}，清理 {remove}");
+            }
+
+            return $"已校验 {names.Length} 个已保存的源文件：\n{SourceFolder}\n\n" +
+                string.Join("\n", targets) + $"\n\n仅清理旧版 {RetiredFileName} 及其 .meta。发布不是事务，失败时请用版本控制核对产物。";
         }
 
         public static void Validate(string name, string json, string bindingsJson = null)
@@ -213,6 +249,13 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 
         private void OnEnable() => Reload();
 
+        private static void ConfirmPublish()
+        {
+            var preview = MobaStateMachinePublisher.BuildPublishPreview();
+            if (EditorUtility.DisplayDialog("发布 MOBA 状态机", preview, "确认发布", "取消"))
+                MobaStateMachinePublisher.Publish();
+        }
+
         private void Reload()
         {
             _characterNames = MobaStateMachinePublisher.CharacterProfileNames();
@@ -261,16 +304,14 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("重新加载", EditorStyles.toolbarButton)) Reload();
                 if (GUILayout.Button("保存源文件", EditorStyles.toolbarButton)) Save();
-                if (GUILayout.Button("发布", EditorStyles.toolbarButton))
+                using (new EditorGUI.DisabledScope(_dirty))
                 {
-                    Save();
-                    MobaStateMachinePublisher.Publish();
+                    if (GUILayout.Button(new GUIContent("发布", "保存源文件后，预检并确认发布。"), EditorStyles.toolbarButton))
+                        ConfirmPublish();
                 }
-                if (GUILayout.Button("校验", EditorStyles.toolbarButton))
-                {
-                    Save();
+                if (GUILayout.Button(new GUIContent("校验", "只校验磁盘上的源文件和发布产物，不保存当前修改。"),
+                        EditorStyles.toolbarButton))
                     MobaStateMachinePublisher.Check();
-                }
                 if (_kind == 0 && GUILayout.Button("角色动画同步", EditorStyles.toolbarButton))
                 {
                     if (_dirty) ShowNotification(new GUIContent("请先保存当前状态机修改，再扫描动画。"));
@@ -349,7 +390,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 DrawTransitionList(transitions);
             }
             EditorGUILayout.EndScrollView();
-            if (_dirty) EditorGUILayout.HelpBox("源文件有未保存的修改。", MessageType.Info);
+            if (_dirty) EditorGUILayout.HelpBox("源文件有未保存的修改。校验只读取已保存的文件；请先保存再发布。", MessageType.Info);
         }
 
         private void CreateCharacterProfile()

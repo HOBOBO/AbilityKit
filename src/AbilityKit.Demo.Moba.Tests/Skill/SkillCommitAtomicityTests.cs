@@ -65,6 +65,29 @@ public sealed class SkillCommitAtomicityTests
     }
 
     [Fact]
+    public void Direct_rule_plan_executes_last_record_without_inheriting_an_earlier_root()
+    {
+        var plans = new TriggerPlanJsonDatabase();
+        plans.LoadFromJson("""
+            { "FormatVersion": 1, "Triggers": [
+                { "TriggerId": 7101, "ExecutionRoot": { "Kind": "Succeed" } },
+                { "TriggerId": 7101, "Actions": [{ "ActionId": 7201, "Arity": 0 }] }
+            ] }
+            """);
+        var executed = 0;
+        var actions = new ActionRegistry();
+        actions.Register<NamedAction0<object, object, IWorldResolver>>(
+            new ActionId(7201), (_, _, _) => executed++, isDeterministic: true);
+        var executor = new MobaTriggerPlanExecutor(
+            new TestWorldResolver(actors: null), plans, new EventBus(), new FunctionRegistry(), actions,
+            new PayloadAccessorRegistry());
+
+        Assert.True(plans.TryGetExecutionRootByTriggerId(7101, out _));
+        Assert.True(executor.ExecuteRulePlan(7101, new object()));
+        Assert.Equal(1, executed);
+    }
+
+    [Fact]
     public void Effect_service_rejects_owner_bound_rule_plan_before_direct_execution()
     {
         const int triggerId = 900101014;

@@ -784,6 +784,22 @@ MonoBehaviour:
     - rid: 300301020000000001
     - rid: 300301020000000002
     - rid: 300301020000000003
+  - Id: 30030103
+    Name: Tibbers - Enraged Basic Attack
+    PipelineContinuousTagTemplateId: 0
+    ChildChannelId: 0
+    RecastChannelId: 0
+    QueueRecastInFlight: 0
+    ContinueThroughControl: 0
+    PreserveCharacterCastContext: 0
+    UseCommitCooldownFactor: 0
+    BasicAttack:
+      rid: -2
+    RequiredBuffQualificationId: 30030503
+    Phases:
+    - rid: 300301020000000001
+    - rid: 300301020000000002
+    - rid: 300301030000000003
   - Id: 30030201
     Name: Annie - Disintegrate
     PipelineContinuousTagTemplateId: 0
@@ -1472,49 +1488,6 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 300301020000000001
-      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: tibbers_basic_attack_economy
-        Operation: 0
-        ResourceType: 0
-        ResourceAmount: 0
-        UseResolvedResourceCost: 1
-        ChargeCost: 1
-        MaxCharges: 1
-        ChargeRecoveryMs: 0
-        StartSkillCooldown: 1
-        SkillCooldownMs: 0
-        UseResolvedSkillCooldown: 1
-        CooldownGroup: ''
-        SharedCooldownMs: 0
-        GlobalCooldownMs: 0
-        IgnoreGlobalCooldown: 0
-        IgnoreResourceCostCheck: 0
-        IgnoreResourceConsumption: 0
-        RefundBeforeCommit: 1
-        RequireExplicitCommit: 0
-        FailReason: skill_economy_reserve_failed
-    - rid: 300301020000000002
-      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: tibbers_basic_attack_commit
-        CommitId: attack
-        RequireEconomyReservation: 0
-    - rid: 300301020000000003
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: tibbers_basic_attack
-        Timeline:
-          DurationMs: 1875
-          RecoveryStartMs: -1
-          Events:
-          - AtMs: 0
-            EffectId: 30030102
-            ExecuteMode: 0
-            AbortOnFailure: 0
-            EventTag: tibbers_basic_attack
-        MobaLogicTimeline: {fileID: 4900000, guid: 9d419c03fe24119438826467b909d31b, type: 3}
     - rid: -2
       type: {class: , ns: , asm: }
     - rid: 914110140001
@@ -1530,6 +1503,29 @@ MonoBehaviour:
         PhaseId: veigar_w_commit_point
         CommitId: cast
         RequireEconomyReservation: 1
+    - rid: 66600030010301
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010301_economy
+        Operation: 0
+        ResourceType: 2
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 2
+        ChargeRecoveryMs: 18000
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 1
+        FailReason: skill_economy_reserve_failed
     - rid: 277261807049244672
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -1537,6 +1533,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events: []
         MobaLogicTimeline: {fileID: 0}
     - rid: 277261807049244673
@@ -1546,6 +1544,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10010001
@@ -1574,6 +1574,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 650
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10010901
@@ -1607,6 +1609,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 700
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10010901
@@ -1650,6 +1654,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10020001
@@ -1678,6 +1684,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 600
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10020101
@@ -1706,6 +1714,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 700
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10020201
@@ -1734,6 +1744,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10020301
@@ -1748,6 +1760,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10030001
@@ -1776,6 +1790,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10030101
@@ -1804,6 +1820,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 600
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10030201
@@ -1832,6 +1850,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 800
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10030301
@@ -1846,6 +1866,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10040011
@@ -1874,6 +1896,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 600
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10040101
@@ -1888,6 +1912,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10040112
@@ -1916,6 +1942,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10040201
@@ -1944,6 +1972,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10040301
@@ -1958,6 +1988,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10050001
@@ -1986,6 +2018,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10050101
@@ -2014,6 +2048,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10050201
@@ -2042,6 +2078,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1600
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10050301
@@ -2056,6 +2094,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10060001
@@ -2084,6 +2124,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 800
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10060101
@@ -2112,6 +2154,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10060201
@@ -2140,6 +2184,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 2500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10060301
@@ -2154,6 +2200,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10070001
@@ -2182,6 +2230,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 800
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10070101
@@ -2196,6 +2246,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10070112
@@ -2224,6 +2276,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10070201
@@ -2252,6 +2306,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 2500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10070301
@@ -2266,6 +2322,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10080001
@@ -2294,6 +2352,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 800
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10080101
@@ -2308,6 +2368,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10080112
@@ -2336,6 +2398,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10080201
@@ -2364,6 +2428,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 2500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10080301
@@ -2392,6 +2458,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 2500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10080401
@@ -2420,6 +2488,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 700
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30010101
@@ -2448,6 +2518,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3208
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30010201
@@ -2462,29 +2534,6 @@ MonoBehaviour:
         TriggerIds: 9373a635
         AbortOnFailure: 1
         FailReason: skill_release_failed
-    - rid: 66600030010301
-      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: skill_30010301_economy
-        Operation: 0
-        ResourceType: 2
-        ResourceAmount: 0
-        UseResolvedResourceCost: 1
-        ChargeCost: 1
-        MaxCharges: 2
-        ChargeRecoveryMs: 18000
-        StartSkillCooldown: 1
-        SkillCooldownMs: 0
-        UseResolvedSkillCooldown: 1
-        CooldownGroup:
-        SharedCooldownMs: 0
-        GlobalCooldownMs: 0
-        IgnoreGlobalCooldown: 0
-        IgnoreResourceCostCheck: 0
-        IgnoreResourceConsumption: 0
-        RefundBeforeCommit: 1
-        RequireExplicitCommit: 1
-        FailReason: skill_economy_reserve_failed
     - rid: 277261807049244773
       type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -2498,6 +2547,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1600
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30010301
@@ -2540,6 +2591,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 2000
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30010401
@@ -2568,6 +2621,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 2583
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30010411
@@ -2588,6 +2643,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30010601
@@ -2608,6 +2665,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30010602
@@ -2628,6 +2687,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3625
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30010603
@@ -2648,6 +2709,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3625
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30010604
@@ -2655,25 +2718,6 @@ MonoBehaviour:
             AbortOnFailure: 1
             EventTag: jhin_basic_attack_4
         MobaLogicTimeline: {fileID: 4900000, guid: fbbee0f826c64e9da48a11e12ed23d12, type: 3}
-    - rid: 277261807049246005
-      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
-      data:
-        PhaseId: skill_30010605_reload
-        Timeline:
-          DurationMs: 2500
-          RecoveryStartMs: -1
-          Events:
-          - AtMs: 0
-            EffectId: 30010014
-            ExecuteMode: 0
-            AbortOnFailure: 0
-            EventTag: jhin_reload_start
-          - AtMs: 2500
-            EffectId: 30010007
-            ExecuteMode: 0
-            AbortOnFailure: 1
-            EventTag: jhin_reload_complete
-        MobaLogicTimeline: {fileID: 0}
     - rid: 277261807049244791
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -2681,6 +2725,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1875
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30030101
@@ -2709,6 +2755,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 2208
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30030201
@@ -2737,6 +2785,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3000
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30030301
@@ -2765,6 +2815,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 4167
           RecoveryStartMs: 0
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30030401
@@ -2779,6 +2831,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 650
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10010901
@@ -2807,6 +2861,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 650
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10010311
@@ -2830,12 +2886,35 @@ MonoBehaviour:
         Timeline:
           DurationMs: 300
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 10010321
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: lp_skill_3_third
+        MobaLogicTimeline: {fileID: 0}
+    - rid: 277261807049246005
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: skill_30010605_reload
+        Timeline:
+          DurationMs: 2500
+          RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
+          Events:
+          - AtMs: 0
+            EffectId: 30010014
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: jhin_reload_start
+          - AtMs: 2500
+            EffectId: 30010007
+            ExecuteMode: 0
+            AbortOnFailure: 1
+            EventTag: jhin_reload_complete
         MobaLogicTimeline: {fileID: 0}
     - rid: 277261807169044483
       type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
@@ -2956,6 +3035,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30030501
@@ -2984,13 +3065,24 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1550
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
+          Windup:
+            rid: 2772618989299302470
           Events:
-          - AtMs: 0
+          - AtMs: 500
             EffectId: 30020203
             ExecuteMode: 0
             AbortOnFailure: 0
             EventTag: jinx_w_cast
         MobaLogicTimeline: {fileID: 4900000, guid: 87d32620fe5e92941a7ecd8f99931fab, type: 3}
+    - rid: 2772618989299302470
+      type: {class: SkillTimelineWindupDTO, ns: AbilityKit.Demo.Moba.Share.Config, asm: AbilityKit.Demo.Moba.Share}
+      data:
+        AuthoredMs: 500
+        BaseMs: 600
+        MinimumMs: 400
+        AttackSpeedPercentAtMinimum: 250
     - rid: 277261898929930248
       type: {class: SkillRulePlanPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
@@ -3012,6 +3104,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1367
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30020303
@@ -3040,6 +3134,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1800
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30020403
@@ -3083,8 +3179,10 @@ MonoBehaviour:
         Timeline:
           DurationMs: 2000
           RecoveryStartMs: 250
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
-          - AtMs: 0
+          - AtMs: 250
             EffectId: 30040101
             ExecuteMode: 0
             AbortOnFailure: 0
@@ -3134,6 +3232,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1583
           RecoveryStartMs: 250
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30040201
@@ -3178,6 +3278,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3333
           RecoveryStartMs: 250
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30040301
@@ -3229,6 +3331,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 2084
           RecoveryStartMs: 250
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30040401
@@ -3257,6 +3361,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1583
           RecoveryStartMs: 250
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30040501
@@ -3307,6 +3413,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1333
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 300
             EffectId: 30050101
@@ -3357,6 +3465,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30050001
@@ -3469,6 +3579,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1333
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30050001
@@ -3524,6 +3636,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1333
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30050001
@@ -3579,6 +3693,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30050601
@@ -3629,6 +3745,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1667
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 300
             EffectId: 30050701
@@ -3679,6 +3797,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1667
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 300
             EffectId: 30050702
@@ -3729,6 +3849,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1667
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 300
             EffectId: 30050703
@@ -3779,6 +3901,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1667
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 300
             EffectId: 30050704
@@ -3829,6 +3953,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1667
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 300
             EffectId: 30050705
@@ -3879,6 +4005,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 250
             EffectId: 30070101
@@ -3929,6 +4057,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 250
             EffectId: 30070201
@@ -3979,6 +4109,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 5042
           RecoveryStartMs: 250
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 250
             EffectId: 30070301
@@ -4029,6 +4161,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 250
             EffectId: 30070401
@@ -4079,6 +4213,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 100
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30070402
@@ -4186,6 +4322,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1600
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 300
             EffectId: 30060100
@@ -4236,6 +4374,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1000
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 250
             EffectId: 30060201
@@ -4286,6 +4426,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1000
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 250
             EffectId: 30060201
@@ -4336,6 +4478,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 250
             EffectId: 30060301
@@ -4386,6 +4530,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 250
             EffectId: 30060301
@@ -4436,6 +4582,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30060401
@@ -4486,6 +4634,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 500
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 0
             EffectId: 30060604
@@ -4536,6 +4686,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 250
             EffectId: 30060511
@@ -4591,6 +4743,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 3250
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 250
             EffectId: 30060511
@@ -4624,6 +4778,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1000
           RecoveryStartMs: -1
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events: []
         MobaLogicTimeline: {fileID: 4900000, guid: b1191a2a347b1a9498f09767adf8d7e3, type: 3}
     - rid: 277262132933820419
@@ -4638,6 +4794,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1567
           RecoveryStartMs: 100
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 100
             EffectId: 30020201
@@ -4662,6 +4820,8 @@ MonoBehaviour:
         Timeline:
           DurationMs: 1567
           RecoveryStartMs: 100
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
           Events:
           - AtMs: 100
             EffectId: 30020202
@@ -4669,3 +4829,64 @@ MonoBehaviour:
             AbortOnFailure: 1
             EventTag: basic_attack_launch
         MobaLogicTimeline: {fileID: 4900000, guid: 87efe85c0e70d4c45ab306417f8cd019, type: 3}
+    - rid: 300301020000000001
+      type: {class: SkillEconomyPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: tibbers_basic_attack_economy
+        Operation: 0
+        ResourceType: 0
+        ResourceAmount: 0
+        UseResolvedResourceCost: 1
+        ChargeCost: 1
+        MaxCharges: 1
+        ChargeRecoveryMs: 0
+        StartSkillCooldown: 1
+        SkillCooldownMs: 0
+        UseResolvedSkillCooldown: 1
+        CooldownGroup: 
+        SharedCooldownMs: 0
+        GlobalCooldownMs: 0
+        IgnoreGlobalCooldown: 0
+        IgnoreResourceCostCheck: 0
+        IgnoreResourceConsumption: 0
+        RefundBeforeCommit: 1
+        RequireExplicitCommit: 0
+        FailReason: skill_economy_reserve_failed
+    - rid: 300301020000000002
+      type: {class: SkillCommitPointPhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: tibbers_basic_attack_commit
+        CommitId: attack
+        RequireEconomyReservation: 0
+    - rid: 300301020000000003
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: tibbers_basic_attack
+        Timeline:
+          DurationMs: 1875
+          RecoveryStartMs: 0
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
+          Events:
+          - AtMs: 0
+            EffectId: 30030102
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: tibbers_basic_attack
+        MobaLogicTimeline: {fileID: 4900000, guid: 9d419c03fe24119438826467b909d31b, type: 3}
+    - rid: 300301030000000003
+      type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
+      data:
+        PhaseId: tibbers_enraged_attack
+        Timeline:
+          DurationMs: 600
+          RecoveryStartMs: 0
+          CastGateTagTemplateId: 0
+          CastGateEndMs: 0
+          Events:
+          - AtMs: 0
+            EffectId: 30030102
+            ExecuteMode: 0
+            AbortOnFailure: 0
+            EventTag: tibbers_basic_attack
+        MobaLogicTimeline: {fileID: 4900000, guid: ae2413745d387854e8805eb40cf599cb, type: 3}

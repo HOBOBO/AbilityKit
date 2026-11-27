@@ -20,11 +20,6 @@
       "path": "Samples~/FormalMainline"
     },
     {
-      "displayName": "Triggering Rule Scheduling",
-      "description": "Opt in to business rule scheduling and advance it from the host.",
-      "path": "Samples~/RuleScheduling"
-    },
-    {
       "displayName": "Triggering Queued Events",
       "description": "Flush queued events and observe phase and priority ordering.",
       "path": "Samples~/QueuedEvents"

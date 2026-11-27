@@ -2115,6 +2115,17 @@
     "ParamNames": []
   },
   {
+    "Id": 30030103,
+    "Levels": [
+      {
+        "CooldownMs": 600,
+        "Cost": 0,
+        "Params": []
+      }
+    ],
+    "ParamNames": []
+  },
+  {
     "Id": 30030201,
     "Levels": [
       {

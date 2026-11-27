@@ -42,8 +42,10 @@ namespace AbilityKit.Game.Editor
         private IEntity _root;
         private GameFlowDomain _flow;
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Preview/编辑器驱动(Flow Pump)")]
-        private static void Open()
+        /// <summary>
+        /// 打开编辑器预览窗口，不启动预览会话。
+        /// </summary>
+        internal static void Open()
         {
             GetWindow<EditorGameFlowPumpWindow>("Flow Pump");
         }

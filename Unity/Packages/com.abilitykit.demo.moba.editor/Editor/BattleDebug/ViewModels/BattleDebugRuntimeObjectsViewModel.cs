@@ -22,6 +22,7 @@ namespace AbilityKit.Game.Editor
         public BattleDiagnosticRuntimeObjectKind Kind { get; set; }
         public BattleDiagnosticRuntimeObjectState State { get; set; }
         public BattleDiagnosticDataCompleteness Completeness { get; set; }
+        public long RootContextId { get; set; }
 
         public BattleDiagnosticQueryStatus QueryStatus { get; private set; }
         public BattleDiagnosticQueryStatus SummaryQueryStatus { get; private set; }
@@ -80,7 +81,7 @@ namespace AbilityKit.Game.Editor
                 return _items;
             }
 
-            var summaryResult = catalog.QueryRuntimeObjectSummary(NextRequestId());
+            var summaryResult = RootContextId == 0 ? catalog.QueryRuntimeObjectSummary(NextRequestId()) : default;
             var query = new BattleDiagnosticRuntimeObjectQuery(
                 NextRequestId(),
                 filter,
@@ -262,7 +263,7 @@ namespace AbilityKit.Game.Editor
 
         internal BattleDiagnosticRuntimeObjectFilter CurrentFilter()
         {
-            return new BattleDiagnosticRuntimeObjectFilter(Kind, State, Completeness);
+            return new BattleDiagnosticRuntimeObjectFilter(Kind, State, Completeness, RootContextId);
         }
 
         internal static bool Matches(

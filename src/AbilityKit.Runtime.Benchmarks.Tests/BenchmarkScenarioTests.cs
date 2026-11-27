@@ -43,8 +43,8 @@ public sealed class BenchmarkScenarioTests
         var smoke = BenchmarkScenarioCatalog.Create("smoke");
         var full = BenchmarkScenarioCatalog.Create("full");
 
-        Assert.Equal(19, smoke.Count);
-        Assert.Equal(31, full.Count);
+        Assert.Equal(21, smoke.Count);
+        Assert.Equal(34, full.Count);
         Assert.Equal(smoke.Count, smoke.Select(item => item.Descriptor.Id).Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(full.Count, full.Select(item => item.Descriptor.Id).Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(
@@ -134,15 +134,19 @@ public sealed class BenchmarkScenarioTests
             result.Descriptor.Workload[BenchmarkWorkloadDimensions.Scope]);
     }
 
-    [Fact]
-    public void TargetingStreamingTopKScenario_EvaluatesEveryCandidateDeterministically()
+    [Theory]
+    [InlineData(false, "buffered-top-k")]
+    [InlineData(true, "streaming-top-k")]
+    public void TargetingTopKScenario_EvaluatesEveryCandidateDeterministically(bool streaming, string selectorName)
     {
         var result = BenchmarkRunner.RunScenario(
-            new TargetingStreamingTopKScenario(candidateCount: 4, topK: 2, batchSize: 2),
+            new TargetingTopKScenario(candidateCount: 4, topK: 2, streaming: streaming, batchSize: 2),
             SingleSample);
 
         Assert.Equal(8, result.Summary.TotalOperations);
         Assert.Equal("searches=2;results=4;checksum=14", result.DeterminismDigest);
+        Assert.Equal($"targeting.{selectorName}.candidates-4.top-2", result.Descriptor.Id);
+        Assert.Equal(selectorName, result.Descriptor.Workload["selector"]);
         Assert.Equal(BenchmarkScenarioScopes.Package,
             result.Descriptor.Workload[BenchmarkWorkloadDimensions.Scope]);
     }

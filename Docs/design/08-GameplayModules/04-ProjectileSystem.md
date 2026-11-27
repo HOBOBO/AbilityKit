@@ -1,8 +1,9 @@
 # 8.4 投射物系统
 
 > 文档类型：Canonical 设计（Projectile 跨模块边界）
-> 事实基线：2026-08-16
-> 文档版本：v3.0
+> 事实基线：2026-11-25，当前工作区 Runtime（含单弹推进/碰撞拆分）
+> 核校状态：限定核校公共服务的时钟、通知、调度、清理与恢复；MOBA 绑定及历史批准范围不作新验收
+> 文档版本：v3.1
 >
 > 本文从源码出发说明 AbilityKit 中投射物能力的真实边界：它不是“发射一个飞行物”这么简单，而是由 [`ProjectileWorld`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L16) 负责的投射物运行时、[`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L11) 负责的调度与事件编排、以及 Demo 层的 MOBA 绑定服务共同组成的一套可回滚、可追踪、可扩展的战斗子系统。
 
@@ -61,10 +62,15 @@
 
 ---
 
+安装、完整发射示例与操作契约见[包内指南](../../../Unity/Packages/com.abilitykit.combat.projectile/Documentation~/Usage.md)。本文维护碰撞、世界驱动、投射物、业务绑定及恢复之间的责任边界。
+
 ## 2. 源码入口
 
 | 角色 | 类型 | 源码 |
 |------|------|------|
+| 单弹帧状态 | `ProjectileWorld.TickProjectile` | [ProjectileWorld.TickProcessing.cs](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.TickProcessing.cs) |
+| 碰撞接触处理 | `ProjectileWorld.SweepProjectile` | [ProjectileWorld.Collision.cs](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.Collision.cs) |
+| 服务级恢复 | `ProjectileService` partial | [ProjectileService.Rollback.cs](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.Rollback.cs) |
 | 投射物运行时 | `ProjectileWorld` | [`ProjectileWorld.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L16) |
 | 对外服务 | `ProjectileService` | [`ProjectileService.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L11) |
 | 投射物实体 | `Projectile` | [`Projectile.cs`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/Projectile.cs#L6) |
@@ -185,6 +191,8 @@ sequenceDiagram
     Service-->>Caller: ProjectileId
 ```
 
+Spawn 的通知帧固定为 0，参数 SpawnFrame 仍进入物理状态；需要记录实际发射帧时用 ScheduleEmit，由到期 Tick 写入当前帧。取消任务只阻止未来生成，不删除已发射对象。
+
 ### 5.2 每帧推进
 
 [`ProjectileTickSystem`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Systems/ProjectileTickSystem.cs#L25) 每帧调用 [`ProjectileService.Tick()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs#L67)。服务层先推进发射计划和区域，再推进投射物世界。
@@ -202,71 +210,47 @@ flowchart TD
     H --> I["collect hit tick exit events"]
 ```
 
+宿主必须保证 Tick 的唯一驱动者。ProjectileWorldModule 仅注册服务；ProjectileSystemsModule 会另安装 TickSystem，与自动发现不能重复安装。TickSystem 优先使用 IFrameTime；fallback 的本地递增帧不是已纳入恢复的权威时钟。服务固定依次执行 schedules、Area、Projectile；业务消费通知后创建的 Area 等到下一次正常物理帧检测，不补跑本帧。
+
 ### 5.3 单个投射物推进
 
-[`ProjectileWorld.Tick()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L187) 的核心顺序是：
-
-1. 检查生命周期是否耗尽，耗尽则产生 [`ProjectileExitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L82)。
-2. 判断是否进入返回状态。
-3. 如果返回状态开启，查询 [`IProjectileReturnTargetProvider`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L11) 获取返回目标。
-4. 根据速度和固定帧间隔计算本帧移动距离。
-5. 沿移动段做 raycast，跳过 `IgnoreCollider`。
-6. 命中时执行过滤、冷却、重复命中保护和命中策略。
-7. 产生 [`ProjectileHitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L51) 或 [`ProjectileExitEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L82)。
-8. 更新位置、剩余生命周期和剩余距离。
-9. 根据 `TickIntervalFrames` 产生 [`ProjectileTickEvent`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileEvents.cs#L29)。
+活动列表遍历与对象池回收仍由 ProjectileWorld.Tick 负责，单弹状态在 TickProcessing partial，接触循环在 Collision partial。该拆分不增加时钟或业务入口。
 
 ```mermaid
 flowchart TD
-    A["ProjectileWorld.Tick projectile"] --> B{"Lifetime <= 0?"}
-    B -->|yes| X["Exit: Lifetime"]
-    B -->|no| C{Should return?}
-    C -->|yes| D["Resolve return target"]
-    D --> E{Target valid?}
-    E -->|no| Y["Exit: ReturnTargetLost"]
-    E -->|yes| F["Update direction to target"]
-    C -->|no| G["Compute movement"]
-    F --> G
-    G --> H{"Move <= 0?"}
-    H -->|yes| I["Decrease lifetime only"]
-    H -->|no| J["Raycast along segment"]
-    J --> K{Hit?}
-    K -->|no| L["Move to segment end"]
-    K -->|yes| M["Filter and cooldown checks"]
-    M --> N{Accepted hit?}
-    N -->|no| O["Advance slightly and continue"]
-    N -->|yes| P["Emit ProjectileHitEvent"]
-    P --> Q{HitPolicy exits?}
-    Q -->|yes| Z["Exit: Hit"]
-    Q -->|no| O
-    O --> R{Step budget left?}
-    R -->|yes| J
-    R -->|no| L
-    L --> S["Update lifetime and distance"]
-    S --> T{Tick interval reached?}
-    T -->|yes| U["Emit ProjectileTickEvent"]
-    T -->|no| V["Continue"]
-    U --> V
+    A[单弹推进] --> B{挂起?}
+    B -->|是| C[仅发到期 Tick 通知]
+    B -->|否| D{寿命耗尽?}
+    D -->|是| X[Exit 并交回列表回收]
+    D -->|否| E[解析返程或追踪目标]
+    E --> F{目标依赖有效?}
+    F -->|否| X
+    F -->|是| G[固定步长计算及裁剪位移]
+    G --> H[沿运动段扫掠并处理接触]
+    H --> I{接触终止?}
+    I -->|是| X
+    I -->|否| J[更新位置 寿命和周期通知]
+    J --> K[距离响应: Exit 挂起或返程]
 ```
+
+挂起时不消耗寿命；到达目标挂起发一次 Arrival，保留对象且不能 Resume。非正位移分支消耗寿命但不执行移动后的周期通知。位移按剩余距离/返程目标裁剪，追踪弧线以分段扫掠处理。各分支以当前源码为准，不把旧的单一 Raycast 示意当作所有轨迹的行为。
 
 ---
 
 ## 6. 命中、穿透与过滤
 
-命中处理是投射物系统最关键的扩展点。源码中有三层保护：
+碰撞世界负责几何候选，Projectile 负责接触身份和生命周期，业务 filter/provider 负责阵营资格、Actor 映射及确定性目标选择。当前实现分层如下：
 
-| 层级 | 源码 | 作用 |
-|------|------|------|
-| 忽略碰撞体 | [`TryRaycastSkippingIgnored()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L424) | 跳过发射者自身或指定碰撞体 |
-| 命中过滤 | [`IProjectileHitFilter.ShouldHit()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Filters/IProjectileHitFilter.cs#L5) | 上层决定是否应命中，例如阵营、无敌、不可选中 |
-| 命中策略 | [`IProjectileHitPolicy.ShouldExitOnHit()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Policies/IProjectileHitPolicy.cs#L3) | 决定命中后是否销毁，例如立即退出或穿透若干次 |
+| 层级 | 入口与职责 |
+| --- | --- |
+| 几何扫掠 | [ProjectileCollisionQueries](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileCollisionQueries.cs)，按运动段及碰撞半尺寸查询，忽略自身/本步已处理 Collider |
+| 分类响应 | IProjectileCollisionResponseResolver 返回 Ignore/Hit/Block/SupportContact/HitAndContinue/HitAndStop；未提供时使用 IProjectileHitFilter |
+| 身份与冷却 | Collider、OncePerActor、OncePerActorPerLeg；Actor 策略需要身份 provider，不从 ColliderId 猜 ActorId |
+| 命中策略 | ExitOnHit、Pierce、Bounce；Bounce 需稳定目标选择及追踪依赖，不能仅凭枚举名完成接入 |
 
-[`ProjectileHitPolicyKind`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs#L5) 当前提供 `ExitOnHit` 与 `Pierce` 两种内置策略。`Pierce` 通过 `HitsRemaining` 递减来支持多目标命中。
+Block 退出且无普通 Hit；Ignore 跳过。HitAndContinue / HitAndStop 走已接纳命中语义，分别跳过策略预算继续或强制退出；SupportContact 不能被上层直接当作伤害资格。旧 Hit 继续委托命中策略。业务内容的合法组合以既有领域批准和发布校验为准，不借文档整理扩大范围。
 
-源码还做了两个确定性保护：
-
-- 单帧内最多处理 8 次命中，避免无限循环。
-- 同一帧内记录已命中的碰撞体，避免同一投射物在一次 raycast 分段中重复触发同一目标。
+单步最多处理 8 次接触扫描，并记录本步 Collider，避免重复接触或无限循环；不等同于无限密度穿透保证。碰撞包的 Grid 容量、32 位掩码及几何近似限制也会传递到本包，见[碰撞设计](../13-FrameworkCore/01-CollisionSystemDesign.md)。
 
 ---
 
@@ -293,29 +277,35 @@ flowchart TD
 
 ---
 
+调度迟到时，每个任务每次 Tick 最多发一批，下一帧游标基于本次 frame + interval；不会补发错过的全部批次。PatternProvider 返回 null 时保留任务。模式/Provider 实例作为引用保留，回调异常会向外传播，已生成对象不自动补偿。
+
 ## 8. 回滚与快照
 
-[`ProjectileWorld.ExportRollback()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L77) 和 [`ProjectileWorld.ImportRollback()`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs#L118) 将运行时投射物转成二进制快照。快照内容包括：
+普通世界可不启用回滚。启用时必须区分公共服务状态和宿主业务状态，不能从类名或单个子载荷推定整个世界可恢复。
 
-- 投射物 id 与 `_nextId`
-- 所属角色、模板、发射器、根角色
-- 位置、方向、速度
-- 剩余生命周期、剩余距离
-- 命中策略和剩余命中次数
-- 周期 tick 状态
-- 返回状态和返回参数
+| 载荷 | 当前范围与版本 |
+| --- | --- |
+| ProjectileWorld | 当前子载荷 18：活动弹体、分配器、定点状态、冷却/命中历史、返程/到达与过滤描述 |
+| AreaWorld | 当前导出子载荷 5：区域、重叠和边界采样、组资格、分配器 |
+| ProjectileService | envelope 2：组合上述两项及未来任务名单、次序、游标、模式/过滤描述、NextScheduleId |
+| 服务临时通知 | 不捕获；成功 Import 清空十类队列，不补 Spawn/Hit/Enter 等历史通知 |
+| 宿主依赖 | 碰撞世界、目标及身份 provider、世界随机流、Actor/Cast/来源绑定、技能 retain、伤害与表现不由公共包自动恢复 |
 
 ```mermaid
 flowchart LR
-    A["Active Projectile List"] --> B["SnapshotItem array"]
-    B --> C["SnapshotPayload"]
-    C --> D["BinaryObjectCodec.Encode"]
-    D --> E["Rollback payload"]
-    E --> F["BinaryObjectCodec.Decode"]
-    F --> G["Rebuild Projectile list from pool"]
+    Host[宿主选择恢复帧与依赖] --> Preflight[服务结构和依赖预检]
+    Preflight --> Strategies[准备可恢复模式和过滤器]
+    Strategies --> Physical[静默导入 Projectile 和 Area]
+    Physical --> Work[恢复未来任务及分配器]
+    Work --> Clear[清空临时通知]
+    Clear --> Resume[宿主恢复绑定后推进后续帧]
 ```
 
-该快照只覆盖 `ProjectileWorld` 的 active projectile 列表与 `_nextId`，并不覆盖 `ProjectileService` 的 schedule、AreaWorld、事件缓冲、`_nextScheduleId`、return/tracking provider 或项目自定义过滤器实例。投射物快照会保存 `TotalHitCount`、命中冷却游标（`HitCooldownFrames`、`LastHitCollider`、`LastHitAllowedFrame`）以及稳定的 `HitFilterKey`；同一个 `ProjectileWorld` 会复用已注册过滤器，跨 World 恢复时必须通过 `IProjectileHitFilterResolver` 提供同一 key 的过滤器，否则 Import 明确失败，不会静默退回默认过滤。Demo 层额外的 Actor 链接、来源上下文、技能 retain handle 和表现游标同样需要由项目侧在更高层恢复事务中重建。
+内建 SingleShot/Burst/Fan/Scatter 使用值描述；自定义模式/Provider 需快照描述及 IProjectileSchedulePatternResolver。计划发射显式 HitPolicy 实例不能导出，应使用可恢复的 kind/param。自定义过滤器按稳定 key 或值描述绑定当地服务，缺依赖明确失败，不能降级默认过滤。
+
+非空服务载荷只接受 envelope 2 并验证帧、名单、allocator 及依赖；null/空导入维持静默清空语义。预检不承诺任意外部 resolver 副作用或跨 Provider 事务；恢复失败由宿主收敛。ProjectileRollbackProvider 适配可选恢复端口，不决定主同步模式：帧同步仍按权威输入与检查点重演，状态同步按权威基线重建/导入，两者游标不得互换。
+
+通知由唯一 drain 者消费后分发；Drain 向调用方 List 追加，Peek 不消费。Dispose 只清通知和任务，不移除活动弹体/区域；结束前应显式删除或空载荷静默清空，再释放项目引用。上述公共行为不代表业务绑定、外部效果和表现消费也已恢复。
 
 ---
 
@@ -410,21 +400,19 @@ MOBA filter 在发射时复制规则和冻结目标身份，借助可选值快�
 
 ### 11.1 证据状态与已知限制
 
-- **E0 实现**：`ProjectileWorld`、`ProjectileService`、策略、事件和快照接口存在。
-- **E1 示例**：包内模式示例与 MOBA 发射/事件转译展示基础和高接入用法。
-- **E2 集成**：MOBA 技能、Trigger、临时 Actor、Trace 与快照链真实消费公共投射物能力。
-- **E3 契约**：2026-08-16 当次 `AbilityKit.Combat.Projectile.Tests` 为 `8/8`，覆盖 ID、定点飞行/归一化、距离退出、球体命中和 active projectile raw-bit rollback。未覆盖 schedule/Area、事件 drain 所有权、provider/filter 恢复及 MOBA 链接事务。
-- **E4 场景**：P0 Smoke/Unity artifact 只为其日期化实际发射和命中路径提供场景证据，不能推出所有碰撞世界、回旋、穿透和回滚绑定均已验收；本批未重跑 Unity。
-- **E5 门禁**：尚无覆盖完整业务绑定恢复、性能预算和跨端协议兼容的统一强制门禁。
+- **E0**：当前 ProjectileWorld 主文件、TickProcessing、Collision partial 及 ProjectileService/Area/恢复实现逐项核对。
+- **E1–E2**：MOBA 发射、链接、来源上下文与事件转译主链只读定位；这是一种项目接法，不是本包默认业务模型。
+- **E3**：2026-11-25 Windows / .NET 10 Release，经 `core-stability` 的 `Combat projectile deterministic kinematics tests` 单步运行直属 suite，97/97。含定点运动、命中身份、弹射、到达、Area、调度及恢复预检等现有 fixture；非完整业务矩阵。
+- **完整示例 E3**：包内指南原样提取，验证定时发射、命中/退出及服务检查点恢复后的相同执行；目标碰撞世界由示例预先构造，未验证宿主恢复。
+- **限制探针**：本地确认 Peek/Drain 追加、Dispose 保留活动物理状态、空载荷导入静默清空；没有修改运行时。
+- **E4/E5**：本批未运行 Unity、真实场景、干净 UPM 安装、跨平台、完整 gate 或 CI。历史 P0 Smoke artifact 及 2026-08-16 直属 8/8 只保留日期化含义，不能作为当前全能力验收。
 
-核心快照不自动包含 MOBA 的 Actor 链接、来源上下文、技能 runtime retain 和表现消费游标。采用回滚或预测时，项目必须把这些附加状态纳入同一恢复事务。
+实际日志、TRX、示例与探针在 `local/Logs/documentation/D4-Combat-20261125-134952/`，范围见[批次记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#14-d4-战斗索引碰撞与投射物核校记录2026-11-25)。未覆盖完整 Actor/来源/retain 恢复事务、输出提交、多消费者顺序、性能预算或双同步链端到端。
 
-- [属性系统](05-AttributeSystem.md) - Attributes 与 Modifiers
-- [伤害计算](06-DamageCalculation.md) - 伤害公式
+- [属性系统](05-AttributeSystem.md)
+- [伤害计算](06-DamageCalculation.md)
 
----
-
-*文档类型：Canonical 设计（Projectile 跨模块边界） | 事实基线：2026-08-16 | 证据等级：公共包局部 E3；E4 仅限日期化历史 artifact | 文档版本：v3.0*
+下列历史批准记录保留其日期与范围，不能据此为新增机制或全部内容配置授权。
 
 ## 区域清理及生成失败补偿
 
@@ -458,3 +446,7 @@ MOBA 区域创建仅在底层 Area 存在后注册服务元数据。若注册失
 碰撞响应追加 `HitAndContinue`（4）和 `HitAndStop`（5），保留 0..3 的值。两者使用普通目标资格、角色身份及命中冷却，记录已接纳 Hit 并递增 TotalHitCount。Continue 跳过 HitPolicy 且不消耗 HitsRemaining；Stop 在该接触的 Hit 后发出一次 Exit(Hit)，再移除投射物。护盾吸收及控制免疫不改变碰撞终止。旧 Hit 仍委托给配置的 HitPolicy。
 
 MOBA 规则不能绕过自身、友方队伍或 HitUnitSubType 保护。StaticWorld 仅允许 Ignore/Block。首批批准配置范围是直线、不返程的 ExitOnHit/Pierce 投射物；不兼容的弹射、弧线或返程配置被拒绝。规则及角色历史沿用既有发射冻结及快照布局；新增响应值不增加二进制字段。内容选择分类，框架只消费响应。
+
+文档类型：Canonical 设计（Projectile 跨模块边界） | 事实基线：2026-11-25 | 证据等级：E0、消费者 E1–E2、局部 E3；历史场景按日期限定
+
+*文档版本：v3.1 | 最后更新：2026-11-25*

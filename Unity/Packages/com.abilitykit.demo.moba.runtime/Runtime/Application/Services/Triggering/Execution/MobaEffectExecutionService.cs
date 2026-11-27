@@ -1030,7 +1030,7 @@ namespace AbilityKit.Demo.Moba.Services
                         ctx.NumericFunctions,
                         ctx.Policy,
                         ctx.Control,
-                        ctx.ActionSchedulerManager,
+                        ctx.FlatActionScheduler,
                         collections ?? ctx.Collections);
                     trigger.Execute(in args, in actionCtx);
                     CollectTriggerAnalysisExecution(triggerId, in conditionContext, true, detailCode: 3);

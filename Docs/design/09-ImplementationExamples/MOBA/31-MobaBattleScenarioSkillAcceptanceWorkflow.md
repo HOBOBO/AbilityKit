@@ -115,7 +115,17 @@ Unity 输入/UI ──┬──> 现有 Battle HUD / InputRuntime ──> 权威
 
 ### 2.6 七英雄技能表现用例
 
-用例位于 [`Flows/SkillPresentation`](../../../../src/AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/SkillPresentation)，每个英雄 Q/W/E/R 一个文件。用正式 HeroId 解析技能栏，不注入技能 ID 来绕过替换槽位；例如烬 R 在同一局依次架枪、三次普通射击和一次终结射击。金克丝 Q 播放两种武器普攻、古拉加斯 W 接强化普攻、古拉加斯 Q 和拉克丝 E 包含引爆、卡尔萨斯 E 包含开启与关闭。被动、死亡态与其他条件变体不属于这批用例。
+用例位于 [`Flows/SkillPresentation`](../../../../src/AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/SkillPresentation)。七个英雄均有独立的 Q/W/E/R 和单发普攻场景。独立场景只验收一个主题，但保留真实触发前置，例如烬 R 的架枪与四次射击、古拉加斯 W 的强化普攻和卡尔萨斯 E 的开关。预览始终以正式 HeroId 解析技能栏，不绕过槽位替换。
+
+| 英雄 | 独立普攻 / 被动 | 多单位场景 |
+|---|---|---|
+| 烬 | `jhin-basic-attack` / `jhin-passive-magazine`（第四发与换弹） | `jhin-q-four-hits` 四个对手；`jhin-q-kill-chain` 降低部分目标血量 |
+| 金克丝 | `jinx-basic-attack`、`jinx-basic-attack-fishbones`；`jinx-q-toggle-only` 单看切枪。正式配置尚无击杀加速，武器路由不算击杀被动验收 | 火箭普攻有主、次目标；`jinx-e` 三点落位 |
+| 安妮 | `annie-basic-attack` / `annie-passive-pyromania`（叠层后以 W 眩晕） | `annie-w`、`annie-r-two-targets`；`annie-e-ally` 和 `annie-e-tibbers` 区分友军与熊 |
+| 维迦 | `veigar-basic-attack` / `veigar-passive-growth`（Q 命中叠层） | `veigar-q-two-targets` 用第三名敌人作为对照 |
+| 古拉加斯 | `gragas-basic-attack` / `gragas-passive-happy-hour`（低血量施法回血） | `gragas-w` 溅射；`gragas-r-two-targets` 双目标 |
+| 卡尔萨斯 | `karthus-basic-attack` / `karthus-passive-respawn`（陪练击杀、死后施法、复活） | `karthus-q` / `karthus-q-two-targets` 对照孤立条件；`karthus-r-multi-target` 带友军对照 |
+| 拉克丝 | `lux-basic-attack` / `lux-passive-illumination`（Q 标记、普攻消耗） | `lux-q-two-targets`；`lux-w-two-allies` 带范围外友军和同线敌人对照 |
 
 打开 `Window > AbilityKit > 战斗测试用例编辑器`，从左侧用例库选择场景。它会索引 MOBA 仓库用例及项目的 `Assets/BattleScenarios`，例如输入 `金克丝 W skill-presentation` 就能定位 `jinx-w`。也可用「浏览用例…」加载其他目录。选中后不需要重新选文件：
 
@@ -129,7 +139,7 @@ Unity 输入/UI ──┬──> 现有 Battle HUD / InputRuntime ──> 权威
 
 烬 W/E、金克丝 R、拉克丝 R 可复用 EditMode Test Runner 的 `SkillPresentationCapture` 类别批量取证（Unity 批处理时不要加 `-nographics`）。测试启动同一正式本地预览，以实际 `SkillCast` 为零帧，按阶段保存相机 PNG、实际逻辑帧、Animator Clip 和活动 VFX 位置到 `local/Logs/moba-presentation-scenarios/`。截图不含 HUD Overlay，VFX 条目也不代表像素可见；测试通过后仍需查看画面。添加同类场景时先选不被地图障碍遮挡的站位，再从 Headless trace 选取命中前、命中后和清理后的采样帧。
 
-预览当前使用正式 Demo 的本地地图，只接收有站位的正式英雄、一个本地施法者及技能输入/等待。不支持的自定义环境、障碍、属性设定或网络命令会预检拒绝，而不是忽略后继续播放。带这些要求的场景仍可在原有 Headless 路径验证。
+预览使用正式 Demo 的本地地图。一个角色负责本地镜头和手动输入归属，可布置多名友军和敌军陪练。时间线开始前可用 `set_attr` 设置已布置角色的属性（例如低血量、无蓝）；时间线可对已布置角色提交技能输入、移动或等待。纯预览仍关闭手动输入；不支持的自定义环境、障碍或网络命令会在预检时报错。
 
 补充复现用例沿用同一目录和播放入口：
 
@@ -345,6 +355,27 @@ R 的架枪是跨多次输入的长期模式：架枪入口可以是短 Pipeline
 4. 只在需要观察表现时开启录像；
 5. 若输入或状态变更，重跑回放和 determinism 检查。
 
+### Console 批跑与离线排查
+
+从仓库根目录运行现有 .NET Runner，不启动 Unity，也不加载 Unity 场景或战斗预制体：
+
+```powershell
+dotnet run --project src/AbilityKit.Demo.Moba.BattleScenario.Runner -- `
+  --batch src/AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/SkillPresentation `
+  --output-dir local/Logs/moba-scenario-runs --evidence all `
+  --case jhin-q --case annie-q
+```
+
+不指定 `--case` 时，运行该目录下所有 `.battlescenario`；`--case` 可重复，值为不带扩展名的文件名。每次运行发布一个独立目录，用 `batch_summary_v1.json` 汇总断言通过、断言失败、执行错误和无断言。仍可去掉 `--output-dir` 和其他新增选项，使用原有文本批跑方式。
+
+`--evidence none` 不采集离线诊断快照，只存验收结果；`failed`（指定输出目录时的默认值）只保留失败证据，但仍启用快照采集；`all` 保留所有成功捕获的证据。证据来自同一次战斗，不用于重演或判定；场景无法加载时通常没有证据。
+
+打开 Unity 的 **Tools → AbilityKit → Demos → Moba → Battle → 战斗调试 → 批次**。工作台分别记住「预设目录」和「分析库」，Windows 默认库为 `%LOCALAPPDATA%/AbilityKit/BattleAnalysis/MOBA/runs/`。也可选择其他 `--output-dir`，包括旧的临时留档根；不自动迁移、覆盖或删除旧批次。查看历史不执行场景；没有证据仍可查验收。
+
+从面板批跑时，选全部预设或勾选用例，设定留证策略后点击「批量执行」。编辑器在后台调用同一个 `.NET` Runner，不启动 Unity Headless。Console 发布批次后通过 `--receipt <新文件>` 返回实际批次 ID，窗口刷新并定位本次结果，判定失败也不影响查看。运行日志和回执仍在仓库的 `local/Logs/moba-scenario-editor/`；长期留档只放所选分析库。需要排查时，再打开单场证据，或返回所选批次。
+
+同一份留档也能在 [Admin Console](../../../../Server/AdminConsole/README.md#英雄技能批次排查) 的「技能分析」中查看。网页可以选择整个输出根目录或单个批次目录；文件只在浏览器本机读取。
+
 ### CI
 
 - `BattleScenarioRegressionTests`：所有已提交场景必须通过；
@@ -386,3 +417,11 @@ R 的架枪是跨多次输入的长期模式：架枪入口可以是短 Pipeline
 | 分别判定 | 玩法断言通过、资源可见、接入后表现对齐分别记结果；自动通过不代表艺术效果逐帧相同 | 写明已对齐、已知差异、待人工对照或没有采样的阶段 |
 
 原展示的 HUD、示范靶、脚本定时、根位移与自动爆炸不进入战斗执行链。片段内的骨骼、材质和粒子节奏可用作参照；命中、落点、目标、开始与清理由玩法规则和对应 Cue 驱动。无需复制 `game-res` 的播放模块，也不把它加入战斗运行时依赖。
+
+| 场景 | 原展示对照 | 实战验收 |
+|---|---|---|
+| `veigar-basic-attack` | `09.Veigar_Hextech/Imported/AutoAttack.anim` 的 `Fx_AA_MainMissile` 在 0.25 秒启用。 | 用原有逻辑时间轴在 250 毫秒发射，跟踪弹道仍在命中时结算；验证模型动作、出弹、命中及回收。 |
+| `lux-basic-attack`、`lux-passive-illumination` | `12.Lux_DarkStar/Animations/Lux_DarkStar_AA.anim` 的 `AA_Missile` 以及提取后的 `AA_Hit`、`Passive_Mark`、`Passive_Hit`。 | 对照无标记和有标记的普攻：标记持续到普攻命中，随后只在原目标引爆一次；预览尾段覆盖命中特效和被动引爆的自然回收。 |
+| `karthus-basic-attack` | `11.Karthus_Project.unity` 的 `AutoAttack_1` 对应 `KarthusProject_AutoAttack.anim`；`AA_Missile` 在 0.542 秒启用，源出弹局部高度为 1.525。 | 独立弹道 prefab 仅抬高 `AA_Missile` 子节点，不复制源动画的示范轨迹，不改变权威投射物位置、时序或碰撞。验证模型动作、弹道可见且移动、单次命中/伤害、命中特效及两段表现回收。 |
+| `gragas-basic-attack`、`gragas-w` | `10.Gragas_StarGuardian.unity` 的原演示 `AutoAttack_1` 使用 `AutoAttack_2.anim` 展示 `FX_AA_Impact`；正式接入区分 `AA_Hit` 和强化攻击的 `AA_Impact`，不把原展示动作当作两种实战攻击的共同绑定。 | 普攻独立播放普通挥击与单次 `AA_Hit`；W 后强化普攻才播强化动作和 `AA_Impact`，可命中多个目标，但不会为每个目标重复播放强化冲击。 |
+| `karthus-passive-respawn` | `11.Karthus_Project/Animations/KarthusProject_Death.anim` 的 `Fx_Death`，对应独立 `Karthus_Project_Death` prefab。 | 灵体特效用角色初始挂点定位，此后不跟随复活位移；仍由死亡许可 Buff 管理寿命。实拍覆盖死亡开场、死后 Q、Q 结束后仍可见、复活清除灵体和 E 光环；源演示的固定退场时间不接入玩法。 |

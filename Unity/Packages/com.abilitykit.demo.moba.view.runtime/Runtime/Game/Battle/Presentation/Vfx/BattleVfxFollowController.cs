@@ -10,6 +10,8 @@ namespace AbilityKit.Game.Battle.Vfx
 {
     internal sealed class BattleVfxFollowController
     {
+        internal const string FlightDistanceParameter = "projectileFlightDistance";
+        internal const string FlightArcHeightParameter = "projectileFlightArcHeight";
         private readonly BattleVfxFollowTargetPositionResolver _targetPositions;
         private readonly BattleVfxLifetimePolicy _lifetime;
         private readonly BattleVfxEntityCollector _collector;
@@ -141,12 +143,14 @@ namespace AbilityKit.Game.Battle.Vfx
                 if (!presentation.Request.FollowAttachment) return;
                 if (SyncPresentation(world, entity, null, null)) return;
                 // A manual pose still observes request offset space when no shell is available.
-                var attachment = presentation.Request.Attachment;
+                var request = presentation.Request;
+                var attachment = request.Attachment;
                 var rotation = targetForward.sqrMagnitude > 0.0001f
                     ? Quaternion.LookRotation(targetForward.normalized, Vector3.up) : Quaternion.identity;
                 if (entity.TryGetRef(out BattleViewGameObjectComponent requestedVisual) && requestedVisual?.GameObject != null)
                     requestedVisual.GameObject.transform.SetPositionAndRotation(
-                        UnityPresentationTransformUtility.ResolvePosition(targetPos, rotation, Vector3.one, in attachment), rotation);
+                        WithFlightArc(UnityPresentationTransformUtility.ResolvePosition(targetPos, rotation, Vector3.one, in attachment),
+                            targetPos, in request), rotation);
                 return;
             }
             if (!entity.TryGetRef(out BattleViewGameObjectComponent goComp) || goComp == null || goComp.GameObject == null) return;
@@ -197,11 +201,24 @@ namespace AbilityKit.Game.Battle.Vfx
                 if (binder != null) binder.TryGetShellGameObject(targetId, out targetObject);
                 if (targetObject == null && world.Wrap(targetId).TryGetRef(out BattleViewGameObjectComponent targetView))
                     targetObject = targetView?.GameObject;
-                if (targetObject != null)
+                if (TryReadFlightArc(in request, out var distance, out var height) &&
+                    world.Wrap(targetId).TryGetRef(out BattleTransformComponent flightPose) && flightPose != null)
+                {
+                    var position = flightPose.Position;
+                    var forward = flightPose.Forward;
+                    var rotation = forward.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(forward.normalized, Vector3.up) : Quaternion.identity;
+                    var attachment = request.Attachment;
+                    var visualPosition = UnityPresentationTransformUtility.ResolvePosition(position, rotation, flightPose.Scale, in attachment);
+                    tr.SetPositionAndRotation(WithFlightArc(visualPosition, position, in request, distance, height), rotation);
+                    state.RecordTarget(null, flightPose.Scale);
+                    resolved = true;
+                }
+                else if (targetObject != null)
                 {
                     var attachment = request.Attachment;
                     var target = UnityPresentationTransformUtility.ResolveSocket(targetObject.transform, in attachment);
-                    tr.SetPositionAndRotation(UnityPresentationTransformUtility.ResolvePosition(target, in attachment), target.rotation);
+                    tr.SetPositionAndRotation(WithFlightArc(UnityPresentationTransformUtility.ResolvePosition(target, in attachment),
+                        target.position, in request), target.rotation);
                     state.RecordTarget(target, target.lossyScale);
                     resolved = true;
                 }
@@ -212,7 +229,8 @@ namespace AbilityKit.Game.Battle.Vfx
                     // Without a shell, fall back to the logical projection including its scale.
                     var targetScale = world.Wrap(targetId).TryGetRef(out BattleTransformComponent logical) && logical != null
                         ? logical.Scale : Vector3.one;
-                    tr.SetPositionAndRotation(UnityPresentationTransformUtility.ResolvePosition(position, rotation, targetScale, in attachment), rotation);
+                    tr.SetPositionAndRotation(WithFlightArc(UnityPresentationTransformUtility.ResolvePosition(position, rotation, targetScale, in attachment),
+                        position, in request), rotation);
                     state.RecordTarget(null, targetScale);
                     resolved = true;
                 }
@@ -230,6 +248,36 @@ namespace AbilityKit.Game.Battle.Vfx
             var ordering = request.Ordering;
             state.OrderingAdapter?.Apply(visual.GameObject, state.AttachmentTarget != null ? state.AttachmentTarget.gameObject : null, in ordering);
             return resolved || !attached || !request.FollowAttachment || state.IsDetached;
+        }
+
+        private static Vector3 WithFlightArc(Vector3 visualPosition, Vector3 targetPosition, in PresentationRequest request)
+        {
+            return TryReadFlightArc(in request, out var distance, out var height)
+                ? WithFlightArc(visualPosition, targetPosition, in request, distance, height)
+                : visualPosition;
+        }
+
+        private static bool TryReadFlightArc(in PresentationRequest request, out float distance, out float height)
+        {
+            distance = 0f;
+            height = 0f;
+            if (request.Attachment.Kind != PresentationAttachmentKind.Projectile || request.Parameters == null) return false;
+            foreach (var parameter in request.Parameters)
+            {
+                if (parameter.Key == FlightDistanceParameter) distance = parameter.Value;
+                else if (parameter.Key == FlightArcHeightParameter) height = parameter.Value;
+            }
+            return distance > 0.0001f && !float.IsInfinity(distance) && height > 0f;
+        }
+
+        private static Vector3 WithFlightArc(Vector3 visualPosition, Vector3 targetPosition, in PresentationRequest request,
+            float distance, float height)
+        {
+            var deltaX = targetPosition.x - request.Position.X;
+            var deltaZ = targetPosition.z - request.Position.Z;
+            var progress = Mathf.Clamp01(Mathf.Sqrt(deltaX * deltaX + deltaZ * deltaZ) / distance);
+            visualPosition.y += 4f * height * progress * (1f - progress);
+            return visualPosition;
         }
     }
 

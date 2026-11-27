@@ -36,7 +36,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         Attack = 7,
         ConfigAsset = 8,
         Warning = 9,
-        Exception = 10
+        Exception = 10,
+        ActorAttributeEvidence = 11
     }
 
     public readonly struct BattleDiagnosticSessionScope : IEquatable<BattleDiagnosticSessionScope>

@@ -80,6 +80,28 @@ public sealed class ComputeBackendChainTests
     }
 
     [Fact]
+    public void Execute_RecordsFailedAvailabilityProbeAndContinuesFallback()
+    {
+        var error = new InvalidOperationException("availability probe failed");
+        var probe = new ThrowingBackend(error);
+        var observer = new RecordingObserver();
+        var chain = new ComputeBackendChain(
+            new IComputeBackend[] { probe, new ManagedSequentialComputeBackend() },
+            observer);
+        var outputs = new Output[1];
+
+        var result = chain.Execute(
+            new DoubleKernel(), new[] { new Input(5) }, outputs, 1,
+            new ComputeExecutionOptions("tests.probe-failure"));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(2, result.AttemptCount);
+        Assert.Equal(10, outputs[0].Value);
+        Assert.False(probe.Executed);
+        Assert.Equal(new[] { ComputeAttemptOutcome.Faulted, ComputeAttemptOutcome.Succeeded }, observer.Outcomes);
+    }
+
+    [Fact]
     public void Execute_DoesNotInventAnImplicitBackend()
     {
         var chain = new ComputeBackendChain(Array.Empty<IComputeBackend>());
@@ -195,8 +217,16 @@ public sealed class ComputeBackendChainTests
 
     private sealed class ThrowingBackend : IComputeBackend
     {
+        private readonly Exception? _probeError;
+
+        public ThrowingBackend(Exception? probeError = null)
+        {
+            _probeError = probeError;
+        }
+
         public string Id => "tests.throwing";
-        public bool IsAvailable => true;
+        public bool IsAvailable => _probeError == null ? true : throw _probeError;
+        public bool Executed { get; private set; }
 
         public ComputeAttempt Execute<TKernel, TInput, TOutput>(
             TKernel kernel,
@@ -208,6 +238,7 @@ public sealed class ComputeBackendChainTests
             where TInput : unmanaged
             where TOutput : unmanaged
         {
+            Executed = true;
             throw new InvalidOperationException("backend failure");
         }
     }

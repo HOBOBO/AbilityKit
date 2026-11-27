@@ -32,8 +32,10 @@ public static class BenchmarkScenarioCatalog
             new RecordIdHashScenario(nameLength: 64),
             new LegacyFrameIndexScenario(frameCount: 128),
             new SortedIntSetFrameIndexScenario(frameCount: 128),
-            new TargetingStreamingTopKScenario(candidateCount: 128, topK: 8),
-            new TargetingStreamingTopKScenario(candidateCount: 1_024, topK: 16),
+            new TargetingTopKScenario(candidateCount: 128, topK: 8, streaming: false),
+            new TargetingTopKScenario(candidateCount: 128, topK: 8, streaming: true),
+            new TargetingTopKScenario(candidateCount: 1_024, topK: 16, streaming: false),
+            new TargetingTopKScenario(candidateCount: 1_024, topK: 16, streaming: true),
             new PipelineSynchronousScenario(4, batchSize: 100),
             new PipelineSynchronousScenario(32, batchSize: 100),
             new PipelineActiveRunsScenario(1_000),
@@ -52,7 +54,8 @@ public static class BenchmarkScenarioCatalog
             scenarios.Add(new RecordIdHashScenario(nameLength: 256));
             scenarios.Add(new LegacyFrameIndexScenario(frameCount: 1_024));
             scenarios.Add(new SortedIntSetFrameIndexScenario(frameCount: 1_024));
-            scenarios.Add(new TargetingStreamingTopKScenario(candidateCount: 4_096, topK: 32));
+            scenarios.Add(new TargetingTopKScenario(candidateCount: 4_096, topK: 32, streaming: false));
+            scenarios.Add(new TargetingTopKScenario(candidateCount: 4_096, topK: 32, streaming: true));
             scenarios.Add(new PipelineSynchronousScenario(64, batchSize: 100));
             scenarios.Add(new PipelineActiveRunsScenario(5_000));
             scenarios.Add(new EventDispatcherPublishScenario(fanout: 256));

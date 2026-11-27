@@ -31858,6 +31858,40 @@
         "note": "Project placeholder; replace with confirmed Riot numeric value. Directional launch; projectile hit owns damage."
       },
       {
+        "id": 30020404,
+        "name": "Jinx R fixed launch muzzle",
+        "groupPath": "trigger_30020404",
+        "tags": ["moba", "jinx", "skills", "r"],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "global",
+        "allowExternal": false,
+        "schedule": {"mode": "transient", "delayMilliseconds": 0, "intervalMilliseconds": 0, "repeatCount": 0},
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0, "cooldownMilliseconds": 0.0, "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false, "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "nodeId": "node_e6e139a3977047989273743914c05042",
+          "enabled": true,
+          "kind": "Action",
+          "type": "play_presentation",
+          "arguments": [
+            {"name": "template_id", "value": {"source": "Constant", "type": "Integer", "integerValue": 90032028}},
+            {"name": "target_mode", "value": {"source": "Constant", "type": "Integer", "integerValue": 8}}
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Projectile Spawn owns muzzle placement and direction. The muzzle outlives an immediate hit independently of the flight visual."
+      },
+      {
         "id": 30020413,
         "name": "Jinx R primary and explosion damage",
         "groupPath": "trigger_30020413",
@@ -38159,7 +38193,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 4
+                    "integerValue": 3
                   }
                 }
               ],
@@ -38445,7 +38479,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 4
+                    "integerValue": 3
                   }
                 }
               ],
@@ -38731,7 +38765,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 4
+                    "integerValue": 3
                   }
                 }
               ],
@@ -39017,7 +39051,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 4
+                    "integerValue": 3
                   }
                 }
               ],
@@ -39303,7 +39337,7 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 4
+                    "integerValue": 3
                   }
                 }
               ],
@@ -40934,6 +40968,32 @@
                   ],
                   "children": [],
                   "elseChildren": []
+                },
+                {
+                  "nodeId": "node_65f6604366115f5c8e30c92bd3ee5c97",
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "play_presentation",
+                  "arguments": [
+                    {
+                      "name": "template_id",
+                      "value": {
+                        "source": "Constant",
+                        "type": "Integer",
+                        "integerValue": 90036018
+                      }
+                    },
+                    {
+                      "name": "target_mode",
+                      "value": {
+                        "source": "Constant",
+                        "type": "Integer",
+                        "integerValue": 2
+                      }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
                 }
               ],
               "elseChildren": []
@@ -40962,6 +41022,32 @@
                     "source": "Constant",
                     "type": "Boolean",
                     "booleanValue": true
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "nodeId": "node_b4bd83e1652b5351990620465e095e17",
+              "enabled": true,
+              "kind": "Action",
+              "type": "play_presentation",
+              "arguments": [
+                {
+                  "name": "template_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 90036017
+                  }
+                },
+                {
+                  "name": "target_mode",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 2
                   }
                 }
               ],
@@ -41257,6 +41343,32 @@
                         "source": "Constant",
                         "type": "Boolean",
                         "booleanValue": true
+                      }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
+                },
+                {
+                  "nodeId": "node_a461ec0ef29351d8a781dd37eb5e6a4a",
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "play_presentation",
+                  "arguments": [
+                    {
+                      "name": "template_id",
+                      "value": {
+                        "source": "Constant",
+                        "type": "Integer",
+                        "integerValue": 90036018
+                      }
+                    },
+                    {
+                      "name": "target_mode",
+                      "value": {
+                        "source": "Constant",
+                        "type": "Integer",
+                        "integerValue": 2
                       }
                     }
                   ],

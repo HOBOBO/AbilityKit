@@ -12,7 +12,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
          * 保留原来源的分支及浮点运算顺序：每次最多向一个未到达的目标点贡献位移。
          * 来源不提交位置，也不因微小距离分支已越过末点而提前发出结束通知。
          */
-        internal static void Tick(ref PathFollowerState path, ref MotionState state, float dt, ref Vec3 outDesiredDelta)
+        internal static void Tick(ref PathFollowerState path, ref MotionState state, float dt, float speed, ref Vec3 outDesiredDelta)
         {
             if (!path.IsActive) return;
             if (dt <= 0f) return;
@@ -45,7 +45,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
                 return;
             }
 
-            var maxStep = path.Speed * dt;
+            var maxStep = speed * dt;
             if (maxStep <= 0f) return;
 
             var step = maxStep;

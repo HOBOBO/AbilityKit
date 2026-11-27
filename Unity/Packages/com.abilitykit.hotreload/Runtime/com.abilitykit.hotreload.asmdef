@@ -2,18 +2,16 @@
   "name": "AbilityKit.HotReload",
   "rootNamespace": "AbilityKit",
   "references": [
-    "AbilityKit.Core",
-    "AbilityKit.Ability",
     "AbilityKit.World.DI",
     "AbilityKit.World.Entitas"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
+  "overrideReferences": true,
+  "precompiledReferences": ["Entitas.dll"],
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": false
+  "noEngineReferences": true
 }

@@ -35,11 +35,27 @@ namespace AbilityKit.BattleScenario.Editor
         private int _maxPosition;
         private Vector2 _detailScroll;
         private bool _showActorProjection;
+        private bool _attemptedActorProjection;
+        private bool _directPreview;
         private bool _hasRecordedActorPose;
         private IActorReplayPreview? _actorProjection;
         private Bounds _recordedBounds;
         private int FrameCount => _acceptanceTimeline?.Frames.Count ?? _frames.Count;
-        private double StepInterval => SecondsPerStep / Speeds[_speedIndex];
+        private double StepInterval
+        {
+            get
+            {
+                if (!_directPreview || _acceptanceTimeline == null) return SecondsPerStep / Speeds[_speedIndex];
+                var frame = _acceptanceTimeline.Frames[_index];
+                var highlight = frame.Phase == LocalStateSyncReplay.FramePhase.BeforePublication ||
+                    frame.Point.Steps is { Length: > 0 } || _acceptance?.SkillDelivery?.DeliveryTick == frame.Point.DeliveryTick ||
+                    frame.Point.Presentation?.Phase == "rejected" ||
+                    (frame.Point.HasUndeliveredAuthorityReference && _index + 1 < FrameCount &&
+                        _acceptanceTimeline.Frames[_index + 1].Point.Steps is { Length: > 0 }) ||
+                    (FrameCount == 2 && frame.PredictionPose != null);
+                return (highlight ? 0.85 : Math.Max(0.04, Math.Min(0.22, 2.2 / FrameCount))) / Speeds[_speedIndex];
+            }
+        }
 
         internal static void Open(string caseId, IReadOnlyList<LocalCorrectionPreview.Frame> frames)
         {
@@ -53,6 +69,7 @@ namespace AbilityKit.BattleScenario.Editor
             window._acceptanceLabel = null;
             window._importError = null;
             window._frames = frames;
+            window._directPreview = false;
             window.ResetTimeline(caseId);
             foreach (var frame in frames)
             {
@@ -63,10 +80,10 @@ namespace AbilityKit.BattleScenario.Editor
             window.Show();
         }
 
-        internal static void OpenAcceptance(LocalStateSyncReplay replay, string source, string? label = null)
+        internal static void OpenAcceptance(LocalStateSyncReplay replay, string source, string? label = null, bool autoPreview = false)
         {
             var window = GetWindow<BattleScenarioLocalReplayWindow>();
-            window.SetAcceptance(replay, source, label);
+            window.SetAcceptance(replay, source, label, autoPreview);
             window.Show();
         }
 
@@ -95,10 +112,10 @@ namespace AbilityKit.BattleScenario.Editor
             }
         }
 
-        private void SetAcceptance(LocalStateSyncReplay replay, string source, string? label = null)
+        internal void SetAcceptance(LocalStateSyncReplay replay, string source, string? label = null, bool autoPreview = false)
         {
-            var timeline = replay.BuildTimeline();
-            var matchingIndex = _acceptanceTimeline == null ? null : timeline.FindMatchingCheckpoint(_acceptanceTimeline, _index);
+            var timeline = replay.BuildTimeline(inspectSteps: !autoPreview);
+            var matchingIndex = autoPreview || _acceptanceTimeline == null ? null : timeline.FindMatchingCheckpoint(_acceptanceTimeline, _index);
             titleContent = new GUIContent("状态同步验收回放");
             minSize = new Vector2(530, 420);
             _acceptance = replay;
@@ -107,6 +124,7 @@ namespace AbilityKit.BattleScenario.Editor
             _acceptanceLabel = label;
             _importError = null;
             _frames = Array.Empty<LocalCorrectionPreview.Frame>();
+            _directPreview = autoPreview;
             _deliveryLabels = new string[replay.Checkpoints.Length];
             ResetTimeline(replay.CaseId);
             for (var index = 0; index < replay.Checkpoints.Length; index++)
@@ -114,7 +132,8 @@ namespace AbilityKit.BattleScenario.Editor
                 var point = replay.Checkpoints[index];
                 var replaySteps = point.ReplayTicks.Length == 0 ? string.Empty : $" · 重演 {point.ReplayTicks.Length} Tick";
                 _deliveryLabels[index] = $"{index + 1}. Tick {point.DeliveryTick} · " +
-                    (point.Presentation is { } sample ? DescribePresentationPhase(sample.Phase) : point.Command + replaySteps);
+                    (replay.SkillDelivery is { } skill ? DescribeSkillTick(skill, point.DeliveryTick) :
+                        point.Presentation is { } sample ? DescribePresentationPhase(sample.Phase) : point.Command + replaySteps);
                 IncludePosition(point.Presentation?.Authority?.Z);
                 IncludePosition(point.Presentation?.View?.Z);
                 IncludePosition(point.PublishedPosition);
@@ -122,9 +141,14 @@ namespace AbilityKit.BattleScenario.Editor
                 IncludePosition(point.Prediction);
                 IncludePosition(point.Commit?.MaterializedPosition);
             }
-            foreach (var frame in timeline.Frames)
+            var hasBounds = false;
+            foreach (var frame in (autoPreview ? replay.BuildTimeline() : timeline).Frames)
             {
                 IncludePosition(frame.Position);
+                IncludePosition(frame.FlightAuthority?.Z);
+                IncludePosition(frame.FlightPrediction?.Z);
+                IncludePoint(ToFlightPosition(frame.FlightAuthority));
+                IncludePoint(ToFlightPosition(frame.FlightPrediction));
                 IncludePose(frame.Point.AuthorityPose);
                 IncludePose(frame.PredictionPose);
             }
@@ -132,11 +156,34 @@ namespace AbilityKit.BattleScenario.Editor
             void IncludePose(LocalStateSyncReplay.ActorPose? pose)
             {
                 if (ToUnityPose(pose) is not Pose observed) return;
-                if (_hasRecordedActorPose) _recordedBounds.Encapsulate(observed.position);
-                else _recordedBounds = new Bounds(observed.position, Vector3.zero);
+                IncludePoint(observed.position);
                 _hasRecordedActorPose = true;
             }
             Seek(matchingIndex ?? 0);
+            _showActorProjection = autoPreview && _hasRecordedActorPose;
+            if (autoPreview && !EditorApplication.isPlayingOrWillChangePlaymode) StartPlaying();
+
+            void IncludePoint(Vector3? value)
+            {
+                if (value is not Vector3 point) return;
+                if (hasBounds) _recordedBounds.Encapsulate(point);
+                else _recordedBounds = new Bounds(point, Vector3.zero);
+                hasBounds = true;
+            }
+        }
+
+        internal bool IsAutoPlayingPreview => _directPreview && _playing;
+
+        private void SetPreviewMode(bool direct)
+        {
+            var next = _acceptance!.BuildTimeline(inspectSteps: !direct);
+            var matched = next.FindMatchingCheckpoint(_acceptanceTimeline!, _index);
+            _acceptanceTimeline = next;
+            _directPreview = direct;
+            Seek(matched ?? 0);
+            if (!direct) return;
+            _showActorProjection = _hasRecordedActorPose;
+            if (!EditorApplication.isPlayingOrWillChangePlaymode) StartPlaying();
         }
 
         private void ResetTimeline(string caseId)
@@ -164,6 +211,7 @@ namespace AbilityKit.BattleScenario.Editor
         private void CloseActorProjection()
         {
             _showActorProjection = false;
+            _attemptedActorProjection = false;
             _actorProjection?.Dispose();
             _actorProjection = null;
         }
@@ -198,9 +246,23 @@ namespace AbilityKit.BattleScenario.Editor
             if (_acceptance is { } replay)
             {
                 DrawAcceptanceHeader(replay);
+                if (_directPreview && _acceptanceTimeline is { } preview)
+                {
+                    DrawDirectPreview(preview);
+                    return;
+                }
+                if (GUILayout.Button("直接预览", EditorStyles.miniButton))
+                {
+                    SetPreviewMode(true);
+                    return;
+                }
                 if (!string.IsNullOrWhiteSpace(replay.PositionLabel))
                     EditorGUILayout.LabelField("坐标刻度", replay.PositionLabel);
-                EditorGUILayout.HelpBox(replay.HasPresentationTrack
+                EditorGUILayout.HelpBox(replay.SkillDelivery?.Fallback != null
+                    ? "离线施法降级录制。最终只采用已提交的权威截面；旧预测仅用于对照，不代表当前状态。"
+                    : replay.SkillDelivery != null
+                    ? "离线技能逻辑录制。权威参考来自独立世界；重演候选追平后才切换发布轨道。不会执行技能或修改草稿。"
+                    : replay.HasPresentationTrack
                     ? "仅验收离线表现对账。权威轨道是独立逻辑世界观测，不代表本地已收到确认；不演示逻辑实体回滚。"
                     : replay.HasStepPositions
                     ? "播放本地测试记录的实际步进和检查点。重演位置只是候选值，最终预测以交付检查点为准。"
@@ -256,21 +318,64 @@ namespace AbilityKit.BattleScenario.Editor
             DrawLane("权威锚点", frame.AuthorityPosition, new Color(1f, 0.66f, 0.26f), "未交付");
         }
 
-        private void DrawActorProjection(LocalStateSyncReplay.Frame frame)
+        private void DrawDirectPreview(LocalStateSyncReplay.Timeline timeline)
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
+                {
+                    if (GUILayout.Button("重播")) { Seek(0); StartPlaying(); }
+                    if (GUILayout.Button(_playing ? "暂停" : "播放"))
+                    {
+                        if (_playing) _playing = false;
+                        else StartPlaying();
+                    }
+                }
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("逐 Tick 检查")) { SetPreviewMode(false); return; }
+            }
+
+            var frame = timeline.Frames[_index];
+            if (frame.Point.Presentation is { } sample)
+            {
+                DrawProjectileLanes(frame.Point.DeliveryTick, sample);
+                return;
+            }
+            var correction = _acceptance?.SkillDelivery is { Fallback: null, Steps: { Length: > 0 } } skill &&
+                skill.DeliveryTick == frame.Point.DeliveryTick || frame.Point.Steps is { Length: > 0 };
+            var matchingLanding = _index > 0 && frame.Point.Reconciliation == "AuthoritativeOnly" &&
+                !frame.Point.PredictionWaiting && frame.AuthorityProjectionPose is { } authority &&
+                timeline.Frames[_index - 1].PredictionPose is { } prior &&
+                timeline.Frames[_index - 1].Point.DeliveryTick == frame.Point.AppliedTick && authority.Matches(prior);
+            var stage = frame.Phase == LocalStateSyncReplay.FramePhase.BeforePublication ? "纠偏前 · 旧预测" :
+                correction ? "追平完成 · 新预测已发布" : matchingLanding ? "权威落点吻合 · 无需重演" :
+                frame.Point.HasUndeliveredAuthorityReference ? "双世界对照 · 快照未交付" :
+                frame.AuthorityProjectionPose == null && frame.PredictionPose != null ? "本地先显示预测" : "本地预览";
+            EditorGUILayout.LabelField(stage, $"Tick {frame.Point.DeliveryTick}");
+            if (_acceptance?.HasStepPositions == true)
+                EditorGUILayout.LabelField(frame.Point.Command, EditorStyles.wordWrappedLabel);
+            var rendered = DrawActorProjection(frame);
+            if (!rendered) DrawAcceptanceFrame(frame);
+            else if (_acceptance?.SkillDelivery?.FormalFlight == true)
+                EditorGUILayout.LabelField("弹体标记：权威深灰 / 预测橙色", frame.Point.Command);
+        }
+
+        private bool DrawActorProjection(LocalStateSyncReplay.Frame frame)
         {
             if (!_hasRecordedActorPose || _acceptance?.ActorModelId is not int modelId ||
-                BattleScenarioEditorIntegration.CreateActorReplayPreview is not { } createPreview) return;
+                BattleScenarioEditorIntegration.CreateActorReplayPreview is not { } createPreview) return false;
 
-            var show = EditorGUILayout.ToggleLeft("3D 双投影对照（仅角色）", _showActorProjection);
+            var show = _directPreview || EditorGUILayout.ToggleLeft("3D 双投影对照（仅角色）", _showActorProjection);
             if (!show)
             {
                 if (_showActorProjection) CloseActorProjection();
-                return;
+                return false;
             }
 
-            if (!_showActorProjection)
+            _showActorProjection = true;
+            if (!_attemptedActorProjection)
             {
-                _showActorProjection = true;
+                _attemptedActorProjection = true;
                 try { _actorProjection = createPreview(modelId); }
                 catch (Exception error) { Debug.LogWarning($"[BattleScenario] 3D 演员投影初始化失败：{error.Message}"); }
             }
@@ -278,23 +383,35 @@ namespace AbilityKit.BattleScenario.Editor
             if (_actorProjection == null)
             {
                 EditorGUILayout.HelpBox("未找到录制对应的模型资源；仍可查看位置和 Tick。", MessageType.Info);
-                return;
+                return false;
             }
 
             var authority = ToUnityPose(frame.AuthorityProjectionPose);
             var prediction = ToUnityPose(frame.PredictionPose);
+            var overlapping = frame.SharesAnchorPose || (authority is Pose authorityPose && prediction is Pose predictionPose &&
+                (authorityPose.position - predictionPose.position).sqrMagnitude < 0.000001f);
             var predictionLabel = frame.Phase switch
             {
-                LocalStateSyncReplay.FramePhase.Compare => "旧预测",
+                LocalStateSyncReplay.FramePhase.Compare or LocalStateSyncReplay.FramePhase.BeforePublication => "旧预测",
                 LocalStateSyncReplay.FramePhase.Anchor or LocalStateSyncReplay.FramePhase.ReplayTick => "重演候选",
                 _ => "预测",
             };
-            EditorGUILayout.LabelField(frame.SharesAnchorPose ? "权威与候选重合 · 仅绘制原色候选" :
-                $"权威（深灰）：{(authority.HasValue ? "已交付" : "无样本")}   {predictionLabel}（原色）：{(prediction.HasValue ? "有样本" : "无样本")}");
-            var rect = GUILayoutUtility.GetRect(100f, 188f, GUILayout.ExpandWidth(true));
+            var authorityLabel = frame.Point.HasUndeliveredAuthorityReference ? "参考，未交付" : "已交付";
+            EditorGUILayout.LabelField(overlapping ? "两路位置重合 · 仅绘制原色" :
+                $"权威（深灰）：{(authority.HasValue ? authorityLabel : "无样本")}   {predictionLabel}（原色）：{(prediction.HasValue ? "有样本" : "无样本")}");
+            var rect = GUILayoutUtility.GetRect(100f, _directPreview ? 285f : 188f,
+                GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(_directPreview));
             if (Event.current.type == EventType.Repaint)
-                _actorProjection.Draw(rect, _recordedBounds, authority, prediction);
+            {
+                if (_actorProjection is IFlightReplayPreview flight)
+                    flight.SetFlightPositions(ToFlightPosition(frame.FlightAuthority), ToFlightPosition(frame.FlightPrediction));
+                _actorProjection.Draw(rect, _recordedBounds, overlapping ? null : authority, prediction);
+            }
+            return true;
         }
+
+        private static Vector3? ToFlightPosition(LocalStateSyncReplay.FlightSample? sample) => sample == null ? null :
+            new Vector3(sample.X, sample.Y, sample.Z) * 0.001f;
 
         private static Pose? ToUnityPose(LocalStateSyncReplay.ActorPose? pose) => pose == null ? null :
             new Pose(new Vector3(pose.X, pose.Y, pose.Z), new Quaternion(pose.Qx, pose.Qy, pose.Qz, pose.Qw));
@@ -328,14 +445,20 @@ namespace AbilityKit.BattleScenario.Editor
             using (new EditorGUILayout.HorizontalScope())
             {
                 var presentation = _acceptance?.HasPresentationTrack == true;
-                EditorGUILayout.LabelField(presentation ? "跳到 Tick" : "跳到交付", GUILayout.Width(64));
+                var skill = _acceptance?.SkillDelivery;
+                EditorGUILayout.LabelField(presentation || skill != null ? "跳到 Tick" : "跳到交付", GUILayout.Width(64));
                 var deliveryIndex = timeline.Frames[_index].DeliveryIndex;
                 var selected = EditorGUILayout.Popup(deliveryIndex, _deliveryLabels, GUILayout.ExpandWidth(true));
                 var delivery = timeline.Deliveries[selected];
                 if (selected != deliveryIndex)
                     Seek(delivery.FirstFrame);
 
-                if (!presentation)
+                if (skill != null && selected != skill.DeliveryTick - timeline.Frames[0].Point.DeliveryTick)
+                {
+                    if (GUILayout.Button(skill.Fallback != null ? "看降级" : "看和解", GUILayout.Width(65)))
+                        Seek(timeline.Deliveries[skill.DeliveryTick - timeline.Frames[0].Point.DeliveryTick].FirstFrame);
+                }
+                else if (!presentation)
                     using (new EditorGUI.DisabledScope(_index == delivery.CheckpointFrame))
                         if (GUILayout.Button(new GUIContent("看检查点", "跳过本次交付的回退与重演步骤"), GUILayout.Width(78)))
                             Seek(delivery.CheckpointFrame);
@@ -345,6 +468,12 @@ namespace AbilityKit.BattleScenario.Editor
         private void DrawAcceptanceFrame(LocalStateSyncReplay.Frame frame)
         {
             var point = frame.Point;
+            if (_acceptance?.SkillDelivery is { } skill)
+            {
+                if (skill.FormalFlight) DrawFlightProjection(frame);
+                DrawSkillFrame(frame, skill);
+                return;
+            }
             if (point.Presentation is { } sample)
             {
                 DrawPresentation(point.DeliveryTick, sample);
@@ -372,6 +501,13 @@ namespace AbilityKit.BattleScenario.Editor
                     DrawLane("重演位置", frame.Position, new Color(0.30f, 0.65f, 1f));
                     break;
                 case LocalStateSyncReplay.FramePhase.Checkpoint:
+                    if (point.HasUndeliveredAuthorityReference)
+                    {
+                        EditorGUILayout.LabelField("双世界观测 · 未交付快照", EditorStyles.boldLabel);
+                        DrawLane("独立权威参考", point.Authority, new Color(1f, 0.66f, 0.26f));
+                        DrawLane("预测位置", point.Prediction, new Color(0.30f, 0.65f, 1f));
+                        break;
+                    }
                     var title = point.Prediction.HasValue && !point.Authority.HasValue
                         ? "本地预测 · 尚无权威样本" : point.Steps is { Length: > 0 } && point.Prediction.HasValue
                             ? "重演完成 · 交付后的新预测" : "交付检查点";
@@ -383,13 +519,144 @@ namespace AbilityKit.BattleScenario.Editor
             }
         }
 
+        private static string DescribeSkillTick(LocalStateSyncReplay.SkillDeliveryObservation skill, int tick)
+        {
+            if (tick == skill.FirstInputTick) return skill.FormalWindup ? "施法按键 · 初次预测" : $"{skill.PrimaryLabel} · 初次预测";
+            if (tick == skill.AnchorTick) return "后续权威截面对应 Tick";
+            if (skill.FormalMovement && tick == skill.InputTick) return "移动转向 · 待确认输入";
+            if (!skill.FormalWindup && tick == skill.InputTick) return $"{skill.SecondaryLabel} · 待确认输入";
+            if (tick == skill.DeliveryTick) return skill.Fallback != null ? "采用权威截面（不重演）" : "收到权威结果";
+            return tick < skill.DeliveryTick ? "本地预测" : "发布后观测";
+        }
+
+        private static void DrawSkillFrame(LocalStateSyncReplay.Frame frame, LocalStateSyncReplay.SkillDeliveryObservation skill)
+        {
+            var displayPoint = frame.SkillReference ?? frame.Point;
+            var observation = displayPoint.Skill!;
+            var corrected = skill.Steps.Length > 0;
+            var matches = observation.Authority.Matches(observation.OldPrediction);
+            var fallback = frame.Point.DeliveryTick == skill.DeliveryTick ? skill.Fallback : null;
+            var title = frame.Phase switch
+            {
+                LocalStateSyncReplay.FramePhase.Compare => $"同 Tick {skill.AnchorTick} 对照 · {(matches ? "观测匹配" : "观测不匹配")}",
+                LocalStateSyncReplay.FramePhase.Anchor => $"回到权威基线 · Tick {skill.AnchorTick}",
+                LocalStateSyncReplay.FramePhase.ReplayTick => $"重演 Tick {displayPoint.DeliveryTick} · 候选未发布",
+                _ when fallback != null => fallback.Reason switch
+                {
+                    LocalStateSyncReplay.SkillReplayCase.HistoryGap => "历史缺口 · 不重演",
+                    LocalStateSyncReplay.SkillReplayCase.MissingProof => "缺终结证明 · 不重演",
+                    _ => "会话换代 · 忽略旧代交付",
+                },
+                _ when frame.Point.DeliveryTick == skill.DeliveryTick => corrected ? "追平并发布" : "权威确认 · 保留原预测",
+                _ when skill.CastEconomy && frame.Point.DeliveryTick > skill.DeliveryTick => "接管后的预测 Tick",
+                _ => DescribeSkillTick(skill, displayPoint.DeliveryTick),
+            };
+            EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+            DrawDetail("观测 / 交付 Tick", $"{displayPoint.DeliveryTick} / {skill.DeliveryTick}");
+            if (skill.FormalBattleCandidate)
+            {
+                DrawDetail("实际提交的权威 Tick", frame.Point.AppliedTick.ToString());
+                if (frame.Phase == LocalStateSyncReplay.FramePhase.Compare && matches)
+                    DrawDetail("恢复策略", "法力和冷却一致仍构建候选；不据此复用旧世界");
+            }
+            if (fallback != null)
+            {
+                DrawDetail("实际采用的权威 Tick", $"{frame.Point.AppliedTick}（会话第 {frame.Point.Generation} 代）");
+                DrawDetail("重演输入 / 保留待确认输入", $"无 / {fallback.RetainedInputCount} 条");
+                if (fallback.MissingHistoryTick is int missingTick)
+                    DrawDetail("缺失的封存 Tick", missingTick.ToString());
+                if (skill.TerminalThroughSequence > 0)
+                    DrawDetail("已终结前缀", $"#{skill.TerminalThroughSequence}");
+            }
+            else if (frame.Point.DeliveryTick == skill.DeliveryTick)
+                DrawDetail("终结前缀 / 待确认", skill.FormalWindup && !skill.FormalMovement ? $"#{skill.TerminalThroughSequence} / 无" :
+                    $"#{skill.TerminalThroughSequence} / #{skill.PendingSequence}");
+            if (!skill.FormalWindup && displayPoint.DeliveryTick == skill.InputTick)
+                DrawDetail("旧预测的待确认输入", FormatSkillInputOutcome(skill.OldInputRejectCode, "已在旧预测中执行"));
+            if (frame.SkillStep is { } inputStep && inputStep.Tick == skill.InputTick)
+            {
+                DrawDetail("候选输入", $"按原 Tick 重演 #{skill.ReplayedSequence}（{(skill.FormalMovement ? "移动转向" : skill.SecondaryLabel)}）");
+                if (skill.CastEconomy && !skill.FormalMovement)
+                    DrawDetail("候选输入结果", FormatSkillInputOutcome(inputStep.InputRejection, "通过冷却检查并执行"));
+            }
+            else if (skill.FormalBattleCandidate && frame.SkillStep != null)
+                DrawDetail("候选输入", "空 Tick · 只推进战斗世界");
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.Label("状态轨道", EditorStyles.miniBoldLabel, GUILayout.Width(128));
+                if (skill.CastProgressOnly)
+                    GUILayout.Label("前摇已推进", EditorStyles.miniBoldLabel, GUILayout.Width(85));
+                else if (skill.CastEconomy)
+                {
+                    GUILayout.Label("法力", EditorStyles.miniBoldLabel, GUILayout.Width(65));
+                    GUILayout.Label(skill.FormalBattleCandidate ? skill.PrimaryLabel : "冷却结束（ms）", EditorStyles.miniBoldLabel, GUILayout.Width(106));
+                    GUILayout.Label(skill.FormalBattleCandidate ? skill.SecondaryLabel : "前摇已推进", EditorStyles.miniBoldLabel, GUILayout.Width(85));
+                    if (skill.FormalMovement) GUILayout.Label("位置（X, Z）", EditorStyles.miniBoldLabel);
+                }
+                else
+                {
+                    GUILayout.Label("魔力", EditorStyles.miniBoldLabel, GUILayout.Width(65));
+                    GUILayout.Label("目标生命", EditorStyles.miniBoldLabel, GUILayout.Width(80));
+                    GUILayout.Label(skill.PrimaryLabel, EditorStyles.miniBoldLabel, GUILayout.Width(94));
+                    GUILayout.Label(skill.SecondaryLabel, EditorStyles.miniBoldLabel, GUILayout.Width(94));
+                }
+            }
+            if (fallback != null)
+                DrawSkillRow("已采用的权威截面", observation.Published, skill);
+            else
+                DrawSkillRow(frame.Phase is LocalStateSyncReplay.FramePhase.Anchor ? "权威基线" : "权威参考", observation.Authority, skill);
+            if (frame.Phase != LocalStateSyncReplay.FramePhase.Anchor && (!skill.CastEconomy || displayPoint.DeliveryTick <= skill.DeliveryTick))
+                DrawSkillRow("旧预测", observation.OldPrediction, skill);
+            if (frame.SkillStep is { } step)
+                DrawSkillRow("重演候选（未发布）", step.State, skill);
+            else if (frame.Phase == LocalStateSyncReplay.FramePhase.Checkpoint && fallback == null)
+                DrawSkillRow("实际发布", observation.Published, skill);
+            EditorGUILayout.LabelField(skill.FormalMovement ? "移动方向在空 Tick 保持；权威投影不随候选追平推进。" :
+                skill.FormalWindup ? "已终结的按键不重发；— 表示施法已结束或尚未开始。" :
+                skill.FormalBattleCandidate ? "冷却为绝对结束时刻（ms）；此样例不恢复伤害或在途效果。" :
+                skill.CastProgressOnly ? "— 表示没有进行中的施法；此样例不观测战斗数值。" :
+                skill.CastEconomy ? "冷却是绝对结束时刻，不是剩余时间；— 表示没有冷却或进行中的施法。" :
+                "冷却列：世界时钟的结束时刻（ms）；— 表示未记录冷却。", EditorStyles.miniLabel);
+        }
+
+        private static string FormatSkillInputOutcome(string? rejection, string acceptedLabel) => rejection == null
+            ? acceptedLabel : $"被拦截：{rejection}";
+
+        private static void DrawSkillRow(string label, LocalStateSyncReplay.SkillState state, LocalStateSyncReplay.SkillDeliveryObservation skill)
+        {
+            const decimal rawPerUnit = 4294967296m;
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.Label(label, GUILayout.Width(128));
+                if (skill.CastEconomy)
+                {
+                    GUILayout.Label($"{state.ManaRaw / rawPerUnit:0.##}", GUILayout.Width(65));
+                    GUILayout.Label(FormatCooldown(state.PrimaryCooldownEndMs), GUILayout.Width(106));
+                    if (skill.FormalBattleCandidate && !skill.FormalWindup && !skill.FormalMovement)
+                    {
+                        GUILayout.Label(FormatCooldown(state.SecondaryCooldownEndMs), GUILayout.Width(85));
+                        return;
+                    }
+                }
+                if (skill.CastProgressOnly || skill.CastEconomy)
+                {
+                    GUILayout.Label(state.CastElapsedMs is int elapsed ? $"{elapsed} ms" : "—", GUILayout.Width(85));
+                    if (skill.FormalMovement) GUILayout.Label($"({state.PositionX:0.###}, {state.PositionZ:0.###})");
+                    return;
+                }
+                GUILayout.Label($"{state.ManaRaw / rawPerUnit:0.##}", GUILayout.Width(65));
+                GUILayout.Label($"{state.TargetHealthRaw / rawPerUnit:0.##}", GUILayout.Width(80));
+                GUILayout.Label(FormatCooldown(state.PrimaryCooldownEndMs), GUILayout.Width(94));
+                GUILayout.Label(FormatCooldown(state.SecondaryCooldownEndMs), GUILayout.Width(94));
+            }
+
+            static string FormatCooldown(long endMs) => endMs == 0 ? "—" : endMs.ToString();
+        }
+
         private void DrawPresentation(int tick, LocalStateSyncReplay.PresentationObservation sample)
         {
-            EditorGUILayout.LabelField($"Tick {tick} · {DescribePresentationPhase(sample.Phase)}", EditorStyles.boldLabel);
-            EditorGUILayout.LabelField("世界 Z 轨道（千分之一世界单位）", EditorStyles.miniLabel);
-            DrawLane("权威观测", sample.Authority?.Z, new Color(0.42f, 0.47f, 0.50f), "无观测");
-            var viewColor = sample.Phase == "predicted" ? new Color(0.98f, 0.68f, 0.23f) : new Color(0.30f, 0.76f, 0.72f);
-            DrawLane("本地表现", sample.View?.Z, viewColor, "无实例");
+            DrawProjectileLanes(tick, sample);
             DrawDetail("权威位置 (XYZ)", FormatPresentationPoint(sample.Authority));
             DrawDetail("表现位置 (XYZ)", FormatPresentationPoint(sample.View));
             DrawDetail("活跃 / 创建 / 销毁", $"{sample.Active} / {sample.Created} / {sample.Destroyed}");
@@ -397,6 +664,32 @@ namespace AbilityKit.BattleScenario.Editor
             DrawDetail("对账指令", sample.CueCommand + (sample.Promoted ? " · 原实例晋升" : string.Empty));
             if (sample.RejectReason != "None") DrawDetail("忽略原因", sample.RejectReason);
             if (sample.DuplicateIgnored) DrawDetail("重复交付", "已忽略");
+        }
+
+        private void DrawProjectileLanes(int tick, LocalStateSyncReplay.PresentationObservation sample)
+        {
+            EditorGUILayout.LabelField($"Tick {tick} · {DescribePresentationPhase(sample.Phase)}", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("弹体表现位置 · 世界 Z 轴（千分之一世界单位）", EditorStyles.miniLabel);
+            DrawLane("权威观测", sample.Authority?.Z, new Color(0.42f, 0.47f, 0.50f), "无观测");
+            var viewColor = sample.Phase == "predicted" ? new Color(0.98f, 0.68f, 0.23f) : new Color(0.30f, 0.76f, 0.72f);
+            var absent = sample.Phase switch { "rejected" => "已移除", "late-prediction" => "未复活", _ => "无实例" };
+            DrawLane("本地表现", sample.View?.Z, viewColor, absent);
+        }
+
+        private void DrawFlightProjection(LocalStateSyncReplay.Frame frame)
+        {
+            var title = frame.Phase == LocalStateSyncReplay.FramePhase.BeforePublication ? "交付前 · 旧预测" : frame.Point.Command;
+            EditorGUILayout.LabelField($"Tick {frame.Point.DeliveryTick} · {title}", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("逻辑弹体双投影 · 世界 Z 轴（千分之一世界单位）", EditorStyles.miniLabel);
+            DrawLane("已提交权威", frame.FlightAuthority?.Z, new Color(0.42f, 0.47f, 0.50f));
+            var label = frame.Phase switch
+            {
+                LocalStateSyncReplay.FramePhase.ReplayTick => "未发布候选",
+                LocalStateSyncReplay.FramePhase.Anchor => "恢复基线",
+                LocalStateSyncReplay.FramePhase.Compare => "旧预测（同 Tick）",
+                _ => "本地预测",
+            };
+            DrawLane(label, frame.FlightPrediction?.Z, new Color(0.30f, 0.76f, 0.72f));
         }
 
         private static string DescribePresentationPhase(string phase) => phase switch

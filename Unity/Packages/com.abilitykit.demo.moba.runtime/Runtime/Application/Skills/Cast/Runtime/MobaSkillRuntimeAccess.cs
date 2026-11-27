@@ -1,12 +1,40 @@
 using System;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Config.Core;
 
 namespace AbilityKit.Demo.Moba.Services
 {
     public static class MobaSkillRuntimeAccess
     {
+        /// <summary>
+        /// 读取槽位当前生效技能及施法准备阶段使用的范围，不启动施法或消耗资源。
+        /// </summary>
+        public static bool TryReadCastRange(IWorldResolver services, global::ActorEntity actor, int slot,
+            out int skillId, out SkillType skillType, out float range)
+        {
+            skillId = 0;
+            skillType = SkillType.None;
+            range = 0f;
+            if (actor == null || !actor.hasActorId || services == null ||
+                !services.TryResolve<MobaConfigDatabase>(out var config) ||
+                !services.TryResolve<MobaSkillLoadoutService>(out var loadout) ||
+                !loadout.TryResolveSlot(actor.actorId.Value, slot, out var resolved) ||
+                !config.TryGetSkill(resolved.EffectiveSkillId, out var skill) || skill == null) return false;
+
+            skillId = resolved.EffectiveSkillId;
+            skillType = skill.SkillType;
+            config.TryGetSkillFlow(skill.CastFlowId, out var flow);
+            services.TryResolve<MobaSkillParamModifierService>(out var modifiers);
+            var record = new MobaParameterRecord(MobaParameterStage.CastPrepare, slot: slot,
+                baseSkillId: resolved.BaseSkillId, effectiveSkillId: skillId);
+            range = Math.Max(0f, SkillCastPreparationService.ResolveCastRange(actor, skill, flow, modifiers,
+                actor.actorId.Value, in record));
+            return true;
+        }
+
         public static long GetCurrentTimeMs(IFrameTime time)
         {
             if (time == null) return 0L;

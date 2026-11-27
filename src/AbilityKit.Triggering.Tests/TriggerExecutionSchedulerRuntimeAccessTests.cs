@@ -216,6 +216,35 @@ public sealed class TriggerExecutionSchedulerRuntimeAccessTests
     }
 
     [Fact]
+    public void Restore_revalidates_definitions_after_an_earlier_successful_preflight()
+    {
+        var scheduler = new TriggerExecutionScheduler(retainFinishedEntries: true);
+        var context = default(ExecCtx<object>);
+        var executable = new CountingExecutable();
+        var first = scheduler.Schedule(executable, null!, in context, EScheduleMode.Timed, 10f, 1, true);
+        var second = scheduler.Schedule(executable, null!, in context, EScheduleMode.Timed, 20f, 1, true);
+        var checkpoint = new TriggerExecutionProgress(scheduler.NextExecutionId, new[]
+        {
+            new TriggerScheduledExecutionInfo(first.Id, TriggerScheduledExecutionState.Completed, 10, 10, 1, ""),
+            new TriggerScheduledExecutionInfo(second.Id, TriggerScheduledExecutionState.Waiting, 4, 0, 0, ""),
+        });
+
+        scheduler.ValidateProgress(in checkpoint);
+        Assert.True(scheduler.Remove(second.Id));
+        var later = scheduler.Schedule(executable, null!, in context, EScheduleMode.Timed, 30f, 1, true);
+        var beforeRestore = scheduler.CaptureProgress();
+
+        Assert.Throws<InvalidOperationException>(() => scheduler.RestoreProgress(in checkpoint));
+
+        var afterRestore = scheduler.CaptureProgress();
+        Assert.Equal(beforeRestore.Entries, afterRestore.Entries);
+        Assert.Equal(beforeRestore.NextExecutionId, afterRestore.NextExecutionId);
+        Assert.True(scheduler.ContainsDefinition(later.Id));
+        Assert.Equal(2, scheduler.ActiveCount);
+        Assert.Equal(0, executable.Count);
+    }
+
+    [Fact]
     public void Restore_uses_live_definition_order_not_input_array_order()
     {
         var scheduler = new TriggerExecutionScheduler();

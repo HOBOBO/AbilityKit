@@ -75,7 +75,7 @@ Samples.Logic          内容层：37 条示例（24 Beginner / 6 Onboarding）�
 | 4 | `System.IO.File` | **4 个文件**：`FileSystemResourceProvider.cs`、`SampleManifest.cs`、`SampleConfig.cs`、`Samples/Modifiers/DataDrivenHFSMWithOngoingBehaviors.cs` | Editor 可用，WebGL/主机平台不可用。宿主应实现 `IResourceProvider`（TextAsset / Resources 实现），这正是 `SampleHostCapabilities.SupportsResourceLoading` 存在的意义 |
 | 5 | `Console.` 直接输出（宿主泄漏） | **8 个文件** | 改走 `ILogger` / `SampleBase.Log` |
 | 6 | csproj 死引用 | `<PackageReference Include="xunit">` —— 代码中 **零 xunit 使用**（已核实） | 直接删除 |
-| 7 | 依赖闭包 | **24 个** AbilityKit 工程引用 | 全部有 Unity 对应包（唯一非同名项 `AbilityKit.HFSM.Core` → `com.abilitykit.hfsm/Runtime/HFSM/Core`，已核实投影关系）。本仓库 Unity 工程本就全量存在，成本为零；对经 UPM 引入的外部用户是重依赖 |
+| 7 | 依赖闭包 | **24 个** AbilityKit 工程引用 | 全部有 Unity 对应包（`AbilityKit.HFSM.Core` 投影 `com.abilitykit.hfsm.core/Runtime/Core`）。本仓库 Unity 工程本就全量存在；经 UPM 引入整个示例目录的外部用户仍需承担较大的依赖闭包 |
 
 ### 2.3 既有抽象中"已声明未实现"的部分
 

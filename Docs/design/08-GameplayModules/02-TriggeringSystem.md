@@ -198,7 +198,7 @@ flowchart TD
 - 执行动作。
 - 管理短路和优先级阻塞。
 - 通知 observer / lifecycle。
-- 推进 `ActionSchedulerManager`。
+- 将需要延迟的扁平动作登记给宿主注入的 `IFlatActionScheduler`，不推进时间。
 
 ### 5.1 执行顺序
 
@@ -381,7 +381,7 @@ flowchart TD
 3. 每个 entry 先检查 `ExecutionControl.ShouldBlock`，再执行 `Evaluate`。
 4. 条件失败会通知 lifecycle、observer 和 Cue；在 `EInterruptPolicy.Strict` 下会中断当前事件派发。
 5. 动作执行后如果 `ExecutionControl.IsHardStopped`，会按 `Cancel` 或 `StopPropagation` 结束后续触发器。
-6. `ActionSchedulerManager` 挂在 runner runtime services 上，用于延迟动作和计划内调度，而不是散落在各个动作里。
+6. 需要默认扁平动作调度的宿主可选装 `com.abilitykit.triggering.actionscheduling`，注入 `ActionSchedulerManager` 并负责推进与清理；即时规则无需装配。
 
 ```mermaid
 sequenceDiagram

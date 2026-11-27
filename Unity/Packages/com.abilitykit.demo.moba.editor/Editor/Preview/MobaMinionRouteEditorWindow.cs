@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Editor
     {
         private const string MapJsonPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/battle_maps.json";
         private const string RouteJsonPath = "Packages/com.abilitykit.demo.moba.runtime/Resources/moba/minion_routes.json";
-        private const string ConsoleRouteJsonPath = "../src/AbilityKit.Demo.Moba.Console/Configs/moba/minion_routes.json";
+        private const string ConsoleRouteRelativePath = "src/AbilityKit.Demo.Moba.Console/Configs/moba/minion_routes.json";
         private const string SourceRouteRelativePath = "LubanConfig/Moba/Production/Gameplay/minion_routes.json";
         private static readonly string[] TerminalPolicies = { "BaseDamageEvent", "Despawn", "Hold" };
 
@@ -25,7 +25,7 @@ namespace AbilityKit.Game.Editor
         private int _routeIndex;
         private Vector2 _scroll;
 
-        [MenuItem("Tools/AbilityKit/Demos/MOBA/Edit Minion Routes", priority = 18)]
+        [MenuItem(MobaMapSceneGenerator.MenuRoot + "编辑兵线与波次", priority = 31)]
         private static void Open()
         {
             var window = GetWindow<MobaMinionRouteEditorWindow>();
@@ -131,7 +131,8 @@ namespace AbilityKit.Game.Editor
         {
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Reload Resource")) Reload();
-            if (GUILayout.Button("Validate And Export")) ValidateAndExport();
+            using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
+                if (GUILayout.Button("校验并预览发布")) ValidateAndExport();
             EditorGUILayout.EndHorizontal();
         }
 
@@ -180,22 +181,34 @@ namespace AbilityKit.Game.Editor
             try
             {
                 var map = new BattleMapMO(_maps[_mapIndex]);
-                _resource.Version = MobaMinionRouteResourceLoader.CurrentVersion;
-                _resource.MapId = map.Id;
                 if (_resource.Routes.Length == 0)
                     throw new InvalidOperationException("At least one route is required.");
-                if (_resource.DefaultRouteId <= 0) _resource.DefaultRouteId = _resource.Routes[0].RouteId;
-                var serialized = JsonConvert.SerializeObject(_resource, Formatting.Indented);
+                var draft = new RouteResource
+                {
+                    Version = MobaMinionRouteResourceLoader.CurrentVersion,
+                    MapId = map.Id,
+                    DefaultRouteId = _resource.DefaultRouteId > 0 ? _resource.DefaultRouteId : _resource.Routes[0].RouteId,
+                    Schedule = _resource.Schedule,
+                    Routes = _resource.Routes,
+                };
+                var serialized = JsonConvert.SerializeObject(draft, Formatting.Indented) + Environment.NewLine;
                 var resource = MobaMinionRouteResourceLoader.LoadResource(serialized);
                 MobaMinionRouteMapValidator.ValidateResource(resource, map);
 
                 var sourcePath = GetSourceRoutePath();
-                WriteAtomically(sourcePath, serialized + Environment.NewLine);
                 var projectRoot = GetUnityProjectRoot();
                 var runtimePath = Path.Combine(projectRoot, RouteJsonPath.Replace('/', Path.DirectorySeparatorChar));
-                var consolePath = Path.GetFullPath(Path.Combine(projectRoot, ConsoleRouteJsonPath.Replace('/', Path.DirectorySeparatorChar)));
-                WriteAtomically(runtimePath, serialized + Environment.NewLine);
-                WriteAtomically(consolePath, serialized + Environment.NewLine);
+                var consolePath = Path.GetFullPath(Path.Combine(projectRoot, "..", ConsoleRouteRelativePath.Replace('/', Path.DirectorySeparatorChar)));
+                if (!EditorUtility.DisplayDialog("发布 MOBA 兵线与波次",
+                        $"地图 {map.Id}，已校验 {draft.Routes.Length} 条路线及波次。将写入：\n\n" +
+                        $"{SourceRouteRelativePath}\nUnity/{RouteJsonPath}\n{ConsoleRouteRelativePath}\n\n" +
+                        "现有文件将被覆盖；不刷新地图 Prefab。多个文件的写入不是事务。",
+                        "确认发布", "取消")) return;
+
+                WriteAtomically(sourcePath, serialized);
+                WriteAtomically(runtimePath, serialized);
+                WriteAtomically(consolePath, serialized);
+                _resource = draft;
                 AssetDatabase.ImportAsset(RouteJsonPath, ImportAssetOptions.ForceUpdate);
                 Debug.Log($"[MobaMinionRouteEditorWindow] Published {_resource.Routes.Length} route(s) and wave schedule for map {map.Id}.");
                 EditorUtility.DisplayDialog("MOBA Minion Routes", "Routes and wave schedule validated and published.", "OK");

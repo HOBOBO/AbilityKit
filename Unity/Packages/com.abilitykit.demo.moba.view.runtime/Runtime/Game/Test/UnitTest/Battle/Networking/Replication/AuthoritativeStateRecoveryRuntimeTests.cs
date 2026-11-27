@@ -101,6 +101,11 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(playbackActors.Entries.Select(entry => entry.Key),
                 Is.EquivalentTo(new[] { actorId, departingActorId, projectileId }));
             AssertProjectedActors(fixture, allActorIds);
+            var worldProjection = fixture.Runtime.ResolveCommittedProjection();
+            var projectedActors = new List<ActorProjectionData>();
+            worldProjection.ExtractAll(projectedActors);
+            Assert.That(projectedActors.Select(actor => actor.ActorId), Is.EqualTo(new[] { actorId, departingActorId, projectileId }));
+            Assert.That(worldProjection.ExtractSpawn(projectileId).ActorId, Is.EqualTo(projectileId));
 
             SeedCharacter(playbackWorld, localActorId, 40f);
             fixture.Replication.LastServerAckFrame = 8;
@@ -121,6 +126,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(clock.Frame.Value, Is.EqualTo(12));
             Assert.That(fixture.Replication.SnapshotAdmission.LastAcceptedFrame, Is.EqualTo(12));
             Assert.That(fixture.Context.CanSubmitGameplayInput, Is.False);
+            Assert.That(worldProjection.ExtractFull(projectileId).ActorId, Is.EqualTo(projectileId));
             foreach (var retiredId in allActorIds.Skip(1)) sourceActors.Unregister(retiredId);
             var recovered = CaptureLocalActors(producer);
             Assert.That(recovered.Select(actor => actor.ActorId), Is.EqualTo(new[] { actorId }));
@@ -134,6 +140,11 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(retiredProjectile.hasActorDespawnRequest, Is.True);
             Assert.That(fixture.Context.CanSubmitGameplayInput, Is.True);
             AssertProjectedActors(fixture, actorId);
+            worldProjection.ExtractAll(projectedActors);
+            Assert.That(projectedActors.Select(actor => actor.ActorId), Is.EqualTo(new[] { actorId }));
+            Assert.That(worldProjection.ExtractFull(actorId).PosX, Is.EqualTo(14f));
+            Assert.That(worldProjection.ExtractFull(projectileId).ActorId, Is.Zero);
+            Assert.That(worldProjection.ExtractSpawn(projectileId).ActorId, Is.Zero);
 
             SeedCharacter(sourceWorld, actorId, 17f);
             var accepted = new[] { ToTypedSnapshotActor(producer.ExtractFull(actorId)) };
@@ -145,6 +156,8 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(rendered.BufferedRemoteSnapshotCount, Is.Zero);
             Assert.That(fixture.Context.CanSubmitGameplayInput, Is.False);
             Assert.That(fixture.PlaybackWorld, Is.Null);
+            worldProjection.ExtractAll(projectedActors);
+            Assert.That(projectedActors, Is.Empty);
             Assert.That(fixture.Transport.FullStateRequests.Last(), Is.EqualTo(("state-apply-failed", 18)));
 
             fixture.Runtime.HandleSnapshot(LocalFixedSnapshot(generation, 9, 0, 18, accepted));
@@ -905,99 +918,6 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(fixture.World.ImportedFrames, Is.EqualTo(new[] { 10 }));
             Assert.That(fixture.Runtime.CommittedMovementProof?.SnapshotId, Is.EqualTo(1));
             Assert.That(fixture.Context.CanSubmitGameplayInput, Is.True);
-            Assert.That(fixture.Runtime.MovementPrediction, Is.Null, "proof delivery alone must not opt into prediction");
-        }
-
-        [Test]
-        public void ScopedMovementProof_PredictsAndReplaysLocalMovementWithoutSteppingAuthorityOrResubmitting()
-        {
-            using var fixture = new Fixture();
-            var inputGeneration = Guid.NewGuid();
-            var stream = Guid.NewGuid();
-            var plan = CreateLocalProofPlan(scoped: true, prediction: true);
-            using var session = fixture.CreateMovementSession(inputGeneration);
-            fixture.AttachStateSyncTransport(in plan, () => { }, session);
-            var movement = fixture.Runtime.MovementPrediction;
-            Assert.That(session.StateSyncMovement, Is.SameAs(movement));
-
-            Deliver(1, 0, 10, 1, new Transform3(new Vec3(10f, 0f, 0f), Quat.Identity, Vec3.One));
-            var request = new SubmitInputRequest(new WorldId("1"),
-                new PlayerInputCommand(new FrameIndex(12), new PlayerId("1"), MobaOpCodes.Input.Move, null));
-            session.SubmitInput(request, (1f, 0f));
-
-            movement.Tick(1f / 30f);
-            Assert.That(movement.TryGetState(out var tick11, out var tick, out var predicted), Is.True);
-            Assert.That(tick, Is.EqualTo(11));
-            Assert.That(predicted, Is.True);
-            Assert.That(tick11.Position.X, Is.EqualTo(10f));
-
-            movement.Tick(1f / 30f);
-            Assert.That(movement.TryGetState(out var tick12, out tick, out predicted), Is.True);
-            Assert.That(tick, Is.EqualTo(12));
-            Assert.That(predicted, Is.True);
-            Assert.That(tick12.Position.X, Is.GreaterThan(10f));
-
-            movement.Tick(1f / 30f);
-            Assert.That(movement.TryGetState(out var tick13, out var originalTick, out _), Is.True);
-            Assert.That(originalTick, Is.EqualTo(13));
-            Assert.That(tick13.Position.X, Is.GreaterThan(tick12.Position.X), "empty Tick retains movement intent");
-
-            Deliver(2, 1, 11, 1, tick11);
-            Assert.That(movement.LastSameTickMatch, Is.True);
-            Assert.That(movement.LastReplayTicks, Is.Zero, "unchanged future schedule needs no replay");
-            Deliver(3, 1, 12, 2, new Transform3(new Vec3(8f, 0f, 0f), tick12.Rotation, Vec3.One), moveX: 1);
-            Assert.That(movement.LastSameTickMatch, Is.False);
-            Assert.That(movement.LastReplayTicks, Is.EqualTo(1));
-            Assert.That(movement.TryGetState(out var corrected, out tick, out predicted), Is.True);
-            Assert.That(tick, Is.EqualTo(13));
-            Assert.That(predicted, Is.True);
-            Assert.That(corrected.Position.X, Is.EqualTo(8f + tick13.Position.X - tick12.Position.X).Within(0.0001f));
-            Assert.That(fixture.PreparedCount, Is.EqualTo(1));
-            Assert.That(fixture.World.CommittedFrames, Is.EqualTo(new[] { 10, 11, 12 }));
-
-            Deliver(4, 1, 20, 2, corrected, moveX: 1);
-            Assert.That(movement.TryGetState(out _, out tick, out predicted), Is.True);
-            Assert.That(tick, Is.EqualTo(20));
-            Assert.That(predicted, Is.False);
-            Assert.That(movement.LastReplayTicks, Is.Zero);
-
-            var unknown = new SubmitInputRequest(new WorldId("1"),
-                new PlayerInputCommand(new FrameIndex(21), new PlayerId("1"), 0, null));
-            session.SubmitInput(unknown);
-            movement.Tick(1f / 30f);
-            Assert.That(movement.TryGetState(out _, out tick, out predicted), Is.True);
-            Assert.That(tick, Is.EqualTo(20));
-            Assert.That(predicted, Is.False, "non-movement input does not become an empty Tick");
-            Deliver(5, 1, 21, 3, corrected, isolated: false);
-            movement.Tick(1f / 30f);
-            Assert.That(movement.TryGetState(out _, out tick, out predicted), Is.True);
-            Assert.That(tick, Is.EqualTo(21));
-            Assert.That(predicted, Is.False, "ineligible authoritative anchor cannot step");
-
-            fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, 6, 1, 22));
-            Assert.That(movement.TryGetProjection(out _, out _), Is.False);
-            Deliver(7, 1, 23, 3, corrected);
-            movement.Tick(1f / 30f);
-            Assert.That(movement.TryGetState(out _, out tick, out predicted), Is.True);
-            Assert.That(tick, Is.EqualTo(24));
-            Assert.That(predicted, Is.True);
-
-            fixture.Runtime.HandleConnectionClosed();
-            Assert.That(movement.TryGetProjection(out _, out _), Is.False);
-            fixture.Runtime.Dispose();
-            Assert.That(session.StateSyncMovement, Is.Null);
-
-            void Deliver(long revision, long baseline, int frame, long terminal, Transform3 pose,
-                float moveX = 0, bool isolated = true)
-            {
-                var position = pose.Position;
-                var rotation = pose.Rotation;
-                var proof = new GatewayStateSyncMovementProof(inputGeneration, 1, 1, stream, revision, baseline, frame,
-                    terminal, 7, 1, position.X, position.Y, position.Z, rotation.X, rotation.Y, rotation.Z, rotation.W,
-                    moveX, 0f, 30f, true, isolated);
-                fixture.Runtime.HandleSnapshot(FixedSnapshot(stream, revision, baseline, frame,
-                    actors: new[] { ActorSnapshot(7, position.X) }, movementProof: proof));
-            }
         }
 
         [TestCase("import")]
@@ -1023,19 +943,447 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(fixture.Runtime.PendingStateImport, Is.True);
         }
 
+        /// <summary>
+        /// 本地权威快照移除角色或会话换代后，旧施法域和待确认输入均不能继续使用。
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void LocalTypedStateSync_ReleasesCastSessionOnActorRemovalOrGenerationChange(bool changeGeneration)
+        {
+            const int actorId = 7;
+            var inputGeneration = Guid.NewGuid();
+            var stream = Guid.NewGuid();
+            var plan = CreateLocalProofPlan(scoped: true);
+            using var logic = CreateUnstartedLogicSession(plan.World.WorldId);
+            using var worlds = new LocalTypedWorldInstaller();
+            using var fixture = new Fixture(logic, worlds, inputGeneration);
+            fixture.BeginGeneration(plan: plan);
+            var scope = new LocalStateSyncCastScope(fixture.Runtime.LocalReplayGeneration, 1, stream,
+                inputGeneration, actorId, actorId, 1);
+            var domain = new TrackingCastDomain();
+            var session = fixture.Runtime.AttachLocalCast<int, int>(in scope, () => domain);
+            var baseline = LocalFixedSnapshot(stream, 1, 0, 10, new[] { ActorSnapshot(actorId, 10f) });
+            var initial = new LocalStateSyncCastStamp(in scope, 10, 1);
+            var anchor = new LocalStateSyncCastAnchor<int, int>(in initial, 10, 10);
+            Assert.That(fixture.Runtime.CommitLocalCastSnapshot(session, in baseline, in anchor,
+                new LocalStateSyncCastTerminalProof(in initial, 0)), Is.EqualTo(LocalStateSyncCastResult.Published));
+            Assert.That(session.Advance(11, LocalCastPress(11, 1)), Is.True);
+            Assert.That(session.PendingCount, Is.EqualTo(1));
+            Assert.That(domain.DisposalCount, Is.Zero);
+
+            var removal = LocalFixedSnapshot(stream, 2, 0, 11, new[] { ActorSnapshot(actorId + 1, 20f) });
+            var removalStamp = new LocalStateSyncCastStamp(in scope, 11, 2);
+            var removalAnchor = new LocalStateSyncCastAnchor<int, int>(in removalStamp, 11, 11);
+            var proof = new LocalStateSyncCastTerminalProof(in removalStamp, 1);
+            if (changeGeneration)
+                fixture.BeginGeneration(plan: plan);
+
+            Assert.That(fixture.Runtime.CommitLocalCastSnapshot(session, in removal, in removalAnchor, proof),
+                Is.EqualTo(LocalStateSyncCastResult.Ignored));
+            var actors = Resolve<MobaActorRegistry>(fixture.PlaybackWorld);
+            Assert.That(actors.TryGet(actorId, out var actor), Is.True);
+            Assert.That(actor.hasActorDespawnRequest, Is.EqualTo(!changeGeneration));
+            Assert.That(actors.TryGet(actorId + 1, out _), Is.EqualTo(!changeGeneration));
+            Assert.That(Resolve<IFrameTime>(fixture.PlaybackWorld).Frame.Value, Is.EqualTo(changeGeneration ? 10 : 11));
+            Assert.That(domain.DisposalCount, Is.EqualTo(1));
+            Assert.That(session.HasPrediction, Is.False);
+            Assert.That(session.PendingCount, Is.Zero);
+            Assert.That(session.Advance(12, LocalCastPress(12, 2)), Is.False);
+        }
+
+        /// <summary>
+        /// 候选已重演待确认输入后中途失败时，不撤销本次快照提交；下一份有效截面可重新追平。
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void LocalTypedStateSync_ResumesCastPredictionAfterFailedCatchUp(bool throwAtFailure, bool throwAtDisposal)
+        {
+            const int actorId = 7;
+            var inputGeneration = Guid.NewGuid();
+            var stream = Guid.NewGuid();
+            var plan = CreateLocalProofPlan(scoped: true);
+            using var logic = CreateUnstartedLogicSession(plan.World.WorldId);
+            using var worlds = new LocalTypedWorldInstaller();
+            using var fixture = new Fixture(logic, worlds, inputGeneration);
+            fixture.BeginGeneration(plan: plan);
+            var scope = new LocalStateSyncCastScope(fixture.Runtime.LocalReplayGeneration, 1, stream,
+                inputGeneration, actorId, actorId, 1);
+            var original = new TrackingCastDomain();
+            var simulatedFailure = new InvalidOperationException("测试：候选在 Tick 15 推进异常。");
+            var disposalFailure = new InvalidOperationException("测试：未发布候选释放异常。");
+            var failed = new TrackingCastDomain(tick =>
+            {
+                if (tick != 15) return true;
+                if (throwAtFailure) throw simulatedFailure;
+                return false;
+            }, throwAtDisposal ? disposalFailure : null);
+            var recovered = new TrackingCastDomain();
+            var domains = new Queue<TrackingCastDomain>(new[] { original, failed, recovered });
+            var session = fixture.Runtime.AttachLocalCast<int, int>(in scope, () => domains.Dequeue());
+
+            Assert.That(Deliver(1, 0, 10, 100, 0), Is.EqualTo(LocalStateSyncCastResult.Published));
+            Assert.That(session.Advance(11, LocalCastPress(11, 1)), Is.True);
+            Assert.That(session.Advance(12, null), Is.True);
+            Assert.That(session.Advance(13, null), Is.True);
+            Assert.That(session.Advance(14, LocalCastPress(14, 2)), Is.True);
+            Assert.That(session.Advance(15, null), Is.True);
+            Assert.That(session.Observation, Is.EqualTo(123));
+
+            Assert.That(Deliver(2, 1, 12, 120, 1), Is.EqualTo(LocalStateSyncCastResult.CandidateFailed));
+            var clock = Resolve<IFrameTime>(fixture.PlaybackWorld);
+            var actors = Resolve<MobaActorRegistry>(fixture.PlaybackWorld);
+            Assert.That(clock.Frame.Value, Is.EqualTo(12));
+            AssertPosition(actors, actorId, 12f);
+            Assert.That(failed.Steps, Is.EqualTo(new[] { (13, false), (14, true), (15, false) }));
+            Assert.That(failed.Read(), Is.EqualTo(132));
+            Assert.That(failed.DisposalCount, Is.EqualTo(1));
+            Assert.That(original.DisposalCount, Is.EqualTo(1));
+            Assert.That(session.HasPrediction, Is.False);
+            Assert.That(session.AuthorityTick, Is.EqualTo(12));
+            Assert.That(session.PublishedTick, Is.EqualTo(12));
+            Assert.That(session.ClockTick, Is.EqualTo(15));
+            Assert.That(session.Observation, Is.EqualTo(120));
+            Assert.That(session.LastReplay, Is.Empty);
+            Assert.That(session.LastCandidateFailure, Is.Not.Null);
+            if (throwAtDisposal)
+            {
+                Assert.That(session.LastCandidateFailure, Is.TypeOf<AggregateException>());
+                Assert.That(((AggregateException)session.LastCandidateFailure).InnerExceptions,
+                    Is.EqualTo(new[] { simulatedFailure, disposalFailure }));
+            }
+            else if (throwAtFailure) Assert.That(session.LastCandidateFailure, Is.SameAs(simulatedFailure));
+            Assert.That(session.TerminalThrough, Is.EqualTo(1));
+            Assert.That(session.PendingCount, Is.EqualTo(1));
+
+            Assert.That(Deliver(2, 1, 12, 120, 1), Is.EqualTo(LocalStateSyncCastResult.Ignored));
+            Assert.That(domains, Has.Count.EqualTo(1));
+            Assert.That(session.Advance(16, LocalCastPress(16, 3)), Is.True);
+            Assert.That(session.Observation, Is.EqualTo(120));
+            Assert.That(session.PendingCount, Is.EqualTo(2));
+
+            Assert.That(Deliver(3, 1, 13, 130, 1), Is.EqualTo(LocalStateSyncCastResult.Published));
+            Assert.That(clock.Frame.Value, Is.EqualTo(13));
+            AssertPosition(actors, actorId, 13f);
+            Assert.That(session.HasPrediction, Is.True);
+            Assert.That(session.PublishedTick, Is.EqualTo(16));
+            Assert.That(session.PendingCount, Is.EqualTo(2));
+            Assert.That(session.LastCandidateFailure, Is.Null);
+            Assert.That(session.LastReplay.Select(step => (step.Tick, step.Input, step.State)), Is.EqualTo(
+                new (int, long?, int)[] { (14, 2, 140), (15, null, 141), (16, 3, 151) }));
+
+            Assert.That(session.Advance(17, LocalCastPress(17, 4)), Is.True);
+            Assert.That(session.PublishedTick, Is.EqualTo(17));
+            Assert.That(session.Observation, Is.EqualTo(161));
+            Assert.That(recovered.Steps, Is.EqualTo(new[] { (14, true), (15, false), (16, true), (17, true) }));
+            Assert.That(recovered.DisposalCount, Is.Zero);
+            Assert.That(clock.Frame.Value, Is.EqualTo(13));
+
+            LocalStateSyncCastResult Deliver(long revision, long baseline, int tick, int state, long through)
+            {
+                var snapshot = LocalFixedSnapshot(stream, revision, baseline, tick, new[] { ActorSnapshot(actorId, tick) });
+                var stamp = new LocalStateSyncCastStamp(in scope, tick, revision);
+                var anchor = new LocalStateSyncCastAnchor<int, int>(in stamp, state, state);
+                return fixture.Runtime.CommitLocalCastSnapshot(session, in snapshot, in anchor,
+                    new LocalStateSyncCastTerminalProof(in stamp, through));
+            }
+        }
+
+        [Test]
+        public void LocalTypedStateSync_BattleCastUsesCommittedOwnerAndDoesNotUndoCommitOnFactoryFailure()
+        {
+            const int actorId = 7;
+            var inputGeneration = Guid.NewGuid();
+            var stream = Guid.NewGuid();
+            var plan = CreateLocalProofPlan(scoped: true);
+            using var logic = CreateUnstartedLogicSession(plan.World.WorldId);
+            using var worlds = new LocalTypedWorldInstaller();
+            using var fixture = new Fixture(logic, worlds, inputGeneration);
+            fixture.BeginGeneration(plan: plan);
+            var scope = new LocalStateSyncCastScope(fixture.Runtime.LocalReplayGeneration, 1, stream,
+                inputGeneration, actorId, actorId, 1);
+            var creations = 0;
+            var session = fixture.Runtime.AttachLocalBattleCast(in scope, 1f / 30, () => { creations++; return null; });
+            var snapshot = LocalFixedSnapshot(stream, 1, 0, 10, new[] { ActorSnapshot(actorId, 42f) });
+            var stamp = new LocalStateSyncCastStamp(in scope, 10, 1);
+            var economy = new LocalStateSyncCastEconomy(0, new LocalStateSyncCastSlot(1, 10, 1, 0, 0),
+                new LocalStateSyncCastSlot(2, 20, 1, 0, 0));
+            var proof = new LocalStateSyncCastTerminalProof(in stamp, 0);
+            var coverage = LocalStateSyncBattleCastCoverage.Settled(in stamp);
+
+            Assert.That(fixture.Runtime.CommitLocalBattleCastSnapshot(session, in snapshot, in stamp, in economy, proof, in coverage),
+                Is.EqualTo(LocalStateSyncCastResult.CandidateFailed));
+            Assert.That(Resolve<IFrameTime>(fixture.PlaybackWorld).Frame.Value, Is.EqualTo(10));
+            Assert.That(session.Observation.Position.X, Is.EqualTo(42f));
+            Assert.That(session.HasPrediction, Is.False);
+            Assert.That(session.LastReplay, Is.Empty);
+            Assert.That(fixture.Runtime.CommitLocalBattleCastSnapshot(session, in snapshot, in stamp, in economy, proof, in coverage),
+                Is.EqualTo(LocalStateSyncCastResult.Ignored));
+            Assert.That(creations, Is.EqualTo(1));
+        }
+
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(false, false, true)]
+        public void LocalTypedStateSync_BattleCastMissingOrStaleCoverageKeepsAuthorityAndInput(
+            bool useStaleSettledCoverage, bool missingMovement, bool missingProjectile)
+        {
+            const int actorId = 7;
+            var inputGeneration = Guid.NewGuid();
+            var stream = Guid.NewGuid();
+            var plan = CreateLocalProofPlan(scoped: true);
+            using var logic = CreateUnstartedLogicSession(plan.World.WorldId);
+            using var worlds = new LocalTypedWorldInstaller();
+            using var fixture = new Fixture(logic, worlds, inputGeneration);
+            fixture.BeginGeneration(plan: plan);
+            var scope = new LocalStateSyncCastScope(fixture.Runtime.LocalReplayGeneration, 1, stream,
+                inputGeneration, actorId, actorId, 1);
+            var creations = 0;
+            var session = fixture.Runtime.AttachLocalBattleCast(in scope, 1f / 30, () => { creations++; return null; },
+                movementEnabled: missingMovement, projectileMask: missingProjectile ? 1 << 24 : 0);
+            var economy = new LocalStateSyncCastEconomy(0, new LocalStateSyncCastSlot(1, 10, 1, 0, 0),
+                new LocalStateSyncCastSlot(2, 20, 1, 0, 0));
+            var baseline = LocalFixedSnapshot(stream, 1, 0, 10, new[] { ActorSnapshot(actorId, 10f) });
+            var baselineStamp = new LocalStateSyncCastStamp(in scope, 10, 1);
+            var baselineCoverage = LocalStateSyncBattleCastCoverage.Settled(in baselineStamp);
+            Assert.That(fixture.Runtime.CommitLocalBattleCastSnapshot(session, in baseline, in baselineStamp, in economy, null, in baselineCoverage),
+                Is.EqualTo(LocalStateSyncCastResult.AuthorityOnly));
+            Assert.That(missingMovement ? session.AdvanceMovement(11, 1, 1f, 0f) : session.Advance(11, LocalCastPress(11, 1)),
+                Is.True);
+            Assert.That(session.Advance(12, LocalCastPress(12, 2)), Is.True);
+
+            var snapshot = LocalFixedSnapshot(stream, 2, 1, 11, new[] { ActorSnapshot(actorId, 42f) });
+            var stamp = new LocalStateSyncCastStamp(in scope, 11, 2);
+            var terminal = new LocalStateSyncCastTerminalProof(in stamp, 1);
+            var coverage = missingMovement || missingProjectile ? LocalStateSyncBattleCastCoverage.Settled(in stamp) :
+                useStaleSettledCoverage ? baselineCoverage : default;
+            Assert.That(fixture.Runtime.CommitLocalBattleCastSnapshot(session, in snapshot, in stamp, in economy, terminal, in coverage),
+                Is.EqualTo(LocalStateSyncCastResult.AuthorityOnly));
+            Assert.That(Resolve<IFrameTime>(fixture.PlaybackWorld).Frame.Value, Is.EqualTo(11));
+            Assert.That(session.Observation.Position.X, Is.EqualTo(42f));
+            Assert.That(session.PublishedTick, Is.EqualTo(11));
+            Assert.That(session.HasPrediction, Is.False);
+            Assert.That(session.LastReplay, Is.Empty);
+            Assert.That(session.PendingCount, Is.EqualTo(2));
+            Assert.That(session.TerminalThrough, Is.Zero);
+            Assert.That(creations, Is.Zero);
+
+            var correctCoverage = LocalStateSyncBattleCastCoverage.Settled(in stamp);
+            Assert.That(fixture.Runtime.CommitLocalBattleCastSnapshot(session, in snapshot, in stamp, in economy, terminal, in correctCoverage),
+                Is.EqualTo(LocalStateSyncCastResult.Ignored));
+            Assert.That(session.PendingCount, Is.EqualTo(2));
+            Assert.That(creations, Is.Zero);
+        }
+
+        /// <summary>
+        /// 已发布候选释放异常不阻塞权威提交或输入终结，也不在同轮启动新候选。
+        /// </summary>
+        [Test]
+        public void LocalTypedStateSync_ResumesAfterPublishedCandidateReleaseFails()
+        {
+            const int actorId = 7;
+            var inputGeneration = Guid.NewGuid();
+            var stream = Guid.NewGuid();
+            var plan = CreateLocalProofPlan(scoped: true);
+            using var logic = CreateUnstartedLogicSession(plan.World.WorldId);
+            using var worlds = new LocalTypedWorldInstaller();
+            using var fixture = new Fixture(logic, worlds, inputGeneration);
+            fixture.BeginGeneration(plan: plan);
+            var scope = new LocalStateSyncCastScope(fixture.Runtime.LocalReplayGeneration, 1, stream,
+                inputGeneration, actorId, actorId, 1);
+            var releaseFailure = new InvalidOperationException("测试：已发布候选释放异常。");
+            var original = new TrackingCastDomain(disposalFailure: releaseFailure);
+            var replacement = new TrackingCastDomain();
+            var domains = new Queue<TrackingCastDomain>(new[] { original, replacement });
+            var session = fixture.Runtime.AttachLocalCast<int, int>(in scope, () => domains.Dequeue());
+
+            Assert.That(Deliver(1, 0, 10, 100, 0), Is.EqualTo(LocalStateSyncCastResult.Published));
+            Assert.That(session.Advance(11, LocalCastPress(11, 1)), Is.True);
+            Assert.That(session.Advance(12, null), Is.True);
+            Assert.That(session.Advance(13, LocalCastPress(13, 2)), Is.True);
+
+            Assert.That(Deliver(2, 1, 11, 110, 1), Is.EqualTo(LocalStateSyncCastResult.CandidateFailed));
+            var clock = Resolve<IFrameTime>(fixture.PlaybackWorld);
+            Assert.That(clock.Frame.Value, Is.EqualTo(11));
+            Assert.That(session.HasPrediction, Is.False);
+            Assert.That(session.Observation, Is.EqualTo(110));
+            Assert.That(session.PublishedTick, Is.EqualTo(11));
+            Assert.That(session.LastReplay, Is.Empty);
+            Assert.That(session.LastCandidateFailure, Is.SameAs(releaseFailure));
+            Assert.That(session.TerminalThrough, Is.EqualTo(1));
+            Assert.That(session.PendingCount, Is.EqualTo(1));
+            Assert.That(original.DisposalCount, Is.EqualTo(1));
+            Assert.That(domains, Has.Count.EqualTo(1));
+
+            Assert.That(Deliver(2, 1, 11, 110, 1), Is.EqualTo(LocalStateSyncCastResult.Ignored));
+            Assert.That(session.Advance(14, null), Is.True);
+            Assert.That(session.Observation, Is.EqualTo(110));
+            Assert.That(Deliver(3, 1, 12, 120, 1), Is.EqualTo(LocalStateSyncCastResult.Published));
+            Assert.That(session.LastCandidateFailure, Is.Null);
+            Assert.That(session.LastReplay.Select(step => (step.Tick, step.Input)), Is.EqualTo(
+                new (int, long?)[] { (13, 2), (14, null) }));
+            Assert.That(session.Observation, Is.EqualTo(131));
+            Assert.That(Deliver(1, 0, 10, 100, 0), Is.EqualTo(LocalStateSyncCastResult.Ignored));
+            Assert.That(session.Advance(15, null), Is.True);
+            Assert.That(session.Observation, Is.EqualTo(132));
+            Assert.That(replacement.Steps, Is.EqualTo(new[] { (13, true), (14, false), (15, false) }));
+            Assert.That(original.DisposalCount, Is.EqualTo(1));
+            Assert.That(clock.Frame.Value, Is.EqualTo(12));
+
+            LocalStateSyncCastResult Deliver(long revision, long baseline, int tick, int state, long through)
+            {
+                var snapshot = LocalFixedSnapshot(stream, revision, baseline, tick, new[] { ActorSnapshot(actorId, tick) });
+                var stamp = new LocalStateSyncCastStamp(in scope, tick, revision);
+                var anchor = new LocalStateSyncCastAnchor<int, int>(in stamp, state, state);
+                return fixture.Runtime.CommitLocalCastSnapshot(session, in snapshot, in anchor,
+                    new LocalStateSyncCastTerminalProof(in stamp, through));
+            }
+        }
+
+        /// <summary>
+        /// 断线或基线失配立即撤下候选；全量提交前不能由旧增量恢复预测。
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void LocalTypedStateSync_PausesCastUntilNewFullBaselineCommits(bool reconnect)
+        {
+            const int actorId = 7;
+            var inputGeneration = Guid.NewGuid();
+            var stream = Guid.NewGuid();
+            var plan = CreateLocalProofPlan(scoped: true);
+            using var logic = CreateUnstartedLogicSession(plan.World.WorldId);
+            using var worlds = new LocalTypedWorldInstaller();
+            using var fixture = new Fixture(logic, worlds, inputGeneration);
+            fixture.BeginGeneration(plan: plan);
+            var generation = fixture.Runtime.LocalReplayGeneration;
+            var scope = new LocalStateSyncCastScope(generation, 1, stream, inputGeneration, actorId, actorId, 1);
+            var original = new TrackingCastDomain();
+            var replacement = new TrackingCastDomain();
+            var domains = new Queue<TrackingCastDomain>(new[] { original, replacement });
+            var session = fixture.Runtime.AttachLocalCast<int, int>(in scope, () => domains.Dequeue());
+
+            Assert.That(Deliver(1, 0, 10, 100, 0), Is.EqualTo(LocalStateSyncCastResult.Published));
+            Assert.That(session.Advance(11, LocalCastPress(11, 1)), Is.True);
+            Assert.That(session.Advance(12, null), Is.True);
+            Assert.That(session.Advance(13, LocalCastPress(13, 2)), Is.True);
+            Assert.That(session.Observation, Is.EqualTo(121));
+            var clock = Resolve<IFrameTime>(fixture.PlaybackWorld);
+            fixture.Transport.EnqueuePendingFullStateRequest().SetResult(false);
+
+            if (reconnect)
+            {
+                fixture.Runtime.HandleConnectionClosed();
+                AssertSuspended();
+                Assert.That(Deliver(2, 0, 12, 120, 1), Is.EqualTo(LocalStateSyncCastResult.Ignored));
+                Assert.That(clock.Frame.Value, Is.EqualTo(10));
+                fixture.Runtime.HandleConnectionEstablished();
+            }
+            else
+            {
+                fixture.Runtime.HandleSnapshot(LocalFixedSnapshot(stream, 3, 2, 12,
+                    new[] { ActorSnapshot(actorId, 12f) }));
+            }
+
+            AssertSuspended();
+            Assert.That(fixture.Runtime.LocalReplayGeneration, Is.EqualTo(generation));
+            Assert.That(fixture.Transport.FullStateRequests, Has.Count.EqualTo(1));
+            Assert.That(fixture.Runtime.PendingStateImport, Is.True);
+            Assert.That(fixture.Context.CanSubmitGameplayInput, Is.False);
+            Assert.That(Deliver(4, 1, 13, 130, 2), Is.EqualTo(LocalStateSyncCastResult.Ignored));
+            Assert.That(session.Advance(14, null), Is.True);
+            AssertSuspended();
+            Assert.That(clock.Frame.Value, Is.EqualTo(10));
+
+            Assert.That(Deliver(5, 0, 12, 120, 1), Is.EqualTo(LocalStateSyncCastResult.Published));
+            Assert.That(fixture.Runtime.PendingStateImport, Is.False);
+            Assert.That(fixture.Context.CanSubmitGameplayInput, Is.True);
+            var recoveredClock = Resolve<IFrameTime>(fixture.PlaybackWorld);
+            if (reconnect) Assert.That(recoveredClock, Is.Not.SameAs(clock));
+            Assert.That(recoveredClock.Frame.Value, Is.EqualTo(12));
+            Assert.That(session.TerminalThrough, Is.EqualTo(1));
+            Assert.That(session.PendingCount, Is.EqualTo(1));
+            Assert.That(session.PublishedTick, Is.EqualTo(14));
+            Assert.That(session.LastReplay.Select(step => (step.Tick, step.Input)), Is.EqualTo(
+                new (int, long?)[] { (13, 2), (14, null) }));
+            Assert.That(session.Observation, Is.EqualTo(131));
+            Assert.That(session.Advance(15, null), Is.True);
+            Assert.That(session.Observation, Is.EqualTo(132));
+            Assert.That(replacement.Steps, Is.EqualTo(new[] { (13, true), (14, false), (15, false) }));
+            Assert.That(recoveredClock.Frame.Value, Is.EqualTo(12));
+
+            void AssertSuspended()
+            {
+                Assert.That(session.HasPrediction, Is.False);
+                Assert.That(session.PublishedTick, Is.EqualTo(10));
+                Assert.That(session.Observation, Is.EqualTo(100));
+                Assert.That(session.LastReplay, Is.Empty);
+                Assert.That(session.TerminalThrough, Is.Zero);
+                Assert.That(session.PendingCount, Is.EqualTo(2));
+                Assert.That(original.DisposalCount, Is.EqualTo(1));
+                Assert.That(original.Steps, Has.Count.EqualTo(3));
+                Assert.That(domains, Has.Count.EqualTo(1));
+            }
+
+            LocalStateSyncCastResult Deliver(long revision, long baseline, int tick, int state, long through)
+            {
+                var snapshot = LocalFixedSnapshot(stream, revision, baseline, tick, new[] { ActorSnapshot(actorId, tick) });
+                var stamp = new LocalStateSyncCastStamp(in scope, tick, revision);
+                var anchor = new LocalStateSyncCastAnchor<int, int>(in stamp, state, state);
+                return fixture.Runtime.CommitLocalCastSnapshot(session, in snapshot, in anchor,
+                    new LocalStateSyncCastTerminalProof(in stamp, through));
+            }
+        }
+
+        private static SkillInputEvent LocalCastPress(int tick, long sequence) =>
+            new SkillInputEvent(1, SkillInputPhase.Press, targetFrame: tick, inputSequence: sequence);
+
+        private sealed class TrackingCastDomain : ILocalStateSyncCastWorld<int, int>
+        {
+            private readonly Func<int, bool> _tryAdvance;
+            private readonly Exception _disposalFailure;
+            private int _state;
+
+            internal TrackingCastDomain(Func<int, bool> tryAdvance = null, Exception disposalFailure = null)
+            {
+                _tryAdvance = tryAdvance;
+                _disposalFailure = disposalFailure;
+            }
+
+            internal List<(int Tick, bool Press)> Steps { get; } = new();
+            internal int DisposalCount { get; private set; }
+
+            public void Restore(int anchor) => _state = anchor;
+
+            public bool TryStep(int tick, SkillInputEvent? input, out string rejection)
+            {
+                var press = input.HasValue;
+                Steps.Add((tick, press));
+                _state += press ? 10 : 1;
+                rejection = null;
+                return _tryAdvance?.Invoke(tick) ?? true;
+            }
+
+            public int Read() => _state;
+            public void Dispose()
+            {
+                DisposalCount++;
+                if (_disposalFailure != null) throw _disposalFailure;
+            }
+        }
+
         private static GatewayStateSyncMovementProof MovementProof(Guid input, Guid stream, long revision, long baseline, int tick) =>
             new GatewayStateSyncMovementProof(input, 1, 1, stream, revision, baseline, tick, 1, 7, 1,
                 10f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, 1f, 5f, true, true);
 
-        private static BattleStartPlan CreateLocalProofPlan(bool scoped = false, bool prediction = false)
+        private static BattleStartPlan CreateLocalProofPlan(bool scoped = false)
         {
-            var world = new BattleStartPlanWorldOptions(prediction ? "1" : "typed-state-playback", "battle",
-                "offline", prediction ? "1" : "p1", 30, 0);
+            var world = new BattleStartPlanWorldOptions("typed-state-playback", "battle", "offline", "p1", 30, 0);
             var sync = new BattleStartPlanSyncOptions(BattleSyncMode.SnapshotAuthority, default, null);
             var remote = CreateRemoteCapabilities(BattleReplicationRuntime.SyncProfileName);
             var gateway = scoped ? new BattleStartPlanGatewayOptions(true, "local", 1, 1, "token", "", "", false, false,
                 "", 0, 0, "battle", useScopedStateSyncInput: true) : default;
-            var authority = new BattleStartPlanAuthorityOptions(false, false, prediction);
+            var authority = new BattleStartPlanAuthorityOptions(false, false);
             var options = new BattleStartPlanOptions(in world, BattleHostMode.GatewayRemote, in sync, in authority, in gateway,
                 default, default, default, default, remoteSyncCapabilities: remote);
             return new BattleStartPlan(in options);
@@ -1185,13 +1533,15 @@ namespace AbilityKit.Game.Test.UnitTest
             private readonly BattleSessionHandles _handles;
             private readonly BattleSimulationRuntime _simulation;
 
-            internal Fixture(BattleLogicSession session = null, IBattleSessionWorldInstaller worldInstaller = null)
+            internal Fixture(BattleLogicSession session = null, IBattleSessionWorldInstaller worldInstaller = null,
+                Guid castInputGeneration = default)
             {
                 Context = BattleContext.Rent();
                 Replication = new BattleReplicationRuntime();
                 _networkTransport = new NetworkTransport(new NetworkTransportOptions
                 {
-                    ConnectionFactory = () => new StubConnection()
+                    ConnectionFactory = () => new StubConnection(),
+                    StateSyncInputGeneration = castInputGeneration
                 });
                 Replication.Build(
                     _networkTransport,
@@ -1233,31 +1583,9 @@ namespace AbilityKit.Game.Test.UnitTest
             internal ControllableTransport Transport { get; }
             internal AuthoritativeStateRecoveryRuntime Runtime { get; }
 
-            internal int PreparedCount { get; private set; }
-
-            internal BattleLogicSession CreateMovementSession(Guid generation)
-            {
-                _networkTransport.Options.StateSyncInputGeneration = generation;
-                _networkTransport.Options.PrepareSubmitInput = request =>
-                    new SequencedInput((SubmitInputRequest)request, (ulong)(1 + ++PreparedCount), generation);
-                _networkTransport.Options.SerializeSubmitInput = _ =>
-                    throw new InvalidOperationException("This fixture does not send input.");
-                _networkTransport.Options.DeserializeSubmitInputResponse = _ => default;
-                return new BattleLogicSession(new BattleLogicSessionOptions
-                {
-                    Mode = BattleLogicMode.Remote,
-                    WorldId = new WorldId("1"),
-                    PlayerId = "1",
-                    AutoConnect = false,
-                    AutoCreateWorld = false,
-                    AutoJoin = false
-                }, _networkTransport);
-            }
-
-            internal void AttachStateSyncTransport(in BattleStartPlan plan, Action firstFrameReceived,
-                BattleLogicSession session = null) =>
+            internal void AttachStateSyncTransport(in BattleStartPlan plan, Action firstFrameReceived) =>
                 Runtime.AttachStateSyncTransport(_networkTransport, 1, null, Context,
-                    in plan, 1f / 30f, _ => { }, firstFrameReceived, session);
+                    in plan, 1f / 30f, _ => { }, firstFrameReceived);
 
             internal void BeginGeneration(
                 ControllableTransport transport = null,

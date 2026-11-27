@@ -1,5 +1,5 @@
 # Tiny 逻辑
 
-此包仅包含确定性的 Tiny 战斗规则，不依赖 Unity 引擎或其他 AbilityKit 包。可从 `TinyBattle`、`TinyInput` 和 `TinyBattleStateCodec` 开始；网络与表现位于 `com.abilitykit.demo.tiny`。
+此包仅包含确定性的 Tiny 战斗规则，代码不依赖 Unity 引擎，也不要求其他 AbilityKit 包。网络与表现由另一个包 `com.abilitykit.demo.tiny` 提供。
 
-导入 `01 Logic` 示例可运行对局、恢复检查点并比较 40 帧哈希。在源码仓库运行 `dotnet run --project src/AbilityKit.Demo.Tiny.Logic.Sample`，可在无 Unity 环境执行相同代码。
+按 [package.json](package.json) 的 Unity 版本声明安装本包，再从 Package Manager 导入 [`01 Logic`](Samples~/01-Logic/README.md)。[使用指南](Documentation~/README.md)说明如何推进对局、恢复检查点并比较哈希。

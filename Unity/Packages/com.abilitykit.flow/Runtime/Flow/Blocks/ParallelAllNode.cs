@@ -3,18 +3,27 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Ability.Flow.Blocks
 {
+    /// <summary>
+    /// 按输入顺序推进所有分支，等待全部结束；仅当所有分支成功时返回成功。
+    /// </summary>
     public sealed class ParallelAllNode : IFlowNode
     {
         private readonly IFlowNode[] _nodes;
         private readonly FlowStatus[] _status;
         private bool _entered;
 
+        /// <summary>
+        /// 使用给定数组作为分支列表。
+        /// </summary>
         public ParallelAllNode(params IFlowNode[] nodes)
         {
             _nodes = nodes ?? throw new ArgumentNullException(nameof(nodes));
             _status = new FlowStatus[_nodes.Length];
         }
 
+        /// <summary>
+        /// 按顺序复制列表中的分支引用。
+        /// </summary>
         public ParallelAllNode(IReadOnlyList<IFlowNode> nodes)
         {
             if (nodes == null) throw new ArgumentNullException(nameof(nodes));
@@ -23,17 +32,26 @@ namespace AbilityKit.Ability.Flow.Blocks
             _status = new FlowStatus[_nodes.Length];
         }
 
+        /// <summary>
+        /// 按顺序进入分支；部分进入失败后可通过中断清理已尝试进入的分支。
+        /// </summary>
         public void Enter(FlowContext ctx)
         {
-            for (int i = 0; i < _nodes.Length; i++)
-            {
-                if (_nodes[i] == null) throw new InvalidOperationException("ParallelAllNode contains null node");
-                _status[i] = FlowStatus.Running;
-                FlowDiagnostics.Enter(ctx, _nodes[i]);
-            }
+            Array.Clear(_status, 0, _status.Length);
             _entered = true;
+            for (var index = 0; index < _nodes.Length; index++)
+            {
+                var node = _nodes[index];
+                if (node == null) throw new InvalidOperationException("ParallelAllNode contains null node");
+                FlowDiagnostics.RecordEnter(ctx, node);
+                _status[index] = FlowStatus.Running;
+                node.Enter(ctx);
+            }
         }
 
+        /// <summary>
+        /// 推进仍在运行的分支，终态分支立即退出。
+        /// </summary>
         public FlowStatus Tick(FlowContext ctx, float deltaTime)
         {
             if (!_entered) return FlowStatus.Succeeded;
@@ -57,8 +75,9 @@ namespace AbilityKit.Ability.Flow.Blocks
 
             if (!allDone) return FlowStatus.Running;
 
-            // 终态判定看全部子节点的最终状态，而不是本次 Tick 的局部标记——
-            // 早先轮次失败的子节点必须参与最终判定（任一非 Succeeded 即整体 Failed）。
+            /*
+             * 早于本轮完成的分支仍参与最终判定。
+             */
             for (int i = 0; i < _nodes.Length; i++)
             {
                 if (_status[i] != FlowStatus.Succeeded) return FlowStatus.Failed;
@@ -67,36 +86,23 @@ namespace AbilityKit.Ability.Flow.Blocks
             return FlowStatus.Succeeded;
         }
 
-        public void Exit(FlowContext ctx)
+        /// <summary>
+        /// 退出所有仍在运行的分支，全部尝试后抛出收尾异常。
+        /// </summary>
+        public void Exit(FlowContext ctx) => Close(ctx, interrupt: false);
+
+        /// <summary>
+        /// 中断所有仍在运行的分支，全部尝试后抛出收尾异常。
+        /// </summary>
+        public void Interrupt(FlowContext ctx) => Close(ctx, interrupt: true);
+
+        private void Close(FlowContext ctx, bool interrupt)
         {
             if (!_entered) return;
-
-            for (int i = 0; i < _nodes.Length; i++)
-            {
-                if (_status[i] == FlowStatus.Running)
-                {
-                    FlowDiagnostics.Exit(ctx, _nodes[i]);
-                    _status[i] = FlowStatus.Succeeded;
-                }
-            }
-
             _entered = false;
-        }
-
-        public void Interrupt(FlowContext ctx)
-        {
-            if (!_entered) return;
-
-            for (int i = 0; i < _nodes.Length; i++)
-            {
-                if (_status[i] == FlowStatus.Running)
-                {
-                    FlowDiagnostics.Interrupt(ctx, _nodes[i]);
-                    _status[i] = FlowStatus.Canceled;
-                }
-            }
-
-            _entered = false;
+            var cleanup = new FlowCleanup();
+            cleanup.CloseRunningChildren(ctx, _nodes, _status, interrupt);
+            cleanup.ThrowIfFailed();
         }
     }
 }

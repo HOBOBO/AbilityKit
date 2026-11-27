@@ -14,7 +14,7 @@ namespace AbilityKit.Game.Editor
 {
     public static class DemoGameplayCompositionBuilder
     {
-        private const string MenuPath = "Tools/AbilityKit/Demos/Build Package-Owned Gameplay Composition";
+        internal const string MenuPath = "Tools/AbilityKit/Demos/Build Package-Owned Gameplay Composition";
         private const string StarterScenePath = "Assets/Scenes/" + DemoSceneRoutes.Starter + ".unity";
         private const string LegacyCompositionRoot = "Assets/DemoComposition";
         private const string LegacyPrefabDirectory = LegacyCompositionRoot + "/Prefabs";
@@ -77,6 +77,33 @@ namespace AbilityKit.Game.Editor
         };
 
         [MenuItem(MenuPath, priority = 20)]
+        private static void GenerateAllFromMenu()
+        {
+            if (!CanGenerateFromMenu()) return;
+            MobaMapSceneGenerator.ValidateMapAndMinionRoutes(1);
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(StarterScenePath) == null)
+                throw new FileNotFoundException("Multiplayer starter scene is missing.", StarterScenePath);
+
+            var legacyDirectory = AssetDatabase.IsValidFolder(LegacyCompositionRoot) ? "存在，将迁移并清理" : "不存在";
+            var legacyScene = AssetDatabase.LoadMainAssetAtPath(LegacyGameplayScenePath) != null ? "存在，将删除" : "不存在";
+            if (!EditorUtility.DisplayDialog("生成 MOBA 与 Shooter 示例装配",
+                    "地图与兵线校验已通过。此操作同时生成或覆盖两套 Demo 的装配和场景：\n\n" +
+                    $"{MobaCompositionRoot}\n{MobaScenePath}\n{ShooterCompositionRoot}\n{ShooterScenePath}\n\n" +
+                    $"将更新 {StarterScenePath} 引用的 Starter 配置，并替换 Build Settings 场景列表。\n" +
+                    $"{LegacyCompositionRoot}：{legacyDirectory}\n{LegacyGameplayScenePath}：{legacyScene}\n\n" +
+                    "会切换场景并保存待保存的资产；失败不会回滚已完成的改动。",
+                    "确认生成两套装配", "取消")) return;
+
+            if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) GenerateAll();
+        }
+
+        [MenuItem(MenuPath, validate = true)]
+        private static bool CanGenerateFromMenu() => !EditorApplication.isPlayingOrWillChangePlaymode &&
+            PrefabStageUtility.GetCurrentPrefabStage() == null;
+
+        /// <summary>
+        /// 重建两套包所有的示例装配；批处理调用不弹窗，会直接写入资产和 Build Settings。
+        /// </summary>
         public static void GenerateAll()
         {
             MobaMapSceneGenerator.ValidateMapAndMinionRoutes(1);

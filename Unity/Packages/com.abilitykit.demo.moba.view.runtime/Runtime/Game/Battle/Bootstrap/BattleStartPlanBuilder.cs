@@ -37,7 +37,6 @@ namespace AbilityKit.Game.Flow
         private BattleSyncMode _syncMode = BattleSyncMode.Lockstep;
         private BattleViewEventSourceMode _viewEventSourceMode = BattleViewEventSourceMode.SnapshotOnly;
         private bool _enableClientPrediction = true;
-        private bool _enableStateSyncMovementPrediction;
         private bool _enableConfirmedAuthorityWorld;
         private string[] _enabledSnapshotRegistryIds;
 
@@ -125,15 +124,6 @@ namespace AbilityKit.Game.Flow
             return this;
         }
 
-        /// <summary>
-        /// 显式启用状态同步移动预测；还需在网关选项中启用作用域输入。
-        /// </summary>
-        public BattleStartPlanBuilder WithStateSyncMovementPrediction(bool enabled = true)
-        {
-            _enableStateSyncMovementPrediction = enabled;
-            return this;
-        }
-
         public BattleStartPlanBuilder WithSnapshotRegistries(string[] enabledSnapshotRegistryIds)
         {
             _enabledSnapshotRegistryIds = enabledSnapshotRegistryIds;
@@ -189,14 +179,27 @@ namespace AbilityKit.Game.Flow
             bool enableInputRecording,
             string inputRecordOutputPath,
             bool enableInputReplay,
-            string inputReplayPath)
+            string inputReplayPath) => WithRunMode(runMode, enableInputRecording, inputRecordOutputPath,
+            enableInputReplay, inputReplayPath, BattleRecordCoverage.InputsAndHashes);
+
+        /// <summary>
+        /// 设置启动模式；记录模式可显式包含已有的快照轨道。
+        /// </summary>
+        public BattleStartPlanBuilder WithRunMode(
+            BattleRunMode runMode,
+            bool enableInputRecording,
+            string inputRecordOutputPath,
+            bool enableInputReplay,
+            string inputReplayPath,
+            BattleRecordCoverage recordCoverage)
         {
             _runMode = new BattleStartPlanRunModeOptions(
                 runMode,
                 enableInputRecording,
                 inputRecordOutputPath,
                 enableInputReplay,
-                inputReplayPath);
+                inputReplayPath,
+                recordCoverage);
             return this;
         }
 
@@ -254,8 +257,7 @@ namespace AbilityKit.Game.Flow
                 _required.InputDelayFrames,
                 _enableTraceDiagnostics);
             var sync = new BattleStartPlanSyncOptions(_syncMode, _viewEventSourceMode, _enabledSnapshotRegistryIds);
-            var authority = new BattleStartPlanAuthorityOptions(_enableClientPrediction, _enableConfirmedAuthorityWorld,
-                _enableStateSyncMovementPrediction);
+            var authority = new BattleStartPlanAuthorityOptions(_enableClientPrediction, _enableConfirmedAuthorityWorld);
             var options = new BattleStartPlanOptions(
                 in world,
                 _hostMode,

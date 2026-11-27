@@ -11,7 +11,17 @@ namespace AbilityKit.BattleScenario.Editor
 {
     public sealed partial class BattleScenarioWindow
     {
-        private const string StateSyncSampleDirectory = "Packages/com.abilitykit.battlescenario/Editor/ReplaySamples/";
+        internal static IReadOnlyList<(string Label, LocalStateSyncReplay.SkillReplayCase Recipe)> StateSyncShowcases { get; } = Array.AsReadOnly(new[]
+        {
+            ("施法与移动/移动＋前摇 · 恢复后追平", LocalStateSyncReplay.SkillReplayCase.BattleCastMoveWindup),
+            ("施法与移动/拉克丝 Q · 发射前拒绝并保留转向", LocalStateSyncReplay.SkillReplayCase.BattleCastMoveRejectBeforeRelease),
+            ("施法与移动/恢复在途前摇", LocalStateSyncReplay.SkillReplayCase.BattleCastWindup),
+            ("施法与移动/权威确认 · 保留 W 冷却，重演 E", LocalStateSyncReplay.SkillReplayCase.BattleCastConfirmed),
+            ("施法与移动/权威拒绝 · 撤销 W，重演 E", LocalStateSyncReplay.SkillReplayCase.BattleCastRejected),
+            ("逻辑弹体/恢复权威在途弹体", LocalStateSyncReplay.SkillReplayCase.BattleFlightRestore),
+            ("逻辑弹体/重演输入并生成", LocalStateSyncReplay.SkillReplayCase.BattleFlightReplay),
+            ("逻辑弹体/权威拒绝且不复活", LocalStateSyncReplay.SkillReplayCase.BattleFlightReject),
+        });
 
         private void DrawStateSyncSamplesToolbar()
         {
@@ -20,82 +30,47 @@ namespace AbilityKit.BattleScenario.Editor
                 GUILayout.Label("状态同步复现样例", EditorStyles.miniBoldLabel);
                 using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
                 {
-                    if (GUILayout.Button(new GUIContent("选样例", "查看本地状态同步测试录制"), EditorStyles.toolbarDropDown))
+                    if (GUILayout.Button(new GUIContent("选样例", "选择后自动预览；需要时可切换逐 Tick 检查"), EditorStyles.toolbarDropDown))
                         DrawStateSyncSampleMenu(GUILayoutUtility.GetLastRect());
                     GUILayout.Space(12);
                     if (GUILayout.Button(new GUIContent("导入验收…", "只读打开本项目测试导出的回放，不执行当前草稿"), EditorStyles.toolbarButton))
                         ImportStateSyncReplay();
                 }
                 GUILayout.FlexibleSpace();
-                GUILayout.Label("只读 · 本地测试录制", EditorStyles.miniLabel);
+                GUILayout.Label("本地运行 · 不修改草稿", EditorStyles.miniLabel);
             }
         }
 
         private void DrawStateSyncSampleMenu(Rect anchor)
         {
             var menu = new GenericMenu();
-            var live = new GUIContent("MOBA · 现场运行正式客户端/移动纠偏与追平（离线）");
-            if (BattleScenarioEditorIntegration.CaptureStateSyncClientReplay is { } capture)
-                menu.AddItem(live, false, () => OpenCapturedStateSyncReplay(capture));
-            else
-                menu.AddDisabledItem(live);
-            menu.AddSeparator(string.Empty);
-            Add("导入失败后重试 · 预测回退并重演", "import-failure-default");
-            Add("固定基线恢复 · 有终结证明", "fixed-baseline-recovery-with-proof");
-            Add("固定基线恢复 · 无终结证明", "fixed-baseline-recovery-without-proof");
-            Add("重演历史缺口 · 暂停预测后恢复", "replay-history-gap-default");
-            Add("会话换代 · 忽略旧代际结果", "generation-switch-default");
-            Add("部分提交失败 · 等待新全量", "partial-commit-failure-default");
-            Add("MOBA · 本地主控移动/逐 Tick 纠偏与继续预测", "moba-local-movement.corrected");
-            Add("MOBA · 本地主控移动/缺终结证明暂停 · 新基线恢复", "moba-local-movement.proof-recovery");
-            Add("MOBA · 金克丝 W 弹体/权威确认 · 原实例接续", "jinx-w-local-presentation.confirmed");
-            Add("MOBA · 金克丝 W 弹体/权威拒绝 · 移除且不复活", "jinx-w-local-presentation.rejected");
-            Add("MOBA · 古拉加斯 E/权威确认 · 无需重演", "gragas-e-local-statesync.confirmed");
-            Add("MOBA · 古拉加斯 E/权威命中 · 纠偏并重演移动", "gragas-e-local-statesync.corrected");
-            Add("MOBA · 古拉加斯 E/缺少终结证明 · 仅显示权威", "gragas-e-local-statesync.without-proof");
-            Add("MOBA · 古拉加斯 E/移动历史缺口 · 仅显示权威", "gragas-e-local-statesync.history-gap");
+            var capture = BattleScenarioEditorIntegration.CaptureStateSyncSkillReplay;
+            foreach (var sample in StateSyncShowcases)
+            {
+                var item = new GUIContent(sample.Label);
+                if (capture != null)
+                    menu.AddItem(item, false, () => OpenCapturedStateSyncReplay(() => capture(sample.Recipe), sample.Label));
+                else
+                    menu.AddDisabledItem(item);
+            }
             menu.DropDown(anchor);
-
-            void Add(string label, string fileName) =>
-                menu.AddItem(new GUIContent(label), false, () => OpenStateSyncSample(fileName, label));
         }
 
-        private void OpenCapturedStateSyncReplay(Func<LocalStateSyncReplay> capture)
+        private void OpenCapturedStateSyncReplay(Func<LocalStateSyncReplay> capture,
+            string label)
         {
             try
             {
                 var replay = capture();
                 replay.Validate();
                 BattleScenarioLocalReplayWindow.OpenAcceptance(replay, "本地执行 · 正式状态同步客户端",
-                    "MOBA · 正式客户端移动纠偏与追平");
-                _result = "已在本地运行正式状态同步客户端并打开逐 Tick 录制，未修改草稿。";
+                    label, autoPreview: true);
+                _result = "已在本地运行正式状态同步客户端并自动预览，未修改草稿。";
             }
             catch (Exception error)
             {
                 _result = "无法运行本地状态同步样例：" + error.Message;
                 Debug.LogException(error);
-            }
-        }
-
-        private void OpenStateSyncSample(string fileName, string label)
-        {
-            var path = StateSyncSampleDirectory + fileName + ".statesync-replay.json";
-            var asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
-            if (asset == null)
-            {
-                _result = "找不到内置状态同步样例，请刷新项目资源后重试：" + path;
-                return;
-            }
-
-            try
-            {
-                var replay = LocalStateSyncReplay.Parse(asset.text);
-                BattleScenarioLocalReplayWindow.OpenAcceptance(replay, path, label);
-                _result = $"已打开内置录制：{label}。未运行场景或改写草稿。";
-            }
-            catch (Exception error) when (error is InvalidDataException or JsonException)
-            {
-                _result = "内置状态同步样例无法打开：" + error.Message;
             }
         }
 

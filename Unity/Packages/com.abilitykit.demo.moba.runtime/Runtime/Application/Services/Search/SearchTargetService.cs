@@ -68,7 +68,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 {
                     var found = searchResult.Count > 0 && TryGetActorId(searchResult[0], out targetActorId);
                     CollectSearchTrace(trace, queryTemplateId, casterActorId, 0,
-                        diagnosticCommandId, searchResult.Ids);
+                        diagnosticCommandId, searchResult);
                     return found;
                 }
             }
@@ -172,7 +172,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
                     }
                 }
                 CollectSearchTrace(trace, templateId, casterActorId, explicitTargetActorId,
-                    diagnosticCommandId, searchResult.Ids);
+                    diagnosticCommandId, searchResult);
             }
 
             return results.Count > 0;
@@ -189,11 +189,12 @@ namespace AbilityKit.Demo.Moba.Services.Search
 
         private void CollectSearchTrace(SearchTraceStats trace, int templateId, int casterActorId,
             int explicitTargetActorId, long diagnosticCommandId,
-            IReadOnlyList<ST.EntityId> selected)
+            ST.SearchResult result)
         {
             if (trace == null) return;
             try
             {
+                var selected = result.Ids;
                 var selectedIds = trace.DescribeSelected(selected);
                 var decisions = trace.DescribeDecisions(selected);
                 var payloadData = new BattleDiagnosticTargetSearchPayload(

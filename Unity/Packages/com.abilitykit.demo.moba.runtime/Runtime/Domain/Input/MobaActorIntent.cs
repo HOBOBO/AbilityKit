@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Input
             float moveZ,
             Vec3 moveTarget,
             float moveStopRange,
+            bool followsOwner,
             bool hasCast,
             int skillId,
             int skillSlot,
@@ -33,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Input
             MoveZ = moveZ;
             MoveTarget = moveTarget;
             MoveStopRange = moveStopRange;
+            FollowsOwner = followsOwner;
             HasCast = hasCast;
             SkillId = skillId;
             SkillSlot = skillSlot;
@@ -47,6 +49,10 @@ namespace AbilityKit.Demo.Moba.Input
         public Vec3 MoveTarget { get; }
         /// <summary>Planar stopping distance for target-position movement.</summary>
         public float MoveStopRange { get; }
+        /// <summary>
+        /// 目标位置来自直接所有者的跟随决策，使用跟随而非普通接近的到达规则。
+        /// </summary>
+        public bool FollowsOwner { get; }
         public bool HasCast { get; }
         public int SkillId { get; }
         public int SkillSlot { get; }
@@ -55,7 +61,7 @@ namespace AbilityKit.Demo.Moba.Input
         public Vec3 AimDirection { get; }
 
         public static MobaActorIntent Hold => new(
-            MobaActorMovementIntentKind.Hold, 0f, 0f, Vec3.Zero, 0f,
+            MobaActorMovementIntentKind.Hold, 0f, 0f, Vec3.Zero, 0f, false,
             false, 0, 0, 0, Vec3.Zero, Vec3.Forward);
 
         public static MobaActorIntent MoveDirection(float x, float z)
@@ -66,6 +72,7 @@ namespace AbilityKit.Demo.Moba.Input
                 ClampUnit(z),
                 Vec3.Zero,
                 0f,
+                false,
                 false, 0, 0, 0, Vec3.Zero, Vec3.Forward);
         }
 
@@ -74,9 +81,16 @@ namespace AbilityKit.Demo.Moba.Input
             return new MobaActorIntent(
                 MobaActorMovementIntentKind.TargetPosition,
                 0f, 0f, target,
-                stopRange,
+                stopRange, false,
                 false, 0, 0, 0, Vec3.Zero, Vec3.Forward);
         }
+
+        /// <summary>
+        /// 跟随直接所有者，并将配置的水平停止距离交给移动来源处理。
+        /// </summary>
+        internal static MobaActorIntent FollowOwner(in Vec3 target, float stopRange) => new(
+            MobaActorMovementIntentKind.TargetPosition, 0f, 0f, target, stopRange, true,
+            false, 0, 0, 0, Vec3.Zero, Vec3.Forward);
 
         public static MobaActorIntent Cast(
             int skillSlot,
@@ -97,7 +111,7 @@ namespace AbilityKit.Demo.Moba.Input
         {
             var direction = IsZero(in aimDirection) ? Vec3.Forward : aimDirection;
             return new MobaActorIntent(
-                MovementKind, MoveX, MoveZ, MoveTarget, MoveStopRange,
+                MovementKind, MoveX, MoveZ, MoveTarget, MoveStopRange, FollowsOwner,
                 true, skillId, skillSlot, targetActorId, aimPosition, direction);
         }
 

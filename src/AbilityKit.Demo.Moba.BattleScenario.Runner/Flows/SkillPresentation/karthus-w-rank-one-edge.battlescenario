@@ -15,10 +15,10 @@
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 2, "position": {"x": 7, "y": 0, "z": 1}, "direction": {"x": 0, "y": 0, "z": 1}}
     ],
     "assertions": [
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30060301, "maxCount": 1},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42060301, "maxCount": 1},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "BuffApply", "configId": 30060391, "maxCount": 1},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaExpire", "configId": 42060301, "maxCount": 1}
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30060301, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaSpawn", "configId": 42060301, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "BuffApply", "configId": 30060391, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "AreaExpire", "configId": 42060301, "minCount": 1, "maxCount": 1}
     ]
   }
 }

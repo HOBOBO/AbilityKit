@@ -10,6 +10,7 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services.Observability;
 using AbilityKit.ECS;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -66,6 +67,12 @@ namespace AbilityKit.Demo.Moba.Services
 
         [WorldInject(required: false)]
         private IUnitResolver _unitResolver = null;
+
+        [WorldInject(required: false)]
+        private IMobaRuntimeObjectKeyResolver _runtimeObjectKeys = null;
+
+        [WorldInject(required: false)]
+        private AbilityKit.Effect.IEffectApplicationObserver _effectApplications = null;
 
         public MobaBattleDiagnosticStateSampler(
             MobaActorRegistry registry,
@@ -173,7 +180,9 @@ namespace AbilityKit.Demo.Moba.Services
                         var actorId = entry.Key;
                         var entity = entry.Value;
 
-                        if (!TrySampleActor(scope, frame, actorId, entity, out var summary))
+                        var generation = _runtimeObjectKeys != null && _runtimeObjectKeys.TryResolve(
+                            MobaRuntimeObjectKind.Actor, actorId, frame, out var key) ? key.Generation : 0;
+                        if (!TrySampleActor(scope, frame, actorId, entity, out var summary, generation))
                         {
                             continue;
                         }
@@ -213,7 +222,8 @@ namespace AbilityKit.Demo.Moba.Services
                             }
                             if (_effectStore != null)
                             {
-                                TrySampleActorEffects(scope, frame, actorId, unit, effects);
+                                TrySampleActorEffects(scope, frame, actorId, unit, effects,
+                                    _effectApplications as MobaEffectApplicationObserver);
                             }
                         }
                     }
@@ -330,7 +340,8 @@ namespace AbilityKit.Demo.Moba.Services
             int frame,
             int actorId,
             object entityObj,
-            out BattleDiagnosticActorSummary summary)
+            out BattleDiagnosticActorSummary summary,
+            int generation = 0)
         {
             summary = default;
 
@@ -341,7 +352,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             try
             {
-                return TrySampleActorCore(scope, frame, actorId, entityObj, out summary);
+                return TrySampleActorCore(scope, frame, actorId, entityObj, out summary, generation);
             }
             catch
             {
@@ -350,12 +361,20 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        internal static BattleDiagnosticActorKind ResolveActorKind(ActorEntity entity)
+        {
+            return ResolveActorKind(
+                entity.hasEntityMainType ? entity.entityMainType.Value : EntityMainType.None,
+                entity.hasUnitSubType ? entity.unitSubType.Value : UnitSubType.None);
+        }
+
         private static bool TrySampleActorCore(
             BattleDiagnosticSessionScope scope,
             int frame,
             int actorId,
             object entityObj,
-            out BattleDiagnosticActorSummary summary)
+            out BattleDiagnosticActorSummary summary,
+            int generation)
         {
             summary = default;
             var entity = (ActorEntity)entityObj;
@@ -365,15 +384,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            var mainType = entity.hasEntityMainType
-                ? entity.entityMainType.Value
-                : EntityMainType.None;
-
-            var unitSubType = entity.hasUnitSubType
-                ? entity.unitSubType.Value
-                : UnitSubType.None;
-
-            var kind = ResolveActorKind(mainType, unitSubType);
+            var kind = ResolveActorKind(entity);
 
             var teamId = entity.hasTeam ? (int)entity.team.Value : 0;
 
@@ -425,7 +436,8 @@ namespace AbilityKit.Demo.Moba.Services
                 posZ,
                 health,
                 maxHealth,
-                isAlive);
+                isAlive,
+                generation: generation);
 
             return true;
         }
@@ -725,7 +737,8 @@ namespace AbilityKit.Demo.Moba.Services
             int frame,
             int actorId,
             IUnitFacade unit,
-            ICollection<BattleDiagnosticActorEffect> effects)
+            ICollection<BattleDiagnosticActorEffect> effects,
+            MobaEffectApplicationObserver applications = null)
         {
             if (actorId <= 0 || unit?.Effects?.Active == null || effects == null)
             {
@@ -778,7 +791,8 @@ namespace AbilityKit.Demo.Moba.Services
                         NormalizeTime(spec.DurationSeconds),
                         NormalizeTime(spec.PeriodSeconds),
                         spec.Components?.Count ?? 0,
-                        spec.ExecutePeriodicOnApply);
+                        spec.ExecutePeriodicOnApply,
+                        applications?.Read(instance, frame) ?? default);
                 }
 
                 for (var i = 0; i < sampled.Length; i++)

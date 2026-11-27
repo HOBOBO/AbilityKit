@@ -141,7 +141,6 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var castFlowId = skill.CastFlowId;
-            float castRange = skill.Range;
             var usesBasicAttackRules = configs.TryGetSkillFlow(castFlowId, out var castFlow) && castFlow.BasicAttack != null;
             if (usesBasicAttackRules)
             {
@@ -155,20 +154,15 @@ namespace AbilityKit.Demo.Moba.Services
                 if (MobaSkillRuntimeAccess.GetCurrentTimeMs(time) + castFlow.BasicAttackWindupMs < attackSlot.CooldownEndTimeMs)
                     return SkillCastPreparationResult.Failed("skill.cast.basicAttackCoolingDown", "Basic attack is cooling down.");
 
-                castRange = castFlow.BasicAttack.ResolveRange(castRange,
-                    ResolveSlotSkillLevel(actorId, castFlow.BasicAttack.RangeLevelSlot));
             }
             var baseSkillId = 0;
             if (_services.TryResolve<MobaSkillLoadoutService>(out var loadout) && loadout != null)
                 loadout.TryGetBaseSkillId(actorId, slot, out baseSkillId);
             var parameterRecord = new MobaParameterRecord(MobaParameterStage.CastPrepare,
                 slot: slot, baseSkillId: baseSkillId, effectiveSkillId: skillId);
-            MobaSkillParamModifierService paramModifiers = null;
-            if (_services.TryResolve<MobaSkillParamModifierService>(out var resolvedModifiers) && resolvedModifiers != null)
-            {
-                paramModifiers = resolvedModifiers;
-                castRange = paramModifiers.Skill.ResolveCastRange(actorId, castRange, in parameterRecord);
-            }
+            _services.TryResolve<MobaSkillParamModifierService>(out var paramModifiers);
+            _actors.TryGetActorEntity(actorId, out var rangeActor);
+            var castRange = ResolveCastRange(rangeActor, skill, castFlow, paramModifiers, actorId, in parameterRecord);
 
             if (configs.TryGetSkillButtonTemplate(skill.SkillButtonTemplateId, out var button) &&
                 button.PointRangePolicy == PointRangePolicy.ClampToResolvedRange)
@@ -442,9 +436,18 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private int ResolveSlotSkillLevel(int actorId, int slot)
+        internal static float ResolveCastRange(global::ActorEntity actor, SkillMO skill, SkillFlowMO flow,
+            MobaSkillParamModifierService modifiers, int actorId, in MobaParameterRecord parameterRecord)
         {
-            if (!_actors.TryGetActorEntity(actorId, out var actor) || actor == null || !actor.hasSkillLoadout) return 0;
+            float range = skill.Range;
+            if (flow?.BasicAttack != null)
+                range = flow.BasicAttack.ResolveRange(range, ResolveSlotSkillLevel(actor, flow.BasicAttack.RangeLevelSlot));
+            return modifiers != null ? modifiers.Skill.ResolveCastRange(actorId, range, in parameterRecord) : range;
+        }
+
+        private static int ResolveSlotSkillLevel(global::ActorEntity actor, int slot)
+        {
+            if (actor == null || !actor.hasSkillLoadout) return 0;
 
             var skills = actor.skillLoadout.ActiveSkills;
             var index = slot - 1;

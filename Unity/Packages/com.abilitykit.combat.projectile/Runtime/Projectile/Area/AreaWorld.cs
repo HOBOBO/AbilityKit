@@ -33,6 +33,7 @@ namespace AbilityKit.Combat.Projectile
         }
 
         public int ActiveCount => _active.Count;
+        internal bool IsUnused => _active.Count == 0 && _groups.Count == 0 && _nextId == 1 && _nextGroupId == 1;
         public void SetTrackingTargetProvider(IProjectileTrackingTargetProvider provider) => _trackingTargetProvider = provider;
 
         public byte[] ExportRollback(int frame)

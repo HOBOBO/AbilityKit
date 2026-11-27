@@ -9,10 +9,6 @@ namespace AbilityKit.Triggering.Runtime.Continuous
     /// 主动执行的持续体，继承 IContinuous 并附加主动执行能力。
     /// 管线 Tick 它，它有内部时钟和逐帧逻辑。
     /// 它响应 Pause/Resume/Abort 时，会把这些调用传递给内部的 Executor。
-    /// 
-    /// 与 IContinuousDecorator 的区别：
-    /// - IContinuousDecorator: 专注于 OnApplied/OnTick/OnRemoved 的执行模式
-    /// - ProcessUnit: 专注于生命周期管理 + 主动执行，是 IContinuous 的实现
     /// </summary>
     public abstract class ProcessUnit : IContinuous
     {

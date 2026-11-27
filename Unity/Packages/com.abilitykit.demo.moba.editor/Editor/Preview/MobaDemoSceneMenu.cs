@@ -12,11 +12,12 @@ namespace AbilityKit.Game.Editor
     [InitializeOnLoad]
     public static class MobaDemoSceneMenu
     {
-        private const string GameplayScenePath =
-            "Packages/com.abilitykit.demo.moba.view.runtime/Scenes/" + DemoSceneRoutes.Moba + ".unity";
+        private const string GameplayScenePath = DemoGameplayCompositionBuilder.MobaScenePath;
         private const string LocalProfileId = "moba-local";
         private const string PendingLaunchKey = "AbilityKit.MobaDemo.PendingUnifiedLaunch";
         private const string MenuRoot = "Tools/AbilityKit/Demos/Moba/";
+        private const string OpenMenuPath = MenuRoot + "Open Demo Scene";
+        private const string PlayMenuPath = MenuRoot + "Play Existing Demo Scene";
 
         static MobaDemoSceneMenu()
         {
@@ -25,24 +26,15 @@ namespace AbilityKit.Game.Editor
                 IssueLocalMobaRequest();
         }
 
-        [MenuItem(MenuRoot + "Open Demo Scene", priority = 10)]
+        [MenuItem(OpenMenuPath, priority = 10)]
         private static void OpenDemoScene()
         {
-            PrepareAndOpenGameplayScene();
+            TryOpenExistingDemoScene();
         }
 
-        [MenuItem(MenuRoot + "Create Or Refresh Demo Scene", priority = 11)]
-        private static void CreateOrRefreshDemoScene()
-        {
-            if (!PrepareAndOpenGameplayScene())
-            {
-                return;
-            }
-
-            EditorUtility.DisplayDialog("MOBA Demo", $"MOBA package composition is ready:\n{GameplayScenePath}", "OK");
-            PingSceneAsset();
-        }
-
+        /// <summary>
+        /// 非交互批处理兼容入口：重建两套示例装配并确认 MOBA 场景存在。
+        /// </summary>
         public static void CreateOrRefreshDemoSceneBatch()
         {
             DemoGameplayCompositionBuilder.GenerateAll();
@@ -52,39 +44,31 @@ namespace AbilityKit.Game.Editor
             }
         }
 
-        [MenuItem(MenuRoot + "Play Demo Scene", priority = 12)]
-        private static void PlayDemoScene()
-        {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-            {
-                return;
-            }
-
-            if (!PrepareAndOpenGameplayScene())
-            {
-                return;
-            }
-
-            LaunchLocalDemo();
-        }
-
-        [MenuItem(MenuRoot + "Play Existing Demo Scene", priority = 13)]
+        [MenuItem(PlayMenuPath, priority = 13)]
         private static void PlayExistingDemoScene()
         {
             if (TryOpenExistingDemoScene()) LaunchLocalDemo();
         }
 
+        [MenuItem(OpenMenuPath, validate = true)]
+        [MenuItem(PlayMenuPath, validate = true)]
+        private static bool CanOpenDemoScene() => !EditorApplication.isPlayingOrWillChangePlaymode;
+
         internal static bool TryOpenExistingDemoScene()
         {
-            if (EditorApplication.isPlayingOrWillChangePlaymode ||
-                !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            if (!CanOpenDemoScene())
             {
                 return false;
             }
 
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(GameplayScenePath) == null)
             {
-                Debug.LogError($"MOBA gameplay scene is missing: {GameplayScenePath}");
+                Debug.LogError($"MOBA 场景不存在：{GameplayScenePath}。如需生成，请显式执行 {DemoGameplayCompositionBuilder.MenuPath}。");
+                return false;
+            }
+
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            {
                 return false;
             }
 
@@ -107,23 +91,6 @@ namespace AbilityKit.Game.Editor
         {
             SessionState.SetBool(PendingLaunchKey, true);
             IssueLocalMobaRequest();
-        }
-
-        private static bool PrepareAndOpenGameplayScene()
-        {
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
-            {
-                return false;
-            }
-
-            DemoGameplayCompositionBuilder.GenerateAll();
-            var scene = EditorSceneManager.OpenScene(GameplayScenePath, OpenSceneMode.Single);
-            if (!scene.IsValid())
-            {
-                throw new InvalidOperationException($"Unable to open MOBA gameplay scene '{GameplayScenePath}'.");
-            }
-
-            return true;
         }
 
         private static void OnPlayModeStateChanged(PlayModeStateChange state)
@@ -152,16 +119,5 @@ namespace AbilityKit.Game.Editor
             DemoLaunchIntent.Request(in request);
         }
 
-        private static void PingSceneAsset()
-        {
-            var asset = AssetDatabase.LoadAssetAtPath<SceneAsset>(GameplayScenePath);
-            if (asset == null)
-            {
-                return;
-            }
-
-            EditorGUIUtility.PingObject(asset);
-            Selection.activeObject = asset;
-        }
     }
 }

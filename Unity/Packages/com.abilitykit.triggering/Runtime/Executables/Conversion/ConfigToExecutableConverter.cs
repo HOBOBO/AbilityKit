@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
-using AbilityKit.Triggering.Runtime.Schedule;
 using AbilityKit.Triggering.Registry;
 
 namespace AbilityKit.Triggering.Runtime.Executable

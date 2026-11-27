@@ -9,9 +9,11 @@ namespace AbilityKit.Game.Flow
     {
         private readonly BattleHudAimPreviewPositionResolver _positions;
         private readonly BattleHudAimPreviewObjectFactory _objects;
+        private readonly BattleViewResourceProvider _resources;
         private const float SubmittedPreviewDurationSeconds = 0.45f;
 
         private IReadOnlyDictionary<int, BattleHudSkillPresentationSpec> _skillSpecs;
+        private IReadOnlyDictionary<int, int> _skillLevels;
         private BattleHudAimPreviewObject _preview;
         private int _lastSubmissionVersion;
         private float _submittedPreviewRemainingSeconds;
@@ -19,10 +21,12 @@ namespace AbilityKit.Game.Flow
 
         public BattleHudAimPreview(
             BattleHudAimPreviewPositionResolver positions = null,
-            BattleHudAimPreviewObjectFactory objects = null)
+            BattleHudAimPreviewObjectFactory objects = null,
+            BattleViewResourceProvider resources = null)
         {
             _positions = positions ?? new BattleHudAimPreviewPositionResolver();
             _objects = objects ?? new BattleHudAimPreviewObjectFactory();
+            _resources = BattleViewResourceProvider.OrDefault(resources);
         }
 
         internal GameObject PreviewRoot => _preview?.Root;
@@ -36,6 +40,8 @@ namespace AbilityKit.Game.Flow
         {
             TryShowPressed(slot, input, allowVfx: true);
         }
+
+        internal void SetSkillLevels(IReadOnlyDictionary<int, int> skillLevels) => _skillLevels = skillLevels;
 
         public void HidePressed(int slot)
         {
@@ -80,7 +86,7 @@ namespace AbilityKit.Game.Flow
             }
 
             EnsurePreview(spec.PreviewVfxId);
-            _preview.Apply(state, spec);
+            Apply(state, spec);
         }
 
         private bool TryShowPressed(int slot, IBattleHudAimPreviewReadPort input, bool allowVfx)
@@ -92,8 +98,25 @@ namespace AbilityKit.Game.Flow
             var state = new BattleHudAimPreviewState(slot, new Vector3(x, y, z), Vector3.forward, spec.Range);
             EnsurePreview(spec.PreviewVfxId);
             _pressedSlot = slot;
-            _preview.Apply(state, spec);
+            Apply(state, spec);
             return true;
+        }
+
+        private void Apply(in BattleHudAimPreviewState state, in BattleHudSkillPresentationSpec spec)
+        {
+            var length = 0f;
+            var parameter = _preview.RectangleLengthParameter;
+            if (!string.IsNullOrEmpty(parameter))
+            {
+                var level = 1;
+                if (_skillLevels != null && _skillLevels.TryGetValue(state.Slot, out var observed))
+                    level = Mathf.Max(1, observed);
+                var configs = _resources.GetOrLoadConfigs();
+                if (configs != null && configs.TryGetSkill(spec.SkillId, out var skill) &&
+                    configs.TryGetSkillLevelTable(skill.LevelTableId, out var table))
+                    table.TryGetParameter(level, parameter, out length);
+            }
+            _preview.Apply(state, spec, length);
         }
 
         public void Clear()

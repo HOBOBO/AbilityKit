@@ -72,7 +72,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.Cue
                 VfxId = template != null ? template.AssetId : payload.TemplateId,
                 RequestKey = payload.RequestKey,
                 SourceActorId = payload.SourceActorId,
-                TargetActorId = payload.TargetActorId,
+                TargetActorId = payload.Targets != null && payload.Targets.Length > 0
+                    ? payload.Targets[0]
+                    : payload.TargetActorId,
                 Targets = payload.Targets,
                 Positions = FlattenPositions(payload.Positions),
                 OffsetX = template != null ? template.OffsetX : 0f,
@@ -94,6 +96,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.Cue
                 PredictionState = (int)MobaPresentationCuePredictionState.ServerConfirmed,
                 NumericParamKeys = BuildNumericKeys(payload),
                 NumericParamValues = BuildNumericValues(payload),
+                Parameters = payload.LaunchForward is { } forward
+                    ? new[] { CueParameterBag.Vector3(PresentationCueParameterKeys.ProjectileLaunchForward,
+                        forward.X, forward.Y, forward.Z) }
+                    : null,
                 StringParamKeys = BuildStringKeys(payload),
                 StringParamValues = BuildStringValues(payload),
             };

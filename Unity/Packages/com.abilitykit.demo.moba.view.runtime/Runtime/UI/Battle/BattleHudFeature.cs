@@ -124,6 +124,7 @@ namespace AbilityKit.Game.Flow
             _binder.Tick(deltaTime);
             _aimPreview ??= _controllers.CreateAimPreview();
             _aimPreview.SetSkillSpecs(_inputController?.SkillSpecs);
+            _aimPreview.SetSkillLevels(_inputController?.SkillLevels);
             _aimPreview.Tick(_ctx, deltaTime);
         }
 
@@ -407,7 +408,8 @@ namespace AbilityKit.Game.Flow
         {
             var resources = BattleViewResourceProvider.Default;
             return new BattleHudAimPreview(
-                objects: new BattleHudAimPreviewObjectFactory(vfxId => resources.CreateVfxGo(vfxId)));
+                objects: new BattleHudAimPreviewObjectFactory(vfxId => resources.CreateVfxGo(vfxId)),
+                resources: resources);
         }
 
         public BattleHudSkillFailurePresenter CreateSkillFailures()

@@ -648,6 +648,28 @@ namespace AbilityKit.Demo.Moba.Services.Search
         }
     }
 
+    [MobaTargetFilter((int)SearchTargetRuleKind.RequireCombatHealth)]
+    internal sealed class RequireCombatHealthTargetFilterFactory : IMobaTargetFilterFactory
+    {
+        public ITargetRule Create(in MobaTargetQueryBuildContext context, SearchTargetRuleConfig config)
+        {
+            return new RequireCombatHealthTargetRule(context.Actors);
+        }
+    }
+
+    internal sealed class RequireCombatHealthTargetRule : ITargetRule
+    {
+        private readonly MobaActorRegistry _actors;
+
+        public RequireCombatHealthTargetRule(MobaActorRegistry actors) => _actors = actors;
+
+        public bool IsMatch(in SearchQuery query, SearchContext context, EntityId candidate)
+        {
+            return candidate.IsValid && candidate.Value <= int.MaxValue &&
+                _actors.TryGet((int)candidate.Value, out var actor) && MobaCombatRulesService.HasCombatHealth(actor);
+        }
+    }
+
     [MobaTargetFilter((int)SearchTargetRuleKind.RequireCasterTeam)]
     internal sealed class RequireCasterTeamFilterFactory : IMobaTargetFilterFactory
     {

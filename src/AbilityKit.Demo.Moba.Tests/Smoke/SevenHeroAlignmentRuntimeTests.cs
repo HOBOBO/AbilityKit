@@ -983,7 +983,7 @@ public sealed partial class SevenHeroAlignmentRuntimeTests
         Assert.Equal(axis, retained);
         Assert.True(b.Services.Resolve<MobaSkillLoadoutService>().TryGetSkillId(b.Caster, 5, out var modeAttack));
         Assert.Equal(30010501, modeAttack);
-        b.Setup.TickMilliseconds(7500);
+        b.Setup.TickMilliseconds(12500);
         Assert.Equal(0, b.Setup.CountActorBuffs(b.Caster, 32010404));
         Assert.Equal(0, b.Setup.CountActorBuffs(b.Caster, 32010405));
         Assert.Equal(0, b.Setup.CountActorBuffs(b.Caster, 32010406));
@@ -1010,7 +1010,9 @@ public sealed partial class SevenHeroAlignmentRuntimeTests
             Assert.True(result.Success, result.FailReason);
             b.Setup.TickMilliseconds(1100);
         }
-        b.Setup.TickMilliseconds(10500 - 700 - shots * 1100);
+        b.Setup.TickMilliseconds(14500 - 700 - shots * 1100);
+        Assert.Equal(1, b.Setup.CountActorBuffs(b.Caster, 32010404));
+        b.Setup.TickMilliseconds(1000);
         Assert.Equal(0, b.Setup.CountActorBuffs(b.Caster, 32010404));
         Assert.Equal(0, b.Setup.CountActorBuffs(b.Caster, 32010405));
         var hfsm = b.Actor(b.Caster).characterHfsm.Runtime;
@@ -1234,6 +1236,59 @@ public sealed partial class SevenHeroAlignmentRuntimeTests
             SubmitDebug(battle, player, MobaOpCodes.Input.Move, MobaMoveCodec.Serialize(direction.X, direction.Z));
             battle.Setup.Tick(ticks);
             Assert.True(actor.hasMoveInput);
+            Assert.Equal(direction.X, actor.moveInput.Dx);
+            Assert.Equal(direction.Z, actor.moveInput.Dz);
+        }
+    }
+
+    [Theory]
+    [InlineData(3001)] [InlineData(3002)] [InlineData(3003)] [InlineData(3004)]
+    [InlineData(3005)] [InlineData(3006)] [InlineData(3007)]
+    public void Published_obstacle_edges_keep_real_heroes_sliding_with_inward_input(int hero)
+    {
+        using var battle = new Battle(hero, targetZ: 25);
+        var maps = battle.Services.Resolve<AbilityKit.Demo.Moba.Services.Map.IMobaMapRuntimeService>();
+        var actor = battle.Actor(battle.Caster);
+        var player = new PlayerId("alignment_caster");
+        var obstacles = maps.CurrentMap.CollisionObjects.Where(item =>
+            item.ObjectType == "StaticObstacle").ToArray();
+        Assert.Equal(2, obstacles.Length);
+        foreach (var obstacle in obstacles)
+        {
+            var rotation = Quat.FromAxisAngle(Vec3.Up, obstacle.RotationEuler.Y * (float)Math.PI / 180f);
+            var center = new Vec3(obstacle.Position.X, 0, obstacle.Position.Z);
+            foreach (var side in new[] { Vec3.Right, -Vec3.Right, Vec3.Forward, -Vec3.Forward })
+            foreach (var sign in new[] { -1f, 1f })
+            foreach (var inward in new[] { .4f, 2f, 20f })
+            {
+                var outward = rotation.Rotate(side);
+                actor.ReplaceMoveInput(0, 0);
+                var pose = actor.transform.Value;
+                actor.ReplaceTransform(new Transform3(center + outward * 5f, pose.Rotation, pose.Scale));
+                battle.Setup.Tick(2);
+                Move(-outward, 60);
+                var contact = actor.transform.Value.Position;
+                var tangent = new Vec3(-outward.Z, 0, outward.X) * sign;
+                Move((tangent - outward * inward).Normalized, 0);
+                Assert.True(Vec3.Dot(actor.transform.Value.Position - contact, tangent) > .025f,
+                    $"贴边切换斜向输入必须立即滑动，hero={hero}, obstacle={obstacle.Id}, side={side}, sign={sign}");
+                for (var tick = 0; tick < 12; tick++)
+                {
+                    var previous = actor.transform.Value.Position;
+                    battle.Setup.Tick(1);
+                    var expected = actor.motion.Output.DesiredDelta.Magnitude;
+                    var applied = (actor.transform.Value.Position - previous).Magnitude;
+                    Assert.True(expected > .01f && applied > expected * .9f,
+                        $"沿边普通移动应接近正常速度，hero={hero}, obstacle={obstacle.Id}, side={side}, sign={sign}, inward={inward}, tick={tick}, pos={previous}, expected={expected}, applied={applied}");
+                }
+                Assert.True(Vec3.Dot(actor.transform.Value.Position - contact, tangent) > .6f);
+            }
+        }
+
+        void Move(Vec3 direction, int ticks)
+        {
+            SubmitDebug(battle, player, MobaOpCodes.Input.Move, MobaMoveCodec.Serialize(direction.X, direction.Z));
+            battle.Setup.Tick(ticks);
             Assert.Equal(direction.X, actor.moveInput.Dx);
             Assert.Equal(direction.Z, actor.moveInput.Dz);
         }

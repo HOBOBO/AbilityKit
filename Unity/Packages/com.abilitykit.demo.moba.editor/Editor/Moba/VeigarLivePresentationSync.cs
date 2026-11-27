@@ -12,7 +12,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         private const string Source = Root + "ChampionVfx/09.Veigar_Hextech/Veigar_Hextech_";
         private const string Destination = Root + "MobaVfx/Veigar/";
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Veigar/Publish Live Presentation")]
         public static void Publish()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);

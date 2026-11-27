@@ -8,6 +8,9 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
+    [BattleDebugModule(BattleDebugModuleIds.ActorAttributes, "角色",
+        RequiredCapabilities = BattleDiagnosticCapabilities.ActorAttributes,
+        Selections = BattleDebugModuleSelectionSupport.Actor)]
     internal sealed class BattleDebugAttributesPanel : IBattleDebugPanel,
         IBattleDebugPanelLayout, IBattleDebugPanelSessionCleanup
     {
@@ -61,6 +64,15 @@ namespace AbilityKit.Game.Editor
 
         public void Draw(in BattleDebugContext ctx)
         {
+            var selection = ctx.WorkspaceState?.Selection ?? default;
+            if (selection.Kind == BattleDiagnosticSelectionKind.ActorAttributeEvidence &&
+                ctx.HasSelection && selection.Id == ctx.SelectedId.ActorId)
+            {
+                ReleaseRuntimeChart();
+                DrawTraceEvidence(in ctx, in selection, _viewModel, ref _scroll, showLatestShortcut: true);
+                return;
+            }
+
             if (!ctx.HasSelection)
             {
                 ReleaseRuntimeChart();
@@ -166,6 +178,43 @@ namespace AbilityKit.Game.Editor
                 {
                     EditorGUILayout.HelpBox("当前筛选条件下没有属性。", MessageType.Info);
                 }
+            }
+            EditorGUILayout.EndScrollView();
+        }
+
+        internal static void DrawTraceEvidence(in BattleDebugContext ctx, in BattleDiagnosticSelection selection,
+            BattleDebugDiagnosticAttributesViewModel viewModel, ref Vector2 scroll, bool showLatestShortcut)
+        {
+            EditorGUILayout.LabelField($"Actor #{selection.Id} · 属性证据 · 第 {selection.Frame} 帧",
+                EditorStyles.boldLabel);
+            EditorGUILayout.LabelField($"来自 Trace 节点 #{selection.RelatedId} 的起始帧。",
+                EditorStyles.wordWrappedMiniLabel);
+            if (showLatestShortcut && GUILayout.Button(ctx.IsOffline ? "查看 Artifact 已采集属性" : "查看当前属性"))
+                ctx.SelectActor?.Invoke(selection.Id);
+
+            if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session) ||
+                !selection.BelongsTo(session.SessionInfo.Scope) ||
+                !session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorAttributes))
+            {
+                EditorGUILayout.HelpBox("此来源未提供属性证据。", MessageType.Info);
+                return;
+            }
+
+            viewModel.RefreshIfNeeded(session, selection.Id, selection.Frame, exactEvidence: true);
+            var attributes = viewModel.Attributes;
+            if (attributes.Count == 0)
+            {
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    viewModel.AttributeQueryStatus, subject: "该帧属性证据"));
+                return;
+            }
+
+            scroll = showLatestShortcut ? EditorGUILayout.BeginScrollView(scroll)
+                : EditorGUILayout.BeginScrollView(scroll, GUILayout.MaxHeight(240));
+            foreach (var attribute in attributes)
+            {
+                var name = string.IsNullOrEmpty(attribute.Name) ? $"属性 {attribute.AttributeId}" : attribute.Name;
+                EditorGUILayout.LabelField(name, $"基础值 {attribute.BaseValue:0.#####} · 最终值 {attribute.FinalValue:0.#####}");
             }
             EditorGUILayout.EndScrollView();
         }

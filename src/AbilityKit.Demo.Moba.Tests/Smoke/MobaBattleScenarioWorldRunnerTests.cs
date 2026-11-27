@@ -1,3 +1,4 @@
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.BattleScenario;
 using AbilityKit.Demo.Moba.Acceptance;
 using AbilityKit.Demo.Moba.BattleScenario;
@@ -6,6 +7,8 @@ using AbilityKit.Scenario;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Game.Battle.Testing;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -13,12 +16,54 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 /// <summary>验证 MOBA 世界执行核心：TestScenario → boot → 生成 actors → 施放 → 采 trace → 断言判定 → 中性结果。</summary>
 public sealed class MobaBattleScenarioWorldRunnerTests
 {
+    [Theory]
+    [InlineData("jhin-q", 3001, 30010101)]
+    [InlineData("jinx-w", 3002, 30020201)]
+    [InlineData("annie-q", 3003, 30030201)]
+    [InlineData("veigar-q-two-targets", 3004, 30040201)]
+    [InlineData("gragas-q", 3005, 30050201)]
+    [InlineData("karthus-q-two-targets", 3006, 30060201)]
+    [InlineData("lux-q-two-targets", 3007, 30070201)]
+    public void SevenHeroes_ArchivesAndReopensRealSkillEvidence(string caseId, int heroId, int skillId)
+    {
+        var relativeCase = $"src/AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/SkillPresentation/{caseId}.battlescenario";
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory != null && !File.Exists(Path.Combine(directory.FullName, relativeCase))) directory = directory.Parent;
+        Assert.NotNull(directory);
+        var scenario = BattleScenarioCompiler.CompileFile(Path.Combine(directory.FullName, relativeCase));
+        string? json = null;
+        var outcome = MobaBattleScenarioWorldRunner.RunDetailed(scenario, null,
+            snapshot => json = MobaBattleDiagnosticArtifactCodec.ExportSnapshotToString(snapshot));
+        Assert.NotNull(json);
+        var output = Environment.GetEnvironmentVariable("ABILITYKIT_SEVEN_HERO_DIAGNOSTIC_DIR");
+        if (!string.IsNullOrEmpty(output)) File.WriteAllText(Path.Combine(output, $"{caseId}.json"), json);
+        Assert.True(outcome.Result.Passed, outcome.Result.Summary);
+
+        var restored = MobaBattleDiagnosticArtifactCodec.ImportSnapshot(json);
+        using var session = new BattleDiagnosticOfflineSession(restored);
+        var cast = Assert.Single(restored.Trace.Nodes.Where(node => node.Kind == "SkillCast" && node.ConfigId == skillId));
+        Assert.True(cast.SourceObject.IsResolved);
+        var caster = session.ResolveRelation(cast.Scope, cast.SourceObject, cast.StartFrame).CatalogEntry;
+        Assert.NotNull(caster);
+        Assert.Equal(heroId, caster.Value.DefinitionId);
+        Assert.Equal(BattleDiagnosticActorKind.Hero, caster.Value.ActorKind);
+        Assert.Contains(restored.State.Actors, actor => actor.ActorId == cast.SourceActorId &&
+            actor.Generation == cast.SourceActorGeneration);
+        Assert.Contains(restored.Events.Events, item => item.Kind == BattleDiagnosticEventKind.EffectStarted &&
+            item.SourceActorId == cast.SourceActorId && restored.Trace.Nodes.Any(node =>
+                node.ContextId == item.ContextId && node.RootContextId == item.RootContextId));
+        Assert.Contains(restored.Objects.Items, item => item.ContextId > 0 &&
+            (item.OwnerActorId == cast.SourceActorId || item.SourceActorId == cast.SourceActorId) &&
+            (item.Kind == BattleDiagnosticRuntimeObjectKind.Projectile || item.Kind == BattleDiagnosticRuntimeObjectKind.Area));
+    }
+
     [Theory, Trait("Gate", "BattleScenario")]
     [InlineData("veigar-q-two-targets")]
     [InlineData("veigar-r-track-displaced-target")]
     [InlineData("lux-e")]
     [InlineData("lux-e-natural-expiry")]
     [InlineData("lux-q-two-targets")]
+    [InlineData("jhin-r")]
     public void SkillPresentationScenarios_PassAuthoritativeAssertions(string caseId)
     {
         var relativeCase = $"src/AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/SkillPresentation/{caseId}.battlescenario";
@@ -28,6 +73,42 @@ public sealed class MobaBattleScenarioWorldRunnerTests
         var scenario = BattleScenarioCompiler.CompileFile(Path.Combine(directory.FullName, relativeCase));
         var result = MobaBattleScenarioWorldRunner.Run(scenario);
         Assert.True(result.Passed, result.Summary);
+    }
+
+    [Fact, Trait("Gate", "MobaConsoleSmoke")]
+    public void VeigarQ_Local1v1Parity_ConsumesCooldownAndHitsOnce()
+    {
+        const string relativeCase = "src/AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/SkillPresentation/veigar-q-1v1-parity.battlescenario";
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory != null && !File.Exists(Path.Combine(directory.FullName, relativeCase))) directory = directory.Parent;
+        Assert.NotNull(directory);
+        var scenario = BattleScenarioCompiler.CompileFile(Path.Combine(directory.FullName, relativeCase));
+        (float X, float Y, float Z)? initialTargetPosition = null;
+        (float X, float Y, float Z) casterPosition = default, targetPosition = default;
+        float targetHp = 0;
+        long cooldownDuration = 0, remainingCooldown = 0;
+        var outcome = MobaBattleScenarioWorldRunner.RunDetailed(scenario, (world, _) =>
+        {
+            var caster = world.GetLocalMovementActor("caster");
+            Assert.True(world.TryGetActorId("target", out var targetId));
+            var skill = Assert.Single(caster.skillLoadout.ActiveSkills, skill => skill?.SkillId == 30040201);
+            cooldownDuration = skill.CooldownDurationMs;
+            remainingCooldown = skill.CooldownEndTimeMs -
+                MobaSkillRuntimeAccess.GetCurrentTimeMs(world.Services.Resolve<IFrameTime>());
+            var casterPose = caster.transform.Value.Position;
+            casterPosition = (casterPose.X, casterPose.Y, casterPose.Z);
+            var targetPose = world.GetActorPosition(targetId);
+            targetPosition = (targetPose.X, targetPose.Y, targetPose.Z);
+            initialTargetPosition ??= targetPosition;
+            targetHp = world.GetActorHp(targetId);
+        });
+
+        Assert.True(outcome.Result.Passed, $"{outcome.Result.Summary}; hp={targetHp}, cooldown={cooldownDuration}ms");
+        Assert.Equal(6000L, cooldownDuration);
+        Assert.InRange(remainingCooldown, 1L, cooldownDuration);
+        Assert.Equal((7f, 0f, -4f), casterPosition);
+        Assert.Equal((9f, 0f, 1f), initialTargetPosition);
+        Assert.Equal((7f, 0f, 1f), targetPosition);
     }
 
     [Fact, Trait("Gate", "BattleScenario")]

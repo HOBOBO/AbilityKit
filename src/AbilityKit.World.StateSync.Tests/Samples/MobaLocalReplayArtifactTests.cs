@@ -7,6 +7,69 @@ namespace AbilityKit.World.StateSync.Tests;
 public sealed class MobaLocalReplayArtifactTests
 {
     [Theory]
+    [InlineData("confirmed", false)]
+    [InlineData("rejected", true)]
+    public void SkillRecordingSeparatesSameTickComparisonCandidateAndPublication(string variant, bool corrected)
+    {
+        var recording = LocalStateSyncReplay.Parse(ReadSkillRecording(variant));
+        var timeline = recording.BuildTimeline();
+        var delivery = Assert.IsType<LocalStateSyncReplay.SkillDeliveryObservation>(recording.SkillDelivery);
+        Assert.Equal((36, 63, 90, 93), (delivery.FirstInputTick, delivery.AnchorTick, delivery.InputTick, delivery.DeliveryTick));
+        Assert.Equal(Enumerable.Range(35, 60), recording.Checkpoints.Select(point => point.DeliveryTick));
+        var range = timeline.Deliveries[delivery.DeliveryTick - recording.Checkpoints[0].DeliveryTick];
+        var compare = timeline.Frames[range.FirstFrame];
+        Assert.Equal(LocalStateSyncReplay.FramePhase.Compare, compare.Phase);
+        Assert.Equal(63, compare.SkillReference!.DeliveryTick);
+        var anchor = compare.SkillReference.Skill!;
+        Assert.Equal(!corrected, anchor.Authority.Matches(anchor.OldPrediction));
+        var published = timeline.Frames[range.CheckpointFrame];
+        Assert.Equal(LocalStateSyncReplay.FramePhase.Checkpoint, published.Phase);
+        if (corrected)
+        {
+            var reset = timeline.Frames[range.FirstFrame + 1];
+            Assert.Equal(LocalStateSyncReplay.FramePhase.Anchor, reset.Phase);
+            Assert.Same(anchor, reset.SkillReference!.Skill);
+            var candidates = timeline.Frames.Skip(range.FirstFrame + 2).Take(30).ToArray();
+            Assert.All(candidates, frame => Assert.Equal(LocalStateSyncReplay.FramePhase.ReplayTick, frame.Phase));
+            Assert.Equal(Enumerable.Range(64, 30), candidates.Select(frame => frame.SkillStep!.Tick));
+            Assert.Equal(2L, delivery.ReplayedSequence);
+            Assert.True(candidates[^1].SkillStep!.State.Matches(published.Point.Skill!.Published));
+            Assert.True(published.Point.Skill.Published.SecondaryCooldownEndMs > 0);
+        }
+        else
+        {
+            Assert.Equal(range.FirstFrame + 1, range.CheckpointFrame);
+            Assert.Null(delivery.ReplayedSequence);
+            Assert.True(published.Point.Skill!.OldPrediction.Matches(published.Point.Skill.Published));
+        }
+
+        var peer = LocalStateSyncReplay.Parse(ReadSkillRecording(corrected ? "confirmed" : "rejected")).BuildTimeline();
+        var matched = peer.FindMatchingCheckpoint(timeline, range.FirstFrame);
+        Assert.Equal(93, peer.Frames[matched!.Value].Point.DeliveryTick);
+        Assert.Equal(LocalStateSyncReplay.FramePhase.Checkpoint, peer.Frames[matched.Value].Phase);
+    }
+
+    [Theory]
+    [InlineData("missing-step")]
+    [InlineData("early-publish")]
+    [InlineData("wrong-publication")]
+    public void SkillRecordingRejectsIncompleteOrInconsistentObservations(string damage)
+    {
+        var json = JObject.Parse(ReadSkillRecording("rejected"));
+        var checkpoints = (JArray)json["checkpoints"]!;
+        switch (damage)
+        {
+            case "missing-step": ((JArray)json["skillDelivery"]!["steps"]!).RemoveAt(1); break;
+            case "early-publish": checkpoints[1]!["skill"]!["published"]!["manaRaw"] = 1; break;
+            case "wrong-publication": checkpoints[58]!["skill"]!["published"]!["manaRaw"] = 1; break;
+        }
+        Assert.Throws<InvalidDataException>(() => LocalStateSyncReplay.Parse(json.ToString()));
+    }
+
+    private static string ReadSkillRecording(string variant) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory,
+        "Samples", "ReplaySamples", $"annie-w-e-local-skill.{variant}.statesync-replay.json"));
+
+    [Theory]
     [InlineData("confirmed", true)]
     [InlineData("rejected", false)]
     public void ProjectileRecordingStepsOneTickAtATimeWithoutInventingAView(string variant, bool confirmed)

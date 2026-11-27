@@ -1,4 +1,7 @@
+#nullable enable annotations
+
 using System;
+using System.Runtime.ExceptionServices;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow.Nodes;
 using AbilityKit.Core.Pooling;
@@ -183,14 +186,20 @@ namespace AbilityKit.Ability.Flow.Pooling
         }
 
         /// <summary>
-        /// 释放 FlowRunner，同时释放其绑定的 FlowContext。
+        /// 归还 FlowRunner 及其绑定的 FlowContext；中断异常在归还完成后抛出。
         /// </summary>
         public static void ReleaseRunner(FlowRunner runner)
         {
             if (runner == null) return;
-            var context = runner.ResetForRelease();
-            ReleaseContext(context);
+            ReleaseRunnerCore(runner)?.Throw();
+        }
+
+        internal static ExceptionDispatchInfo? ReleaseRunnerCore(FlowRunner runner)
+        {
+            var context = runner.ResetForRelease(out var cleanupError);
+            if (context != null) ReleaseContext(context);
             Scope.Release(RunnerKey, runner);
+            return cleanupError;
         }
 
         /// <summary>
@@ -202,17 +211,23 @@ namespace AbilityKit.Ability.Flow.Pooling
                 SessionKey,
                 () => new FlowSession(deferRent: true),
                 PoolItemConfig.Default(defaultCapacity: 4, maxSize: 64, prewarmCount: 4, collectionCheck: true),
-                onGet: session => session.ResetForRent(RentRunner()),
-                onRelease: session => session.ResetForRelease());
+                onGet: session => session.ResetForRent(RentRunner()));
         }
 
         /// <summary>
-        /// 释放 FlowSession，同时释放其绑定的 FlowRunner 与 FlowContext。
+        /// 归还 FlowSession 及其绑定的 FlowRunner 与 FlowContext；中断异常在归还完成后抛出。
         /// </summary>
         public static void ReleaseSession(FlowSession session)
         {
             if (session == null) return;
+            ReleaseSessionCore(session)?.Throw();
+        }
+
+        internal static ExceptionDispatchInfo? ReleaseSessionCore(FlowSession session)
+        {
+            var cleanupError = session.ResetForRelease();
             Scope.Release(SessionKey, session);
+            return cleanupError;
         }
 
         /// <summary>
@@ -222,25 +237,26 @@ namespace AbilityKit.Ability.Flow.Pooling
         {
             if (provider == null) throw new ArgumentNullException(nameof(provider));
 
-            // provider 不能放进池的 onGet 闭包：Core 池只在首次创建时登记 options，
-            // 后续调用传入的 onGet 会被丢弃，第一个 provider 会被闭包永久固化。
-            // 改为 Get 之后显式绑定本次调用传入的 provider。
+            /*
+             * 池只在首次创建时登记选项，因此必须在租借后绑定本次传入的 provider。
+             */
             var host = Scope.Get(
                 HostKey,
                 () => new FlowHost<TArgs>(deferRent: true),
-                PoolItemConfig.Default(defaultCapacity: 2, maxSize: 32, prewarmCount: 0, collectionCheck: true),
-                onRelease: host => host.ResetForRelease());
+                PoolItemConfig.Default(defaultCapacity: 2, maxSize: 32, prewarmCount: 0, collectionCheck: true));
             host.ResetForRent(provider, RentSession());
             return host;
         }
 
         /// <summary>
-        /// 释放 FlowHost，同时释放其绑定的 FlowSession、FlowRunner 与 FlowContext。
+        /// 归还 FlowHost 及其绑定的 Session、Runner 与 Context；中断异常在归还完成后抛出。
         /// </summary>
         public static void ReleaseHost<TArgs>(FlowHost<TArgs> host)
         {
             if (host == null) return;
+            var cleanupError = host.ResetForRelease();
             Scope.Release(HostKey, host);
+            cleanupError?.Throw();
         }
 
         /// <summary>

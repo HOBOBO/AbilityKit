@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Diagnostics;
 using Xunit;
@@ -217,7 +218,10 @@ public sealed class EditorProfilerTests
 
         profiler.Configure(ProfilerOptions.CreateDisabled());
         profiler.Complete(active);
+        profiler.Configure(ProfilerOptions.CreateDefault());
+        profiler.Complete(active);
 
+        Assert.False(active.IsValid);
         Assert.Empty(profiler.GetDurationSummaries());
         Assert.Equal(0L, FindNode(profiler.GetRoot(), "net.active")!.HitCount);
     }
@@ -300,11 +304,14 @@ public sealed class EditorProfilerTests
 
         profiler.Configure(new ProfilerOptions { CollectionLevel = ProfilerCollectionLevel.Summary });
         profiler.Complete(active);
+        profiler.Complete(active);
 
         var next = profiler.Begin("net.next");
         profiler.Complete(next);
 
-        Assert.Equal(1L, profiler.GetDurationSummaries()["net.next"].Count);
+        var summaries = profiler.GetDurationSummaries();
+        Assert.Equal(1L, summaries["net.active"].Count);
+        Assert.Equal(1L, summaries["net.next"].Count);
         var root = profiler.GetRoot();
         Assert.Equal(0, root.Roots["net"].Children["net.active"].HitCount);
         Assert.DoesNotContain("net.next", root.Roots["net"].Children.Keys);
@@ -346,10 +353,11 @@ public sealed class EditorProfilerTests
 
         var outer = profiler.Begin("net.outer");
         var inner = profiler.Begin("net.inner");
+        Assert.True(outer.IsValid);
         profiler.Complete(inner);
         profiler.Complete(outer);
 
-        Assert.True(outer.IsValid);
+        Assert.False(outer.IsValid);
         var root = profiler.GetRoot();
         Assert.True(root.Roots.ContainsKey("net"));
 
@@ -409,49 +417,69 @@ public sealed class EditorProfilerTests
     }
 
     [Fact]
-    public void Out_of_order_completion_unwinds_to_the_named_frame()
+    public void Out_of_order_completion_unwinds_each_scope_once_with_its_own_span()
     {
         var profiler = new EditorProfiler();
+        profiler.Configure(new ProfilerOptions { MaxSpanEvents = 16 });
         profiler.Start();
 
-        var outer = profiler.Begin("a.outer");
-        var mid = profiler.Begin("a.mid");
-        var leaf = profiler.Begin("a.leaf");
+        var outer = profiler.Begin("a.outer", 1L);
+        var mid = profiler.Begin("a.mid", 2L);
+        var leaf = profiler.Begin("a.leaf", 3L);
 
-        // 先 Complete 最外层：乱序 unwind 把 leaf、mid 按各自开始时间强制收尾，
-        // 不丢弃任何帧的数据（旧实现会把栈顶 leaf 帧直接丢弃，HitCount 恒为 0）。
         profiler.Complete(outer);
-        var root = profiler.GetRoot();
-        Assert.Equal(1, FindNode(root, "a.outer")!.HitCount);
-        Assert.Equal(1, FindNode(root, "a.mid")!.HitCount);
-        Assert.Equal(1, FindNode(root, "a.leaf")!.HitCount);
-        Assert.True(profiler.GetDurationSummaries().ContainsKey("a.leaf"));
-
-        // mid 已被强制收尾，再次 Complete 时栈已空，走独立时长路径记录到 root 层级的
-        // 同名新节点——按名字聚合的耗时摘要无歧义，应为 2 次。
         profiler.Complete(mid);
-        var summaries = profiler.GetDurationSummaries();
-        Assert.Equal(2, summaries["a.mid"].Count);
-        _ = leaf; // leaf 的令牌从未显式 Complete，但已被 unwind 强制收尾
+        leaf.ToScope().Dispose();
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.False(mid.IsValid);
+        Assert.False(leaf.IsValid);
+        Assert.Equal(new[] { 3L, 2L, 1L }, snapshot.Spans.Select(span => span.ContextId));
+        foreach (var name in new[] { "a.outer", "a.mid", "a.leaf" })
+        {
+            Assert.Equal(1L, FindNode(snapshot.Root, name)!.HitCount);
+            Assert.Equal(1L, snapshot.Durations[name].Count);
+        }
+    }
+
+    [Theory]
+    [InlineData(ProfilerCollectionLevel.Standard)]
+    [InlineData(ProfilerCollectionLevel.Summary)]
+    public void Copied_scope_and_direct_completion_share_the_same_lifetime(ProfilerCollectionLevel level)
+    {
+        var profiler = new EditorProfiler();
+        profiler.Configure(new ProfilerOptions { CollectionLevel = level, MaxSpanEvents = 16 });
+        profiler.Start();
+
+        var token = profiler.Begin("b.scope");
+        var scope = token.ToScope();
+        var copy = scope;
+        scope.Dispose();
+        copy.Dispose();
+        profiler.Complete(token);
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.False(token.IsValid);
+        Assert.Equal(1L, snapshot.Durations["b.scope"].Count);
+        Assert.Equal(level == ProfilerCollectionLevel.Standard ? 1 : 0, snapshot.Spans.Count);
     }
 
     [Fact]
-    public void Complete_token_not_on_stack_records_standalone_duration()
+    public void Completing_outer_scope_uses_identity_even_when_the_inner_scope_has_the_same_name()
     {
         var profiler = new EditorProfiler();
+        profiler.Configure(new ProfilerOptions { MaxSpanEvents = 16 });
         profiler.Start();
 
-        var a = profiler.Begin("b.a");
-        var orphan = profiler.Begin("b.orphan");
-        profiler.Complete(orphan);
+        var outer = profiler.Begin("b.same", 1L);
+        var inner = profiler.Begin("b.same", 2L);
+        profiler.Complete(outer);
 
-        // 再次 Complete 已收尾过的令牌：目标不在栈上，应记为独立时长，
-        // 不把耗时归属到栈顶的无关帧上（旧实现会错误记到 a 上）。
-        profiler.Complete(orphan);
-
-        var root = profiler.GetRoot();
-        Assert.Equal(2, FindNode(root, "b.orphan")!.HitCount);
-        Assert.Equal(0, FindNode(root, "b.a")!.HitCount); // a 仍在栈上未被收尾
+        var snapshot = profiler.GetSnapshot();
+        Assert.False(inner.IsValid);
+        Assert.Equal(2L, snapshot.Durations["b.same"].Count);
+        Assert.Equal(new[] { 2L, 1L }, snapshot.Spans.Select(span => span.ContextId));
+        Assert.Equal(1L, snapshot.Root.Roots["b"].Children["b.same"].Children["b.same"].HitCount);
     }
 
     [Fact]
@@ -469,26 +497,106 @@ public sealed class EditorProfilerTests
     }
 
     [Fact]
-    public void Complete_on_a_foreign_thread_records_a_flat_duration()
+    public void Cross_thread_completion_keeps_the_origin_stack_and_does_not_close_a_same_name_peer()
     {
         var profiler = new EditorProfiler();
+        profiler.Configure(new ProfilerOptions { MaxSpanEvents = 16 });
         profiler.Start();
 
-        // Begin 发生在线程池线程上，其探针栈是该线程独有的；
-        // 在测试线程上 Complete 时本地栈为空，应退化为扁平 Record。
-        var token = Task.Run(() => profiler.Begin("net.cross")).GetAwaiter().GetResult();
+        var origin = Thread.CurrentThread.ManagedThreadId;
+        var token = profiler.Begin("net.cross", 1L);
+        ProbeToken peer = default;
+        var worker = new Thread(() =>
+        {
+            peer = profiler.Begin("net.cross", 2L);
+            profiler.Complete(token);
+        });
+        worker.Start();
+        worker.Join();
+
+        Assert.True(peer.IsValid);
+        using (profiler.Begin("net.next").ToScope()) { }
+        profiler.Complete(peer);
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.Contains("net.next", snapshot.Root.Roots["net"].Children.Keys);
+        Assert.Empty(snapshot.Root.Roots["net"].Children["net.cross"].Children);
+        Assert.Equal(origin, Assert.Single(snapshot.Spans, span => span.ContextId == 1L).ThreadId);
+        Assert.Equal(2L, snapshot.Durations["net.cross"].Count);
+    }
+
+    [Theory]
+    [InlineData(ProfilerCollectionLevel.Standard)]
+    [InlineData(ProfilerCollectionLevel.Summary)]
+    public void Concurrent_completion_keeps_one_measurement(ProfilerCollectionLevel level)
+    {
+        var profiler = new EditorProfiler();
+        profiler.Configure(new ProfilerOptions { CollectionLevel = level, MaxSpanEvents = 16 });
+        profiler.Start();
+        var token = profiler.Begin("net.concurrent");
+
+        Parallel.Invoke(() => profiler.Complete(token), () => token.ToScope().Dispose());
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.Equal(1L, snapshot.Durations["net.concurrent"].Count);
+        Assert.Equal(level == ProfilerCollectionLevel.Standard ? 1 : 0, snapshot.Spans.Count);
+    }
+
+    [Fact]
+    public void Another_profiler_does_not_complete_or_consume_the_token()
+    {
+        var owner = new EditorProfiler();
+        var other = new EditorProfiler();
+        owner.Start();
+        other.Start();
+
+        var token = owner.Begin("net.owned");
+        other.Complete(token);
         Assert.True(token.IsValid);
+        owner.Complete(token);
 
-        profiler.Complete(token);
+        Assert.Empty(other.GetDurationSummaries());
+        Assert.Equal(1L, owner.GetDurationSummaries()["net.owned"].Count);
+    }
 
-        var summaries = profiler.GetDurationSummaries();
-        Assert.True(summaries.ContainsKey("net.cross"));
-        Assert.Equal(1L, summaries["net.cross"].Count);
+    [Theory]
+    [InlineData(ProfilerCollectionLevel.Standard, true)]
+    [InlineData(ProfilerCollectionLevel.Standard, false)]
+    [InlineData(ProfilerCollectionLevel.Summary, true)]
+    [InlineData(ProfilerCollectionLevel.Summary, false)]
+    public void Previous_generation_token_cannot_complete_a_new_same_name_scope(ProfilerCollectionLevel level, bool clear)
+    {
+        var profiler = new EditorProfiler();
+        profiler.Configure(new ProfilerOptions { CollectionLevel = level, MaxSpanEvents = 16 });
+        profiler.Start();
+        var old = profiler.Begin("net.same", 1L);
+        if (clear)
+        {
+            profiler.Clear();
+        }
+        else
+        {
+            profiler.Stop();
+            profiler.Start();
+        }
 
-        var node = FindNode(profiler.GetRoot(), "net.cross");
-        Assert.NotNull(node);
-        Assert.Equal(1, node!.HitCount);
-        Assert.True(node.TotalNanoseconds >= 0L);
+        var current = profiler.Begin("net.same", 2L);
+        profiler.Complete(old);
+        Assert.False(old.IsValid);
+        Assert.True(current.IsValid);
+        profiler.Complete(current);
+
+        var snapshot = profiler.GetSnapshot();
+        Assert.Equal(1L, snapshot.Durations["net.same"].Count);
+        Assert.Equal(0L, snapshot.MetricOperationsDropped);
+        if (level == ProfilerCollectionLevel.Standard)
+        {
+            Assert.Equal(2L, Assert.Single(snapshot.Spans).ContextId);
+        }
+        else
+        {
+            Assert.Empty(snapshot.Spans);
+        }
     }
 
     [Fact]

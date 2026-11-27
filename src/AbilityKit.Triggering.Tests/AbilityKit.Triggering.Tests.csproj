@@ -10,8 +10,8 @@
     <ProjectReference Include="..\AbilityKit.Triggering.Authoring\AbilityKit.Triggering.Authoring.csproj" />
     <Compile Include="../../Unity/Packages/com.abilitykit.triggering/Samples~/FormalMainline/FormalTriggeringMainlineExample.cs"
              Link="Samples/FormalTriggeringMainlineExample.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.triggering/Samples~/RuleScheduling/RuleSchedulingExample.cs"
-             Link="Samples/RuleSchedulingExample.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.triggering/Samples~/QueuedEvents/QueuedEventBusExample.cs"
+             Link="Samples/QueuedEventBusExample.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />

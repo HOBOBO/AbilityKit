@@ -83,6 +83,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         public const string OwnerTargetY = "ownerTarget.y";
         public const string OwnerTargetZ = "ownerTarget.z";
         public const string OwnerTargetDistance = "ownerTarget.distance";
+        public const string OwnerTargetMovingAway = "ownerTarget.movingAway";
 
         public const string TargetValid = "target.valid";
         public const string TargetId = "target.actorId";
@@ -124,6 +125,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
         public const string MoveRequestValid = "intent.move.valid";
         public const string MoveRequestIsDirection = "intent.move.isDirection";
+        public const string MoveRequestFollowsOwner = "intent.move.followsOwner";
         public const string MoveRequestPriority = "intent.move.priority";
         public const string MoveRequestX = "intent.move.x";
         public const string MoveRequestY = "intent.move.y";
@@ -136,6 +138,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         public const string OutputKind = "out.kind";
         public const string HasMove = "out.hasMove";
         public const string MoveIsDirection = "out.moveIsDirection";
+        public const string MoveFollowsOwner = "out.moveFollowsOwner";
         public const string MoveX = "out.moveX";
         public const string MoveY = "out.moveY";
         public const string MoveZ = "out.moveZ";
@@ -195,6 +198,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             Ensure(definition, MobaBTreeKeys.OwnerTargetY, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.OwnerTargetZ, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.OwnerTargetDistance, ValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.OwnerTargetMovingAway, ValueType.Bool);
 
             Ensure(definition, MobaBTreeKeys.TargetValid, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.TargetId, ValueType.Int64);
@@ -236,6 +240,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 
             Ensure(definition, MobaBTreeKeys.MoveRequestValid, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.MoveRequestIsDirection, ValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.MoveRequestFollowsOwner, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.MoveRequestPriority, ValueType.Int64);
             Ensure(definition, MobaBTreeKeys.MoveRequestX, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.MoveRequestY, ValueType.Fixed64);
@@ -248,6 +253,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             Ensure(definition, MobaBTreeKeys.OutputKind, ValueType.Int64);
             Ensure(definition, MobaBTreeKeys.HasMove, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.MoveIsDirection, ValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.MoveFollowsOwner, ValueType.Bool);
             Ensure(definition, MobaBTreeKeys.MoveX, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.MoveY, ValueType.Fixed64);
             Ensure(definition, MobaBTreeKeys.MoveZ, ValueType.Fixed64);
@@ -299,6 +305,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.OwnerTargetY, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.OwnerTargetZ, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.OwnerTargetDistance, Fixed64.Zero);
+            bb.SetBool(MobaBTreeKeys.OwnerTargetMovingAway, false);
         }
 
         public static void ClearSkill(Blackboard bb, Fixed64 defaultApproachRange)
@@ -336,6 +343,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.CastRequestDirectionZ, Fixed64.Zero);
             bb.SetBool(MobaBTreeKeys.MoveRequestValid, false);
             bb.SetBool(MobaBTreeKeys.MoveRequestIsDirection, false);
+            bb.SetBool(MobaBTreeKeys.MoveRequestFollowsOwner, false);
             bb.SetInt64(MobaBTreeKeys.MoveRequestPriority, 0);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestX, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestY, Fixed64.Zero);
@@ -346,6 +354,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetInt64(MobaBTreeKeys.OutputKind, (long)MobaBTreeIntentKind.Hold);
             bb.SetBool(MobaBTreeKeys.HasMove, false);
             bb.SetBool(MobaBTreeKeys.MoveIsDirection, false);
+            bb.SetBool(MobaBTreeKeys.MoveFollowsOwner, false);
             bb.SetFixed64(MobaBTreeKeys.MoveX, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.MoveY, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.MoveZ, Fixed64.Zero);

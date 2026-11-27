@@ -3,6 +3,24 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Diagnostics
 {
+    /// <summary>
+    /// 离线实体关系的两种独立证据：同帧状态与生命周期目录。均为空时只保留原引用。
+    /// </summary>
+    public readonly struct BattleDiagnosticOfflineRelation
+    {
+        internal BattleDiagnosticOfflineRelation(BattleDiagnosticActorSummary? actorSnapshot,
+            BattleDiagnosticRuntimeObject? catalogEntry, bool isAmbiguous)
+        {
+            ActorSnapshot = actorSnapshot;
+            CatalogEntry = catalogEntry;
+            IsAmbiguous = isAmbiguous;
+        }
+
+        public BattleDiagnosticActorSummary? ActorSnapshot { get; }
+        public BattleDiagnosticRuntimeObject? CatalogEntry { get; }
+        public bool IsAmbiguous { get; }
+    }
+
     public sealed class BattleDiagnosticOfflineSession :
         IBattleDiagnosticReadOnlySession,
         IBattleDiagnosticTraceRootSession,
@@ -13,7 +31,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         IDisposable
     {
         private readonly BattleDiagnosticSessionSnapshot _snapshot;
-        private readonly HashSet<long> _stateActorIds;
+        private readonly Dictionary<long, BattleDiagnosticActorSummary> _stateActors;
+        private readonly Dictionary<(BattleDiagnosticRuntimeObjectKind Kind, long Id),
+            List<BattleDiagnosticRuntimeObject>> _objectsByIdentity =
+            new Dictionary<(BattleDiagnosticRuntimeObjectKind, long), List<BattleDiagnosticRuntimeObject>>();
 
         public BattleDiagnosticOfflineSession(
             BattleDiagnosticSessionSnapshot snapshot,
@@ -21,9 +42,23 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         {
             _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             MetricProfile = metricProfile;
-            _stateActorIds = new HashSet<long>();
+            _stateActors = new Dictionary<long, BattleDiagnosticActorSummary>(snapshot.State.Actors.Count);
             for (var i = 0; i < snapshot.State.Actors.Count; i++)
-                _stateActorIds.Add(snapshot.State.Actors[i].ActorId);
+            {
+                var actor = snapshot.State.Actors[i];
+                if (actor.Scope == snapshot.SessionInfo.Scope) _stateActors[actor.ActorId] = actor;
+            }
+
+            if (snapshot.Objects.Scope == snapshot.SessionInfo.Scope)
+            {
+                foreach (var item in snapshot.Objects.Items)
+                {
+                    var key = (item.Kind, item.RuntimeId);
+                    if (!_objectsByIdentity.TryGetValue(key, out var entries))
+                        _objectsByIdentity.Add(key, entries = new List<BattleDiagnosticRuntimeObject>(1));
+                    entries.Add(item);
+                }
+            }
 
             var source = snapshot.SessionInfo;
             SessionInfo = new BattleDiagnosticSessionInfo(
@@ -128,6 +163,50 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             if (!TryValidateFrame(requestId, frame, _snapshot.State.Frame, StateStoreRevision, "state", out BattleDiagnosticQueryResult<BattleDiagnosticActorSummary> unavailable))
                 return unavailable;
             return Ready(requestId, StateStoreRevision, _snapshot.State.Actors);
+        }
+
+        /// <summary>
+        /// 在当前 Artifact 内解析证据引用。有代次时只认该代次；无代次时只用帧内唯一的目录记录。
+        /// 不用导出帧的状态补历史，不用回填帧之前的目录记录补裸 ID。
+        /// </summary>
+        public BattleDiagnosticOfflineRelation ResolveRelation(BattleDiagnosticSessionScope scope,
+            in BattleDiagnosticRuntimeObjectReference reference, int evidenceFrame)
+        {
+            if (scope != SessionInfo.Scope || !reference.HasRuntimeId) return default;
+
+            BattleDiagnosticRuntimeObject? entry = null;
+            if (_objectsByIdentity.TryGetValue((reference.Kind, reference.RuntimeId), out var entries))
+            {
+                foreach (var candidate in entries)
+                {
+                    if (reference.IsResolved
+                            ? candidate.Generation != reference.Generation
+                            : !CoversFrame(in candidate, evidenceFrame)) continue;
+                    if (entry.HasValue) return new BattleDiagnosticOfflineRelation(null, null, true);
+                    entry = candidate;
+                }
+            }
+
+            BattleDiagnosticActorSummary? actor = null;
+            if (reference.Kind == BattleDiagnosticRuntimeObjectKind.Actor &&
+                evidenceFrame == _snapshot.State.Frame &&
+                _stateActors.TryGetValue(reference.RuntimeId, out var snapshot) &&
+                snapshot.Frame == evidenceFrame &&
+                (reference.IsResolved
+                    ? snapshot.Generation == reference.Generation
+                    : !entry.HasValue || snapshot.Generation == 0 || snapshot.Generation == entry.Value.Generation))
+            {
+                actor = snapshot;
+            }
+
+            return new BattleDiagnosticOfflineRelation(actor, entry, false);
+        }
+
+        private static bool CoversFrame(in BattleDiagnosticRuntimeObject item, int frame)
+        {
+            var firstObserved = item.CreatedFrame >= 0 ? item.CreatedFrame : item.BackfilledFrame;
+            return firstObserved >= 0 && frame >= firstObserved &&
+                   (item.DestroyedFrame < 0 || frame <= item.DestroyedFrame);
         }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticEvent> QueryEvents(BattleDiagnosticEventQuery query)
@@ -421,7 +500,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
 
         private bool ContainsActor<T>(long actorId, int frame, IReadOnlyList<T> items, Func<T, long> actorIdSelector)
         {
-            if (frame == _snapshot.State.Frame && _stateActorIds.Contains(actorId)) return true;
+            if (frame == _snapshot.State.Frame && _stateActors.ContainsKey(actorId)) return true;
             for (var i = 0; i < items.Count; i++) if (actorIdSelector(items[i]) == actorId) return true;
             return false;
         }

@@ -785,6 +785,8 @@ public sealed class MobaTagResultTests
         using var index = new ActorIdIndex(contexts);
         var actor = contexts.actor.CreateEntity();
         actor.AddActorId(1);
+        new Services.EntityConstruction.MobaActorAttributeInitializer().EnsureContainers(actor);
+        new Attributes.MobaAttrs(actor).SetFixedResource(Components.ResourceType.Hp, AbilityKit.Deterministic.Fixed64.One);
         registry.Register(1, actor);
         var manager = new DefaultContinuousManager();
         using var effective = new MobaEffectiveTagQueryService();

@@ -371,6 +371,49 @@ public sealed class ServerGameplayModuleCatalogTests
         }
     }
 
+    [Theory]
+    [InlineData(SkillInputPhase.Hold)]
+    [InlineData(SkillInputPhase.Cancel)]
+    public void MobaStateSyncClock_RejectsInputWithoutActiveCastAndClosesPrefixOnlyAfterTick(SkillInputPhase phase)
+    {
+        const int tickRate = 30;
+        const int tick = 1;
+        var connection = Guid.NewGuid();
+        var inputGeneration = Guid.NewGuid();
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new MobaBattleRuntimeAdapter(worldManager, DefaultOrleansBattleProtocolMapper.Instance);
+        using var session = adapter.CreateSession("moba-statesync-skill-rejection");
+        var init = CreateMobaWorldInitParams();
+        init.SyncOptions = new BattleSyncStartOptions(ServerGameplayDescriptors.MobaStateSyncTemplate,
+            0, null, null, true, true, 0);
+        var start = session.Start(init);
+        Assert.True(start.Succeeded, start.Error);
+        var clock = Assert.IsAssignableFrom<IBattleRuntimeStateSyncClock>(session);
+        var movement = Assert.IsAssignableFrom<IMobaStateSyncMovementSource>(session);
+        Assert.True(clock.TryBeginStateSyncTick(0, tickRate));
+        Assert.True(session.Tick(0, tickRate, 1f / tickRate));
+
+        var input = new SkillInputEvent(1, phase, targetFrame: tick);
+        Assert.True(clock.TryBeginStateSyncTick(tick, tickRate));
+        var handled = session.SubmitInputs(tick, new[]
+        {
+            new BattleInputItem
+            {
+                PlayerId = 1,
+                OpCode = MobaOpCodes.Input.SkillInput,
+                CommandSequence = 1,
+                SourceConnectionGeneration = connection,
+                InputGeneration = inputGeneration,
+                Payload = SkillInputCodec.Serialize(in input),
+            },
+        });
+        Assert.Equal(0, handled);
+        Assert.False(movement.TryCaptureCommittedMovement(tick, 1, connection, out _, inputGeneration));
+        Assert.True(session.Tick(tick, tickRate, 1f / tickRate));
+        Assert.True(movement.TryCaptureCommittedMovement(tick, 1, connection, out var committed, inputGeneration));
+        Assert.Equal(1L, committed.TerminalThrough);
+    }
+
     [Fact]
     public void MobaExternalFrameClock_DrivesPublishedSummonExpiryAtTheExpectedFrame()
     {

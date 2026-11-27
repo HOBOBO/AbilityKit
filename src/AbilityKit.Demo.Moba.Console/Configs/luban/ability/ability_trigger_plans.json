@@ -12912,6 +12912,34 @@
       ]
     },
     {
+      "TriggerId": 30020404,
+      "Priority": 50,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 1483031378,
+          "Arity": 2,
+          "Args": {
+            "target_mode": {
+              "Kind": "Const",
+              "ConstValue": 8.0,
+              "Scale": 1.0
+            },
+            "template_id": {
+              "Kind": "Const",
+              "ConstValue": 90032028.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
       "TriggerId": 30020413,
       "Priority": 50,
       "Predicate": {
@@ -13692,6 +13720,62 @@
             "trigger_id": {
               "Kind": "Const",
               "ConstValue": 30030003.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 30030009,
+      "EventName": "unit.die",
+      "EventId": 593237517,
+      "Priority": 50,
+      "Scope": 1,
+      "Predicate": {
+        "Kind": "expr",
+        "Nodes": [
+          {
+            "Kind": "Function",
+            "Left": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "FunctionId": 1359049608,
+            "FunctionArity": 2
+          }
+        ]
+      },
+      "Actions": [
+        {
+          "ActionId": 1241142882,
+          "Arity": 2,
+          "Args": {
+            "buff_ids": {
+              "Kind": "Const",
+              "ConstValue": 30030503.0,
+              "Scale": 1.0
+            },
+            "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "target_source": {
+              "Kind": "Const",
+              "ConstValue": 9.0,
+              "Scale": 1.0
+            },
+            "target_source_param": {
+              "Kind": "Const",
+              "ConstValue": 30030502.0,
               "Scale": 1.0
             }
           },
@@ -19536,7 +19620,7 @@
           "Args": {
             "target_mode": {
               "Kind": "Const",
-              "ConstValue": 4.0,
+              "ConstValue": 3.0,
               "Scale": 1.0
             },
             "template_id": {
@@ -19628,7 +19712,7 @@
           "Args": {
             "target_mode": {
               "Kind": "Const",
-              "ConstValue": 4.0,
+              "ConstValue": 3.0,
               "Scale": 1.0
             },
             "template_id": {
@@ -19720,7 +19804,7 @@
           "Args": {
             "target_mode": {
               "Kind": "Const",
-              "ConstValue": 4.0,
+              "ConstValue": 3.0,
               "Scale": 1.0
             },
             "template_id": {
@@ -19812,7 +19896,7 @@
           "Args": {
             "target_mode": {
               "Kind": "Const",
-              "ConstValue": 4.0,
+              "ConstValue": 3.0,
               "Scale": 1.0
             },
             "template_id": {
@@ -19904,7 +19988,7 @@
           "Args": {
             "target_mode": {
               "Kind": "Const",
-              "ConstValue": 4.0,
+              "ConstValue": 3.0,
               "Scale": 1.0
             },
             "template_id": {
@@ -21096,6 +21180,33 @@
                 "Weight": 1.0,
                 "MaxExecutions": -1,
                 "CanBeInterrupted": true
+              },
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1483031378,
+                  "Arity": 2,
+                  "Args": {
+                    "target_mode": {
+                      "Kind": "Const",
+                      "ConstValue": 2.0,
+                      "Scale": 1.0
+                    },
+                    "template_id": {
+                      "Kind": "Const",
+                      "ConstValue": 90036018.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
               }
             ],
             "Count": 1,
@@ -21120,6 +21231,33 @@
                 "target_self": {
                   "Kind": "Const",
                   "ConstValue": 1.0,
+                  "Scale": 1.0
+                }
+              },
+              "MaxExecutions": -1,
+              "CanBeInterrupted": true,
+              "RetryMaxRetries": 3
+            },
+            "Count": 1,
+            "MaxIterations": 1,
+            "Weight": 1.0,
+            "MaxExecutions": -1,
+            "CanBeInterrupted": true
+          },
+          {
+            "Kind": "Action",
+            "Action": {
+              "ActionId": 1483031378,
+              "Arity": 2,
+              "Args": {
+                "target_mode": {
+                  "Kind": "Const",
+                  "ConstValue": 2.0,
+                  "Scale": 1.0
+                },
+                "template_id": {
+                  "Kind": "Const",
+                  "ConstValue": 90036017.0,
                   "Scale": 1.0
                 }
               },
@@ -21360,6 +21498,33 @@
                     "target_self": {
                       "Kind": "Const",
                       "ConstValue": 1.0,
+                      "Scale": 1.0
+                    }
+                  },
+                  "MaxExecutions": -1,
+                  "CanBeInterrupted": true,
+                  "RetryMaxRetries": 3
+                },
+                "Count": 1,
+                "MaxIterations": 1,
+                "Weight": 1.0,
+                "MaxExecutions": -1,
+                "CanBeInterrupted": true
+              },
+              {
+                "Kind": "Action",
+                "Action": {
+                  "ActionId": 1483031378,
+                  "Arity": 2,
+                  "Args": {
+                    "target_mode": {
+                      "Kind": "Const",
+                      "ConstValue": 2.0,
+                      "Scale": 1.0
+                    },
+                    "template_id": {
+                      "Kind": "Const",
+                      "ConstValue": 90036018.0,
                       "Scale": 1.0
                     }
                   },

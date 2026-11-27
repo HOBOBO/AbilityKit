@@ -1027,6 +1027,21 @@
     },
     {
       "entityCode": 30030502,
+      "path": "life/alive/action/attack.slot.1",
+      "actionId": "attack.slot.1.play",
+      "action": {
+        "id": "attack.slot.1.play",
+        "type": "play",
+        "animatorState": "Void_Annie_Tibbers_Attack1",
+        "frameCount": 24,
+        "loop": false,
+        "layer": 0,
+        "frameRate": 30
+      },
+      "skillId": 30030103
+    },
+    {
+      "entityCode": 30030502,
       "path": "life/alive/action/attack.slot.2",
       "actionId": "attack.slot.2.play",
       "action": {

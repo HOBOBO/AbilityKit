@@ -20,6 +20,7 @@
         "AbilityKit.BattleScenario",
         "AbilityKit.Scenario",
         "AbilityKit.Demo.Moba.Runtime",
+        "AbilityKit.Demo.Moba.Diagnostics.Core",
         "AbilityKit.Demo.Moba.Trace.Adapter",
         "AbilityKit.Demo.Moba.Share",
         "AbilityKit.Attributes",

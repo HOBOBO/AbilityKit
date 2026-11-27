@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Game.Flow;
 using UnityEngine;
 
@@ -80,21 +81,30 @@ namespace AbilityKit.Game.Battle.Component
 
         public static void ApplyCueScale(GameObject target, float scale, float radius)
         {
+            ApplyCueScale(target, scale, radius, null);
+        }
+
+        /// <summary>
+        /// 从表现请求重新投影缩放。已绑定的矩形长轴替换该轴的请求与半径倍率。
+        /// </summary>
+        public static void ApplyCueScale(
+            GameObject target, float scale, float radius, IReadOnlyList<PresentationParameter> parameters)
+        {
             if (target == null) return;
             var state = target.GetComponent<BattlePresentationScaleState>();
             if (state == null) state = target.AddComponent<BattlePresentationScaleState>();
 
-            var requestScale = scale > 0f && !float.IsInfinity(scale) && !float.IsNaN(scale) ? scale : 1f;
-            state.SetSource(
-                target,
-                new PresentationScaleSource("cue.request", PresentationScaleChannel.Vfx | PresentationScaleChannel.Cue, requestScale),
-                PresentationScaleChannel.Vfx | PresentationScaleChannel.Cue);
+            var requestMultiplier = scale > 0f && !float.IsInfinity(scale) ? scale : 1f;
+            var radiusMultiplier = radius > 0f && !float.IsInfinity(radius) ? radius : 1f;
+            var requestScale = new PresentationVector3(requestMultiplier, requestMultiplier, requestMultiplier);
+            var radiusScale = new PresentationVector3(radiusMultiplier, radiusMultiplier, radiusMultiplier);
+            var binding = parameters != null ? target.GetComponent<BattleAreaLengthScaleBinding>() : null;
+            if (binding != null) binding.Resolve(parameters, ref requestScale, ref radiusScale);
 
-            var radiusScale = radius > 0f && !float.IsInfinity(radius) && !float.IsNaN(radius) ? radius : 1f;
             state.SetSource(
-                target,
-                new PresentationScaleSource("cue.radius", PresentationScaleChannel.Cue, radiusScale),
-                PresentationScaleChannel.Vfx | PresentationScaleChannel.Cue);
+                new PresentationScaleSource("cue.request", PresentationScaleChannel.Vfx | PresentationScaleChannel.Cue, requestScale));
+            state.SetSource(new PresentationScaleSource("cue.radius", PresentationScaleChannel.Cue, radiusScale));
+            state.Apply(target, PresentationScaleChannel.Vfx | PresentationScaleChannel.Cue);
         }
 
         public void SetSource(in PresentationScaleSource source)

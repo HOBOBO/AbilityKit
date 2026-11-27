@@ -1,5 +1,7 @@
 # Ability-Kit Excel 配置同步模块开发设计文档
 
+> 历史设计材料：本文早于当前实现核校，部分 API、流程与双向同步结论可能过时。当前使用入口见[包内索引](../Documentation~/README.md)和[使用指南](../Documentation~/Usage.md)；跨包边界及当前实现见仓库 `Docs/design/05-CommonModules/09-ExcelScriptableObjectSync.md`。本文保留供历史背景阅读，不作为现行契约。
+
 > **阅读对象**：希望了解配置管理系统设计的开发者
 >
 > **文档目标**：让你理解"Excel 与 ScriptableObject 的优缺点对比"、"如何实现双向同步"、"冲突检测机制"、"编辑体验优化"

@@ -186,7 +186,6 @@ namespace AbilityKit.Triggering.Validation
 
         // 语义类错误
         public const string DETERMINISM_MISMATCH = "DETERMINISM_MISMATCH";
-        public const string VOID_PREDICATE_RESULT = "VOID_PREDICATE_RESULT";
         public const string EMPTY_ACTION_LIST = "EMPTY_ACTION_LIST";
         public const string INVALID_PHASE_ORDER = "INVALID_PHASE_ORDER";
         public const string INVALID_EXPRESSION = "INVALID_EXPRESSION";
@@ -210,7 +209,6 @@ namespace AbilityKit.Triggering.Validation
         public const string UNUSED_ACTION_SCHEDULE_PARAM = "UNUSED_ACTION_SCHEDULE_PARAM";
         public const string UNUSED_ACTION_RETRY = "UNUSED_ACTION_RETRY";
         public const string UNUSED_RULE_SCHEDULE_PARAM = "UNUSED_RULE_SCHEDULE_PARAM";
-        public const string DEAD_CODE_BRANCH = "DEAD_CODE_BRANCH";
         public const string UNUSED_VARIABLE = "UNUSED_VARIABLE";
         public const string COMPLEX_EXPRESSION = "COMPLEX_EXPRESSION";
     }

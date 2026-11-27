@@ -104,6 +104,7 @@ namespace AbilityKit.Game.Platform.Unity.Presentation
             public PresentationPlaybackLifecycle Lifecycle;
             public string PolicyKey;
             public bool OwnsInstance;
+            public bool TimelineSampled;
             public PresentationLifetimeState Lifetime = new PresentationLifetimeState();
             public Transform AttachmentTarget;
             public string LogicalKey;
@@ -224,7 +225,9 @@ namespace AbilityKit.Game.Platform.Unity.Presentation
                 var baseLocalScale = instance.transform.localScale;
                 if (request.AssetKind != PresentationAssetKind.Animation)
                     ApplyTransform(instance, in request, in baseLocalScale);
-                if (request.Playback.DelayMs <= 0 && request.Playback.PlayOnReady)
+                var timelineSampled = request.AssetKind != PresentationAssetKind.Animation &&
+                    instance.TryGetComponent<UnityTimelineSampledAnimation>(out _);
+                if (!timelineSampled && request.Playback.DelayMs <= 0 && request.Playback.PlayOnReady)
                     ApplySourcesAndRate(instance, in request);
 
                 var duration = request.DurationMs > 0 ? request.DurationMs / 1000f : 0f;
@@ -238,6 +241,7 @@ namespace AbilityKit.Game.Platform.Unity.Presentation
                     Lifecycle = new PresentationPlaybackLifecycle(request.Playback, duration),
                     PolicyKey = policyKey,
                     OwnsInstance = request.AssetKind != PresentationAssetKind.Animation || instance != (_defaultParent != null ? _defaultParent.gameObject : null),
+                    TimelineSampled = timelineSampled,
                 };
                 var handle = new PresentationUnityHandle(instance);
                 if (_attachments != null && request.Attachment.IsAttached)
@@ -325,6 +329,7 @@ namespace AbilityKit.Game.Platform.Unity.Presentation
                 RefreshAttachment(entry);
                 if (entry.Inspection != null) entry.Inspection.RecordLifetime(entry.Lifetime.IsDetached, entry.Lifetime.IsStopping);
                 if (entry.Lifetime.IsFinished) { completed.Add(pair.Key); continue; }
+                if (entry.TimelineSampled && !entry.Lifetime.IsStopping) continue;
                 var before = entry.Lifecycle.Snapshot.Phase;
                 var channel = GetRateChannel(entry.Request);
                 var playbackRate = ResolvePlaybackRate(in entry.Request, channel);

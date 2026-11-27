@@ -350,14 +350,18 @@ public sealed class TagManagerTests : TagTestBase
     // ---------- 事件通知 ----------
 
     [Fact]
-    public void RegisterTagsWithNotification_FiresAddedOnlyForNewTags()
+    public void RegisterTagsWithNotification_FiresAddedOnlyForNewNormalizedNames()
     {
         var listener = new RecordingTagChangeListener();
         GameplayTagManager.Instance.AddListener(listener);
 
-        GameplayTagManager.Instance.RegisterTagsWithNotification(new[] { "NO.A", "NO.A" });
+        T("NO.Existing");
+        GameplayTagManager.Instance.RegisterTagsWithNotification(new[]
+        {
+            " NO.A ", "  NO.A", "NO.A", " NO.Existing ", "NO..Invalid", "NO.B"
+        });
 
-        Assert.Single(listener.Events);
+        Assert.Equal(new[] { "NO.A", "NO.B" }, listener.Events.Select(entry => entry.Tag.TagName));
         Assert.Equal("NO.A", listener.Events[0].Tag.TagName);
         Assert.Equal(GameplayTagChangeType.Added, listener.Events[0].ChangeType);
     }

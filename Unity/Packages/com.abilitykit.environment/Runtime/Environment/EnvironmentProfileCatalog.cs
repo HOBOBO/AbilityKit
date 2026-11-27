@@ -48,8 +48,8 @@ public sealed class EnvironmentProfileCatalog
         TryResolve(profileId, null, out resolved);
 
     /// <summary>
-    /// 把一个 Profile id 解析成扁平、完整的合并结果。基础 Profile 深度优先合并，再由派生取值/参数/原语覆盖；
-    /// 提供 expander 时，扁平合并后的常用组选择会按序展开成原语并追加到原语列表之后。
+    /// 把一个 Profile id 解析成扁平的合并结果。基础到派生依次合并，派生的取值与参数覆盖基础，显式原语依次追加。
+    /// 提供 expander 时，合并后的选择仅展开一次，展开结果追加到显式原语之后。
     /// 当 id 未知或基础链缺失/成环时返回 false。
     /// </summary>
     public bool TryResolve(string profileId, IEnvironmentGroupExpander? expander, out ResolvedEnvironmentProfile resolved)
@@ -58,12 +58,23 @@ public sealed class EnvironmentProfileCatalog
         if (!_profiles.TryGetValue(profileId, out var profile))
             return false;
 
+        var chain = new List<EnvironmentProfile>();
+        var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (CollectInheritanceChain(profile, chain, visiting) != InheritanceStatus.Complete)
+            return false;
+
         var selections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var primitives = new List<EnvironmentPrimitive>();
-        var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (!Merge(profile, selections, parameters, primitives, visiting))
-            return false;
+        for (var index = chain.Count - 1; index >= 0; index--)
+        {
+            var layer = chain[index];
+            foreach (var selection in layer.Selections)
+                selections[selection.Key] = selection.Value;
+            foreach (var parameter in layer.Parameters)
+                parameters[parameter.Key] = parameter.Value;
+            primitives.AddRange(layer.Primitives);
+        }
 
         if (expander != null)
         {
@@ -82,7 +93,9 @@ public sealed class EnvironmentProfileCatalog
         return true;
     }
 
-    /// <summary>校验整个 Catalog，返回人类可读的错误列表（为空即合法）。</summary>
+    /// <summary>
+    /// 校验关注点、原语及继承链，返回可读的错误列表。空列表表示校验通过。
+    /// </summary>
     public IReadOnlyList<string> Validate()
     {
         var errors = new List<string>();
@@ -93,14 +106,7 @@ public sealed class EnvironmentProfileCatalog
         foreach (var profile in _profiles.Values)
             ValidateProfile(profile, errors);
 
-        foreach (var profile in _profiles.Values)
-        {
-            if (HasCycle(profile, new HashSet<string>(StringComparer.OrdinalIgnoreCase)))
-            {
-                errors.Add($"profile '{profile.Id}' participates in a base-profile cycle");
-                break;
-            }
-        }
+        ValidateInheritanceCycles(errors);
 
         return errors;
     }
@@ -192,45 +198,56 @@ public sealed class EnvironmentProfileCatalog
         }
     }
 
-    private bool Merge(
-        EnvironmentProfile profile,
-        Dictionary<string, string> selections,
-        Dictionary<string, string> parameters,
-        List<EnvironmentPrimitive> primitives,
-        HashSet<string> visiting)
+    private void ValidateInheritanceCycles(List<string> errors)
     {
-        if (!visiting.Add(profile.Id))
-            return false;
+        var acyclic = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var chain = new List<EnvironmentProfile>();
 
-        if (!string.IsNullOrWhiteSpace(profile.BaseProfileId))
+        foreach (var profile in _profiles.Values)
         {
-            if (!_profiles.TryGetValue(profile.BaseProfileId, out var baseProfile))
-                return false;
-            if (!Merge(baseProfile, selections, parameters, primitives, visiting))
-                return false;
+            if (CollectInheritanceChain(profile, chain, visiting, acyclic) == InheritanceStatus.Cycle)
+            {
+                errors.Add($"profile '{profile.Id}' participates in a base-profile cycle");
+                return;
+            }
+
+            foreach (var layer in chain)
+            {
+                acyclic.Add(layer.Id);
+                visiting.Remove(layer.Id);
+            }
+            chain.Clear();
         }
-
-        foreach (var kv in profile.Selections)
-            selections[kv.Key] = kv.Value;
-        foreach (var kv in profile.Parameters)
-            parameters[kv.Key] = kv.Value;
-        foreach (var primitive in profile.Primitives)
-            primitives.Add(primitive);
-
-        visiting.Remove(profile.Id);
-        return true;
     }
 
-    private bool HasCycle(EnvironmentProfile profile, HashSet<string> visiting)
+    private InheritanceStatus CollectInheritanceChain(
+        EnvironmentProfile profile,
+        List<EnvironmentProfile> chain,
+        HashSet<string> visiting,
+        HashSet<string>? acyclic = null)
     {
-        if (!visiting.Add(profile.Id))
-            return true;
-        if (!string.IsNullOrWhiteSpace(profile.BaseProfileId)
-            && _profiles.TryGetValue(profile.BaseProfileId, out var baseProfile)
-            && HasCycle(baseProfile, visiting))
-            return true;
-        visiting.Remove(profile.Id);
-        return false;
+        while (acyclic == null || !acyclic.Contains(profile.Id))
+        {
+            if (!visiting.Add(profile.Id))
+                return InheritanceStatus.Cycle;
+
+            chain.Add(profile);
+            if (string.IsNullOrWhiteSpace(profile.BaseProfileId))
+                return InheritanceStatus.Complete;
+            if (!_profiles.TryGetValue(profile.BaseProfileId, out var parent))
+                return InheritanceStatus.MissingBase;
+            profile = parent;
+        }
+
+        return InheritanceStatus.Complete;
+    }
+
+    private enum InheritanceStatus
+    {
+        Complete,
+        MissingBase,
+        Cycle,
     }
 }
 }

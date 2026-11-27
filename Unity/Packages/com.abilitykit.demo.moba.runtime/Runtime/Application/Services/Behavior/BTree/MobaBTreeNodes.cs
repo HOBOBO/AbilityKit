@@ -8,6 +8,7 @@ using AbilityKit.BehaviorTree.Registry;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Moba.Behavior;
@@ -263,7 +264,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 if (_requiredSkillId > 0 && skill.Id != _requiredSkillId) continue;
                 if (_requiredTag > 0 && !HasTag(skill, _requiredTag)) continue;
                 if (_requiredSkillType > 0 && (long)skill.SkillType != _requiredSkillType) continue;
-                var range = Math.Max(0f, skill.Range);
+                var range = skill.Range;
+                if (!(range > 0f) || float.IsInfinity(range)) continue;
                 maxConfiguredRange = Math.Max(maxConfiguredRange, range);
                 if (runtime.CooldownEndTimeMs > nowMs &&
                     _runtime.SkillLoadout?.IsIndependentRecastReady((int)behavior.OwnerId.Value, i + 1, skill.Id) != true) continue;
@@ -280,9 +282,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             {
                 bb.SetInt64(MobaBTreeKeys.SkillId, selected.SkillId);
                 bb.SetInt64(MobaBTreeKeys.SkillSlot, selected.Slot);
-                bb.SetFixed64(MobaBTreeKeys.SkillRange, Fixed64.FromSingle(selected.Range));
-                bb.SetFixed64(MobaBTreeKeys.SkillApproachRange,
-                    selected.Range > 0f ? Fixed64.FromSingle(selected.Range) : Fixed64.FromSingle(DefaultApproachRange));
+                var range = Fixed64.FromSingle(selected.Range);
+                bb.SetFixed64(MobaBTreeKeys.SkillRange, range);
+                bb.SetFixed64(MobaBTreeKeys.SkillApproachRange, range);
                 bb.SetInt64(MobaBTreeKeys.SkillCategory, selectedSkill.Category);
                 bb.SetInt64(MobaBTreeKeys.SkillType, (long)selectedSkill.SkillType);
                 bb.SetInt64(MobaBTreeKeys.SkillTargetQueryId, selectedSkill.RequiredTargetQueryId);
@@ -406,6 +408,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetInt64(MobaBTreeKeys.MoveRequestPriority, _priority);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestX, bb.GetFixed64(MobaBTreeKeys.TargetX));
             bb.SetBool(MobaBTreeKeys.MoveRequestIsDirection, false);
+            bb.SetBool(MobaBTreeKeys.MoveRequestFollowsOwner, false);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestY, bb.GetFixed64(MobaBTreeKeys.TargetY));
             bb.SetFixed64(MobaBTreeKeys.MoveRequestZ, bb.GetFixed64(MobaBTreeKeys.TargetZ));
             bb.SetFixed64(MobaBTreeKeys.MoveRequestStopRange, bb.GetFixed64(MobaBTreeKeys.SkillApproachRange));
@@ -443,9 +446,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.OwnerTargetY, Fixed64.FromSingle(position.Y));
             bb.SetFixed64(MobaBTreeKeys.OwnerTargetZ, Fixed64.FromSingle(position.Z));
             var summonPosition = world.GetPosition(behavior.OwnerId);
-            var horizontalDelta = new Vec3(summonPosition.X - position.X, 0f, summonPosition.Z - position.Z);
-            bb.SetFixed64(MobaBTreeKeys.OwnerTargetDistance,
-                Fixed64.FromSingle(DeterministicMathBridge.Magnitude(in horizontalDelta)));
+            var delta = new Vec3(position.X - summonPosition.X, 0f, position.Z - summonPosition.Z);
+            bb.SetFixed64(MobaBTreeKeys.OwnerTargetDistance, Fixed64.FromSingle(DeterministicMathBridge.Magnitude(in delta)));
+            bb.SetBool(MobaBTreeKeys.OwnerTargetMovingAway, MobaOwnerFollowMovement.OutwardDot(owner, in delta) > 0f);
             return NodeState.Success;
         }
     }
@@ -485,6 +488,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             if (!bb.GetBool(MobaBTreeKeys.OwnerTargetValid)) return NodeState.Failure;
             bb.SetInt64(MobaBTreeKeys.MoveRequestPriority, _priority);
             bb.SetBool(MobaBTreeKeys.MoveRequestIsDirection, false);
+            bb.SetBool(MobaBTreeKeys.MoveRequestFollowsOwner, true);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestX, bb.GetFixed64(MobaBTreeKeys.OwnerTargetX));
             bb.SetFixed64(MobaBTreeKeys.MoveRequestY, bb.GetFixed64(MobaBTreeKeys.OwnerTargetY));
             bb.SetFixed64(MobaBTreeKeys.MoveRequestZ, bb.GetFixed64(MobaBTreeKeys.OwnerTargetZ));
@@ -588,6 +592,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.MoveY, bb.GetFixed64(MobaBTreeKeys.MoveRequestY));
             bb.SetFixed64(MobaBTreeKeys.MoveZ, bb.GetFixed64(MobaBTreeKeys.MoveRequestZ));
             bb.SetFixed64(MobaBTreeKeys.MoveStopRange, bb.GetFixed64(MobaBTreeKeys.MoveRequestStopRange));
+            bb.SetBool(MobaBTreeKeys.MoveFollowsOwner, bb.GetBool(MobaBTreeKeys.MoveRequestFollowsOwner));
         }
     }
 
@@ -638,8 +643,13 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         }
 
         protected override bool Validate(ExecutionContext context)
-            => context.Blackboard.GetBool(MobaBTreeKeys.OwnerTargetValid) &&
-               context.Blackboard.GetFixed64(MobaBTreeKeys.OwnerTargetDistance) > _stopRange;
+        {
+            var bb = context.Blackboard;
+            if (!bb.GetBool(MobaBTreeKeys.OwnerTargetValid)) return false;
+            var distance = bb.GetFixed64(MobaBTreeKeys.OwnerTargetDistance);
+            return distance > _stopRange || (bb.GetBool(MobaBTreeKeys.OwnerTargetMovingAway) &&
+                distance >= _stopRange - Fixed64.FromSingle(MobaOwnerFollowMovement.DistanceEpsilon));
+        }
     }
 
     [NodeType(MobaBTreeNodeTypes.HasSelectedSkill, "有技能候选", "MOBA", NodeKind.Condition)]

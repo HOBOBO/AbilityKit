@@ -650,7 +650,7 @@
     "AttachMode": 0,
     "CollisionLayerMask": 1,
     "DelayMs": 0,
-    "DurationMs": 1000,
+    "DurationMs": 1250,
     "IntervalMs": 0,
     "MaxTargets": 32,
     "ModelId": 0,

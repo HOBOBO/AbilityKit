@@ -1,6 +1,9 @@
 # 目标查找模块文档索引
 
-> 本目录是 Unity Package 的正式文档入口。当前行为以 [运行时手册](./Manual.md)、仓库 Targeting 设计文档和可编译源码为准；`Design/` 保存演进背景，不作为可编译 API 清单。
+> 文档类型：包内导航
+> 事实基线：2026-11-25；入口、当前 API 名称与使用路径局部核校。
+>
+> 首次安装从[包 README](../README.md)与[完整查询指南](Usage.md)开始，详细契约见[运行时手册](Manual.md)。`Design/` 保存演进背景，不作为可编译 API 清单。
 
 ---
 
@@ -24,7 +27,7 @@
 
 **注意**：部分类型只存在于设计阶段，使用前应回到运行时手册和源码确认。
 
-**推荐阅读顺序**：运行时手册 → 组合示例 → 按需阅读历史设计。
+**推荐阅读顺序**：[使用指南](Usage.md) → 运行时手册 → 组合示例 → 按需阅读历史设计。
 
 ---
 
@@ -81,7 +84,7 @@
 | `NotRule` | 反转单个子规则 |
 | `CircleShapeRule` | 圆形区域过滤 |
 | `SectorShapeRule` | 扇形区域过滤 |
-| `OrientedRectShapeRule` | 定向矩形过滤 |
+| 项目 `ITargetRule` | 定向矩形等包未内置的几何过滤 |
 | `ExcludeEntityRule` | 排除指定实体 |
 
 ### 评分器
@@ -90,7 +93,7 @@
 |------|------|
 | `ITargetScorer` | 评分器接口 |
 | `ZeroScorer` | 零分（不评分） |
-| `DistanceToEntityScorer2D` | 距离评分 |
+| `DistanceToEntityScorer` | 负距离平方评分，降序最近优先 |
 | `SeededHashRandomScorer` | 确定性随机评分 |
 
 ### 选择器
@@ -110,9 +113,11 @@
 
 ## 🔗 相关文档
 
-- [实体管理模块](../../com.abilitykit.combat.entitymanager/Document/) - 实体查询系统
-- [能力管线模块](../../com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md) - 技能执行
-- [触发器模块](../../com.abilitykit.triggering/Documentation~/Overview.md) - 事件触发
+- [首次接入与失败处理](Usage.md)
+- [运行时手册](Manual.md)
+- [组合示例](Examples.md)
+
+实体系统、技能与触发器的跨包装配由仓库设计维护；本包不要求这些项目适配器。
 
 ---
 
@@ -146,6 +151,7 @@ com.abilitykit.combat.targeting/
 │       └── Selectors/                     # 选择协议、命中视图与 Top-K
 └── Documentation~/                        # 手册、示例和历史设计，不进入 Runtime 程序集
     ├── README.md
+    ├── Usage.md
     ├── Manual.md
     ├── Examples.md
     └── Design/
@@ -155,4 +161,4 @@ com.abilitykit.combat.targeting/
 
 ---
 
-*最后更新：2026-08-06*
+*导航更新：2026-11-25；历史设计正文未整体核校。*

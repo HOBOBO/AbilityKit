@@ -853,7 +853,7 @@
     "OnAddEffects": [],
     "OnIntervalEffects": [],
     "OnRemoveEffects": [],
-    "PresentationTemplateId": 0,
+    "PresentationTemplateId": 90031002,
     "RefreshPolicy": 2,
     "StackingPolicy": 4,
     "TriggerIds": [],
@@ -929,7 +929,7 @@
     "ContinuousTagTemplateId": 3015,
     "DispelCategory": 0,
     "DispelPolicy": 0,
-    "DurationMs": 10000,
+    "DurationMs": 15000,
     "IntervalMs": 0,
     "MaxStacks": 1,
     "ModifierIds": [
@@ -2041,6 +2041,28 @@
     "TagNames": [
       "State.Attack.Locked"
     ],
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 30030503,
+    "ContinuousTagTemplateId": 0,
+    "DispelCategory": 0,
+    "DispelPolicy": 2,
+    "DurationMs": 0,
+    "IntervalMs": 0,
+    "MaxStacks": 1,
+    "ModifierIds": [
+      300095
+    ],
+    "Name": "Tibbers - Enraged",
+    "OnAddEffects": [],
+    "OnIntervalEffects": [],
+    "OnRemoveEffects": [],
+    "PresentationTemplateId": 0,
+    "RefreshPolicy": 0,
+    "StackingPolicy": 1,
+    "TriggerIds": [],
+    "TagNames": null,
     "DispelBlockedByTagNames": null
   }
 ]

@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "bundleVersion": "8c03d4b44520b967752658134153a20271cc8798708f599d7a909a7743a2b52e",
+  "bundleVersion": "52e00d5220772df4849d023a2b1b5182d22872161a74a3387f8f81552a67a83e",
   "tables": {
-    "buffs": "c6cf59332c7101ff23282fef0251652c5ab0d6e292b1cb3e82071ced07011fc5",
+    "buffs": "3a6c1e47f4bb15d88f52ba6808e29bb8e30e83b732ffaf482a84d389132ccd8e",
     "continuous_processes": "bd9b7928aedb1065b26bf9c910fe20f2343eeab5b1c9ea7c951f054042f3bf4b",
     "continuous_tag_templates": "56a23bd0db1d7e957813bbc446036b870cb78dc09b56aafcb67d66971071291e",
-    "skills": "b69e87881392652eaa2f100b1b0f5a69bed63227bff2c7fd9e549365cc52b517",
+    "skills": "ba75faba6fabbd1504040c8083ebd9713ae85fb0b7a0e347299c8f34b028867f",
     "tag_behavior_gates": "0a78eccfc7ac0336e3ca2b75029b5cceca1b691dd377b68f9e32cd3a5a6dd4f3",
     "tag_definitions": "4996ac467f1cffe36c22b91d0790353a5f089f66a60901dea44103e3bc6ee4cb",
     "tag_result_flags": "0ec07c600a1557ab186e72d0a9f4ea821c44da915d82d008cb92b27b0e789845",

@@ -1,50 +1,16 @@
-# com.abilitykit.protocol.room
+# Room Protocol
 
-> Room-gateway 线协议包。定义房间会话的全部 wire 类型 + opcodes + 编解码。shooter 与 moba 共用。
+`com.abilitykit.protocol.room` 提供 Room Gateway、可靠战斗事件及 Gateway 时间同步的共享 DTO、操作码和二进制辅助工具。
 
-- **版本**：0.0.1
-- **依赖**：`com.abilitykit.core`、`com.abilitykit.protocol`
+## 安装与首次使用
 
-## 内容
+从项目已配置的包来源安装；版本、Unity 声明及直接依赖见 [package.json](package.json)。当前包为 0.1.0，声明 Unity 2022.3。运行程序集还引用 MemoryPack，使用者须提供可用的 MemoryPack 程序集及匹配的生成代码；包声明本身不会安装该第三方依赖。完整依赖组合和独立安装仍需目标工程验证。
 
-### Opcodes（`RoomGatewayOpCodes`）
-| OpCode | 值 | 方向 |
-|--------|-----|------|
-| GuestLogin | 100 | C→S |
-| AccountLogin | 111 | C→S |
-| CreateRoom | 101 | C→S |
-| JoinRoom | 102 | C→S |
-| LeaveRoom | 112 | C→S |
-| SetReady | 104 | C→S |
-| PickHero | 105 | C→S |
-| StartBattle | 106 | C→S |
-| SubmitBattleInput | 107 | C→S |
-| RequestFullStateSync | 108 | C→S |
-| RestoreRoom | 109 | C→S |
-| SubscribeStateSync | 103 | C→S |
-| RenewSession | 120 | C→S |
-| AckReliableBattleEvents | 116 | C→S |
-| BeginLoading | 112 | C→S |
-| ReportAssetsLoaded | 113 | C→S |
-| SnapshotPushed | 9002 | S→C |
-| DeltaSnapshotPushed | 9003 | S→C |
-| ReliableBattleEventsPushed | 9005 | S→C |
-| RoomStateChanged | 9004 | S→C |
+先运行[使用指南的本地编解码示例](Documentation~/Usage.md#2-完整示例本地编解码)，预期得到相同账号字段及固定基线信封身份。示例不建立网络连接。在线接入还需连接、认证、请求匹配、业务结果检查及同步会话所有者。
 
-### Wire 类型（`[MemoryPackable]` struct）
-- **认证**：WireRoomGuestLoginReq/Res、WireRoomAccountLoginReq/Res、WireRenewSessionReq
-- **房间**：WireCreateRoomReq/Res、WireJoinRoomReq/Res、WireLeaveRoomReq、WireRoomReadyReq/Res
-- **战斗**：WireSubmitBattleInputReq/Res、WireSubscribeStateSyncReq/Res、WireRequestFullStateSyncReq/Res、WireAckReliableBattleEventsReq/Res
-- **快照**：WireStateSyncSnapshotPush、WireStateSyncActorSnapshot、WireReliableBattleEventPush
-- **加载**：WireBeginLoadingReq/Res、WireReportAssetsLoadedReq/Res、WireReportLoadingProgressReq/Res
-- **恢复**：WireRestoreRoomReq、WireRestoreRoomRes
-- **通用**：WireRoomSnapshot（房间快照类）
+## 文档与兼容
 
-### Codec
-- **`WireRoomGatewayBinary`**：`Serialize<T>` / `Deserialize<T>` / `SerializeTransient<T>`（pooled buffer 变体）
-- **`ReusableMemoryPackSerializationBuffer`**：`IBufferWriter<byte>` 池化序列化缓冲区（热路径避免 `new byte[]`）
+- [文档索引](Documentation~/README.md)：阅读顺序和源码入口。
+- [使用指南](Documentation~/Usage.md)：消息身份、借用缓冲区、固定基线与失败行为。
 
-## 相关
-- 序列化模型 → `com.abilitykit.protocol` README
-- 房间会话 → `com.abilitykit.network.room`
-- Moba/Shooter 专属协议 → `com.abilitykit.protocol.moba` / `.shooter`
+操作码以 [RoomGatewayOpCodes](Runtime/Room/RoomGatewayOpCodes.cs) 和随包生成目录为准，不在 README 维护另一份完整表。旧说明中的 `LeaveRoom = 112` 错误，当前为 119，112 是 `BeginLoading`。本包不拥有房间、世界或同步时钟，不应因 DTO 可反序列化就认定请求成功或会话已恢复。

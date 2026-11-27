@@ -12,8 +12,5 @@
     ],
     "author": {
         "name": "AbilityKit"
-    },
-    "dependencies": {
-        "com.abilitykit.core": "0.1.0"
     }
 }

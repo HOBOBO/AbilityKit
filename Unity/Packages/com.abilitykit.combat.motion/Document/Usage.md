@@ -1,6 +1,8 @@
 ﻿# Motion 模块使用文档（com.abilitykit.combat.motion）
 
 > 本文说明 `AbilityKit.Combat.MotionSystem` 的推荐接入方式、对象池用法、快照恢复和常见组合策略。
+> 文档类型：使用指南；适用范围：0.1.0 当前 Runtime，依赖见 [package.json](../package.json)。
+> 核校状态：2026-11-25 部分核校；装配顺序、时钟、PathFollower 恢复与事件签名，证据见第 11 节。其他片段未逐一运行。
 
 ## 1. 模块定位
 
@@ -266,6 +268,10 @@ TrajectoryMotionSource.Release(source);
 实现 `IMotionEventSink` 可接收命中、到达、过期等事件：
 
 ```csharp
+using AbilityKit.Combat.MotionSystem.Collision;
+using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Events;
+
 public sealed class MotionEvents : IMotionEventSink
 {
     public void OnHit(int moverId, in MotionState state, in MotionHit hit)
@@ -273,12 +279,12 @@ public sealed class MotionEvents : IMotionEventSink
         // 播放碰撞反馈或通知战斗逻辑
     }
 
-    public void OnArrive(int moverId, IMotionSource source)
+    public void OnArrive(int moverId, in MotionState state)
     {
         // 路径到达
     }
 
-    public void OnExpired(int moverId, IMotionSource source)
+    public void OnExpired(int moverId, in MotionState state)
     {
         // 技能位移结束、击退结束等
     }
@@ -295,9 +301,51 @@ public sealed class MotionEvents : IMotionEventSink
 
 - 输入数组会做防御性拷贝，避免外部修改。
 - 同一组使用明确的 priority 决定胜出 source。
-- 快照只保存进度和必要标量，恢复时应使用同一份技能/轨迹配置。
+- 旧 `MotionSourceSnapshot` 依赖同一来源配置；`PathFollowerState` 完整值可独立保存路径和来源数据。两者都不恢复世界。
 - 尽量避免在 solver 中读取非确定性状态。
 
 ### Q3：是否完全没有分配？
 
 模块已将 pipeline、常用 source 和内部临时集合接入 core 对象池。路径点数组与轨迹累计长度数组仍可能因防御性拷贝产生分配；如需要严格零 GC，可继续接入数组池或预构建不可变轨迹资源。
+
+## 11. 装配、固定步长与局部恢复
+
+1. 宿主为实体持有管线、已采用的姿态及 `MotionState`，先配置所需 `Policy`、`Solver` 和 `Events`，再绑定移动来源。默认 `NoMotionSolver` 不做碰撞解算，`Policy` 不会自动装上默认跨组抑制规则。
+2. 每个逻辑 Tick 先更新输入、路径意图，再由唯一驱动者调用一次 `Tick`；随后采用结果并按需同步碰撞体。`Tick` 使用调用方传入的秒数，不读取帧号，也不会补跑。`FixedStepRunner` 只是在没有世界时钟的宿主中把正 `dt` 累积换算为步数；`ConsumeOneStep()` 只返回步长，不能再叠加到已有世界 Tick 上。
+3. 完成通知不是碰撞或位移已提交的回执；到达/过期可能发生在 solver 和姿态写回之前。碰撞通知在状态写回之后。不要在同步回调中重入修改来源列表；将业务变更排队至安全点。
+4. 恢复先由宿主确定作用域与稳定身份，预检并恢复姿态、`MotionState`、来源值、既有成员顺序及 Policy；Solver、事件接收者和导航数据由拥有者重绑。引用次序不是持久化数据；`RestoreSourceOrder` 只接收当前成员的完整排列。退场先解绑再归还池化对象，管线不会归还来源。
+
+### 完整示例：路径跟随与同实例恢复
+
+以下 Console 示例不装配碰撞，恢复同一管线中的来源和实体运动值，再用相同步长重演。没有重新查询路径，也没有恢复时钟或输入历史。
+
+```csharp
+using System;
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Generic;
+
+using var pipeline = new MotionPipeline();
+var follower = new PathFollowerMotionSource(new[] { new Vec3(3f, 0f, 0f) }, speed: 2f);
+pipeline.AddSource(follower);
+var state = new MotionState(Vec3.Zero);
+MotionOutput output = default;
+const float step = 0.5f;
+pipeline.Tick(1, ref state, step, ref output);
+var savedMotion = state;
+var savedPath = follower.CaptureState();
+pipeline.Tick(1, ref state, step, ref output);
+if (Math.Abs(state.Position.X - 2f) > 0.0001f)
+    throw new Exception("固定步长推进不符合预期");
+var expected = state;
+
+follower.RestoreState(in savedPath);
+state = savedMotion;
+pipeline.Tick(1, ref state, step, ref output);
+if (state.Position.X != expected.Position.X || state.Time != expected.Time)
+    throw new Exception("局部恢复后的重演结果不同");
+pipeline.RemoveSource(follower);
+Console.WriteLine("Motion: fixed step and local replay OK");
+```
+
+预期输出末行。2026-11-25 的本地 .NET Release suite 与该示例只验证包级契约，不覆盖 Unity、完整战斗、跨平台确定性、帧同步检查点或状态同步权威快照。源码见 [MotionPipeline](../Runtime/MotionSystem/Core/MotionPipeline.cs)、[FixedStepRunner](../Runtime/MotionSystem/Core/FixedStepRunner.cs) 和 [PathFollowerMotionSource](../Runtime/MotionSystem/Generic/PathFollowerMotionSource.cs)。

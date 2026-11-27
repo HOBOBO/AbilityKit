@@ -76,6 +76,8 @@
 
 ## 投射物、区域与位移组合验收
 
+固定发射点的炮口等一次性特效，用投射物表 `OnSpawnTriggerIds` 调用即时 `play_presentation`（`target_mode=8`，`ProjectileLaunchPose`）。该模式只接受实际 `projectile.spawn` 载荷：以生成时的位置和方向放置，不附着角色或弹体；同帧命中或退出不取消已经发出的特效。资源时长决定回收，不用 `stop`，也不替代飞行特效的 `VfxId` / `OnSpawnVfxId`。发射方向通过既有 Cue 类型参数传输，不新建协议字段。金克丝 R 的普通与贴脸用例可在 Battle Scenario 单独预览。
+
 投射物到达触发器可将查询伤害、Motion 和 Area 创建编排为同级动作。到达时创建的区域不自动成为伤害或位移权威，必须检查其编辑效果。已发布酒桶 R 到达使用直接查询伤害及径向 Pull，区域仅为后续表现对象；此组合无需英雄身份分支。
 
 当前模拟在 Execute 执行 Motion，随后在 PostExecute 执行 ProjectileSync 和 AreaSync。因此，到达时新增 Motion 来源会在到达帧结算伤害，位置直到下一 Motion 步进才变化。测试需同时断言此边界、最终位移及仅结算一次。

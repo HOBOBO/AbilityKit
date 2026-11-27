@@ -11,5 +11,14 @@ namespace AbilityKit.Demo.Moba.Share
         public const int AreaHalfAngleDeg = 1003;
         public const int AreaWidth = 1004;
         public const int AreaLength = 1005;
+        /// <summary>
+        /// 固定发射点一次性表现的世界朝向，不允许绑定跟随目标。
+        /// </summary>
+        public const int ProjectileLaunchForward = 1006;
+        /// <summary>
+        /// ??????????????????????
+        /// </summary>
+        public const int ProjectileFlightDistance = 1007;
+        public const int ProjectileFlightArcHeight = 1008;
     }
 }

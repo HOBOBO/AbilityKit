@@ -10,9 +10,14 @@ using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 {
-    /// <summary>Read-only imported animation timing evidence; does not publish or change assets.</summary>
+    /// <summary>
+    /// 采集已导入动画的时序证据，只写运行报告，不修改或发布资源。
+    /// </summary>
     public static class MobaCharacterAnimationTimingAudit
     {
+        /// <summary>
+        /// 按模型 ID 采集导入时序和可选姿态，将同次报告写入一个独立目录。
+        /// </summary>
         public static void Capture()
         {
             var arguments = Environment.GetCommandLineArgs();
@@ -20,6 +25,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             if (index < 0 || index + 1 >= arguments.Length)
                 throw new ArgumentException("Provide -mobaAnimationAuditHeroes with comma-separated model IDs.");
             var identities = new HashSet<int>(arguments[index + 1].Split(',').Select(int.Parse));
+            var directory = PrepareOutputDirectory(arguments, Application.dataPath);
             var rows = JArray.Parse(Resources.Load<TextAsset>("luban/moba/models").text);
             var models = new List<object>();
             foreach (var row in rows.OfType<JObject>().Where(row => identities.Contains(row.Value<int>("Id"))))
@@ -36,16 +42,35 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 models.Add(new { id = row.Value<int>("Id"), resource = path,
                     controller = AssetDatabase.GetAssetPath(controller), states });
                 if (arguments.Contains("-mobaAnimationAuditSamplePoses"))
-                    CapturePoses(prefab, controller, row.Value<int>("Id"));
+                    CapturePoses(prefab, controller, row.Value<int>("Id"), directory);
             }
             if (models.Count != identities.Count)
                 throw new InvalidDataException("Not all requested model IDs were found.");
-            var directory = Path.GetFullPath(Path.Combine(Application.dataPath,
-                "../../local/Logs/character-animation-timing"));
-            Directory.CreateDirectory(directory);
             var destination = Path.Combine(directory, "imported-clips.json");
             File.WriteAllText(destination, JsonConvert.SerializeObject(models, Formatting.Indented));
             Debug.Log("[MobaCharacterAnimationTimingAudit] Read-only capture: " + destination);
+        }
+
+        private static string PrepareOutputDirectory(string[] arguments, string assetsDirectory)
+        {
+            const string option = "-mobaAnimationAuditOutput";
+            var index = Array.IndexOf(arguments, option);
+            if (index < 0)
+            {
+                var runId = $"{DateTime.UtcNow:yyyyMMdd-HHmmssfff}-{Guid.NewGuid():N}";
+                return Directory.CreateDirectory(Path.Combine(assetsDirectory,
+                    "../../local/Logs/character-animation-timing", runId)).FullName;
+            }
+
+            if (index + 1 >= arguments.Length || index != Array.LastIndexOf(arguments, option) ||
+                string.IsNullOrWhiteSpace(arguments[index + 1]) || !Path.IsPathFullyQualified(arguments[index + 1]))
+                throw new ArgumentException("Specify -mobaAnimationAuditOutput once with an absolute path under local/Logs/.");
+
+            var directory = Path.GetFullPath(arguments[index + 1]);
+            if (Directory.Exists(directory) && Directory.EnumerateFileSystemEntries(directory).Any())
+                throw new IOException("Use a new or empty output directory: " + directory);
+
+            return Directory.CreateDirectory(directory).FullName;
         }
 
         private static void Collect(AnimatorStateMachine machine, string prefix, List<object> output)
@@ -81,7 +106,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 Collect(child.stateMachine, prefix + "/" + child.stateMachine.name, output);
         }
 
-        private static void CapturePoses(GameObject prefab, AnimatorController controller, int modelId)
+        private static void CapturePoses(GameObject prefab, AnimatorController controller, int modelId, string directory)
         {
             var reports = new List<object>();
             foreach (var clip in controller.animationClips.Distinct())
@@ -130,9 +155,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 }
                 finally { UnityEngine.Object.DestroyImmediate(instance); }
             }
-            var directory = Path.GetFullPath(Path.Combine(Application.dataPath,
-                "../../local/Logs/character-animation-timing"));
-            Directory.CreateDirectory(directory);
             var destination = Path.Combine(directory, "sampled-poses-" + modelId + ".json");
             File.WriteAllText(destination, JsonConvert.SerializeObject(reports, Formatting.Indented));
             Debug.Log("[MobaCharacterAnimationTimingAudit] Isolated model pose sampling: " + destination);

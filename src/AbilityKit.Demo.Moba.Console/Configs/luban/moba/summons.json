@@ -50,7 +50,7 @@
     "AttrScales": [],
     "AttributeTemplateId": 30030502,
     "DefaultComponentTemplateIds": [],
-    "DespawnOnOwnerDie": true,
+    "DespawnOnOwnerDie": false,
     "LifetimeMs": 14000,
     "MaxAlivePerOwner": 1,
     "ModelId": 30030502,

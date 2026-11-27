@@ -1,0 +1,7 @@
+{
+  "name": "AbilityKit.HotReload.Editor",
+  "rootNamespace": "AbilityKit.Ability.HotReload",
+  "references": ["AbilityKit.Ability", "AbilityKit.Core"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false
+}

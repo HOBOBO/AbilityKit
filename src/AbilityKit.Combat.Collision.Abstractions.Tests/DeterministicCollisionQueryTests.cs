@@ -108,6 +108,33 @@ namespace AbilityKit.Combat.Collision.Abstractions.Tests
         }
 
         /// <summary>
+        /// 接触点的切向尾差不应再次阻挡；有实际朝内分量时仍必须报告碰撞。
+        /// </summary>
+        [Theory]
+        [InlineData(0, .0000001f, 0f, false)]
+        [InlineData(0, .001f, 0f, true)]
+        [InlineData(0, .0000001f, .0000005f, false)]
+        [InlineData(0, .001f, .0000005f, true)]
+        [InlineData(1, .0000001f, 0f, false)]
+        [InlineData(1, .001f, 0f, true)]
+        [InlineData(1, .0000001f, .0000005f, false)]
+        [InlineData(1, .001f, .0000005f, true)]
+        [InlineData(2, .0000001f, 0f, false)]
+        [InlineData(2, .001f, 0f, true)]
+        public void Contact_sweep_distinguishes_tangent_roundoff_from_inward_motion(int shapeKind, float inward, float outwardOffset, bool blocked)
+        {
+            var rotation = shapeKind == 2 ? Quat.FromAxisAngle(Vec3.Up, (float)Math.PI / 6f) : Quat.Identity;
+            var shape = shapeKind == 0 ? ColliderShape.CreateSphere(Vec3.Zero, 1f)
+                : shapeKind == 1 ? ColliderShape.CreateCapsule(new Vec3(0, -.5f, 0), new Vec3(0, .5f, 0), 1f)
+                : ColliderShape.CreateObb(Vec3.Zero, rotation, new Vec3(1, 2, 2));
+            var start = rotation.Rotate(Vec3.Right * (1.5f + outwardOffset));
+            var direction = rotation.Rotate(new Vec3(-inward, 0, 1).Normalized);
+
+            Assert.Equal(blocked, SphereSweepQueries.SweepVsShape(start, direction, .01f, .5f,
+                shape, out _, out _));
+        }
+
+        /// <summary>
         /// 用与查询内核相同的定点公式独立复算命中距离（t = -b - sqrt(disc) / 2a），
         /// 锁定“内核与参考公式逐位一致”的契约。
         /// </summary>

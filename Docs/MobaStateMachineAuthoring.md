@@ -24,8 +24,11 @@ Modifier 提供阶段参数与技能候选，通用门禁不会更改 HP、推�
 使用 **Window > AbilityKit > MOBA 状态机编辑器** 按角色选择 HFSM 定义。
 所有英雄按 `character_hfsm_<HeroId>.json` 命名（烬为 `character_hfsm_3001.json`），
 `character_hfsm_default.json` 是通用回退定义。每个文件独立声明参数、状态、转换和状态动作，
-参数 ID 只在对应的 `definitionId` 内有意义。编辑器保存前调用运行时解析器校验；**发布**会同步
-全部 `character_hfsm*.json`、`character_bindings.json` 与 `actor_state_machines.json` 到 Unity 和 Console。
+参数 ID 只在对应的 `definitionId` 内有意义。编辑器保存前调用运行时解析器校验。
+
+- **保存源文件**：保存工作台中的编辑；不发布产物。
+- **校验**：只读取已保存源文件与 Unity、Console 两端产物，按 JSON 内容比较；不会保存窗口中未提交的编辑。
+- **发布**：先保存源文件，再点「发布」查看预检。预检校验磁盘源文件并按目录统计将新建、覆盖和清理的文件；覆盖按实际写入的文本比较，不做字段级差异。确认后才将全部 `character_hfsm*.json`、`character_bindings.json`、`actor_state_machines.json` 和 `actor_state_presentations.json` 同步到 Unity Resources、Console Configs 和 Console Luban Configs，并清理这些目录中的旧 `character_hfsm.json` 及其 `.meta`。取消不写入；发布不是事务，失败后应核对版本控制差异再重跑。
 
 角色 HFSM 使用 `StateMachineDefinition`，投射物使用
 `HierarchicalProfile<MobaActionSpec>`；两种结构不能互相代替。投射物表中的
@@ -127,8 +130,9 @@ AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.MobaMechanismPublisher.PublishAnd
 工具从 `M-模型表.xlsx` 读取模型绑定，旧节点页另读 `J-角色表.xlsx`，
 通过 Unity 获取模型实际 Controller、Animator State 和 AnimationClip；不按 Clip 文件名猜测 State。
 
-“扫描 / 预览差异”只读；首次绑定可从下拉框选择 State。“应用选中差异”只更新源工作簿，
-“同步并发布”会顺序执行动画检查、现有 Luban `--apply` 和 `--check-published`，失败时停止。
+“扫描 / 预览差异”不更新正式配置；首次绑定可从下拉框选择 State。“应用选中差异”更新对应的源工作簿和动画绑定，不发布运行时配置。
+“同步并发布”先列出选中的动作数量、目标工作簿和完整 Luban 发布范围，确认后才更新源文件，随后执行动画检查、Luban `--apply` 和 `--check-published`。
+取消不写入；发布失败时不撤销已经完成的源文件更新。播放模式或正要进入播放时，不能应用或发布。
 模型页更新目录的 `AnimatorState/FrameCount/FrameRate/Layer`；旧节点页更新对应内联字段。
 两者均保留状态的 loop、其他动作、Flow 和逻辑 HFSM 时序。
 写入采用目标单元格替换、写锁和扫描指纹验证，其他角色的配置不会从旧工作簿快照覆盖。
@@ -144,11 +148,11 @@ Excel 占用或源文件变化时需关闭占用/重新扫描。
 保留逐 Clip 的实际帧率，由现有表现运行时换算为逻辑跨度。带 speed、转换、loop 差异等时序告警
 的动作默认不选中；手动选中仅接受所列 Clip 元数据，不代表完整播放验收已通过。
 
-`Tools/AbilityKit/MOBA/Check Bound Character Animations` 检查已登记动作的资源身份和配置漂移。
+工作台的“仅检查已绑定动画漂移”检查资源身份和配置漂移，不受当前模型或角色筛选影响；旧独立菜单已退役。自动化保留 `MobaCharacterAnimationSync.Check`。
 `MobaMechanismPublisher.PublishAndCheck` 在发布前运行同一检查（未建立绑定时跳过）。
 检查只覆盖已经登记的动作，不代表所有英雄资源齐全，也不验证技能前摇/后摇或实际播放完成。
 差异和时序告警保存在 `local/Logs/character-animation-sync/scan-model-<模型ID>.json`；
-旧节点扫描报告为同目录的 `scan-<角色ID>.json`。
+旧节点扫描报告为同目录的 `scan-<角色ID>.json`。同一目标保留最近一次扫描，不累计每次运行的副本。
 
 扫描也比较 `ClipSettings.startTime/stopTime` 与 `AnimationClip.length`（0.0001s 容差）。
 范围不一致会显示实际起止和长度，并默认取消选中；只接受元数据不会修正资源播放范围。

@@ -42,7 +42,7 @@
 - `Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Builders/TriggerPlanDsl.cs` / `TriggerPlanFactory.cs`
 - `Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Executables/` — Sequence / Selector / Parallel / Random / Repeat / Until / If / Invert / Succeed / Fail / Scheduled / ActionCall / Metadata
 - `Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Execution/PlannedTriggerActionExecutor.cs` / `ActionSchemaRegistry.cs`
-- `Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Validation/TriggerPlanDatabase.cs` / `CycleDetectorValidator.cs` / `UgcLimitsValidator.cs`
+- `Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Validation/TriggerPlanDatabase.cs` / `CycleDetectorValidator.cs` / `FlatTriggerPlanLimitsValidator.cs`
 - `Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Serialization/Json/TriggerPlanJsonDatabase.cs` — Plan JSON 加载（含 AllowExternal 字段 line 84）
 
 ### AllowExternal 当前位置

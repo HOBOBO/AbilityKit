@@ -91,7 +91,8 @@ namespace AbilityKit.Game.Flow
                 if (_snapshotAuthorityProjectionSource == null || !_snapshotAuthorityProjectionSource.WorldId.Equals(world.Id))
                     _snapshotAuthorityProjectionSource = new BattleWorldProjectionViewSource(
                         world.Id, ResolveSnapshotAuthorityProjectionWorld,
-                        () => _runtime.Simulation.RemoteDrivenLastTickedFrame);
+                        () => _runtime.Simulation.RemoteDrivenLastTickedFrame,
+                        () => _runtime.Recovery?.ResolveCommittedProjection());
                 return ShowWorldView(instanceId, BattleProjectionViewRole.Confirmed,
                     _snapshotAuthorityProjectionSource, worldOffset, capabilities, camera, allowOverlap);
             }

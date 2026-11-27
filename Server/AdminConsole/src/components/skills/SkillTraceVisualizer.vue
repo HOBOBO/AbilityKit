@@ -203,7 +203,7 @@
           <article v-for="node in nodes" :key="`${node.source}-${node.nodeId}`" class="trace-tree-node analysis-node" :class="{ active: selectedNodeKey === buildNodeKey(node), danger: node.severity === 'error' || node.severity === 'failed' }" :style="{ '--depth': node.depth }" role="button" tabindex="0" @click="selectNode(node)" @keydown.enter.prevent="selectNode(node)" @keydown.space.prevent="selectNode(node)">
             <span class="trace-branch"></span>
             <div><strong><span class="domain-pill">{{ node.domainLabel }}</span>{{ node.displayName || node.label }}</strong><small>{{ node.triggerLabel || node.detailLabel || `${node.stage} / ${node.entityKind}` }} / 节点 {{ node.nodeId }} / 父级 {{ node.parentId || '-' }} / 根节点 {{ node.rootId || '-' }}</small></div>
-            <span class="badge" :class="node.severity === 'error' || node.severity === 'failed' ? 'danger' : ''">F{{ node.frame }} / {{ node.timeMs }}ms</span>
+            <span class="badge" :class="node.severity === 'error' || node.severity === 'failed' ? 'danger' : ''">F{{ node.frame }}<template v-if="!frameOnly"> / {{ node.timeMs }}ms</template></span>
             <p>{{ node.conditionLabel || node.actionLabel || node.summary }}<template v-if="node.failure"> / 失败={{ node.failure }}</template></p>
           </article>
           <p v-if="!nodes.length" class="muted">{{ emptyText }}</p>
@@ -301,7 +301,7 @@
               <circle :cx="event.x" :cy="event.y" :r="10" />
               <rect :x="event.x + 16" :y="event.y - 18" :width="timelineGraph.eventWidth" :height="36" rx="11" />
               <text class="timeline-event-title" :x="event.x + 28" :y="event.y - 2">{{ truncateLabel(event.event.label, 26) }}</text>
-              <text class="timeline-event-meta" :x="event.x + 28" :y="event.y + 12">{{ event.event.source }} · {{ event.event.timeMs }}ms</text>
+              <text class="timeline-event-meta" :x="event.x + 28" :y="event.y + 12">{{ event.event.source }}<template v-if="!frameOnly"> · {{ event.event.timeMs }}ms</template></text>
             </g>
           </g>
         </svg>
@@ -324,6 +324,7 @@ const props = defineProps<{
   filter: SkillAnalysisFilterState;
   filterOptions: SkillAnalysisFilterOptions;
   entityRelations: SkillAnalysisEntityGroupProjection[];
+  frameOnly?: boolean;
   emptyText: string;
 }>();
 

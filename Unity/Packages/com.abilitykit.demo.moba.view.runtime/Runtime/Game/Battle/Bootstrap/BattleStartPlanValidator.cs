@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Game.Flow.Battle.Replay;
 
 namespace AbilityKit.Game.Flow
 {
@@ -60,9 +61,9 @@ namespace AbilityKit.Game.Flow
 
         private static void ValidateRunMode(in BattleStartPlanRunModeOptions runMode)
         {
-            if (runMode.RunMode == BattleRunMode.Record && string.IsNullOrEmpty(runMode.InputRecordOutputPath))
+            if (runMode.RunMode == BattleRunMode.Record)
             {
-                throw new InvalidOperationException("InputRecordOutputPath is required when run mode is Record.");
+                BattleRecordFiles.ValidateOutput(runMode.InputRecordOutputPath, runMode.RecordCoverage);
             }
 
             if (runMode.RunMode == BattleRunMode.Replay && string.IsNullOrEmpty(runMode.InputReplayPath))

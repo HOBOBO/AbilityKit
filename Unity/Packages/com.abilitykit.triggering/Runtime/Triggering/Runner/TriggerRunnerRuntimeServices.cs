@@ -3,7 +3,6 @@ using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
-using AbilityKit.Triggering.Runtime.ActionScheduler;
 using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
 
@@ -46,7 +45,7 @@ namespace AbilityKit.Triggering.Runtime
         public INumericRpnFunctionRegistry NumericFunctions { get; }
         public ExecPolicy Policy { get; }
 
-        public ExecCtx<TCtx> CreateExecCtx(TCtx context, ExecutionControl control, ActionSchedulerManager actionSchedulerManager = null)
+        public ExecCtx<TCtx> CreateExecCtx(TCtx context, ExecutionControl control, IFlatActionScheduler flatActionScheduler = null)
         {
             return new ExecCtx<TCtx>(
                 context,
@@ -60,7 +59,7 @@ namespace AbilityKit.Triggering.Runtime
                 NumericFunctions,
                 Policy,
                 control,
-                actionSchedulerManager);
+                flatActionScheduler);
         }
     }
 }

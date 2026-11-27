@@ -2,11 +2,20 @@
 
 > 文档类型：Canonical 设计（Targeting 跨模块边界）
 > 事实基线：2026-08-16
-> 文档版本：v3.2
+> 文档版本：v3.3
+> 核校状态：部分核校；2026-11-25 补包内接入与局部验证，历史主体与项目调用证据保留原事实基线。
 >
 > 本文面向技能系统接入者、战斗逻辑开发者和 Targeting 扩展维护者，说明 `com.abilitykit.combat.targeting` 解决什么问题、如何把业务需求拆成查询，以及各扩展点的职责和运行边界。阅读使用部分不要求了解引擎内部池化实现；开发自定义 Provider、Rule、Scorer 或 Selector 时，再继续阅读执行、所有权和性能章节。
 
 ---
+
+## 包内契约与 D4 核校
+
+安装、完整最小程序与故障处理进入 [Targeting 使用指南](../../../Unity/Packages/com.abilitykit.combat.targeting/Documentation~/Usage.md)，详细排序、池化与性能方法由[运行时手册](../../../Unity/Packages/com.abilitykit.combat.targeting/Documentation~/Manual.md)维护。本文负责查询内核与项目索引、配置、技能效果的跨包交接，不把包外 Entitas / EntityManager 适配器当本包默认依赖。
+
+2026-11-25 核对当前基础几何 API：只有 CircleShapeRule / SectorShapeRule，距离评分为 DistanceToEntityScorer；旧包手册中的 OrientedRectShapeRule、Resolved*Rule2D、参考系解析器和 SetService 写法已纠正。参数化几何由项目 Rule 或 QueryFactory 扩展，不因文档核校新增机制。
+
+本批手工 `AbilityKit.Combat.Targeting.Tests`（Release / NoRestore）69/69，通过包指南提取的完整圆形查询与池化消费示例。证据限 E0 与局部 E3，未运行 Unity、独立安装、真实索引世界、效果执行时二次有效性校验、跨端回放或性能预算；历史项目消费者未据此重验。详细命令与缺口见 [D4 记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#13-d4-上下文数据流与战斗查询核校记录2026-11-25)。
 
 ## 1. 能力定位
 
@@ -487,4 +496,4 @@ Targeting 已具备顶层 Rule 顺序 AND、可嵌套且短路的 AND/OR/NOT Rul
 
 ---
 
-*文档类型：Canonical 设计（Targeting 跨模块边界） | 事实基线：2026-08-16 | 证据等级：E0-E3 | 文档版本：v3.2*
+*文档类型：Canonical 设计（Targeting 跨模块边界） | 事实基线：主体 2026-08-16，D4 限定核校 2026-11-25 | 最后更新：2026-11-25 | 证据等级：E0 与局部 E3，项目证据分层 | 文档版本：v3.3*

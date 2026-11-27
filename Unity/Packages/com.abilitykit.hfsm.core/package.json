@@ -1,0 +1,14 @@
+{
+  "name": "com.abilitykit.hfsm.core",
+  "version": "0.1.0",
+  "displayName": "AbilityKit HFSM Core",
+  "unity": "2022.3",
+  "description": "Engine-independent hierarchical state machine definitions, bindings and runtime.",
+  "keywords": ["abilitykit", "hfsm", "state-machine", "runtime"],
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.deterministic": "0.1.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}

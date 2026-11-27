@@ -22,6 +22,18 @@ namespace AbilityKit.Combat.MotionSystem.Generic
             collectionCheck: false);
 
         private PathFollowerState _state;
+        private float _nextTickSpeedLimit = float.PositiveInfinity;
+
+        /// <summary>
+        /// 限制下一次推进的速度，不改变规划速度和快照。每帧驱动者应在 Tick 前刷新；
+        /// 若本帧来源被抑制，可在下一帧用新值覆盖。正无穷表示不限制。
+        /// </summary>
+        public void LimitNextTickSpeed(float speed)
+        {
+            if (float.IsNaN(speed) || speed <= 0f)
+                throw new ArgumentOutOfRangeException(nameof(speed));
+            _nextTickSpeedLimit = speed;
+        }
 
         private PathFollowerMotionSource()
         {
@@ -83,6 +95,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
         public void Configure(Vec3[] points, float speed, float arriveEpsilon = 0.05f, int priority = 10, int groupId = MotionGroups.Path, MotionStacking stacking = MotionStacking.ExclusiveHighestPriority)
         {
             var ownedPoints = CopyPoints(points);
+            _nextTickSpeedLimit = float.PositiveInfinity;
             _state = new PathFollowerState
             {
                 Points = ownedPoints,
@@ -101,6 +114,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
         /// </summary>
         public void Reset()
         {
+            _nextTickSpeedLimit = float.PositiveInfinity;
             _state = new PathFollowerState
             {
                 Points = Array.Empty<Vec3>(),
@@ -154,7 +168,9 @@ namespace AbilityKit.Combat.MotionSystem.Generic
         /// </summary>
         public void Tick(int id, ref MotionState state, float dt, ref Vec3 outDesiredDelta)
         {
-            PathFollowerStepper.Tick(ref _state, ref state, dt, ref outDesiredDelta);
+            var speed = Math.Min(_state.Speed, _nextTickSpeedLimit);
+            _nextTickSpeedLimit = float.PositiveInfinity;
+            PathFollowerStepper.Tick(ref _state, ref state, dt, speed, ref outDesiredDelta);
         }
 
         /// <summary>
@@ -218,6 +234,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
             var restored = state;
             restored.Points = CopyPoints(state.Points);
             _state = restored;
+            _nextTickSpeedLimit = float.PositiveInfinity;
         }
 
         /// <summary>
@@ -246,6 +263,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
         /// </remarks>
         public bool ImportSnapshot(in MotionSourceSnapshot snapshot)
         {
+            _nextTickSpeedLimit = float.PositiveInfinity;
             _state.GroupId = snapshot.GroupId;
             _state.Priority = snapshot.Priority;
             _state.Stacking = snapshot.Stacking;

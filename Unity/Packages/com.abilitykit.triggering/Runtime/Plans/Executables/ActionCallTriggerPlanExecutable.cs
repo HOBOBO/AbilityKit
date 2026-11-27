@@ -16,6 +16,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public ActionCallPlan Action => _action;
 
         /// <summary>
+        /// 表示动作使用不同于零号槽的作用域索引。
+        /// </summary>
+
+        /// <summary>
         /// 返回执行树诊断使用的节点名称。
         /// </summary>
         public override string Name => "ActionCall";

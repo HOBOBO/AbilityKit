@@ -178,10 +178,12 @@ public sealed partial class MobaProjectileAreaMotionCompositionTests(ITestOutput
             Assert.Equal(positions[i], b.Setup.GetActorPosition(targets[i]));
             Assert.Equal(i < 3 ? 280f : 0f, hp[i] - b.Setup.GetActorHp(targets[i]), 2);
         }
-        Assert.Single(b.Areas(42050501));
+        var impact = Assert.Single(b.Areas(42050501));
         Assert.False(b.HasLauncher());
         var arrivalFrame = b.Frame;
-        Assert.Contains(areaEvents, e => e.TemplateId == 42050501 && e.EventId == "area.spawn");
+        Assert.Equal(arrivalFrame, impact.SpawnFrame);
+        var expireFrame = b.GetPublishedAreaExpireFrame(impact);
+        Assert.Single(areaEvents, e => e.AreaId == impact.AreaId && e.EventId == "area.spawn");
         Assert.DoesNotContain(areaEvents, e => e.TemplateId == 42050501 && e.EventId == "area.enter");
         b.AssertInstalledSystemOrder(output);
         b.Setup.Tick(checkpointOffset);
@@ -204,7 +206,17 @@ public sealed partial class MobaProjectileAreaMotionCompositionTests(ITestOutput
         Assert.True(b.Setup.GetActorPosition(center).Z > positions[2].Z);
         Assert.Equal(positions[3], b.Setup.GetActorPosition(ally));
         Assert.Equal(positions[4], b.Setup.GetActorPosition(outside));
-        b.Setup.Tick(25);
+        var ticksUntilLastActiveFrame = expireFrame - b.Frame - 1;
+        Assert.True(ticksUntilLastActiveFrame >= 0);
+        b.Setup.Tick(ticksUntilLastActiveFrame);
+        Assert.Equal(impact.AreaId, Assert.Single(b.Areas(impact.TemplateId)).AreaId);
+        Assert.DoesNotContain(areaEvents, e => e.AreaId == impact.AreaId && e.EventId == "area.expire");
+        b.Setup.Tick(1);
+        var expire = Assert.Single(areaEvents, e => e.AreaId == impact.AreaId && e.EventId == "area.expire");
+        Assert.Equal(expireFrame, expire.Frame);
+        b.AssertAreaOwnershipReleased(impact);
+        b.Setup.Tick(1);
+        Assert.Single(areaEvents, e => e.AreaId == impact.AreaId && e.EventId == "area.expire");
         Assert.Equal(3, b.Count(MobaExecutionKind.DamageApply, 30050501));
         Assert.Equal(280f, hp[0] - b.Setup.GetActorHp(left), 2);
         Assert.Empty(b.Areas(42050501));
@@ -958,6 +970,17 @@ public sealed partial class MobaProjectileAreaMotionCompositionTests(ITestOutput
             var result = new List<MobaAreaRuntimeInfo>();
             Services.Resolve<MobaAreaRuntimeService>().TryGetAreas(result, Caster, template);
             return result;
+        }
+
+        public int GetPublishedAreaExpireFrame(MobaAreaRuntimeInfo impact)
+        {
+            Assert.True(Services.Resolve<MobaConfigDatabase>().TryGetAoe(impact.TemplateId, out var config));
+            Assert.True(config.DurationMs > 0);
+            var frameTime = Assert.IsType<FrameTime>(Services.Resolve<IFrameTime>());
+            Assert.Equal(impact.SpawnFrame, frameTime.Frame.Value);
+            var lastActiveFrame = Math.Max(impact.SpawnFrame + 1,
+                frameTime.FrameAfterSeconds(config.DurationMs / 1000f).Value);
+            return lastActiveFrame + 1;
         }
         public void Move(int actor, float speed) => Actor(actor).ReplaceMoveInput(0, Math.Sign(speed));
 
@@ -1868,11 +1891,21 @@ public sealed partial class MobaProjectileAreaMotionCompositionTests(ITestOutput
 
         public void AssertAreaReleased(MobaAreaRuntimeInfo info)
         {
-            Assert.DoesNotContain(Areas(1), candidate => candidate.AreaId == info.AreaId);
+            AssertAreaOwnershipReleased(info);
+            Assert.False(Services.Resolve<MobaSkillCastRuntimeService>().TryGet(info.SkillRuntimeHandle, out _));
+        }
+
+        public void AssertAreaOwnershipReleased(MobaAreaRuntimeInfo info)
+        {
+            Assert.DoesNotContain(Areas(info.TemplateId), candidate => candidate.AreaId == info.AreaId);
+            var physical = MemoryPackSerializer.Deserialize<AreaWorldSnapshot>(AreaPhysics().ExportRollback(Frame));
+            Assert.DoesNotContain(physical.Items, item => item.Id == info.AreaId);
             var contexts = Services.Resolve<MobaExecutionContextRegistry>();
             Assert.True(contexts.TryGet(info.SourceContextId, out var source));
             Assert.True(source.IsEnded);
-            Assert.False(Services.Resolve<MobaSkillCastRuntimeService>().TryGet(info.SkillRuntimeHandle, out _));
+            var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Area,
+                info.AreaId, info.SourceContextId, info.TemplateId);
+            Assert.False(Services.Resolve<MobaSkillCastRuntimeService>().TryFindRetain(info.SkillRuntimeHandle, in child, out _));
         }
 
         private AreaWorld AreaPhysics()

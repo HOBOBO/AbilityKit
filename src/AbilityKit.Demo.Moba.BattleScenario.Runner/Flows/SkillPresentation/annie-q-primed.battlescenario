@@ -18,6 +18,8 @@
     ],
     "assertions": [
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30030401, "minCount": 3, "maxCount": 3},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30030201, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "EffectExecution", "configId": 30030211, "maxCount": 1},
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30030201, "maxCount": 1},
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "BuffApply", "configId": 30030211, "maxCount": 1}
     ]

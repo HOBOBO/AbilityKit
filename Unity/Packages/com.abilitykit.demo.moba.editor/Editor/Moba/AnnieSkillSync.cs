@@ -17,7 +17,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         private const string FlowAssetPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/SkillFlowCO.asset";
         private const string FlowSourcePath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/annie-r-flow.json";
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Annie/Publish Passive Q W E")]
         public static void SyncAndPublish()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
@@ -86,7 +85,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             EditorUtility.SetDirty(asset);
         }
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Annie/Check Passive Q W E")]
         public static void CheckPublished()
         {
             InvokeTriggerAuthoring("CheckRuntimeBatch");

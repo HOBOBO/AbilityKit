@@ -214,6 +214,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
             if (!_deduplicator.ShouldHandle(in entry, snapshotFrame)) return;
             var isHit = entry.Kind == ProjectilePresentationEventKind.Hit;
+            if (entry.Kind == ProjectilePresentationEventKind.Spawn && _vfx.UsesFlightArcCue(entry.TemplateId)) return;
             var identity = BattleProjectileSnapshotDeduplicator.ResolveIdentity(in entry);
             var hitKey = isHit ? BattleProjectileSnapshotKey.From(in entry, snapshotFrame) : default;
             if (isHit && _deduplicator.HasHitVisual(identity, in hitKey)) return;

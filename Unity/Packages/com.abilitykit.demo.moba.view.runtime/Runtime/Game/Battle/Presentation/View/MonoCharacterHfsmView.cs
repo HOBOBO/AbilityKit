@@ -30,6 +30,10 @@ namespace AbilityKit.Game.Flow
         private readonly PresentationRateResolver _presentationRateResolver = new PresentationRateResolver();
         private readonly Dictionary<long, HashSet<PresentationHandle<PresentationUnityHandle>>> _timelineHandles =
             new Dictionary<long, HashSet<PresentationHandle<PresentationUnityHandle>>>();
+        private readonly Dictionary<PresentationHandle<PresentationUnityHandle>, (ClipDto Clip, UnityTimelineSampledAnimation Animation)> _sampledClips =
+            new Dictionary<PresentationHandle<PresentationUnityHandle>, (ClipDto, UnityTimelineSampledAnimation)>();
+        private readonly List<PresentationHandle<PresentationUnityHandle>> _finishedSampledClips =
+            new List<PresentationHandle<PresentationUnityHandle>>();
         private int _lastSeekFrame = -1, _lastBoundSnapshotFrame = -1;
         private long _boundActionInstanceId, _boundCastInstanceId;
 
@@ -110,9 +114,13 @@ namespace AbilityKit.Game.Flow
             var length = _state.CastDurationMs > 0 ? _state.CastDurationMs / 1000f :
                 intent.DurationSeconds > 0f ? intent.DurationSeconds :
                 _animator.GetCurrentAnimatorStateInfo(intent.Layer).length;
-            var normalized = length > Mathf.Epsilon && duration > 0f
-                ? Mathf.Max(0, localFrame) * duration / length
-                : 0f;
+            var localSeconds = Mathf.Max(0, localFrame) * duration;
+            if (_state.WindupTiming.HasValue && localFrame == intent.LocalFrame)
+            {
+                var authoredFrameUnits = _state.WindupTiming.ProjectAuthoredMilliseconds(frameIndex, duration) * tickRate;
+                localSeconds += (authoredFrameUnits % 1000) * duration / 1000f;
+            }
+            var normalized = length > Mathf.Epsilon ? localSeconds / length : 0f;
             if (!intent.Loop) normalized = Mathf.Clamp01(normalized);
             _animator.Play(hash, intent.Layer, normalized);
             _animator.Update(0f);
@@ -159,8 +167,13 @@ namespace AbilityKit.Game.Flow
             if (_presentation == null) return;
             _presentationTemplateResolver.SetCastFrame(action.CastInstanceId, _state.CastFrame);
             var castStart = _state.CastStartFrame;
-            var elapsed = Mathf.Max(0, frame - (castStart >= 0 ? castStart : action.StartFrame)) * secondsPerFrame;
-            _presentation.SeekWithRate(action.CastInstanceId, elapsed);
+            if (_state.WindupTiming.HasValue)
+                _presentation.Seek(action.CastInstanceId,
+                    _state.WindupTiming.ProjectAuthoredMilliseconds(frame, secondsPerFrame) / 1000f);
+            else
+                _presentation.SeekWithRate(action.CastInstanceId,
+                    Mathf.Max(0, frame - (castStart >= 0 ? castStart : action.StartFrame)) * secondsPerFrame);
+            SampleTimelineClips(action.CastInstanceId, _presentation.AuthoredSeconds);
         }
 
         private void StopPresentation()
@@ -191,7 +204,7 @@ namespace AbilityKit.Game.Flow
             ClipDto clip,
             float offsetSeconds)
         {
-            await PlayPresentationAsync(request, CancellationToken.None);
+            await PlayPresentationAsync(request, CancellationToken.None, clip);
         }
 
         public Task OnPresentationRequestAsync(
@@ -201,7 +214,7 @@ namespace AbilityKit.Game.Flow
             float offsetSeconds,
             CancellationToken cancellationToken)
         {
-            return PlayPresentationAsync(request, cancellationToken);
+            return PlayPresentationAsync(request, cancellationToken, clip);
         }
 
         public void OnTimelineStop(long skillInstanceId)
@@ -209,7 +222,7 @@ namespace AbilityKit.Game.Flow
             StopTimelineHandles(skillInstanceId);
         }
 
-        private async Task PlayPresentationAsync(PresentationRequest request, CancellationToken cancellationToken)
+        private async Task PlayPresentationAsync(PresentationRequest request, CancellationToken cancellationToken, ClipDto clip = null)
         {
             if (!request.IsValid || !this || !isActiveAndEnabled)
             {
@@ -243,10 +256,15 @@ namespace AbilityKit.Game.Flow
                     return;
                 }
                 var skillInstanceId = ParseSkillInstanceId(request.LogicalKey);
+                var visual = handle.BackendHandle.Visual;
+                var sampled = request.AssetKind != PresentationAssetKind.Animation && visual != null
+                    ? visual.GetComponent<UnityTimelineSampledAnimation>() : null;
                 var stopImmediately = false;
                 lock (_timelineHandles)
                 {
-                    if (skillInstanceId <= 0 || cancellationToken.IsCancellationRequested)
+                    if (skillInstanceId <= 0 || cancellationToken.IsCancellationRequested ||
+                        (sampled != null && (clip == null || _state?.Action.CastInstanceId != skillInstanceId ||
+                            _presentation == null || !TrySampleClip(clip, sampled, _presentation.AuthoredSeconds))))
                     {
                         stopImmediately = true;
                     }
@@ -258,6 +276,7 @@ namespace AbilityKit.Game.Flow
                             _timelineHandles[skillInstanceId] = handles;
                         }
                         handles.Add(handle);
+                        if (sampled != null) _sampledClips.Add(handle, (clip, sampled));
                     }
                 }
                 if (stopImmediately) await handle.StopAsync();
@@ -268,6 +287,33 @@ namespace AbilityKit.Game.Flow
             catch (Exception exception)
             {
                 Debug.LogException(exception);
+            }
+        }
+
+        private static bool TrySampleClip(ClipDto clip, UnityTimelineSampledAnimation animation, float authoredSeconds)
+        {
+            var offset = authoredSeconds - clip.start;
+            if (animation == null || offset < 0f || offset >= clip.length) return false;
+            animation.Sample(offset);
+            return true;
+        }
+
+        private void SampleTimelineClips(long castId, float authoredSeconds)
+        {
+            lock (_timelineHandles)
+            {
+                if (_sampledClips.Count == 0 || !_timelineHandles.TryGetValue(castId, out var handles)) return;
+                foreach (var handle in handles)
+                    if (_sampledClips.TryGetValue(handle, out var sampled) &&
+                        !TrySampleClip(sampled.Clip, sampled.Animation, authoredSeconds))
+                        _finishedSampledClips.Add(handle);
+                foreach (var handle in _finishedSampledClips)
+                {
+                    handles.Remove(handle);
+                    _sampledClips.Remove(handle);
+                    _ = handle.StopAsync();
+                }
+                _finishedSampledClips.Clear();
             }
         }
 
@@ -310,6 +356,7 @@ namespace AbilityKit.Game.Flow
                 _timelineHandles.Remove(skillInstanceId);
                 handles = new PresentationHandle<PresentationUnityHandle>[owned.Count];
                 owned.CopyTo(handles);
+                foreach (var handle in handles) _sampledClips.Remove(handle);
             }
             for (var i = 0; i < handles.Length; i++)
                 if (handles[i] != null) _ = handles[i].StopAsync();

@@ -305,7 +305,7 @@ namespace AbilityKit.Demo.Moba.Services
                     }
                     var events = ToArray(phase.Timeline.Events);
                     return new TimelinePhaseDefinition(MakePhaseId(phase, timelinePhaseId.Value), phase.Timeline.DurationMs, events, _effects,
-                        phase.Timeline.RecoveryStartMs, phase.Timeline.CastGateTagTemplateId, phase.Timeline.CastGateEndMs);
+                        phase.Timeline.RecoveryStartMs, phase.Timeline.CastGateTagTemplateId, phase.Timeline.CastGateEndMs, phase.Timeline.Windup);
                 case SkillPhaseType.Handlers:
                     throw new InvalidOperationException($"Skill Handlers phase is deprecated. Use RulePlan trigger actions instead. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
                 case SkillPhaseType.RulePlan:
@@ -525,9 +525,10 @@ namespace AbilityKit.Demo.Moba.Services
 
             private readonly int _gateTemplateId;
             private readonly int _gateEndMs;
+            private readonly SkillTimelineWindupDTO _windup;
 
             public TimelinePhaseDefinition(AbilityPipelinePhaseId phaseId, int durationMs, SkillTimelineEventDTO[] events, MobaEffectInvokerService effects,
-                int recoveryStartMs, int gateTemplateId, int gateEndMs)
+                int recoveryStartMs, int gateTemplateId, int gateEndMs, SkillTimelineWindupDTO windup)
                 : base(phaseId)
             {
                 _durationMs = durationMs;
@@ -536,11 +537,12 @@ namespace AbilityKit.Demo.Moba.Services
                 _recoveryStartMs = recoveryStartMs;
                 _gateTemplateId = gateTemplateId;
                 _gateEndMs = gateEndMs;
+                _windup = windup;
             }
 
             public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
             {
-                return new SkillTimelinePhase(PhaseId, _durationMs, _events, _effects, _recoveryStartMs, _gateTemplateId, _gateEndMs);
+                return new SkillTimelinePhase(PhaseId, _durationMs, _events, _effects, _recoveryStartMs, _gateTemplateId, _gateEndMs, _windup);
             }
         }
 

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.triggering.actionscheduling/Runtime/**/*.cs" />
+    <InternalsVisibleTo Include="AbilityKit.Triggering.ActionScheduling.Tests" />
+    <ProjectReference Include="../AbilityKit.Core/AbilityKit.Core.csproj" />
+    <ProjectReference Include="../AbilityKit.Triggering/AbilityKit.Triggering.csproj" />
+  </ItemGroup>
+</Project>

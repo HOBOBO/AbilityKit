@@ -1,0 +1,7 @@
+{
+  "name": "AbilityKit.Record.Unity",
+  "rootNamespace": "AbilityKit.Record.Unity",
+  "references": ["AbilityKit.Record"],
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

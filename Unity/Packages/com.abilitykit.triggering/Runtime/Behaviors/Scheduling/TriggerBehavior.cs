@@ -3,7 +3,6 @@ using AbilityKit.Triggering.Runtime.Behavior;
 using AbilityKit.Triggering.Runtime.Config.Actions;
 using AbilityKit.Triggering.Runtime.Config.Plans;
 using AbilityKit.Triggering.Runtime.Factory;
-using AbilityKit.Triggering.Runtime.Sync;
 
 namespace AbilityKit.Triggering.Runtime.Behavior.Schedule
 {

@@ -57,6 +57,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         Blacklist = 0x0202,
         RequireUnitSubType = 0x0206,
         RequireCasterTeam = 0x0207,
+        RequireCombatHealth = 0x0208,
     }
 
     public enum SearchTargetScorerKind

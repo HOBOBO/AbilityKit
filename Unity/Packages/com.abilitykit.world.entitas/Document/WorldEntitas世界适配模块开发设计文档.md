@@ -1,5 +1,10 @@
 # Ability-Kit World Entitas 世界适配模块开发设计文档
 
+> 文档类型：历史设计材料
+> 核校状态：部分核校；保留旧路径与正文，2026-11-25 补充当前契约导航，不代表历史方案全部成立。
+>
+> 当前接入、contexts factory 前置条件、初始化和释放失败边界见[使用指南](../Documentation~/Usage.md)。contexts 在 EntitasWorld 构造函数内创建，Composer 负责后续组合；下文旧流程不能替代此顺序。本轮没有 Unity 或业务 contexts 验收。
+
 > **阅读对象**：需要把 Entitas ECS 与 AbilityKit World 创建、模块安装、系统执行连接起来的开发者。
 >
 > **文档目标**：说明 World Entitas 包的世界封装、系统基类、模块安装和扩展点。
@@ -58,5 +63,5 @@ sequenceDiagram
 
 ---
 
-*文档版本：1.0*  
+*文档版本：1.0*
 *最后更新：2026-06-05*

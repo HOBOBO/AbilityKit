@@ -3,7 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using AbilityKit.BattleScenario;
+using AbilityKit.BattleScenario.Editor;
 using AbilityKit.Demo.Moba.EnvironmentModel;
 using AbilityKit.Game.Battle.Testing;
 using AbilityKit.Scenario;
@@ -27,6 +30,137 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
             BattleScenarioRunnerRegistry.BatchRunner = runner;
             BattleScenarioRunnerRegistry.DslParser = MobaBattleScenarioDslParser.Parse;
             BattleScenarioRunnerRegistry.DocumentDslParser = MobaBattleScenarioDslParser.ParseDocument;
+        }
+
+        internal sealed class ArchiveBatchExecution
+        {
+            internal string OutputRoot;
+            internal string LogDirectory;
+            internal string RunId;
+            internal string Error;
+            internal int? ExitCode;
+        }
+
+        /// <summary>
+        /// 默认从仓库已保存的技能表现预设选用例。
+        /// </summary>
+        internal static string DefaultArchivePresetDirectory() =>
+            Path.Combine(Path.GetDirectoryName(ResolveRunnerProject()), "Flows", "SkillPresentation");
+
+        /// <summary>
+        /// 在编辑器后台启动唯一的 .NET CLI；不经场景编辑器的混合宿主路由。
+        /// </summary>
+        internal static Task<ArchiveBatchExecution> ExecuteArchiveBatch(string presetDirectory, string outputRoot,
+            string mode, IReadOnlyList<string> selectedCases)
+        {
+            var projectPath = ResolveRunnerProject();
+            if (!File.Exists(projectPath))
+                throw new FileNotFoundException("未找到仓库内的 MOBA Battle Scenario Runner。", projectPath);
+            var repository = Directory.GetParent(Path.GetDirectoryName(projectPath)).Parent.FullName;
+            var logDirectory = Path.Combine(repository, "local", "Logs", "moba-scenario-editor",
+                $"{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}");
+            return Task.Run(() => RunArchiveBatch(projectPath, repository, presetDirectory, outputRoot, mode, selectedCases, logDirectory));
+        }
+
+        private static ArchiveBatchExecution RunArchiveBatch(string projectPath, string repository, string presetDirectory,
+            string outputRoot, string mode, IReadOnlyList<string> selectedCases, string logDirectory)
+        {
+            var result = new ArchiveBatchExecution { OutputRoot = outputRoot, LogDirectory = logDirectory };
+            try
+            {
+                Directory.CreateDirectory(logDirectory);
+                Directory.CreateDirectory(outputRoot);
+                if ((File.GetAttributes(outputRoot) & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException("分析库不能是重解析点。");
+                var receipt = Path.Combine(logDirectory, "run-id.txt");
+                var arguments = new List<string> { "run", "--project", projectPath, "--", "--batch", presetDirectory,
+                    "--output-dir", outputRoot, "--evidence", mode, "--receipt", receipt };
+                foreach (var caseFile in selectedCases) { arguments.Add("--case"); arguments.Add(caseFile); }
+                var start = new ProcessStartInfo
+                {
+                    FileName = "dotnet", Arguments = string.Join(" ", arguments.ConvertAll(QuoteProcessArgument)),
+                    WorkingDirectory = repository, UseShellExecute = false, CreateNoWindow = true,
+                    RedirectStandardOutput = true, RedirectStandardError = true,
+                };
+                start.EnvironmentVariables["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+                File.WriteAllText(Path.Combine(logDirectory, "command.txt"), start.FileName + " " + start.Arguments);
+                using var stdout = File.Create(Path.Combine(logDirectory, "stdout.log"));
+                using var stderr = File.Create(Path.Combine(logDirectory, "stderr.log"));
+                using var process = Process.Start(start) ?? throw new InvalidOperationException("无法启动 dotnet。");
+                var copyStdout = process.StandardOutput.BaseStream.CopyToAsync(stdout);
+                var copyStderr = process.StandardError.BaseStream.CopyToAsync(stderr);
+                process.WaitForExit();
+                Task.WaitAll(copyStdout, copyStderr);
+                result.ExitCode = process.ExitCode;
+                if (File.Exists(receipt)) result.RunId = File.ReadAllText(receipt).Trim();
+                if (string.IsNullOrEmpty(result.RunId)) result.Error = "Console Runner 没有返回已发布批次。";
+            }
+            catch (Exception error) { result.Error = error.Message; }
+            return result;
+        }
+
+        private static string QuoteProcessArgument(string argument) =>
+            "\"" + Regex.Replace(argument, "(\\\\*)(\"|$)", match =>
+                match.Groups[1].Value + match.Groups[1].Value + (match.Groups[2].Length == 0 ? "" : "\\\"")) + "\"";
+
+        /// <summary>
+        /// 在编辑器主线程定位仓库，再后台运行本地弹体表现验收；不打开窗口或修改场景。
+        /// </summary>
+        internal static Task<LocalStateSyncReplay> CaptureProjectilePresentationReplay(bool accepted)
+        {
+            var projectPath = ResolveRunnerProject();
+            if (!File.Exists(projectPath))
+                throw new FileNotFoundException("未找到仓库内的 MOBA Battle Scenario runner。", projectPath);
+            var repository = Directory.GetParent(Path.GetDirectoryName(projectPath)).Parent.FullName;
+            return Task.Run(() => RunProjectilePresentationReplay(repository, projectPath, accepted));
+        }
+
+        private static LocalStateSyncReplay RunProjectilePresentationReplay(string repository, string projectPath, bool accepted)
+        {
+            const string caseId = "jinx-w-local-presentation";
+            var variant = accepted ? "confirmed" : "rejected";
+            var output = Path.Combine(repository, "local", "Logs", "moba-acceptance",
+                $"{DateTime.Now:yyyyMMdd-HHmmss}-projectile-{variant}-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(output);
+            var start = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"run --no-restore --project \"{projectPath}\" -- --statesync-jinx-presentation \"{output}\"",
+                WorkingDirectory = repository,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            start.EnvironmentVariables["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+            File.WriteAllText(Path.Combine(output, "command.txt"), start.FileName + " " + start.Arguments);
+            var logPath = Path.Combine(output, "runner.log");
+            try
+            {
+                using var process = Process.Start(start) ?? throw new InvalidOperationException("无法启动本地 runner。");
+                var stdout = process.StandardOutput.ReadToEndAsync();
+                var stderr = process.StandardError.ReadToEndAsync();
+                if (!process.WaitForExit(180_000))
+                {
+                    if (!process.HasExited) process.Kill();
+                    throw new TimeoutException("本地 runner 超过 180 秒。");
+                }
+                if (!Task.WaitAll(new Task[] { stdout, stderr }, 5_000))
+                    throw new TimeoutException("本地 runner 已退出，但日志输出未及时关闭。");
+                File.WriteAllText(logPath, stdout.GetAwaiter().GetResult() + Environment.NewLine + stderr.GetAwaiter().GetResult());
+                if (process.ExitCode != 0)
+                    throw new InvalidOperationException($"本地 runner 退出码 {process.ExitCode}。请检查本地构建和运行日志。");
+
+                var replay = LocalStateSyncReplay.Parse(File.ReadAllText(Path.Combine(output, $"{caseId}.{variant}.statesync-replay.json")));
+                if (replay.CaseId != caseId || replay.Variant != variant)
+                    throw new InvalidDataException("本地 runner 返回了不匹配的样例。");
+                return replay;
+            }
+            catch (Exception error)
+            {
+                File.AppendAllText(logPath, Environment.NewLine + error);
+                throw new InvalidOperationException($"{error.Message} 日志：{logPath}", error);
+            }
         }
 
         public BattleScenarioRunResult Run(TestScenario scenario)
@@ -164,7 +298,13 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
         private static string ResolveRunnerProject()
         {
             var repoRoot = Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
-            return Path.Combine(repoRoot, "src", "AbilityKit.Demo.Moba.BattleScenario.Runner", "AbilityKit.Demo.Moba.BattleScenario.Runner.csproj");
+            const string relativeProjectPath = "src/AbilityKit.Demo.Moba.BattleScenario.Runner/AbilityKit.Demo.Moba.BattleScenario.Runner.csproj";
+            for (var directory = new DirectoryInfo(repoRoot); directory != null; directory = directory.Parent)
+            {
+                var candidate = Path.Combine(directory.FullName, relativeProjectPath);
+                if (File.Exists(candidate)) return candidate;
+            }
+            return Path.Combine(repoRoot, relativeProjectPath);
         }
 
         /// <summary>读取 .NET runner 顺带回传的 trace 树 JSON（缺失/损坏不致命）。</summary>

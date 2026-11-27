@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace AbilityKit.Dataflow
 {
@@ -44,7 +43,7 @@ namespace AbilityKit.Dataflow
         public int FailedProcessorIndex { get; }
 
         /// <summary>
-        /// 失败处理器名称；非失败结果为 null。
+        /// 失败处理器名称；没有失败处理器或其名称无法取得时为 null。
         /// </summary>
         public string FailedProcessorName { get; }
 

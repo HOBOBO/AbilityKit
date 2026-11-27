@@ -10,6 +10,38 @@ namespace AbilityKit.Combat.Projectile.Tests;
 public sealed class ProjectileRollbackPreflightTests
 {
     [Fact]
+    public void Local_type_cut_preserves_the_zero_lifetime_boundary_and_next_id_without_spawning()
+    {
+        const int mask = 1 << 24;
+        using var collisions = new CollisionService();
+        using var source = new ProjectileService(collisions);
+        using var candidate = new ProjectileService(collisions);
+        var spawn = new ProjectileSpawnParams(1, 17, 0, 1, 0, Vec3.Zero, Vec3.Right, 2f, 0, 0f, 0f, 1, 30f,
+            mask, ColliderId.Invalid);
+        var projectile = source.Spawn(in spawn);
+        Assert.Throws<InvalidOperationException>(() => source.CaptureLocalFlightCut(new FrameIndex(0), mask));
+        source.Tick(1, .25f);
+        DrainNotifications(source);
+        var cut = source.CaptureLocalFlightCut(new FrameIndex(1), mask);
+        Assert.Equal(0, cut.LifetimeFramesLeft);
+        Assert.Throws<InvalidOperationException>(() => candidate.RestoreLocalFlightCut(new FrameIndex(0), cut, mask));
+        Assert.Throws<InvalidOperationException>(() => candidate.RestoreLocalFlightCut(new FrameIndex(1), cut, mask >> 1));
+        Assert.Equal(0, candidate.ActiveCount);
+        candidate.RestoreLocalFlightCut(new FrameIndex(1), cut, mask);
+        Assert.Equal(0, candidate.PendingNotificationCount);
+        Assert.True(candidate.TryGetRuntimeState(projectile, out var position));
+        Assert.True(source.TryGetRuntimeState(projectile, out var reference));
+        Assert.Equal(reference.Position, position.Position);
+        source.Tick(2, .25f);
+        candidate.Tick(2, .25f);
+        var exits = new List<ProjectileExitEvent>();
+        candidate.DrainExitEvents(exits);
+        Assert.Equal(projectile, Assert.Single(exits).Projectile);
+        Assert.Equal(0, candidate.ActiveCount);
+        Assert.Equal(source.Spawn(in spawn), candidate.Spawn(in spawn));
+    }
+
+    [Fact]
     public void Missing_policy_rejects_direct_import_before_clearing_current_projectiles()
     {
         const int kind = 93571;

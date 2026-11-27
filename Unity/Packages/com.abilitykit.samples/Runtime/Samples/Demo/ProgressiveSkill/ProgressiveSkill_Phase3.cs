@@ -214,7 +214,7 @@ namespace AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill
                 numericFunctions: null,
                 policy: default,
                 interruptPolicy: EInterruptPolicy.None,
-                actionSchedulerManager: null);
+                flatActionScheduler: null);
         }
 
         private void RegisterTriggers(Phase3Config config)

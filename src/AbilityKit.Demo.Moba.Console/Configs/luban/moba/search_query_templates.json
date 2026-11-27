@@ -840,6 +840,9 @@
         "Kind": 257,
         "Center": 3,
         "Radius": 4
+      },
+      {
+        "Kind": 520
       }
     ],
     "Scorers": [

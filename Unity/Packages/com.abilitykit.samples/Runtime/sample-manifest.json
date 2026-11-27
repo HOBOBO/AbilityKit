@@ -4960,7 +4960,7 @@
           "outputHint": "HFSM.Step"
         },
         {
-          "sourceFile": "Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/StateMachine/StateMachine.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.hfsm.core/Runtime/Core/StateMachine/StateMachine.cs",
           "title": "StateMachine.OnLogic",
           "explanation": "说明每帧先尝试转换再执行 activeState.OnLogic。",
           "startLine": 79,
@@ -5205,7 +5205,7 @@
           "outputHint": "HFSMBridge.FinalState"
         },
         {
-          "sourceFile": "Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/StateMachine/StateMachine.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.hfsm.core/Runtime/Core/StateMachine/StateMachine.cs",
           "title": "StateMachine.AddTriggerTransition",
           "explanation": "说明 trigger transition 只在对应 trigger 触发时检查。",
           "startLine": 272,

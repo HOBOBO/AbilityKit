@@ -93,6 +93,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return response;
         }
 
+        internal bool MatchesLocalFlight(MobaActorRegistry registry, int unitSubType) =>
+            ReferenceEquals(_registry, registry) && _hitUnitSubType == unitSubType &&
+            _trackingTargetActorId == 0 && _rules.Length == 0;
+
         public byte[] CaptureSnapshot()
         {
             using (var stream = new MemoryStream())

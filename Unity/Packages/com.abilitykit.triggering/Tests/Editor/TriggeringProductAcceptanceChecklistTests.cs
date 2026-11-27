@@ -22,7 +22,7 @@ namespace AbilityKit.Triggering.Tests
             StringAssert.Contains("TriggeringDiagnosticCollector", productGuide);
             StringAssert.Contains("dotnet test src/AbilityKit.Triggering.Tests/AbilityKit.Triggering.Tests.csproj", productGuide);
             StringAssert.Contains("TriggeringRuntimePoolingHotspotScanTests", productGuide);
-            StringAssert.Contains("TriggeringRuntimePools.CreateDefault", stageClosureGuide);
+            StringAssert.Contains("new ActionSchedulerPools", stageClosureGuide);
             StringAssert.Contains("(ProductAcceptanceGuide.md#固定验证流程)", stageClosureGuide);
             StringAssert.Contains("(StageClosureGuide.md)", packageReadme);
             StringAssert.Contains("AbilityKit/Triggering/Diagnostics/Write Runtime Report", packageReadme);
@@ -66,8 +66,7 @@ namespace AbilityKit.Triggering.Tests
             var expectedScripts = new System.Collections.Generic.Dictionary<string, string>
             {
                 ["Triggering Mainline"] = "FormalTriggeringMainlineExample.cs",
-                ["Triggering Queued Events"] = "QueuedEventBusExample.cs",
-                ["Triggering Rule Scheduling"] = "RuleSchedulingExample.cs"
+                ["Triggering Queued Events"] = "QueuedEventBusExample.cs"
             };
             Assert.That(samples.Select(sample => sample.displayName), Is.EquivalentTo(expectedScripts.Keys));
             foreach (var sample in samples)

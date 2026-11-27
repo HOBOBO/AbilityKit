@@ -7,10 +7,10 @@
       {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
     ],
     "setup": [
-      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3002, "attributeTemplateId": 3002, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"}
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3002, "attributeTemplateId": 3002, "teamId": 1, "position": {"x": 11, "y": 0, "z": -4}, "playerId": "player_1"}
     ],
     "timeline": [
-      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 3, "position": {"x": 7, "y": 0, "z": 1}, "direction": {"x": 0, "y": 0, "z": 1}}
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 3, "position": {"x": 11, "y": 0, "z": 1}, "direction": {"x": 0, "y": 0, "z": 1}}
     ],
     "assertions": [
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30020301, "minCount": 1, "maxCount": 1},

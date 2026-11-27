@@ -16,7 +16,9 @@
 包内 `Documentation~/IntegrationGuide.md` 说明了安装和项目接入步骤，不要求使用本仓库脚本。
 
 `TinyConsumer.PlayMode.Tests` 程序集在无界面的 Unity 中检查大厅到 Tiny 再返回大厅的场景路径。
-它使用测试令牌和不可用的本地端口，无需运行服务器即可验证场景装配。
+它使用测试令牌和不可用的本地端口，无需运行服务器即可验证场景装配，不验证认证或联机。
+生成的 `ConsumerLobby` 不提供真实登录 UI；项目应把自己的登录结果交给 `Enter`。
+从仓库运行生成与定向验收的完整步骤见 `Docs/tutorials/tiny/07-正式项目装配.md`。
 
 `TinyConsumer.Network.PlayMode.Tests` 仅在验证脚本启动的 Gateway 运行时执行。
 它使用真实场景根节点和第二个网络会话，检查状态同步、帧同步、混合同步的玩法与恢复。

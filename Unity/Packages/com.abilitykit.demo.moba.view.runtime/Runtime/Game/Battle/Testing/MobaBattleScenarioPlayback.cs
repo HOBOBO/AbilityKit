@@ -6,6 +6,8 @@ using System.Linq;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.EnvironmentModel;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Moba.Config;
@@ -40,8 +42,8 @@ namespace AbilityKit.Game.Battle.Testing
         {
             TestScenarioValidator.ThrowIfInvalid(scenario);
             if (scenario.Seed == 0)
-                throw new NotSupportedException("?????????????????");
-            if (scenario.Setup.Count != 0 || scenario.Obstacles.Count != 0 || scenario.Commands.Count != 0 ||
+                throw new NotSupportedException("技能预览必须指定非零随机种子。");
+            if (scenario.Obstacles.Count != 0 || scenario.Commands.Count != 0 ||
                 scenario.NetworkWatches.Count != 0 || scenario.WorldParameters.Count != 0 ||
                 !string.IsNullOrEmpty(scenario.EnvironmentProfileId) || !string.IsNullOrEmpty(scenario.NavigationProfileId) ||
                 scenario.WorldProfileId != "default")
@@ -50,14 +52,17 @@ namespace AbilityKit.Game.Battle.Testing
                 scenario.Actors.Any(actor => actor.TeamId != 1 && actor.TeamId != 2 || actor.Position == null ||
                     actor.HeroId <= 0 || actor.Facing != null))
                 throw new NotSupportedException("预览需一个有 PlayerId 的施法者，所有角色需指定队伍、正式英雄和坐标；暂不支持初始朝向覆盖。");
-            var caster = scenario.Actors.Single(actor => !string.IsNullOrEmpty(actor.PlayerId));
             var aliases = new HashSet<string>(scenario.Actors.Select(actor => actor.Alias), StringComparer.Ordinal);
+            if (scenario.Setup.Any(action => action.Action != "set_attr" || !aliases.Contains(action.ActorAlias) ||
+                !TryResolvePreviewAttribute(action.Property, out _) || !float.IsFinite((float)action.Value)))
+                throw new NotSupportedException("预览布置仅支持为已布置角色设置有效属性（set_attr）。");
             if (scenario.Timeline.Count == 0 || scenario.Timeline.Any(step =>
                 step.Action == "move_to" ? step.Position == null || !aliases.Contains(step.ActorAlias) :
-                step.Action != "wait" && (step.ActorAlias != caster.Alias || step.Slot <= 0 ||
+                step.Action == "move_direction" ? step.Direction == null || !aliases.Contains(step.ActorAlias) :
+                step.Action != "wait" && (!aliases.Contains(step.ActorAlias) || step.Slot <= 0 ||
                 (step.Action != "cast_skill" && step.Action != "press" && step.Action != "release" &&
                  step.Action != "hold" && step.Action != "cancel"))))
-                throw new NotSupportedException("预览时间线仅支持本地角色技能输入、已布置角色的 move_to 和等待。");
+                throw new NotSupportedException("预览时间线仅支持已布置角色的技能输入、移动和等待。");
         }
 
         /// <summary>
@@ -153,7 +158,7 @@ namespace AbilityKit.Game.Battle.Testing
             }
             config.UseRoomGameStartSpec = false;
             config.EnableSyncModeSelection = false;
-            if (enableTraceDiagnostics || (!previewOnly && scenario.Expectations is MobaBattleScenarioAssertions assertions &&
+            if (enableTraceDiagnostics || (scenario.Expectations is MobaBattleScenarioAssertions assertions &&
                 assertions.MustContain.Any(expectation => expectation.Kind == nameof(MobaExecutionKind.SkillCast))))
                 config.EnableTraceDiagnostics = true;
             return config;
@@ -190,8 +195,24 @@ namespace AbilityKit.Game.Battle.Testing
                 targets.Add(alias, actorId);
             }
 
+            foreach (var action in scenario.Setup)
+            {
+                if (!registry.TryGet(targets[action.ActorAlias], out var actor) || actor == null || !actor.hasAttributeGroup ||
+                    !TryResolvePreviewAttribute(action.Property, out var attribute))
+                    throw new InvalidOperationException($"预览无法设置属性：{action.ActorAlias}.{action.Property}。");
+                var attributes = new MobaAttrs(actor);
+                var value = (float)action.Value;
+                switch (action.Property.ToLowerInvariant())
+                {
+                    case "hp": attributes.Hp = value; break;
+                    case "mana": attributes.Mana = value; break;
+                    case "rage": attributes.Rage = value; break;
+                    default: attributes.SetBase(attribute, value); break;
+                }
+            }
+
             var plan = context.Plan;
-            var input = new BattleInputSubmitter(context.InputRuntime, player, BattleInputSessionIdentity.ResolveWorldId(in plan));
+            var worldId = BattleInputSessionIdentity.ResolveWorldId(in plan);
             var origin = context.LastFrame;
             deadline = Time.realtimeSinceStartup + Math.Max(60f, scenario.TimeoutMs / 1000f + 5f);
             var nextFrame = origin;
@@ -216,6 +237,18 @@ namespace AbilityKit.Game.Battle.Testing
                     actor.ReplaceTransform(new Transform3(ToWorldVector(step.Position), pose.Rotation, pose.Scale));
                     continue;
                 }
+                var frame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(context.LastFrame, in plan);
+                var scriptedPlayer = actorPlayers[step.ActorAlias];
+                var input = new BattleInputSubmitter(context.InputRuntime, scriptedPlayer, worldId);
+                if (step.Action == "move_direction")
+                {
+                    var direction = ToWorldVector(step.Direction);
+                    var move = BattleInputCommandFactory.CreateMove(frame, scriptedPlayer, direction.X, direction.Z);
+                    if (!input.Submit(in move))
+                        throw new InvalidOperationException($"预览移动输入未提交：{scenario.CaseId} t={step.AtMs}。");
+                    nextFrame = context.LastFrame + 1;
+                    continue;
+                }
                 var phase = step.Action switch
                 {
                     "release" => SkillInputPhase.Release,
@@ -223,7 +256,6 @@ namespace AbilityKit.Game.Battle.Testing
                     "cancel" => SkillInputPhase.Cancel,
                     _ => SkillInputPhase.Press,
                 };
-                var frame = SessionSimRuntimeTuning.ResolveInputSubmitFrame(context.LastFrame, in plan);
                 var target = string.IsNullOrEmpty(step.TargetAlias) ? 0 : targets[step.TargetAlias];
                 var aimPos = ToWorldVector(step.Position);
                 var aimDir = ToWorldVector(step.Direction);
@@ -231,7 +263,7 @@ namespace AbilityKit.Game.Battle.Testing
                     aimDir = default;
                 var skill = new SkillInputEvent(slot: step.Slot, phase: phase, targetActorId: target,
                     aimPos: in aimPos, aimDir: in aimDir, targetFrame: frame);
-                var command = new PlayerInputCommand(new FrameIndex(frame), player,
+                var command = new PlayerInputCommand(new FrameIndex(frame), scriptedPlayer,
                     MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in skill));
                 if (!input.Submit(in command))
                     throw new InvalidOperationException($"预览输入未提交：{scenario.CaseId} t={step.AtMs} slot={step.Slot}。");
@@ -264,6 +296,17 @@ namespace AbilityKit.Game.Battle.Testing
                     }
                 }
             }
+        }
+
+        private static bool TryResolvePreviewAttribute(string property, out BattleAttributeType attribute)
+        {
+            attribute = BattleAttributeType.None;
+            if (string.IsNullOrEmpty(property)) return false;
+            if (string.Equals(property, "hp", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(property, "mana", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(property, "rage", StringComparison.OrdinalIgnoreCase)) return true;
+            return Enum.TryParse(property.Replace('.', '_').Replace('-', '_'), true, out attribute) &&
+                attribute != BattleAttributeType.None && Enum.IsDefined(typeof(BattleAttributeType), attribute);
         }
 
         private static int ToFrames(int milliseconds, int tickRate) => (int)Math.Ceiling(milliseconds * tickRate / 1000d);

@@ -76,7 +76,7 @@ flowchart BT
 | 对象 | 当前证据 | 仍需查证或设计的边界 |
 |---|---|---|
 | Pipeline 阶段 | [IAbilityPipelinePhase](../Unity/Packages/com.abilitykit.pipeline/Runtime/Interface/IAbilityPipelinePhase.cs) 公开；[IAbilityPipelineExtensionPoint](../Unity/Packages/com.abilitykit.pipeline/Runtime/Interface/IAbilityPipelineExtensionPoint.cs) 是阶段边界回调 | 回调接口不是阶段编译注册。MOBA 的 [阶段编译器](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Skills/Pipeline/TableDrivenMobaSkillPipelineLibrary.cs) 仍按 `SkillPhaseType` 与生成清单构造，不能推断包外新类型会自动编译/恢复 |
-| HFSM 绑定 | [BindingCatalog](../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/Runtime/BindingCatalog.cs) 可注册/扫描描述符 | Catalog 是元数据，不能代替运行时绑定、角色声明校验和动作状态恢复；仍需穿透真实消费者 |
+| HFSM 绑定 | [BindingCatalog](../Unity/Packages/com.abilitykit.hfsm.core/Runtime/Core/Runtime/BindingCatalog.cs) 可注册/扫描描述符 | Catalog 是元数据，不能代替运行时绑定、角色声明校验和动作状态恢复；仍需穿透真实消费者 |
 | MOBA PlanAction | [PlanActionModuleRegistry](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/PlanActions/Core/PlanActionModuleRegistry.cs) 有显式模块数组构造；默认采用本包生成清单，反射回退只扫本程序集且正式构建禁用 | 外包加特性不等于会被默认发现。需验证已有默认模块如何合并、DI 替换、作者描述符、校验及发布；不能手改生成清单 |
 | Projectile HitPolicy | [ProjectileHitPolicyFactory](../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Policies/ProjectileHitPolicyFactory.cs) 可 RegisterFactory/RegisterType/Scan | 静态全局注册；自定义 Kind 的配置校验、恢复与多世界一致性需核对，不能当作世界隔离注册 |
 | Projectile schedule | [PatternResolver 与快照接口](../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Schedules/IProjectileSchedulePatternResolver.cs) 区分捕获、只读 Validate、冻结模式和动态 provider 恢复 | 已有描述与接入边界，但不证明任意插件的作者源、描述版本及所需依赖已经接通 |

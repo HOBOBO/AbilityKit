@@ -170,6 +170,9 @@ namespace AbilityKit.Game.Editor
                 case BattleDiagnosticSelectionKind.Actor:
                     RefreshActor(session, selection);
                     break;
+                case BattleDiagnosticSelectionKind.ActorAttributeEvidence:
+                    StatusMessage = $"Actor #{selection.Id} · Trace #{selection.RelatedId} · 第 {selection.Frame} 帧；见属性证据页。";
+                    break;
                 case BattleDiagnosticSelectionKind.Event:
                     RefreshEvent(session, selection);
                     break;

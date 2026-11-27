@@ -2,6 +2,13 @@
   "Id": 30020201,
   "Name": "Jinx - Zap!",
   "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": false,
+  "RequiredBuffQualificationId": 0,
   "Phases": [
     {
       "Type": 4,
@@ -30,9 +37,18 @@
       "PhaseId": "skill_30020201_action",
       "Timeline": {
         "DurationMs": 1550,
+        "RecoveryStartMs": -1,
+        "CastGateTagTemplateId": 0,
+        "CastGateEndMs": 0,
+        "Windup": {
+          "AuthoredMs": 500,
+          "BaseMs": 600,
+          "MinimumMs": 400,
+          "AttackSpeedPercentAtMinimum": 250
+        },
         "Events": [
           {
-            "AtMs": 0,
+            "AtMs": 500,
             "EffectId": 30020203,
             "ExecuteMode": 0,
             "AbortOnFailure": false,

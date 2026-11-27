@@ -243,9 +243,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 });
             }
             var output = new JObject { ["controllers"] = controllers, ["prefabs"] = prefabs };
-            var destination = Path.GetFullPath(Path.Combine(Application.dataPath, "../../local/lux-unity-resource-facts.json"));
-            Directory.CreateDirectory(Path.GetDirectoryName(destination));
-            File.WriteAllText(destination, output.ToString(Formatting.Indented));
+            var destination = MobaHeroInspectionReport.Write("lux-unity-resource-facts.json",
+                output.ToString(Formatting.Indented));
             Debug.Log("[LuxSkillSync] Read-only resource inspection complete: " + destination);
         }
 

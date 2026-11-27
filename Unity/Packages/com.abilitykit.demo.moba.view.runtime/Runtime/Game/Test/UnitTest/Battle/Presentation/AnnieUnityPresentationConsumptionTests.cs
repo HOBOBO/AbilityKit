@@ -213,6 +213,25 @@ namespace AbilityKit.Game.Tests
             }
         }
 
+        [TestCase(0f, 0f)]
+        [TestCase(0.1f, 0.125f)]
+        public void TibbersEnragedAttack_RequestsOneAcceleratedAttackAnimation(float startSeconds, float normalizedTime)
+        {
+            var asset = Resources.Load<TextAsset>("moba/action_timeline/skill_30030103.moba.presentation");
+            Assert.IsNotNull(asset);
+            var sink = new TimelineRecordingSink();
+            var runtime = new MobaSkillPresentationTimelineRuntime(
+                30030103, asset.text, sink, new MobaPresentationTemplateResolver());
+            runtime.StartAt(startSeconds);
+            for (var tick = 0; tick < 65; tick++) runtime.Tick(0.01f);
+            Assert.AreEqual(1, sink.ClipCount);
+            Assert.AreEqual(PresentationAssetKind.Animation, sink.LastRequest.AssetKind);
+            Assert.AreEqual("Void_Annie_Tibbers_Attack1", sink.LastRequest.Playback.ClipKey);
+            Assert.AreEqual(2.5f, sink.LastRequest.Playback.Speed);
+            Assert.AreEqual(normalizedTime, sink.LastRequest.Playback.NormalizedTime, 0.001f);
+            runtime.Stop();
+        }
+
         private static void AssertBuffPresentation(
             MobaSkillConfigTestHarness harness,
             IConfigTable<PresentationTemplateMO> templates,
@@ -1264,11 +1283,13 @@ namespace AbilityKit.Game.Tests
             public int ClipCount { get; private set; }
             public int StopCount { get; private set; }
             public List<int> AssetIds { get; } = new List<int>();
+            public PresentationRequest LastRequest { get; private set; }
 
             public void OnPresentationRequest(in PresentationRequest request, GroupDto group, ClipDto clip, float offsetSeconds)
             {
                 ClipCount++;
                 AssetIds.Add(request.AssetId);
+                LastRequest = request;
             }
 
             public void OnClipStart(long skillInstanceId, GroupDto group, ClipDto clip, float offsetSeconds)

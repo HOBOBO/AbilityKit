@@ -1,0 +1,8 @@
+{
+  "name": "AbilityKit.Record.Unity.Editor",
+  "rootNamespace": "AbilityKit.Record.Unity.Editor",
+  "references": ["AbilityKit.Record.Unity"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

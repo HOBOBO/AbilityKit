@@ -1,25 +1,29 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 
 namespace AbilityKit.Triggering.Tests
 {
     public sealed class RuntimeCompatibilityLegacyEntryScanTests
     {
+        private static readonly Regex HistoricalEntrypoint = new Regex(
+            @"AbilityKit\.Triggering\.Runtime\.Scheduler|TriggerDispatcherHub|TriggerDispatcherRegistry|EventBusDispatcher|TimedDispatcher|\b(ExecutableRegistry|ExecutableDescriptor|ConditionDescriptor|ExecutableTriggerDatabase|ScheduledExecutor)\b",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        [TestCase("using AbilityKit.Triggering.Runtime.Executable; ExecutionResult result;", false)]
+        [TestCase("using AbilityKit.Triggering.Runtime.Executable; ExecutableRegistry.Get(1);", true)]
+        [TestCase("AbilityKit.Triggering.Runtime.Executable.ScheduledExecutor executor;", true)]
+        public void HistoricalScan_DistinguishesRetainedResultFromRetiredTypes(string source, bool isForbidden)
+        {
+            Assert.That(HistoricalEntrypoint.IsMatch(source), Is.EqualTo(isForbidden));
+        }
+
         [Test]
         public void PackageExternalSources_DoNotReferenceHistoricalTriggeringEntrypoints()
         {
             var packagesRoot = FindPackagesRoot();
-            var forbidden = new[]
-            {
-                "AbilityKit.Triggering.Runtime.Scheduler",
-                "AbilityKit.Triggering.Runtime.Executable",
-                "TriggerDispatcherHub",
-                "TriggerDispatcherRegistry",
-                "EventBusDispatcher",
-                "TimedDispatcher"
-            };
             var violations = new List<string>();
 
             foreach (var file in Directory.EnumerateFiles(packagesRoot, "*.cs", SearchOption.AllDirectories))
@@ -34,13 +38,10 @@ namespace AbilityKit.Triggering.Tests
                 if (normalized.Contains("/Docs/", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var text = File.ReadAllText(file);
-                for (int i = 0; i < forbidden.Length; i++)
+                var match = HistoricalEntrypoint.Match(File.ReadAllText(file));
+                if (match.Success)
                 {
-                    if (text.Contains(forbidden[i], StringComparison.Ordinal))
-                    {
-                        violations.Add($"{normalized}: {forbidden[i]}");
-                    }
+                    violations.Add($"{normalized}: {match.Value}");
                 }
             }
 

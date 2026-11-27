@@ -48,7 +48,7 @@
       "PhaseId": "tibbers_basic_attack",
       "Timeline": {
         "DurationMs": 1875,
-        "RecoveryStartMs": -1,
+        "RecoveryStartMs": 0,
         "CastGateTagTemplateId": 0,
         "CastGateEndMs": 0,
         "Events": [

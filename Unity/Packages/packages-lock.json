@@ -253,9 +253,7 @@
       "version": "file:com.abilitykit.dataflow",
       "depth": 0,
       "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.core": "0.1.0"
-      }
+      "dependencies": {}
     },
     "com.abilitykit.demo.common": {
       "version": "file:com.abilitykit.demo.common",
@@ -301,7 +299,8 @@
         "com.abilitykit.world.entitas": "0.1.0",
         "com.abilitykit.host": "0.1.0",
         "com.abilitykit.hotreload": "0.1.0",
-        "com.abilitykit.hfsm": "0.1.0"
+        "com.abilitykit.hfsm": "0.1.0",
+        "com.abilitykit.hfsm.core": "0.1.0"
       }
     },
     "com.abilitykit.demo.moba.environment": {
@@ -354,6 +353,7 @@
         "com.abilitykit.attributes": "0.1.0",
         "com.abilitykit.actionschema": "0.1.0",
         "com.abilitykit.hfsm": "0.1.0",
+        "com.abilitykit.hfsm.core": "0.1.0",
         "com.abilitykit.host": "0.1.0",
         "com.abilitykit.world.di": "0.1.0",
         "com.abilitykit.world.entitas": "0.1.0",
@@ -455,6 +455,7 @@
         "com.abilitykit.network.client": "0.1.0",
         "com.abilitykit.game.view.runtime": "0.1.0",
         "com.abilitykit.hfsm": "0.1.0",
+        "com.abilitykit.hfsm.core": "0.1.0",
         "com.abilitykit.host": "0.1.0",
         "com.abilitykit.host.extension": "0.1.0",
         "com.abilitykit.demo.moba.host": "0.0.1",
@@ -543,6 +544,7 @@
         "com.abilitykit.game.battle.runtime": "0.1.0",
         "com.abilitykit.network.battle": "0.1.0",
         "com.abilitykit.hfsm": "0.1.0",
+        "com.abilitykit.hfsm.core": "0.1.0",
         "com.abilitykit.host": "0.1.0",
         "com.abilitykit.network.runtime": "0.1.0",
         "com.abilitykit.thirdparty.svelto": "0.0.1",
@@ -672,7 +674,7 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
-        "com.abilitykit.hfsm": "0.1.0"
+        "com.abilitykit.hfsm.core": "0.1.0"
       }
     },
     "com.abilitykit.game.battle.runtime": {
@@ -719,6 +721,22 @@
     },
     "com.abilitykit.hfsm": {
       "version": "file:com.abilitykit.hfsm",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.base.editor": "0.1.0",
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0",
+        "com.abilitykit.hfsm.core": "0.1.0",
+        "com.unity.modules.ai": "1.0.0",
+        "com.unity.modules.animation": "1.0.0",
+        "com.unity.modules.imgui": "1.0.0",
+        "com.unity.modules.jsonserialize": "1.0.0",
+        "com.unity.modules.uielements": "1.0.0"
+      }
+    },
+    "com.abilitykit.hfsm.core": {
+      "version": "file:com.abilitykit.hfsm.core",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
@@ -770,6 +788,7 @@
       "dependencies": {
         "com.abilitykit.ability": "0.1.0",
         "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.thirdparty.entitas": "0.0.1",
         "com.abilitykit.world.di": "0.1.0",
         "com.abilitykit.world.entitas": "0.1.0"
       }
@@ -960,6 +979,7 @@
         "com.abilitykit.world.framesync": "0.1.0",
         "com.abilitykit.world.snapshot": "0.1.0",
         "com.abilitykit.host": "0.1.0",
+        "com.unity.nuget.newtonsoft-json": "3.2.1",
         "com.cysharp.memorypack": "1.10.0",
         "org.nuget.system.runtime.compilerservices.unsafe": "5.0.0"
       }
@@ -990,6 +1010,7 @@
         "com.abilitykit.game.battle.runtime": "0.1.0",
         "com.abilitykit.gameplaytags": "0.1.0",
         "com.abilitykit.hfsm": "0.1.0",
+        "com.abilitykit.hfsm.core": "0.1.0",
         "com.abilitykit.host": "0.1.0",
         "com.abilitykit.host.extension": "0.1.0",
         "com.abilitykit.modifiers": "0.1.0",
@@ -1065,7 +1086,6 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.1.0",
         "com.abilitykit.context": "0.1.0"
       }
     },
@@ -1080,6 +1100,15 @@
         "com.abilitykit.world.di": "0.1.0",
         "com.abilitykit.deterministic": "0.1.0",
         "com.unity.nuget.newtonsoft-json": "3.2.1"
+      }
+    },
+    "com.abilitykit.triggering.actionscheduling": {
+      "version": "file:com.abilitykit.triggering.actionscheduling",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.triggering": "0.1.0",
+        "com.abilitykit.core": "0.1.0"
       }
     },
     "com.abilitykit.unity.pool": {

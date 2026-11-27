@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Game.Battle.Component;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
@@ -18,6 +19,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     {
         private const string View = "Packages/com.abilitykit.demo.moba.view.runtime/";
         private const string Folder = View + "Resources/ChampionVfx/11.Karthus_Project/";
+        private const float WallSourceLength = 10.007997f;
 
         public static void ImportAndSyncAndPublish()
         {
@@ -82,6 +84,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             DeriveParticle("Q_Cast", "Q_Warning", 0f, false, true);
             DeriveParticle("R_Hit", "R_Hit", 3f, false, false);
             DeriveParticle("E_Area", "E_Aura", 0f, true, false);
+            DeriveDefileAccent("E_Activation", "PS_Shockwave_Activation");
+            DeriveDefileAccent("E_Deactivation", "PS_Shockwave_Deactivation");
             BuildRequiemTargetPresentation();
             BuildWallPreview();
             BuildWallArea();
@@ -125,6 +129,37 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 finally { UnityEngine.Object.DestroyImmediate(instance); }
             }
 
+            void DeriveDefileAccent(string output, string branch)
+            {
+                var source = AssetDatabase.LoadAssetAtPath<GameObject>(Folder + "Karthus_Project_E_Area.prefab")
+                    ?? throw new InvalidOperationException("Missing Karthus E source prefab.");
+                var instance = UnityEngine.Object.Instantiate(source);
+                try
+                {
+                    if (PrefabUtility.IsPartOfPrefabInstance(instance))
+                        PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+                    instance.name = output;
+                    var accent = Array.Find(instance.GetComponentsInChildren<ParticleSystem>(true), particle => particle.name == branch)
+                        ?? throw new InvalidOperationException("Missing Karthus E particle branch " + branch);
+                    for (var keep = accent.transform; keep != instance.transform; keep = keep.parent)
+                    {
+                        var parent = keep.parent;
+                        for (var childIndex = parent.childCount - 1; childIndex >= 0; childIndex--)
+                        {
+                            var sibling = parent.GetChild(childIndex);
+                            if (sibling != keep) UnityEngine.Object.DestroyImmediate(sibling.gameObject);
+                        }
+                    }
+                    var main = accent.main;
+                    main.startDelay = 0f;
+                    main.loop = false;
+                    main.playOnAwake = true;
+                    main.stopAction = ParticleSystemStopAction.None;
+                    PrefabUtility.SaveAsPrefabAsset(instance, destination + output + ".prefab");
+                }
+                finally { UnityEngine.Object.DestroyImmediate(instance); }
+            }
+
             void BuildWallPreview()
             {
                 var preview = new GameObject("W_Preview");
@@ -147,6 +182,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     // the formal area resource keeps its native scale.
                     child.transform.localScale = Vector3.one * 4;
                     child.transform.localRotation = Quaternion.Euler(0, 90, 0);
+                    BindWallLength(preview, axis: 0, referenceLength: WallSourceLength * 4f, previewWidth: .5f);
                     PrefabUtility.SaveAsPrefabAsset(preview, destination + "W_Preview.prefab");
                 }
                 finally { UnityEngine.Object.DestroyImmediate(preview); }
@@ -162,9 +198,23 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     // The existing area cue applies its six-unit broadphase
                     // radius as a scale factor. The source wall is in metres.
                     child.transform.localScale = Vector3.one / 6f;
+                    BindWallLength(area, axis: 1, referenceLength: WallSourceLength / 6f);
                     PrefabUtility.SaveAsPrefabAsset(area, destination + "W_Area.prefab");
                 }
                 finally { UnityEngine.Object.DestroyImmediate(area); }
+            }
+
+            void BindWallLength(GameObject root, int axis, float referenceLength, float previewWidth = 0f)
+            {
+                var binding = new SerializedObject(root.AddComponent<BattleAreaLengthScaleBinding>());
+                binding.FindProperty("_lengthAxis").enumValueIndex = axis;
+                binding.FindProperty("_referenceLength").floatValue = referenceLength;
+                if (previewWidth > 0f)
+                {
+                    binding.FindProperty("_previewLengthParameter").stringValue = "length";
+                    binding.FindProperty("_previewWidth").floatValue = previewWidth;
+                }
+                binding.ApplyModifiedPropertiesWithoutUndo();
             }
 
             void BuildRequiemTargetPresentation()
@@ -251,9 +301,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 });
             }
             var output = new JObject { ["controllers"] = controllers, ["prefabs"] = prefabs };
-            var destination = Path.GetFullPath(Path.Combine(Application.dataPath, "../../local/karthus-unity-resource-facts.json"));
-            Directory.CreateDirectory(Path.GetDirectoryName(destination));
-            File.WriteAllText(destination, output.ToString(Formatting.Indented));
+            var destination = MobaHeroInspectionReport.Write("karthus-unity-resource-facts.json",
+                output.ToString(Formatting.Indented));
             Debug.Log("[KarthusSkillSync] Read-only resource inspection complete: " + destination);
         }
 

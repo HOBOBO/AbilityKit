@@ -1,5 +1,7 @@
 # Ability-Kit Combat Collision 碰撞抽象模块开发设计文档
 
+> **历史资料 / 已取代的接口说明**：保留 2026-06-05 背景，当前安装见[包入口](../README.md)，使用契约见[指南](../Documentation~/Usage.md)。当前类型为 ICollisionWorld、NaiveCollisionWorld 和 GridCollisionWorld，形状在 CollisionPrimitives.cs；下文 CollisionWorld、CollisionShapes.cs 及“无空间分区”的表述不作为现行事实。未借本次导航更新刷新历史正文日期。
+
 > **阅读对象**：需要在战斗逻辑中进行形状查询、碰撞世界注册和命中检测的开发者。
 >
 > **文档目标**：说明该包的碰撞形状、查询、服务和世界容器边界。

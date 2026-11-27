@@ -266,6 +266,7 @@ namespace AbilityKit.Demo.Moba.Services
                     MobaInputCommandFailureCode.SkillRejected,
                     CreateSkillRejectedMessage(in skillResult, evt.Slot, evt.TargetActorId),
                     actorId)
+                    .WithSkillInputRejection(in skillResult)
                     .WithSkillDiagnostic(evt.Slot, (int)evt.Phase, evt.TargetActorId,
                         in failedRuntimeHandle);
                 return false;

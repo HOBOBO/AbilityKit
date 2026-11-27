@@ -99,7 +99,8 @@ namespace AbilityKit.Triggering.Validation
         }
 
         /// <summary>
-        /// 创建一个包含所有核心校验器的组合校验器（开发环境）
+        /// 创建开发诊断预设，包含跨作用域检查和宽松的扁平计划限额。
+        /// 预设用于受信内容的开发诊断，不是面向不受信规则的准入策略。
         /// </summary>
         public static CompositeTriggerValidator<TCtx> CreateForDevelopment(
             IActionEventMapper eventMapper = null)
@@ -112,7 +113,7 @@ namespace AbilityKit.Triggering.Validation
                 new ReferenceValidator<TCtx>(),
                 new ActionCallPlanValidator<TCtx>(),
                 new ExecutionRootValidator<TCtx>(),
-                new UgcLimitsValidator<TCtx>(
+                new FlatTriggerPlanLimitsValidator<TCtx>(
                     maxNestingDepth: 50,
                     maxNodeCount: 500,
                     maxComplexity: 200,
@@ -121,34 +122,8 @@ namespace AbilityKit.Triggering.Validation
         }
 
         /// <summary>
-        /// 创建一个用于 UGC 审核的组合校验器（严格模式）
-        /// </summary>
-        public static CompositeTriggerValidator<TCtx> CreateForUgcReview(
-            IActionEventMapper eventMapper = null,
-            int maxNestingDepth = 5,
-            int maxNodeCount = 50,
-            int maxComplexity = 30,
-            int maxActionCount = 10)
-        {
-            return new CompositeTriggerValidator<TCtx>(new ITriggerValidator<TCtx>[]
-            {
-                new CycleDetectorValidator<TCtx>(maxRecursionDepth: 5),
-                new SelfTriggerValidator<TCtx>(eventMapper),
-                new ReferenceValidator<TCtx>(),
-                new ActionCallPlanValidator<TCtx>(),
-                new ExecutionRootValidator<TCtx>(),
-                new UgcLimitsValidator<TCtx>(
-                    maxNestingDepth: maxNestingDepth,
-                    maxNodeCount: maxNodeCount,
-                    maxComplexity: maxComplexity,
-                    maxActionCount: maxActionCount),
-                new SemanticValidator<TCtx>(requireDeterministic: false),
-                new DeadCodeValidator<TCtx>()
-            });
-        }
-
-        /// <summary>
-        /// 创建一个最小校验器（仅关键检查）
+        /// 创建包含循环、引用、扁平动作和执行根检查的组合预设。
+        /// 此入口不是正式运行边界校验的别名。
         /// </summary>
         public static CompositeTriggerValidator<TCtx> CreateMinimal()
         {

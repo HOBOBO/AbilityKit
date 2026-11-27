@@ -1,5 +1,5 @@
 using System.Linq;
-using System.Threading.Tasks;
+using System.Threading;
 using AbilityKit.Diagnostics;
 using Xunit;
 
@@ -108,16 +108,53 @@ public sealed class SpanLogTests
         var profiler = new EditorProfiler();
         profiler.Start();
 
-        Parallel.For(0, 4, worker =>
+        var workers = Enumerable.Range(0, 4).Select(worker => new Thread(() =>
         {
-            for (var i = 0; i < 100; i++)
+            for (var index = 0; index < 100; index++)
             {
                 profiler.Record($"worker.{worker}", 1_000L);
             }
-        });
+        })).ToArray();
+        foreach (var worker in workers)
+        {
+            worker.Start();
+        }
+        foreach (var worker in workers)
+        {
+            worker.Join();
+        }
 
         var snapshot = profiler.GetSnapshot();
         Assert.Equal(400, snapshot.Spans.Count);
         Assert.Equal(0L, snapshot.SpansDropped);
+    }
+
+    [Fact]
+    public void Stop_racing_with_completion_keeps_measurements_and_spans_consistent()
+    {
+        var profiler = new EditorProfiler();
+        profiler.Start();
+        using var ready = new Barrier(2);
+        var tokens = Enumerable.Range(1, 64).Select(id => profiler.Begin("span.stop", id)).ToArray();
+        var worker = new Thread(() =>
+        {
+            ready.SignalAndWait();
+            foreach (var token in tokens.Reverse())
+            {
+                profiler.Complete(token);
+            }
+        });
+        worker.Start();
+        ready.SignalAndWait();
+        profiler.Stop();
+        worker.Join();
+
+        var stopped = profiler.GetSnapshot();
+        var measurements = stopped.Durations.TryGetValue("span.stop", out var summary) ? summary.Count : 0L;
+        Assert.Equal(measurements, stopped.Spans.Count);
+
+        profiler.Start();
+        Assert.Empty(profiler.GetSnapshot().Spans);
+        Assert.Empty(profiler.GetDurationSummaries());
     }
 }

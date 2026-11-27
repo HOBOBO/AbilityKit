@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Triggering;
@@ -20,6 +21,11 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaPresentationCueEntryPool _pool = new MobaPresentationCueEntryPool();
         private readonly MobaPresentationCueReplicationPolicy _replication = new MobaPresentationCueReplicationPolicy();
         private readonly MobaPresentationCuePredictionService _prediction = new MobaPresentationCuePredictionService();
+        [WorldInject(required: false)] private IWorldResolver _services;
+        private readonly List<MobaPresentationCueSnapshotEntry> _flightEntries = new();
+        private readonly Dictionary<string, MobaPresentationCueSnapshotEntry> _reportedFlights = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _currentFlightKeys = new(StringComparer.Ordinal);
+        private readonly List<string> _endedFlightKeys = new();
         private FrameIndex _lastFrame;
         private long _sequence;
         private long _generation = 1;
@@ -51,6 +57,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 _active.Clear();
                 _events.ClearAndTrim();
+                _reportedFlights.Clear();
             }
 
             _worldId = worldId;
@@ -139,6 +146,7 @@ namespace AbilityKit.Demo.Moba.Services
             foreach (var item in active)
             {
                 var entry = item.Entry;
+                if (entry.CueKind == "projectile.flight_arc") continue;
                 entry.Stage = (int)MobaPresentationCueStage.Started;
                 entry.SnapshotKind = (int)PresentationCueSnapshotKind.ActiveBaseline;
                 entry.WorldId = _worldId;
@@ -146,6 +154,18 @@ namespace AbilityKit.Demo.Moba.Services
                 entry.SourceFrame = frame;
                 if (advanceSequence) entry.Sequence = ++_sequence;
                 entry.Revision = item.Revision;
+                entries.Add(entry);
+            }
+
+            CollectFlightEntries();
+            foreach (var flight in _flightEntries)
+            {
+                var entry = flight;
+                entry.SnapshotKind = (int)PresentationCueSnapshotKind.ActiveBaseline;
+                entry.WorldId = _worldId;
+                entry.Generation = _generation;
+                entry.SourceFrame = frame;
+                if (advanceSequence) entry.Sequence = ++_sequence;
                 entries.Add(entry);
             }
 
@@ -291,6 +311,8 @@ namespace AbilityKit.Demo.Moba.Services
 
             _lastFrame = frame;
 
+            ReportFlightChanges();
+
             for (var i = 0; i < _events.Count; i++)
             {
                 var entry = _events.Items[i];
@@ -315,11 +337,48 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
+        /// <summary>
+        /// 采集时再解析弹体服务，避免触发计划装配与弹体服务互相依赖。
+        /// </summary>
+        private void CollectFlightEntries()
+        {
+            _flightEntries.Clear();
+            if (_services != null && _services.TryResolve<MobaProjectileEventSnapshotService>(out var flights))
+                flights.CollectFlightArcCues(_flightEntries);
+        }
+
+        private void ReportFlightChanges()
+        {
+            CollectFlightEntries();
+            _currentFlightKeys.Clear();
+            foreach (var entry in _flightEntries)
+            {
+                _currentFlightKeys.Add(entry.RequestKey);
+                if (_reportedFlights.ContainsKey(entry.RequestKey)) continue;
+                _reportedFlights.Add(entry.RequestKey, entry);
+                Start(in entry);
+            }
+
+            _endedFlightKeys.Clear();
+            foreach (var pair in _reportedFlights)
+            {
+                if (_currentFlightKeys.Contains(pair.Key)) continue;
+                var entry = pair.Value;
+                Remove(in entry);
+                _endedFlightKeys.Add(pair.Key);
+            }
+            foreach (var key in _endedFlightKeys) _reportedFlights.Remove(key);
+        }
+
         public void Dispose()
         {
             _events.ClearAndTrim();
             _active.Clear();
             _pool.Clear();
+            _flightEntries.Clear();
+            _reportedFlights.Clear();
+            _currentFlightKeys.Clear();
+            _endedFlightKeys.Clear();
             _lastFrame = new FrameIndex(-999999);
             _sequence = 0;
             _rejectedMissingStableKeyCount = 0;

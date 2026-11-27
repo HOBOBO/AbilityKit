@@ -21,6 +21,7 @@ namespace moba_luban
         RequireHasPosition = 517,
         RequireUnitSubType = 518,
         RequireCasterTeam = 519,
+        RequireCombatHealth = 520,
         ExcludeCaster = 769,
         ExcludeExplicitTarget = 770,
         RectangleShape = 771,

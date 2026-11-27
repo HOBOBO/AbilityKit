@@ -19,7 +19,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             new AuthoredFlow(30020003, "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jinx-fishbones-basic-attack-flow.json")
         };
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Jinx/Publish Q")]
         public static void SyncAndPublish()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
@@ -31,7 +30,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Debug.Log("[JinxQSkillSync] Published and checked Jinx Q and mode-specific basic attack flows.");
         }
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Jinx/Publish Q Presentation")]
         public static void SyncPresentationAndPublish()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
@@ -48,7 +46,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Debug.Log("[JinxQSkillSync] Q/AA timelines, HFSM and flows published and checked.");
         }
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Jinx/Check Q")]
         public static void CheckPublished()
         {
             MobaSkillPipelineExporter.Check();

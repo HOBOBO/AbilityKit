@@ -3,6 +3,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.GameplayTags;
 using moba_luban;
 
@@ -20,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Services
         Silenced = 7,
         Stunned = 8,
         Disabled = 9,
+        NotDamageable = 10,
     }
 
     public readonly struct MobaCombatRuleResult
@@ -186,10 +188,34 @@ namespace AbilityKit.Demo.Moba.Services
 
         public MobaCombatRuleResult CanReceiveDamage(int attackerActorId, int targetActorId)
         {
-            if (!TryGetActor(targetActorId, out _)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.InvalidActor, "target_not_found");
-            if (!IsAlive(targetActorId)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Dead, "target_dead");
+            if (!TryGetActor(targetActorId, out var actor)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.InvalidActor, "target_not_found");
+            if (!HasCombatHealth(actor)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.NotDamageable, "target_has_no_combat_health");
+            if (!IsAlive(actor)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Dead, "target_dead");
             if (IsInvulnerable(targetActorId)) return MobaCombatRuleResult.Fail(MobaCombatRuleFailure.Invulnerable, "target_invulnerable");
             return MobaCombatRuleResult.Pass;
+        }
+
+        /// <summary>
+        /// 判断实体能否作为基于血量的战斗目标；不代替存活、无敌或控制免疫判断。
+        /// 应有血量的实体缺少必需组件时抛出异常，避免把初始化或恢复错误当成合法拒绝。
+        /// </summary>
+        internal static bool HasCombatHealth(global::ActorEntity actor)
+        {
+            if (actor == null || !actor.isEnabled) return false;
+            var mainType = actor.hasEntityMainType ? actor.entityMainType.Value : EntityMainType.None;
+            var expectsHealth = mainType == EntityMainType.Unit || mainType == EntityMainType.Summon ||
+                (mainType == EntityMainType.None && (actor.hasAttributeGroup || actor.hasResourceContainer));
+            if (!expectsHealth) return false;
+
+            if (!actor.hasAttributeGroup || actor.attributeGroup.Group == null ||
+                !actor.hasResourceContainer || actor.resourceContainer.Value?.Map == null ||
+                !actor.resourceContainer.Value.Map.TryGetValue(ResourceType.Hp, out var hp) || hp == null)
+            {
+                var actorId = actor.hasActorId ? actor.actorId.Value : 0;
+                throw new InvalidOperationException($"MOBA combat actor {actorId} ({mainType}) requires AttributeGroup and an HP resource in ResourceContainer.");
+            }
+
+            return true;
         }
 
         public MobaCombatRuleResult CanCastSkill(int casterActorId, ulong executionBlockedResultMask)

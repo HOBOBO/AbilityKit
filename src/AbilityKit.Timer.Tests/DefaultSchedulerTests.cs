@@ -126,6 +126,57 @@ public sealed class DefaultSchedulerTests
     }
 
     [Fact]
+    public void Callback_cannot_reenter_tick_or_advance_another_task_twice()
+    {
+        var scheduler = new DefaultScheduler();
+        var other = scheduler.ScheduleDelay(null, 10f);
+        var calls = 0;
+        Exception reentry = null;
+        scheduler.ScheduleContinuous(_ =>
+        {
+            if (++calls == 1)
+            {
+                reentry = Record.Exception(() => scheduler.Tick(1f));
+            }
+        });
+
+        scheduler.Tick(1f);
+
+        Assert.IsType<InvalidOperationException>(reentry);
+        Assert.Equal(1, calls);
+        Assert.Equal(1f, other.ElapsedTime);
+
+        scheduler.Tick(1f);
+        Assert.Equal(2, calls);
+        Assert.Equal(2f, other.ElapsedTime);
+    }
+
+    [Fact]
+    public void Failing_task_is_removed_without_retry_and_unvisited_tasks_run_on_the_next_tick()
+    {
+        var scheduler = new DefaultScheduler();
+        var error = new InvalidOperationException("callback failed");
+        var order = new System.Collections.Generic.List<string>();
+        scheduler.ScheduleDelay(() => order.Add("waiting"), 0f);
+        var failing = scheduler.ScheduleDelay(() =>
+        {
+            order.Add("failed");
+            scheduler.ScheduleDelay(() => order.Add("added"), 0f);
+            throw error;
+        }, 0f);
+
+        Assert.Same(error, Assert.Throws<InvalidOperationException>(() => scheduler.Tick(0f)));
+        Assert.True(failing.IsCanceled);
+        Assert.Equal(2, scheduler.Count);
+        Assert.Equal(new[] { "failed" }, order);
+
+        scheduler.Tick(0f);
+
+        Assert.Equal(new[] { "failed", "added", "waiting" }, order);
+        Assert.Equal(0, scheduler.Count);
+    }
+
+    [Fact]
     public void Periodic_task_completes_via_scheduler_removal()
     {
         int fired = 0;

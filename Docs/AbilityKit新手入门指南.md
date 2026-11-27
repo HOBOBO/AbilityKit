@@ -156,7 +156,7 @@
 │                                                                      │
 │   调度（Schedule）───────────── 周期性地做                          │
 │       │                                                               │
-│       └── IScheduleManager    DOT/HOT、子弹飞行、心跳检测          │
+│       └── 宿主定时任务          到期发布即时事件                      │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -965,31 +965,7 @@ public class BurningEffect : GameplayEffectSpec
 }
 ```
 
-```csharp
-// Schedule 示例：注册一个周期性调度任务
-var scheduleManager = world.Services.GetService<IScheduleManager>();
-
-// 注册灼烧效果：每秒执行一次，最多5次
-var handle = scheduleManager.RegisterPeriodic(
-    intervalMs: 1000,           // 间隔1秒
-    maxExecutions: 5,          // 最多执行5次
-    businessId: burningBuffId, // 关联Buff ID
-    effect: new BurningEffectCallback()
-);
-
-// BurningEffectCallback 实现 IScheduleEffect
-public class BurningEffectCallback : IScheduleEffect
-{
-    public void Execute(in ScheduleContext ctx)
-    {
-        // 执行伤害
-        ctx.Target.ModifyAttribute("Health", -10);
-
-        // 触发事件（播放灼烧特效）
-        ctx.EventBus.Publish("OnBurnTick", ctx);
-    }
-}
-```
+独立业务定时由宿主负责：用宿主定时器登记任务，到期发布事件，由 `TriggerRunner` 执行即时规则。宿主决定推进阶段、步长和生命周期。一次性延迟的用法见[宿主定时器与即时规则样例](../Unity/Packages/com.abilitykit.samples/Runtime/Samples/Triggering/SchedulerExample.cs)。
 
 ---
 
@@ -2003,7 +1979,7 @@ public void OnBuffRemoved(Buff buff)
 | `ICondition` | Triggering | 条件接口 |
 | `GameplayEffectSpec` | Effect | 效果规格定义 |
 | `IEffectComponent` | Effect | 效果组件接口 |
-| `IScheduleManager` | Schedule | 调度管理器 |
+| `IScheduler` | Timer | 宿主定时任务；到期可发布即时规则事件 |
 | `ModifierCalculator` | Modifiers | 修饰器计算器 |
 
 ---

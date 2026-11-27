@@ -64,7 +64,9 @@ flowchart TB
 
 该分派只看文件扩展名，不探测 magic，也不回退尝试其他 codec。一个 MemoryPack 文件即使改名为 `.bin`，默认 loader 也会交给 optimized reader 并失败；JSON 文件使用非 `.bin` 扩展名则仍按 JSON 读取。
 
-`FrameRecordCodecs.Current` 允许全局替换，但 setter 可以写入 null，下一次访问会恢复默认 codec。它没有线程同步或按文件独立选择的注册表，启动阶段应一次性安装，运行期间不应切换。
+`FrameRecordCodecs.Current` 允许进程级替换；写入 `null` 恢复内置分派。内置分派与覆盖项分别保存，读取默认值不会回写或覆盖显式安装项。该入口不提供按文件独立选择的注册表，应用仍应在装配阶段选择 codec，不在运行期间切换。
+
+首发格式候选仅包含默认 JSON 与 Optimized Binary v4。`FrameRecordDefaultCodecTests` 经默认入口锁定了两者的元数据、输入、快照、状态哈希及版本往返，另核对 JSON 分块索引、二进制头、扩展名大小写和坏文件拒绝。这是本地 `.NET` 格式证据，不提升为独立安装、Unity 或发布验收。基础 Binary 保留显式调用；可选 MemoryPack 待补依赖闭包和 Player 往返，不列入本轮候选。
 
 ### 3.2 当前实现矩阵
 
@@ -260,7 +262,7 @@ Shooter Smoke 当前形成四层证据：
 
 | 优先级 | 问题或测试 |
 |---|---|
-| P0 | 为 JSON、基础 Binary、Optimized Binary 和 MemoryPack 建立 Meta、Inputs、Snapshots、StateHashes 全字段 round-trip 参数化测试 |
+| P0 | 默认 JSON 和 Optimized Binary v4 的全字段往返已覆盖；基础 Binary、MemoryPack 若纳入发布，须分别补同等覆盖 |
 | P0 | 明确基础 Binary 与 Optimized Binary 共用 `AKFR` 的探测规则，或分配不同 magic/format id |
 | P1 | 增加崩溃写入、临时文件和原子提交策略，避免留下看似存在但不可读的记录 |
 | P1 | 锁定 Shooter minimized record 的轨道选择和 skipped 门禁语义 |
@@ -298,10 +300,10 @@ Shooter Smoke 当前形成四层证据：
 
 FrameRecord 已提供统一轨道模型、多个 codec、状态哈希 diff 工具和 Shooter Smoke 的实际回放证据链。Shooter 的 InputState 与 InputLogic 最小记录分别服务状态消费和逻辑重放，诊断产物再用同帧 authoritative/client hash 生成可追溯 diff。
 
-Optimized Binary v4 已修复 StateHash Version 往返，并建立 v3 兼容及未来版本、负 count、越界索引、截断数据的拒绝测试；v1/v2 仍只有 reader 实现分支，没有 legacy fixture。当前主要协议风险转为格式身份、跨 codec 全字段矩阵和写入原子性：两个 `AKFR` 布局仍并存，默认分派仍依赖扩展名，writer 仍在 Dispose 时一次性提交。完成这些 P0/P1 项后，才能把 `.bin` FrameRecord 提升为稳定的长期回归协议。
+Optimized Binary v4 与默认 JSON 已建立全字段往返；Optimized Binary 保留 v3 兼容及未来版本、负 count、越界索引、截断数据的拒绝测试。v1/v2 仍只有 reader 实现分支，没有 legacy fixture。两个 `AKFR` 布局仍并存，默认分派仍依赖扩展名，writer 仍在 Dispose 时一次性写入而非原子提交。这些风险未随首发格式候选范围的收紧而消除。
 
 本轮 `AbilityKit.Record.Tests` 23/23 通过，覆盖当前 codec/diff/标识等 E3 契约；其中 `RecordIdHash` 有专项测试。该结果没有执行 Shooter Smoke，也不提升 artifact 到 E4 或 workflow 到 E5。writer 当前写 v4、reader 支持 v1-v4，兼容声明必须同时写明容器版本、state hash schema version 和领域 payload codec。
 
 ---
 
-*文档版本：v3.2 | 最后更新：2026-08-16 | 文档类型：Canonical 设计*
+*文档版本：v3.3 | 最后更新：2026-11-25 | 文档类型：Canonical 设计*

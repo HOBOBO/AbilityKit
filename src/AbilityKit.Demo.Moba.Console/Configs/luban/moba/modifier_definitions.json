@@ -4011,5 +4011,47 @@
     "StackStepSize": 0,
     "StackStepDelta": 0,
     "StackValueMin": 0
+  },
+  {
+    "Id": 2000095,
+    "Key": "TibbersEnragedAttackSlot",
+    "MountPoint": 2,
+    "Target": {
+      "Kind": 5,
+      "Id": 1
+    },
+    "Value": {
+      "Op": 2,
+      "Value": 0
+    },
+    "Magnitude": {
+      "SourceType": 0,
+      "BaseValue": 0,
+      "Coefficient": 0,
+      "DurationSec": 0,
+      "DecayType": 0,
+      "AttributeTypeId": 0
+    },
+    "Curve": [],
+    "ContextKey": "",
+    "AttributeSourceRole": 0,
+    "Candidate": {
+      "SkillId": 30030103,
+      "ReferenceId": 0,
+      "HfsmParameterId": 0,
+      "HfsmParameterComparison": 0,
+      "HfsmParameterExpectedValue": 0
+    },
+    "FormulaConstant": 0,
+    "FormulaLevelCoefficient": 0,
+    "FormulaTerms": [],
+    "StackingPolicy": 0,
+    "MaxStacks": 0,
+    "ConflictGroup": 2,
+    "ConditionSetId": 0,
+    "Deprecated": false,
+    "StackStepSize": 0,
+    "StackStepDelta": 0,
+    "StackValueMin": 0
   }
 ]

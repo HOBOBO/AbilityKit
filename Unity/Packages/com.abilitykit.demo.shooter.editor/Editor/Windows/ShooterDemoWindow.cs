@@ -92,6 +92,8 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private Vector2 _diagnosticsScroll;
         private Vector2 _eventsScroll;
         private string _lastError = string.Empty;
+        private string _catalogMatrixStatus = string.Empty;
+        private MessageType _catalogMatrixStatusType;
 
         // --- 缓存目录数据 ---
         private static readonly IReadOnlyList<ShooterAcceptanceSyncOption> SyncModes =
@@ -604,6 +606,42 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 RunBasicCombatSpecBaseline();
             }
             EditorGUI.EndDisabledGroup();
+
+            EditorGUILayout.HelpBox(
+                "完整矩阵使用目录中的同步模式和模拟网络预设，只运行本地验收，不使用当前窗口的服务器配置。",
+                MessageType.Info);
+            var matrixUnavailable = _running || _remoteLaunchPending || _remoteLobbyPending ||
+                                    ShooterRemoteStateSyncPlayModeHost.IsStarting ||
+                                    EditorApplication.isPlayingOrWillChangePlaymode;
+            using (new EditorGUI.DisabledScope(matrixUnavailable))
+            {
+                if (GUILayout.Button(new GUIContent("运行完整验收矩阵", "在编辑模式且没有运行演示时可执行"),
+                        GUILayout.Height(24)))
+                {
+                    RunCatalogMatrix();
+                }
+            }
+
+            if (!string.IsNullOrEmpty(_catalogMatrixStatus))
+            {
+                EditorGUILayout.HelpBox(_catalogMatrixStatus, _catalogMatrixStatusType);
+            }
+        }
+
+        private void RunCatalogMatrix()
+        {
+            try
+            {
+                var batch = ShooterAcceptanceAutomation.RunCatalogMatrixOrThrow();
+                _catalogMatrixStatus = $"验收矩阵通过：{batch.CompletedCount}/{batch.ScenarioCount} 项完成。详情见 Console。";
+                _catalogMatrixStatusType = MessageType.Info;
+            }
+            catch (Exception ex)
+            {
+                _catalogMatrixStatus = $"验收矩阵未通过：{ex.Message}";
+                _catalogMatrixStatusType = MessageType.Error;
+                Debug.LogException(ex);
+            }
         }
 
         // =====================================================================

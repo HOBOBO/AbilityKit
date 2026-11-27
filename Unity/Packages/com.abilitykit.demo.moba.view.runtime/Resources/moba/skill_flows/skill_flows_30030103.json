@@ -1,0 +1,66 @@
+{
+  "Id": 30030103,
+  "Name": "Tibbers - Enraged Basic Attack",
+  "PipelineContinuousTagTemplateId": 0,
+  "ChildChannelId": 0,
+  "RecastChannelId": 0,
+  "QueueRecastInFlight": false,
+  "ContinueThroughControl": false,
+  "PreserveCharacterCastContext": false,
+  "UseCommitCooldownFactor": false,
+  "RequiredBuffQualificationId": 30030503,
+  "Phases": [
+    {
+      "Type": 19,
+      "PhaseId": "tibbers_basic_attack_economy",
+      "Economy": {
+        "Operation": 0,
+        "ResourceType": 0,
+        "ResourceAmount": 0.0,
+        "UseResolvedResourceCost": true,
+        "ChargeCost": 1,
+        "MaxCharges": 1,
+        "ChargeRecoveryMs": 0,
+        "StartSkillCooldown": true,
+        "SkillCooldownMs": 0,
+        "UseResolvedSkillCooldown": true,
+        "CooldownGroup": "",
+        "SharedCooldownMs": 0,
+        "GlobalCooldownMs": 0,
+        "IgnoreGlobalCooldown": false,
+        "IgnoreResourceCostCheck": false,
+        "IgnoreResourceConsumption": false,
+        "RefundBeforeCommit": true,
+        "RequireExplicitCommit": false,
+        "FailReason": "skill_economy_reserve_failed"
+      }
+    },
+    {
+      "Type": 18,
+      "PhaseId": "tibbers_basic_attack_commit",
+      "CommitPoint": {
+        "CommitId": "attack",
+        "RequireEconomyReservation": false
+      }
+    },
+    {
+      "Type": 2,
+      "PhaseId": "tibbers_enraged_attack",
+      "Timeline": {
+        "DurationMs": 600,
+        "RecoveryStartMs": 0,
+        "CastGateTagTemplateId": 0,
+        "CastGateEndMs": 0,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 30030102,
+            "ExecuteMode": 0,
+            "AbortOnFailure": false,
+            "EventTag": "tibbers_basic_attack"
+          }
+        ]
+      }
+    }
+  ]
+}

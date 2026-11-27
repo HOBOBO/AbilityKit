@@ -87,6 +87,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 throw new InvalidOperationException($"[Plan] consume_resource failed: resource state not found. actorId={casterActorId}, type={args.ResourceType}, amount={args.Amount}");
             }
 
+            if (args.ResourceType == ResourceType.Mana &&
+                ctx.Context.TryResolve<MobaSkillEconomyService>(out var training) &&
+                training.IsTrainingInfiniteMana(casterActorId)) return;
+
             if (state.Current < MobaResourceFixedConvert.ToFixed(args.Amount))
             {
                 throw new InvalidOperationException($"[Plan] consume_resource failed: {args.FailMessageKey}. actorId={casterActorId}, type={args.ResourceType}, amount={args.Amount}, current={MobaResourceFixedConvert.ToSingle(state.Current)}");

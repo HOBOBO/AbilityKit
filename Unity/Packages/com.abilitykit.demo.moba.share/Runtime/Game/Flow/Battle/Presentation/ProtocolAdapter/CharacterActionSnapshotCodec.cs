@@ -7,7 +7,8 @@ namespace AbilityKit.Demo.Moba.Share
     {
         public const int OpCode = 4017;
         private const int LegacyVersion = 1;
-        private const int Version = 4;
+        private const int UnscaledVersion = 4;
+        private const int Version = 5;
         private const int MaxEntries = 128;
         private const int MaxPayloadLength = 32768;
 
@@ -18,7 +19,8 @@ namespace AbilityKit.Demo.Moba.Share
             using (var stream = new MemoryStream())
             using (var writer = new BinaryWriter(stream))
             {
-                writer.Write(Version);
+                var version = Array.Exists(entries, entry => entry.WindupTiming.HasValue) ? Version : UnscaledVersion;
+                writer.Write(version);
                 writer.Write(entries.Length);
                 var previousActorId = 0;
                 for (var i = 0; i < entries.Length; i++)
@@ -48,6 +50,15 @@ namespace AbilityKit.Demo.Moba.Share
                     }
                     writer.Write(entry.CastStartFrame);
                     if (entry.CastStartFrame >= 0) writer.Write(entry.CastDurationMs);
+                    if (version >= Version)
+                    {
+                        writer.Write(entry.WindupTiming.ActualMs);
+                        if (entry.WindupTiming.HasValue)
+                        {
+                            writer.Write(entry.WindupTiming.StartFrame);
+                            writer.Write(entry.WindupTiming.AuthoredMs);
+                        }
+                    }
                 }
                 if (stream.Length > MaxPayloadLength)
                     throw new InvalidOperationException("Character action snapshot is too large.");
@@ -96,10 +107,14 @@ namespace AbilityKit.Demo.Moba.Share
                                 reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
                             var castStartFrame = version >= 4 ? reader.ReadInt32() : -1;
                             var castDurationMs = castStartFrame >= 0 ? reader.ReadInt32() : 0;
+                            var actualWindupMs = version >= Version ? reader.ReadInt32() : 0;
+                            if (actualWindupMs < 0) return false;
+                            var windupTiming = actualWindupMs > 0
+                                ? new CastWindupTiming(reader.ReadInt32(), reader.ReadInt32(), actualWindupMs) : default;
                             entry = new CharacterActionData(actorId, entityVersion, snapshotFrame, path,
                                 instanceId, startFrame, localFrame, castInstanceId, skillId, entry.ModeId,
                                 entry.ModeInstanceId, entry.ModeStartFrame, entry.ModeLocalFrame, castFrame,
-                                castStartFrame, castDurationMs);
+                                castStartFrame, castDurationMs, windupTiming);
                         }
                         if (!IsValid(in entry) || entry.ActorId <= previousActorId) return false;
                         previousActorId = entry.ActorId;
@@ -126,6 +141,10 @@ namespace AbilityKit.Demo.Moba.Share
             entry.ModeStartFrame <= entry.SnapshotFrame &&
             entry.ModeLocalFrame == entry.SnapshotFrame - entry.ModeStartFrame &&
             entry.CastFrame.IsValid && (!entry.CastFrame.HasValue || entry.CastInstanceId > 0 && entry.SkillId > 0) &&
+            (entry.WindupTiming.HasValue ? entry.WindupTiming.StartFrame >= 0 &&
+                entry.WindupTiming.StartFrame <= entry.SnapshotFrame && entry.WindupTiming.AuthoredMs > 0 &&
+                entry.CastInstanceId > 0 && entry.SkillId > 0 : entry.WindupTiming.ActualMs == 0 &&
+                entry.WindupTiming.StartFrame == 0 && entry.WindupTiming.AuthoredMs == 0) &&
             (entry.CastStartFrame == -1 && entry.CastDurationMs == 0 ||
                 entry.CastStartFrame >= 0 && entry.CastStartFrame <= entry.SnapshotFrame &&
                 entry.CastDurationMs > 0 && entry.CastInstanceId > 0 && entry.SkillId > 0);

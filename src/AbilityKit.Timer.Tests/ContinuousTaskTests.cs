@@ -47,6 +47,27 @@ public sealed class ContinuousTaskTests
         Assert.Equal(new[] { "tick", "complete" }, order);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Terminating_in_final_tick_does_not_invoke_natural_completion(bool cancel)
+    {
+        ContinuousTask task = null;
+        var completions = 0;
+        task = new ContinuousTask(_ =>
+        {
+            if (cancel)
+                task.RequestCancel("stop in callback");
+            else
+                task.Complete();
+        }, () => completions++, 1f);
+
+        task.Update(1f);
+
+        Assert.Equal(0, completions);
+        Assert.Equal(cancel ? TaskState.Canceled : TaskState.Completed, task.State);
+    }
+
     [Fact]
     public void Unbounded_task_never_completes_on_its_own()
     {

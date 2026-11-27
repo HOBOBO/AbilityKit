@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &1550019953965394878
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 123488, guid: a42213b36c5e4335a4244f29d8705d03, type: 3}
+      propertyPath: m_Name
+      value: Passive_Hit
+      objectReference: {fileID: 0}
+    - target: {fileID: 19800348, guid: a42213b36c5e4335a4244f29d8705d03, type: 3}
+      propertyPath: playOnAwake
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 19808066, guid: a42213b36c5e4335a4244f29d8705d03, type: 3}
+      propertyPath: playOnAwake
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 19825676, guid: a42213b36c5e4335a4244f29d8705d03, type: 3}
+      propertyPath: playOnAwake
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 19866910, guid: a42213b36c5e4335a4244f29d8705d03, type: 3}
+      propertyPath: playOnAwake
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 19894086, guid: a42213b36c5e4335a4244f29d8705d03, type: 3}
+      propertyPath: playOnAwake
+      value: 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: a42213b36c5e4335a4244f29d8705d03, type: 3}

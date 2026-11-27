@@ -5,9 +5,9 @@
 - 优先处理会影响接入成本、稳定性、版本迁移和调试效率的问题。
 
 ## 当前结论
-- 已明确 `TriggerPlan`、`PlannedTrigger`、`RuleScheduler`、`ActionRegistry`、`TriggerPlanJsonDatabase` 为正式主线。
+- 已明确 `TriggerPlan`、`PlannedTrigger`、`ActionRegistry`、`TriggerPlanJsonDatabase` 的接入边界；业务定时由宿主驱动，不属于即时规则主线。
 - 现行源码落点见[源码目录](SourceLayout.md)；兼容身份与下线范围按[正式入口清单](FormalApiBoundary.md)核对，不按历史目录名判断。
-- 根目录 `.cs` 兼容占位文件已清理，`Runtime/Compatibility` 只维护根目录占位治理清单；兼容实现另见 `Runtime/LegacyCompatibility/`。
+- 根目录 `.cs` 兼容占位文件已清理，`Runtime/Compatibility` 只维护根目录占位治理清单；默认扁平动作调度的兼容实现归 `com.abilitykit.triggering.actionscheduling` 的 `Runtime/Compatibility/`。
 - 旧迁移和兼容材料如无继续使用价值，应继续删除或改为只读历史说明。
 
 ## 落地状态

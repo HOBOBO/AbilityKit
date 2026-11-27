@@ -20,6 +20,16 @@ namespace AbilityKit.Demo.Moba.Console
 
         private static void Main(string[] args)
         {
+            if (args.Length > 0 && args[0] == "--training-stdio")
+            {
+                System.Console.InputEncoding = new System.Text.UTF8Encoding(false);
+                System.Console.OutputEncoding = new System.Text.UTF8Encoding(false);
+                var protocolOutput = System.Console.Out;
+                System.Console.SetOut(System.Console.Error);
+                Environment.ExitCode = ConsoleMobaTrainingStdio.Run(System.Console.In, protocolOutput, System.Console.Error, args[1..]);
+                return;
+            }
+
             System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 
             // 先解析参数。
@@ -359,6 +369,7 @@ namespace AbilityKit.Demo.Moba.Console
             Log.System("  -l, --list             List all available record files");
             Log.System("  --info <file>          Show info about a record file");
             Log.System("  -t, --test             Run in test mode (default)");
+            Log.System("  --training-stdio [match.json]  Run the local 1v1 training pipe");
             Log.System("  -h, --help             Show this help message");
             Log.System("");
             Log.System("Examples:");

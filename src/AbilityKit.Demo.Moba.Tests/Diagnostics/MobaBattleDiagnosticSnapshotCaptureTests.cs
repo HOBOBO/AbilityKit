@@ -1,13 +1,57 @@
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Share.ECS.Entitas;
+using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Effect;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Diagnostics;
 
 public sealed class MobaBattleDiagnosticSnapshotCaptureTests
 {
+    [Fact]
+    public void EffectApplication_RoundTripsOnlyTheObservedInstanceAndKeepsUnobservedSourceMissing()
+    {
+        using var container = CreateBuilder().Build();
+        using var scope = container.CreateScope();
+        var collector = scope.Resolve<MobaBattleDiagnosticEventCollector>();
+        var observer = new MobaEffectApplicationObserver(collector, null, null);
+        var provider = new EffectObserverProvider(observer);
+        var clock = new FrameTime();
+        clock.StepTo(new FrameIndex(5), 0.125f);
+        var source = new EntitasUnitFacade(10);
+        var firstHost = new EntitasUnitFacade(20);
+        var secondHost = new EntitasUnitFacade(30);
+        var spec = new GameplayEffectSpec(EffectDurationPolicy.Infinite, 0f, 0f, default, null, null);
+        collector.CaptureMode = BattleDiagnosticCaptureMode.Full;
+        var first = firstHost.Effects.Apply(spec, new EffectExecutionContext(provider, clock, source, firstHost, 42, firstHost, null));
+        collector.CaptureMode = BattleDiagnosticCaptureMode.Events;
+        var second = secondHost.Effects.Apply(spec, new EffectExecutionContext(provider, clock, firstHost, secondHost, 77, secondHost, null));
+        Assert.Equal(first.Id, second.Id);
+        collector.CaptureMode = BattleDiagnosticCaptureMode.Full;
+        var effects = new List<BattleDiagnosticActorEffect>();
+        Assert.True(MobaBattleDiagnosticStateSampler.TrySampleActorEffects(collector.Scope, 8, 20, firstHost, effects, observer));
+        Assert.True(MobaBattleDiagnosticStateSampler.TrySampleActorEffects(collector.Scope, 8, 30, secondHost, effects, observer));
+        Assert.True(scope.Resolve<IBattleDiagnosticActorEffectStore>().TryReplaceSnapshot(8, new long[] { 20, 30 }, effects));
+        var snapshot = scope.Resolve<IMobaBattleDiagnosticSnapshotCapture>().CaptureSnapshot();
+        var json = MobaBattleDiagnosticArtifactCodec.ExportSnapshotToString(snapshot);
+        var restored = MobaBattleDiagnosticArtifactCodec.ImportSnapshot(json);
+        var captured = Assert.Single(restored.Effects.Items, effect => effect.Application.IsCaptured);
+        Assert.Equal(20, captured.ActorId);
+        Assert.Equal(5, captured.Application.Frame);
+        Assert.Equal(10, captured.Application.SourceActor.RuntimeId);
+        Assert.Equal(42, captured.Application.SourceContextId);
+        Assert.Contains(restored.Effects.Items, effect => effect.ActorId == 30 && !effect.Application.IsCaptured);
+    }
+
+    private sealed class EffectObserverProvider(IEffectApplicationObserver observer) : IServiceProvider
+    {
+        public object? GetService(Type serviceType) => serviceType == typeof(IEffectApplicationObserver) ? observer : null;
+    }
+
     [Fact]
     public void WithoutTraceAdapter_ResolvesAndCapturesEventsWithEmptyTrace()
     {

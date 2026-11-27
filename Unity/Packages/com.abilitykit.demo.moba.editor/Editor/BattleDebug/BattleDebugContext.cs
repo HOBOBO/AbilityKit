@@ -28,7 +28,8 @@ namespace AbilityKit.Game.Editor
             bool isOffline = false,
             BattleDiagnosticWorkspaceState workspaceState = null,
             float availableContentWidth = 0f,
-            Action<BattleContext> onHashMismatchChanged = null)
+            Action<BattleContext> onHashMismatchChanged = null,
+            Action<BattleDiagnosticTraceNodeSummary, long> openTraceActorAttributes = null)
         {
             Facade = facade;
             SelectedId = selectedId;
@@ -48,6 +49,7 @@ namespace AbilityKit.Game.Editor
             WorkspaceState = workspaceState;
             AvailableContentWidth = availableContentWidth;
             OnHashMismatchChanged = onHashMismatchChanged;
+            OpenTraceActorAttributes = openTraceActorAttributes;
         }
 
         public IBattleDebugFacade Facade { get; }
@@ -68,6 +70,7 @@ namespace AbilityKit.Game.Editor
         public BattleDiagnosticWorkspaceState WorkspaceState { get; }
         public float AvailableContentWidth { get; }
         public Action<BattleContext> OnHashMismatchChanged { get; }
+        public Action<BattleDiagnosticTraceNodeSummary, long> OpenTraceActorAttributes { get; }
 
         public bool HasSelection => SelectedId.IsValid;
         public bool HasRuntimeSelection => SelectedId.IsValid && SelectedUnit != null;
@@ -92,7 +95,8 @@ namespace AbilityKit.Game.Editor
                 IsOffline,
                 WorkspaceState,
                 availableContentWidth,
-                OnHashMismatchChanged);
+                OnHashMismatchChanged,
+                OpenTraceActorAttributes);
         }
     }
 }

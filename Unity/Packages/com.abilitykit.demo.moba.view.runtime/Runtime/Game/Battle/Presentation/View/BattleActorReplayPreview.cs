@@ -12,6 +12,9 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleActorReplayPreview : IDisposable
     {
         private readonly PreviewRenderUtility _preview;
+        private GameObject _authorityFlight;
+        private GameObject _predictionFlight;
+        private Material _predictionFlightMaterial;
         private readonly Material _authorityMaterial;
         private readonly GameObject _authority;
         private readonly GameObject _prediction;
@@ -72,6 +75,19 @@ namespace AbilityKit.Game.Flow
             finally { _preview.EndAndDrawPreview(rect); }
         }
 
+        /// <summary>
+        /// 使用窗口相同的镜头与模型渲染独立帧，供本地验收保存证据。
+        /// </summary>
+        internal Texture2D RenderStatic(Rect rect, Bounds recordedBounds, Pose? authority, Pose? prediction)
+        {
+            if (!PrepareFrame(rect, recordedBounds, authority, prediction)) return null;
+            _preview.BeginStaticPreview(rect);
+            Texture2D image = null;
+            try { _preview.Render(true); }
+            finally { image = _preview.EndStaticPreview(); }
+            return image;
+        }
+
         private bool PrepareFrame(Rect rect, Bounds recordedBounds, Pose? authority, Pose? prediction)
         {
             ApplyPoses(authority, prediction);
@@ -95,12 +111,54 @@ namespace AbilityKit.Game.Flow
         }
 
         /// <summary>
+        /// 在角色同一镜头显示弹体位置标记；没有录制样本就隐藏，不实例化正式弹体或特效。
+        /// </summary>
+        internal void SetFlightPositions(Vector3? authority, Vector3? prediction)
+        {
+            if (authority.HasValue && _authorityFlight == null)
+                _authorityFlight = CreateFlightMarker("Authority flight", _authorityMaterial, 0.25f);
+            if (prediction.HasValue && _predictionFlight == null)
+            {
+                _predictionFlightMaterial = new Material(_authorityMaterial)
+                {
+                    color = new Color(1f, 0.60f, 0.10f),
+                    hideFlags = HideFlags.HideAndDontSave
+                };
+                _predictionFlight = CreateFlightMarker("Prediction flight", _predictionFlightMaterial, 0.32f);
+            }
+            ApplyFlightPosition(_authorityFlight, authority);
+            ApplyFlightPosition(_predictionFlight, prediction);
+        }
+
+        private GameObject CreateFlightMarker(string name, Material material, float diameter)
+        {
+            var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            marker.name = name;
+            _preview.AddSingleGO(marker);
+            UnityEngine.Object.DestroyImmediate(marker.GetComponent<Collider>());
+            marker.transform.localScale = Vector3.one * diameter;
+            marker.GetComponent<Renderer>().sharedMaterial = material;
+            return marker;
+        }
+
+        private static void ApplyFlightPosition(GameObject marker, Vector3? position)
+        {
+            if (marker == null) return;
+            if (position is Vector3 recorded) marker.transform.position = recorded;
+            marker.SetActive(position.HasValue);
+        }
+
+        /// <summary>
         /// 回收临时场景、角色、预览纹理及独立的权威材质。
         /// </summary>
         public void Dispose()
         {
             try { _preview.Cleanup(); }
-            finally { if (_authorityMaterial != null) UnityEngine.Object.DestroyImmediate(_authorityMaterial); }
+            finally
+            {
+                if (_authorityMaterial != null) UnityEngine.Object.DestroyImmediate(_authorityMaterial);
+                if (_predictionFlightMaterial != null) UnityEngine.Object.DestroyImmediate(_predictionFlightMaterial);
+            }
         }
 
         private static Material CreateAuthorityMaterial()

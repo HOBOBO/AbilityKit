@@ -112,7 +112,12 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var entity = _world.Wrap(handle);
             if (!entity.TryGetRef(out BattleViewGameObjectComponent view) || view.GameObject == null) return;
 
-            var animators = view.GameObject.GetComponentsInChildren<Animator>(true);
+            PlayProjectileSpawn(view.GameObject);
+        }
+
+        internal static void PlayProjectileSpawn(GameObject visual)
+        {
+            var animators = visual.GetComponentsInChildren<Animator>(true);
             for (var animatorIndex = 0; animatorIndex < animators.Length; animatorIndex++)
             {
                 var animator = animators[animatorIndex];

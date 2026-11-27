@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 3, "caseId": "annie-r-tibbers-follow", "displayName": "Annie R - Tibbers follows without targets",
+  "tags": ["skill-presentation", "annie", "summon-follow"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 2800},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3003, "attributeTemplateId": 3003, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 4, "position": {"x": 7, "y": 0, "z": 1}, "direction": {"x": 0, "y": 0, "z": 1}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 1400, "action": "move_direction", "actorAlias": "caster", "direction": {"x": 0, "y": 0, "z": -1}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 3200, "action": "move_direction", "actorAlias": "caster", "direction": {"x": 0, "y": 0, "z": 0}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 4400, "action": "move_direction", "actorAlias": "caster", "direction": {"x": 1, "y": 0, "z": 0}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 6500, "action": "move_direction", "actorAlias": "caster", "direction": {"x": 0, "y": 0, "z": 0}}
+    ],
+    "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SummonSpawn", "configId": 30030502, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30030102},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30030103}
+    ]
+  }
+}

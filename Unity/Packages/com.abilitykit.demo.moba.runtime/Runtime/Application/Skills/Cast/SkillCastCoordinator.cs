@@ -222,7 +222,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (evt.Slot <= 0)
             {
-                return MobaSkillInputHandleResult.Failed("skill.input.invalidSlot", "Invalid skill slot.");
+                return MobaSkillInputHandleResult.Failed(SkillFailureCodes.Input.InvalidSlot, "Invalid skill slot.");
             }
 
             return MobaSkillInputHandleResult.Accepted();
@@ -242,7 +242,7 @@ namespace AbilityKit.Demo.Moba.Services
                 case SkillInputPhase.Cancel:
                     return HandleCancelInput(actorId, evt.Slot);
                 default:
-                    return SkillResultFactory.InputFailed("skill.input.unsupportedPhase", "Unsupported skill input phase.");
+                    return SkillResultFactory.InputFailed(SkillFailureCodes.Input.UnsupportedPhase, "Unsupported skill input phase.");
             }
         }
 
@@ -272,7 +272,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return MobaSkillInputHandleResult.Accepted("skill.input.running.updated");
             }
 
-            return MobaSkillInputHandleResult.Failed("skill.input.noRunningForHold", "No running skill for hold input.");
+            return MobaSkillInputHandleResult.Failed(SkillFailureCodes.Input.NoRunningForHold, "No running skill for hold input.");
         }
 
         private MobaSkillInputHandleResult HandleReleaseInput(int actorId, in SkillInputEvent evt,
@@ -299,7 +299,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return MobaSkillInputHandleResult.Accepted("skill.input.running.cancelled");
             }
 
-            return MobaSkillInputHandleResult.Failed("skill.input.noRunningForCancel", "No running skill for cancel input.");
+            return MobaSkillInputHandleResult.Failed(SkillFailureCodes.Input.NoRunningForCancel, "No running skill for cancel input.");
         }
 
         private MobaSkillInputHandleResult TryStartCastFromInput(int actorId, in SkillInputEvent evt,

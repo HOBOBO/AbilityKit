@@ -371,6 +371,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 dto.Timeline.RecoveryStartMs = Timeline?.RecoveryStartMs ?? -1;
                 dto.Timeline.CastGateTagTemplateId = Timeline?.CastGateTagTemplateId ?? 0;
                 dto.Timeline.CastGateEndMs = Timeline?.CastGateEndMs ?? 0;
+                dto.Timeline.Windup = Timeline?.Windup;
             }
             return dto;
         }

@@ -28,8 +28,8 @@
         <AdminBattlePage :route-key="routeKey" />
 
         <template v-if="routeKey === 'skills'">
+          <SkillScenarioArchivePanel />
           <SkillDiagnosticsPanel />
-          <SkillAcceptancePanel />
         </template>
 
         <section v-if="routeKey === 'debug'" id="debug" class="card span-12 debug-panel">
@@ -49,8 +49,8 @@ import AdminWorkspaceSummary from './components/layout/AdminWorkspaceSummary.vue
 import AdminApiBoundaryPanel from './components/overview/AdminApiBoundaryPanel.vue';
 import AdminOperationsCenter from './components/overview/AdminOperationsCenter.vue';
 import AdminOverviewMetrics from './components/overview/AdminOverviewMetrics.vue';
-import SkillAcceptancePanel from './components/skills/SkillAcceptancePanel.vue';
 import SkillDiagnosticsPanel from './components/skills/SkillDiagnosticsPanel.vue';
+import SkillScenarioArchivePanel from './components/skills/SkillScenarioArchivePanel.vue';
 import { adminNavigationItems } from './navigation/adminNavigation';
 import AdminBattlePage from './pages/AdminBattlePage.vue';
 import AdminClusterPage from './pages/AdminClusterPage.vue';
@@ -63,15 +63,6 @@ import { useAdminConsoleStore } from './stores/adminConsoleStore';
 const admin = useAdminConsoleStore();
 const { routeKey, currentRoute, navigate } = useAdminRouter();
 
-async function refreshRouteWorkspace(key = routeKey.value): Promise<void> {
-  await admin.refreshAdminWorkspace();
-  if (key === 'skills') {
-    await admin.refreshAcceptanceArtifacts();
-  }
-}
-
-onMounted(refreshRouteWorkspace);
-watch(routeKey, key => {
-  void refreshRouteWorkspace(key);
-});
+onMounted(admin.refreshAdminWorkspace);
+watch(routeKey, () => { void admin.refreshAdminWorkspace(); });
 </script>

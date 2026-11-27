@@ -1,6 +1,9 @@
 # SearchTarget（战斗查找目标模块）
 
-本模块提供一套通用、可扩展、可替换实体系统后端、并面向高频调用优化（低/零分配）的“目标查找”框架。
+> 文档类型：API 与运行时手册
+> 事实基线：2026-11-25；局部核校池化、查询与基础组件。本文性能验收方法不是本轮已测预算；历史设计类型已在下文明确分界。
+
+本模块提供可组合、可替换实体后端的目标查找框架，以池化减少分配；不承诺所有路径零分配。安装和完整示例见[使用指南](Usage.md)。
 
 ## 目标
 
@@ -65,7 +68,7 @@
 - 高频调用建议使用 `TargetingPool.RentContext()` 获取，结束后 `Dispose()` 或 `TargetingPool.Release(context)`；完整释放会同时清理框架能力引用和扩展数据，避免跨租约残留。
 - 只有通过 `TargetingPool.RentContext()` 获取的 Context 才会归还全局池；普通 `new SearchContext()` 的 `Dispose()` 只清理自身并允许再次配置后复用。
 - 池化 Context 和 Result 的重复或并发释放是幂等的。归还后访问其公开状态会抛出 `ObjectDisposedException`；对象被重新租出后，旧引用无法代表独立租约，因此不得保存或再次使用旧引用。
-- `SearchResult.Ids` 是当前租约内对内部列表的只读视图，不是结果快照。该视图及索引器只能在释放前同步消费，不能跨 `Dispose()`、下一次租借或异步边界保存。
+- `SearchResult.Ids` 是当前租约内的只读实时视图，不是快照。`Clear()` 会清空活跃视图；归还时视图断开并变为空，已创建的枚举器不可继续使用。需要跨租约保存时，在归还前用 `CopyTo` 复制到自己的列表。
 
 ### TargetingPool
 - 统一接入 `AbilityKit.Core.Pooling`，池化查询上下文、查询结果、命中列表、标识列表、规则列表、排序项列表、共享分数缓冲、组合 Provider 临时集合、查询去重集合和 Top-K 缓冲。
@@ -161,51 +164,30 @@ public void CollectTargets(IPositionProvider positions)
 ## 形状系统（解析器）
 
 ### 基础形状规则
-- `CircleShapeRule`、`OrientedRectShapeRule`、`SectorShapeRule`
+
+当前内置 `CircleShapeRule(Vec2 origin, float radius)` 与 `SectorShapeRule(Vec2 origin, Vec2 forward, float radius, float halfAngleDegrees)`，位于 Rules 命名空间。它们通过 `SearchContext.PositionProvider` 读取候选二维位置；缺位置、非正半径不匹配。单位和坐标平面由宿主统一，扇形角参数是半角度数。
 
 ### 解析器化（应对复杂需求）
-把“坐标系”和“参数”解耦：
 
-- 参考系：`IShapeFrameResolver2D -> ShapeFrame2D(Origin, Forward, Right)`
-- 参数：
-  - 矩形：`IRectParamResolver2D`
-  - 圆形：`ICircleParamResolver2D`
-  - 扇形：`ISectorParamResolver2D`
-
-对应组合规则：
-- `ResolvedOrientedRectRule2D`
-- `ResolvedCircleRule2D`
-- `ResolvedSectorRule2D`
-
-典型复杂需求覆盖：
-- **偏移**：`OffsetFrameResolver2D(inner, offsetLocal)`
-- **朝向来自两个实体**：`EntityToEntityFrameResolver2D(source, target, useMidPointAsOrigin)`
-- **动态长度/半径来自两实体距离**：`RectLengthFromEntityDistanceResolver2D` / `CircleRadiusFromEntityDistanceResolver2D`
+当前本包没有 `OrientedRectShapeRule`、`IShapeFrameResolver2D`、`Resolved*Rule2D` 或两实体参考系/动态参数解析器。旧文档描述的是早期设计，不能复制类型名接入。矩形、偏移和动态长度应由项目实现 `ITargetRule`，依赖通过构造或显式查询数据传入；是否晋升为框架能力需另行设计与验收。
 
 ### 数据驱动解析器（来自上下文数据）
 
-当“来源不是实体”（例如技能落点、鼠标点、外部系统给定点或动态参数）时，可使用数据驱动解析器从 `SearchContext` 的数据中读取：
-
-- `DataFrameResolver2D(originKey, forwardKey)`：从上下文数据读取 `Vector2 origin/forward`
-- `DataRectParamsResolver2D(widthKey, lengthKey)`：从上下文数据读取矩形宽/长
-- `DataCircleParamsResolver2D(radiusKey)`：从上下文数据读取圆半径
-- `DataSectorParamsResolver2D(radiusKey, halfAngleDegKey)`：从上下文数据读取扇形半径/半角
+当前没有 `DataFrameResolver2D` 或 `Data*ParamsResolver2D`。动态落点/半径可以由 `ITargetQueryFactory.TryBuild` 从强类型 ContextKey 读取，再以该次参数构建 Circle/Sector Rule；另一种方式是项目 Rule 读取其静态持有的键。键按实例身份区分，不使用旧整数键或 `SetService`。
 
 ## 与 EntityManager 联动（索引候选）
 
-当候选来自框架层 `BattleEntityManager` 的索引（内部通常是 `HashSet<int>`）时：
-- 使用 `IEntityIdCollectionIndex.ForEach(key, ref consumer)` 以避免接口枚举带来的分配
-- `EntityManager/KeyedEntityIndexAdapter<TKey>` 提供了将 `IKeyedEntityIndex<TKey, int>` 适配为 `IEntityIdCollectionIndex` 的示例
+项目实现 `ICandidateProvider.ForEachCandidate`，直接遍历已有索引并推送 EntityId。当前本包未提供 `IEntityIdCollectionIndex`、`IndexedListCandidateProvider` 或 `KeyedEntityIndexAdapter`；这些历史适配构想不是安装本包即可获得的能力。集合组合可以使用内置 Concat/Union/Intersect/Except Provider。
 
 ## Entitas 集成点
 
 ### 位置能力
-- `Entitas/EntitasActorTransformPositionProvider`：
-  - 通过 `EntitasActorIdLookup` 找到 `ActorEntity`
-  - 读取 `ActorEntity.transform.Value.Position`，输出 XZ
+
+Entitas 后端的位置适配由包外项目实现 `IPositionProvider`。本包不引用 Entitas 或 ActorEntity；它只消费中性 Vec2。
 
 ### 输出类型
-- `Entitas/EntitasUnitFacadeMapper`：把 `EntityId -> IUnitFacade`（依赖 `IUnitResolver`）
+
+项目可实现 `ITargetMapper<T>`，通过 `TryMap(context, id, out result)` 将 ID 映射到已有业务对象。本包没有内置 `EntitasUnitFacadeMapper` 或 `IUnitResolver`；Mapper 示例来自包外项目，安装本包不会自动带入。
 
 ## 包外扩展建议
 
@@ -220,13 +202,13 @@ public void CollectTargets(IPositionProvider positions)
 - 引入空间索引候选提供者（网格、四叉树、层次包围盒、EntityManager 索引适配），让候选生成从全量扫描升级为范围查询。
 - 增加 `SearchQuery` 描述化/序列化能力，支持配置表、技能模板和热更新层生成查询。
 - 扩展核心回归测试，继续覆盖更多调用方异常路径、并发边界和池化容量滞留策略。
-- 统一文档中尚未落地的形状解析器与矩形规则命名，避免设计文档超前于运行时实现。
+- 形状解析器与矩形规则若未来实现，应同步接入、所有权和测试；当前按未实现处理。
 
 ## 选择器（排序/选择策略）
 
-`ITargetSelector.Select` 通过 `SearchHitView` 只读访问引擎拥有的完整命中序列，并通过 `SearchResultWriter` 追加结果。普通自定义选择器不能清空、重排或替换引擎内部列表；需要临时状态时应在当前调用内自行租还。`SearchResultWriter` 始终强制查询的 `MaxCount` 硬上限。
+`ITargetSelector.Select` 只在有合格命中时调用。普通自定义选择器收到候选遍历顺序的完整命中序列，不保证已按分数排序。`SearchHitView` 和 `SearchResultWriter` 只在本次回调内有效。写入器忽略无效 ID 和超限写入，但不做去重或命中成员校验；选择器负责只写入它从命中中挑出的目标。
 
-- `TopKByScoreSelector`：在完整命中路径中排序后取前若干个结果，并遵守所有排序项的独立方向。
+- `TopKByScoreSelector`：在完整命中路径中排序后取前若干个结果，并遵守所有排序项的独立方向。两种内置 Top-K 都以实体键升序处理同分；若所有分数和实体键均相同，不承诺两个路径的相对顺序一致。
 - `IStreamingTopKByScoreSelector`：公开的无成员能力接口。实现该接口且 `MaxCount > 0` 时，引擎在 Provider 回调内维护固定 Top-K，不调用完整命中后处理。该能力表示实现接受引擎定义的严格 Top-K 语义，不适用于需要完整命中集合的任意后处理。
 - `StreamingTopKByScoreSelector`：内置能力实现；无有效 K 或直接调用其 `Select()` 时可对完整命中视图执行回退行为。实例不保存跨查询状态。
 
@@ -240,8 +222,7 @@ public void CollectTargets(IPositionProvider positions)
 - `WhitelistRule`（依赖 `IEntityIdSet`）
 
 评分器：
-- `DistanceToEntityScorer2D`（最近优先：返回负距离平方）
-- `DistanceToFrameOriginScorer2D`
+- `DistanceToEntityScorer`（返回负距离平方，降序最近优先）；当前位置缺失返回负无穷，需排除时添加 `RequireHasPositionRule`
 - `SeededHashRandomScorer`（可控随机：可在构造时捕获只读种子，也可显式使用 `SearchContextKey<int>` 读取单次查询种子）
 
 分数边界：
@@ -254,8 +235,8 @@ public void CollectTargets(IPositionProvider positions)
 
 为方便性能/逻辑排查，框架层提供轻量统计钩子：
 
-- `ISearchStats`：`OnCandidate/OnHit/OnResult`
-- `SearchStats`：一个简单实现（记录候选数/命中数/结果数）
+- `ISearchStats`：每次 ID 查询先调用 `Reset`；`OnCandidate` 统计推送给引擎的候选，`OnHit` 统计合格候选（不要求最终入选）。选择成功时 `OnResult` 调用一次，包括零结果；泛型映射发生在该统计之后。基础统计回调的异常会中断查询并传播。
+- `ISearchDetailedStats`：`OnDecision` 观察逐候选决定，能区分无效、重复、规则拒绝、评分不可用与合格；合格不代表入选。只有 `OnDecision` 的异常被隔离。当前本包没有内置计数类，由使用方实现接口并累计自己的计数。
 
 用法：设置 `SearchContext.SearchStats`，引擎会自动在一次查询中更新统计数据。
 

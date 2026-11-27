@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3, "caseId": "gragas-w", "displayName": "Gragas W",
+  "schemaVersion": 3, "caseId": "gragas-w", "displayName": "Gragas W - drink, empowered splash, normal follow-up",
   "tags": ["skill-presentation", "gragas"],
   "sections": {
     "settings": [
@@ -8,7 +8,9 @@
     ],
     "setup": [
       {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3005, "attributeTemplateId": 3005, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"},
-      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": -3}}
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": -3}},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "splash", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": -0.8}},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "outside", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": -6}}
     ],
     "timeline": [
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 2},
@@ -16,9 +18,13 @@
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 4400, "action": "cast_skill", "actorAlias": "caster", "slot": 5, "targetAlias": "target", "position": {"x": 7, "y": 0, "z": -3}, "direction": {"x": 0, "y": 0, "z": 1}}
     ],
     "assertions": [
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050301},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050701, "maxCount": 1},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050101, "maxCount": 1}
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050301, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050701, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050101, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30050701, "minCount": 2, "maxCount": 2},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "target", "property": "hp", "comparator": "lt", "expectedValue": "50000"},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "splash", "property": "hp", "comparator": "lt", "expectedValue": "50000"},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "outside", "property": "hp", "comparator": "eq", "expectedValue": "50000"}
     ]
   }
 }

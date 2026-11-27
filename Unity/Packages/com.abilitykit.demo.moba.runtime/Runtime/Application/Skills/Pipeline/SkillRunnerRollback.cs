@@ -32,6 +32,7 @@ namespace AbilityKit.Demo.Moba.Services
         public SkillCastPolicy Policy;
         public SkillPipelineContextRollbackState Context;
         public byte[] Run;
+        internal PipelineRunRollbackState RunProgress;
         internal string DefinitionRevision;
     }
 
@@ -361,7 +362,7 @@ namespace AbilityKit.Demo.Moba.Services
 
     public sealed partial class SkillPipelineRunner
     {
-        internal void CaptureRollbackEntries(List<SkillRunnerRollbackEntry> destination)
+        internal void CaptureRollbackEntries(List<SkillRunnerRollbackEntry> destination, bool typed = false)
         {
             foreach (var entry in _running)
             {
@@ -372,6 +373,8 @@ namespace AbilityKit.Demo.Moba.Services
                 var trigger = entry.TriggerContext;
                 if (entry.DefinitionRevision == null || !entry.DefinitionRevision.IsCurrent)
                     throw new InvalidOperationException($"Skill rollback definition {trigger.SkillId} has no current revision for its bound run.");
+                var progress = SkillPipelineRollback.Capture(entry.Run,
+                    entry.Stage == EntryStage.PreCast ? entry.PreCastConfig : entry.CastConfig);
                 destination.Add(new SkillRunnerRollbackEntry
                 {
                     ActorId = _actorId, SkillId = trigger.SkillId, SkillSlot = trigger.SkillSlot,
@@ -386,8 +389,8 @@ namespace AbilityKit.Demo.Moba.Services
                     PhaseContextId = entry.PhaseContextId, Policy = entry.Policy,
                     DefinitionRevision = entry.DefinitionRevision.Value,
                     Context = entry.Context.CaptureRollbackState(),
-                    Run = PipelineRollbackStateCodec.Serialize(SkillPipelineRollback.Capture(entry.Run,
-                        entry.Stage == EntryStage.PreCast ? entry.PreCastConfig : entry.CastConfig))
+                    Run = typed ? null : PipelineRollbackStateCodec.Serialize(progress),
+                    RunProgress = typed ? progress : null
                 });
             }
         }
@@ -455,7 +458,7 @@ namespace AbilityKit.Demo.Moba.Services
                 entry.Pipeline = CreatePipeline();
                 foreach (var phase in phases) entry.Pipeline.AddPhase(phase);
                 entry.Run = SkillPipelineRollback.Restore(entry.Pipeline, config, entry.Context,
-                    PipelineRollbackStateCodec.Deserialize(state.Run));
+                    state.RunProgress ?? PipelineRollbackStateCodec.Deserialize(state.Run));
                 _running.Add(entry);
             }
             catch
@@ -479,12 +482,12 @@ namespace AbilityKit.Demo.Moba.Services
 
     public sealed partial class SkillRunnerRegistry
     {
-        internal SkillRunnerRollbackEntry[] CaptureRollbackEntries()
+        internal SkillRunnerRollbackEntry[] CaptureRollbackEntries(bool typed = false)
         {
             var values = new List<SkillRunnerRollbackEntry>();
             var actors = new List<int>(_runners.Keys);
             actors.Sort();
-            foreach (var actor in actors) _runners[actor].CaptureRollbackEntries(values);
+            foreach (var actor in actors) _runners[actor].CaptureRollbackEntries(values, typed);
             return values.ToArray();
         }
 
@@ -500,11 +503,16 @@ namespace AbilityKit.Demo.Moba.Services
         internal void DetachForLocalRollback() => _runnerRegistry.DetachForRollback(localRollback: true);
         internal byte[] ExportRunnerRollbackState()
         {
-            return SkillRunnerRollbackCodec.Serialize(new SkillRunnerRollbackSnapshot
+            return SkillRunnerRollbackCodec.Serialize(CaptureRunnerState(typed: false));
+        }
+
+        internal SkillRunnerRollbackSnapshot CaptureRunnerState(bool typed)
+        {
+            return new SkillRunnerRollbackSnapshot
             {
                 Sequences = _preparation.CaptureRollbackSequences(),
-                Entries = _runnerRegistry.CaptureRollbackEntries()
-            });
+                Entries = _runnerRegistry.CaptureRollbackEntries(typed)
+            };
         }
 
         internal sealed class PreparedRunnerRollback
@@ -521,9 +529,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         internal void ValidateRunnerRollbackState(byte[] payload) => PrepareRunnerRollbackState(payload);
 
-        internal PreparedRunnerRollback PrepareRunnerRollbackState(byte[] payload)
+        internal PreparedRunnerRollback PrepareRunnerRollbackState(byte[] payload) =>
+            PrepareRunnerState(SkillRunnerRollbackCodec.Deserialize(payload));
+
+        internal PreparedRunnerRollback PrepareRunnerState(SkillRunnerRollbackSnapshot snapshot)
         {
-            var snapshot = SkillRunnerRollbackCodec.Deserialize(payload);
             var definitions = new MobaSkillPipelineDefinition[snapshot.Entries.Length];
             for (var index = 0; index < snapshot.Entries.Length; index++)
             {
@@ -533,7 +543,7 @@ namespace AbilityKit.Demo.Moba.Services
                 MobaSkillPipelineRevision.RequireMatch(entry, definition);
                 var config = entry.Stage == 0 ? definition.PreCastConfig : definition.CastConfig;
                 var phases = entry.Stage == 0 ? definition.PreCastPhases : definition.CastPhases;
-                var run = PipelineRollbackStateCodec.Deserialize(entry.Run);
+                var run = entry.RunProgress ?? PipelineRollbackStateCodec.Deserialize(entry.Run);
                 if (config == null || phases == null || phases.Count == 0 ||
                     entry.Context.SourceContextId != entry.SourceContextId ||
                     entry.Context.ResolvedConfiguration.SkillId != entry.SkillId)

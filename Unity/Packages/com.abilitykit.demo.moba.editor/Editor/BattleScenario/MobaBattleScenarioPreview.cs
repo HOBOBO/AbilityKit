@@ -39,7 +39,8 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
             BattleScenarioEditorIntegration.SearchTerms = GetSearchTerms;
             BattleScenarioEditorIntegration.PlaySavedCase = StartPreview;
             BattleScenarioEditorIntegration.CreateActorReplayPreview = CreateActorReplayPreview;
-            BattleScenarioEditorIntegration.CaptureStateSyncClientReplay = MobaStateSyncClientReplay.Capture;
+            BattleScenarioEditorIntegration.CaptureStateSyncSkillReplay = MobaStateSyncClientReplay.CaptureSkill;
+            BattleScenarioEditorIntegration.CaptureProjectilePresentationReplay = MobaBattleScenarioRunner.CaptureProjectilePresentationReplay;
             EditorApplication.playModeStateChanged += OnPlayModeChanged;
             var path = SessionState.GetString(PendingKey, "");
             if (path != "") Arm(path);
@@ -51,7 +52,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
             return preview == null ? null : new ActorReplayPreviewAdapter(preview);
         }
 
-        private sealed class ActorReplayPreviewAdapter : IActorReplayPreview
+        private sealed class ActorReplayPreviewAdapter : IFlightReplayPreview
         {
             private readonly BattleActorReplayPreview _preview;
 
@@ -59,6 +60,9 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario
 
             public void Draw(Rect rect, Bounds recordedBounds, Pose? authority, Pose? prediction) =>
                 _preview.Draw(rect, recordedBounds, authority, prediction);
+
+            public void SetFlightPositions(Vector3? authority, Vector3? prediction) =>
+                _preview.SetFlightPositions(authority, prediction);
 
             public void Dispose() => _preview.Dispose();
         }

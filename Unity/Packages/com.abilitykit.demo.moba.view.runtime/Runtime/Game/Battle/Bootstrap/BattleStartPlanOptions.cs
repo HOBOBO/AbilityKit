@@ -59,25 +59,10 @@ namespace AbilityKit.Game.Flow
         public readonly bool EnableClientPrediction;
         public readonly bool EnableConfirmedAuthorityWorld;
 
-        /// <summary>
-        /// 仅在启用了作用域输入与移动证明的状态同步会话中开启本地主控移动预测，默认关闭。
-        /// </summary>
-        public readonly bool EnableStateSyncMovementPrediction;
-
         public BattleStartPlanAuthorityOptions(bool enableClientPrediction, bool enableConfirmedAuthorityWorld)
-            : this(enableClientPrediction, enableConfirmedAuthorityWorld, false)
-        {
-        }
-
-        /// <summary>
-        /// 分别配置帧同步预测、权威对照视图、状态同步移动预测。
-        /// </summary>
-        public BattleStartPlanAuthorityOptions(bool enableClientPrediction, bool enableConfirmedAuthorityWorld,
-            bool enableStateSyncMovementPrediction)
         {
             EnableClientPrediction = enableClientPrediction;
             EnableConfirmedAuthorityWorld = enableConfirmedAuthorityWorld;
-            EnableStateSyncMovementPrediction = enableStateSyncMovementPrediction;
         }
     }
 
@@ -161,6 +146,10 @@ namespace AbilityKit.Game.Flow
         public readonly string InputRecordOutputPath;
         public readonly bool EnableInputReplay;
         public readonly string InputReplayPath;
+        /// <summary>
+        /// 录制时允许写入的轨道范围。
+        /// </summary>
+        public readonly BattleRecordCoverage RecordCoverage;
 
         public BattleStartPlanRunModeOptions(
             BattleRunMode runMode,
@@ -168,12 +157,28 @@ namespace AbilityKit.Game.Flow
             string inputRecordOutputPath,
             bool enableInputReplay,
             string inputReplayPath)
+            : this(runMode, enableInputRecording, inputRecordOutputPath, enableInputReplay, inputReplayPath,
+                BattleRecordCoverage.InputsAndHashes)
+        {
+        }
+
+        /// <summary>
+        /// 将明确选择的录制范围复制到启动计划。
+        /// </summary>
+        public BattleStartPlanRunModeOptions(
+            BattleRunMode runMode,
+            bool enableInputRecording,
+            string inputRecordOutputPath,
+            bool enableInputReplay,
+            string inputReplayPath,
+            BattleRecordCoverage recordCoverage)
         {
             RunMode = runMode;
             EnableInputRecording = enableInputRecording;
             InputRecordOutputPath = inputRecordOutputPath;
             EnableInputReplay = enableInputReplay;
             InputReplayPath = inputReplayPath;
+            RecordCoverage = recordCoverage;
         }
     }
 

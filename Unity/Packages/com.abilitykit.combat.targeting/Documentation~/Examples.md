@@ -1,79 +1,33 @@
 # SearchTarget 使用示例（组合思路）
 
-本文仅给出“怎么组合”的示例思路，便于业务侧快速拼装查询。
-
-> 说明：本模块强调复用 `SearchContext` 的服务和数据来注入能力与动态参数。
+> 文档类型：组合示例
+> 核校状态：2026-11-25 部分核校；已纠正旧类型与服务定位器写法。本文是组合配方，片段省略宿主与业务实现，完整可运行程序见[使用指南](Usage.md)。
 
 ## 示例 1：给定标识列表（上下文/外部传入） -> 输出单位门面
 
-- 候选提供者：`ExplicitListCandidateProvider(ids)`
-- 规则：可选（如 `RequireValidIdRule`、`ExcludeEntityRule`）
-- 评分器：`ZeroScorer` 或距离评分器
-- 选择器：`StreamingTopKByScoreSelector`（若只要前若干个结果）
-- 映射器：`EntitasUnitFacadeMapper`
-
-组合要点：
-- `SearchContext` 注入 `IUnitResolver`（用于映射器）
-- 若包含形状/距离规则，还要注入 `IPositionProvider`
+项目实现 `ICandidateProvider` 推送已有 ID 集合；`ExplicitListCandidateProvider` 不是本包内置类型。可加 RequireValidIdRule、ExcludeEntityRule，用 ZeroScorer 和选择器取需要的数量。输出业务对象时由项目实现 `ITargetMapper<T>`；`EntitasUnitFacadeMapper` 是包外适配器，不是本包依赖。
 
 ## 示例 2：索引候选（阵营/类型） + 圆形形状 + 最近优先 + 前若干个结果
 
-候选来源（两种常见方式）：
-
 ### 2.1 索引是 `IReadOnlyList`（如自维护列表索引）
-- `IEntityIdIndex` + `IndexedListCandidateProvider(key)`
+
+由项目 Provider 用索引循环调用 Consumer，不先复制临时集合。索引在查询期间不能被并发修改；本包不内置 IndexedListCandidateProvider。
 
 ### 2.2 索引是 `HashSet`（来自实体管理器键索引）
-- `IEntityIdCollectionIndex` + `IndexedCollectionCandidateProvider(key)`
 
-过滤与排序：
-- 规则：
-  - `ResolvedCircleRule2D(frameResolver, circleParams)` 或 `CircleShapeRule`
-  - 可选 `ExcludeEntityRule(self)`
-- 评分器：`DistanceToEntityScorer2D(self)`（返回负距离平方，最近分数最高）
-- 选择器：`StreamingTopKByScoreSelector`，设置 `MaxCount` 为需要的数量
-
-参考系解析器（圆心/朝向来源）：
-- 圆心来自施法者：可用自定义参考系解析器（或把 `origin` 写入 `SearchContext` 上下文数据，再实现一个数据参考系解析器）
-- 圆心来自两实体中点：`EntityToEntityFrameResolver2D(a, b, useMidPointAsOrigin:true)`
+同样由项目 Provider 推送中性 ID；调用者保证稳定身份。配合 CircleShapeRule(origin, radius)、DistanceToEntityScorer(self)、StreamingTopKByScoreSelector 和正数 Take(K)，并注入 PositionProvider。距离评分是负距离平方，默认降序最近优先。
 
 ## 示例 3：矩形宽固定，长度 = 两实体距离（动态） + 起点锚定 + 偏移
 
-需求：
-- 矩形沿来源实体到目标实体的方向
-- 宽固定
-- 长度动态：来源实体到目标实体的距离乘以缩放值再加偏移值
-- 锚点：从来源实体开始向前延伸
-- 再叠加局部偏移（例如向前推 1m、向右偏 0.5m）
-
-组合：
-- 参考系解析器：
-  - `EntityToEntityFrameResolver2D(source, target, useMidPointAsOrigin:false)`
-  - `OffsetFrameResolver2D(inner, offsetLocal: (rightOffset, forwardOffset))`
-- 参数解析器：`RectLengthFromEntityDistanceResolver2D(source, target, width, scale, add, minLength, maxLength)`
-- 规则：`ResolvedOrientedRectRule2D(frame, rectParams, pivot: Start)`
-
-注意：
-- 这类组合对 `IPositionProvider` 是强依赖（严格模式下缺失直接无结果）。
+这是项目扩展需求。当前本包没有 OrientedRectShapeRule、RectLengthFromEntityDistanceResolver2D 或参考系解析器。由项目实现 ITargetRule，明确读取坐标、方向归一化、锚点和边界策略，再通过 Filter 接入；不能把早期设计类型当成运行时 API。
 
 ## 示例 4：扇形（方向来自两实体） + 半径固定 + 前若干个结果
 
-- 参考系解析器：`EntityToEntityFrameResolver2D(source, target, useMidPointAsOrigin:false)`
-- 扇形参数：`SectorParamsConstantResolver2D(radius, halfAngleDeg)`
-- 规则：`ResolvedSectorRule2D(frame, sectorParams)`
-- 选择器：`StreamingTopKByScoreSelector`（或在线前若干个结果选择器）
+从 IPositionProvider 取得两实体位置，由宿主求方向，在本次查询构建 `SectorShapeRule(origin, forward, radius, halfAngleDegrees)`。配合 Take(K) 与 StreamingTopKByScoreSelector；位置缺失由宿主拒绝构建或让规则不匹配。角参数是半角，不是完整开角。
 
 ## 示例 5：技能落点（非实体）作为圆心 / 参数来自上下文（数据驱动解析器）
 
-需求：
-- 圆心是技能落点（Vector2）
-- 半径来自技能计算结果（float）
-
-做法：
-- 把 `originXZ`、`radius` 写入 `SearchContext` 上下文数据
-- 参考系解析器使用 `DataFrameResolver2D(originKey)`
-- 圆形参数使用 `DataCircleParamsResolver2D(radiusKey)`
-- 规则使用 `ResolvedCircleRule2D(frame, circleParams)`
+项目静态持有 `SearchContextKey<Vec2>` 和 `SearchContextKey<float>`，调用前 SetData；ITargetQueryFactory.TryBuild 读取参数并构建 CircleShapeRule。没有内置 DataFrameResolver2D / DataCircleParamsResolver2D；动态建 Query 有分配成本，高频路径可改用读键的项目 Rule 并实测。
 
 ## 示例 6：AND、OR、NOT 条件组合
 
@@ -103,7 +57,7 @@ var eligibility = new AndRule(
 
 ## 示例 8：多条件严格排序
 
-需求：先选择距离最近的候选；距离相同时，再选择威胁最高的候选。
+需求：先选择距离最近的候选；距离相同时，再选择威胁最高的候选。以下为片段：`provider`、`threatScorer` 由项目提供，`distanceScorer` 特指返回正距离平方的项目评分器，故用升序；若使用内置 `DistanceToEntityScorer`，应改为降序。
 
 ```csharp
 var builder = SearchPipelineBuilder.Create()
@@ -126,8 +80,8 @@ builder.Dispose();
 ## 示例 9：统计钩子（调试候选量/命中量/结果量）
 
 做法：
-- 创建一个 `SearchStats` 并注入 `SearchContext`：`ctx.SetService<ISearchStats>(stats)`
-- 一次查询完成后读取：`stats.Candidates / stats.Hits / stats.Results`
+- 项目实现 `ISearchStats`（需要明细时实现 `ISearchDetailedStats`）并注入 `SearchContext`：`ctx.SearchStats = stats`
+- 一次查询完成后读取：自己在 Reset / OnCandidate / OnHit / OnResult 中累计的计数（不是包内置 SearchStats 类型）
 
 ## 常见扩展点建议
 
@@ -140,9 +94,9 @@ builder.Dispose();
   - 查询级 `DistinctByEntityKey` 只能消除最终 Provider 已推送的重复 ID，不替代来源级交集或差集
 
 - 动态参数来源：
-  - 来自实体：用参考系解析器和参数解析器通过 `IPositionProvider` 获取位置
-  - 来自上下文数据：使用 `SearchContext.SetData` 写入参数，再实现对应的数据参数解析器
+  - 来自实体：由项目 Rule 或 QueryFactory 通过 `IPositionProvider` 获取位置
+  - 来自上下文数据：使用静态强类型键与 `SearchContext.SetData`，由项目 Rule 或 QueryFactory 读取
 
 - 确定性：
-  - 使用 `IEntityKeyProvider` 保证同分时稳定排序
+  - 使用 `IEntityKeyProvider` 明确同分稳定键，并保证候选与各组件输入一致；这不等于跨平台战斗确定性
 

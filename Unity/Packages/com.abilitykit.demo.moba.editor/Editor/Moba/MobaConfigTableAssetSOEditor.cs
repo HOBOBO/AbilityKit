@@ -19,11 +19,20 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         }
     }
 
+    /// <summary>
+    /// 编辑和定位技能流程；生产资产额外提供全量校验与发布入口。
+    /// </summary>
     [CustomEditor(typeof(SkillFlowSO))]
     public sealed class SkillFlowSOEditor : EditorBase
     {
+        /// <summary>
+        /// 绘制流程编辑器，只有固定生产资产显示发布操作。
+        /// </summary>
         public override void OnInspectorGUI()
         {
+            if (AssetDatabase.GetAssetPath(target) == MobaSkillPipelineExporter.FlowAsset)
+                DrawPublicationControls();
+
             var selection = SkillFlowInspectorSelectionState.Current;
             if (selection.IsValid && ReferenceEquals(selection.Asset, target))
             {
@@ -39,6 +48,24 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             }
 
             DrawInspectorBody();
+        }
+
+        private void DrawPublicationControls()
+        {
+            EditorGUILayout.LabelField("MOBA 生产技能流程", EditorStyles.boldLabel);
+            var dirty = EditorUtility.IsDirty(target);
+            if (dirty)
+                EditorGUILayout.HelpBox("请显式保存 SkillFlowCO 后再校验或发布。", MessageType.Info);
+
+            using (new EditorGUI.DisabledScope(dirty || EditorApplication.isPlayingOrWillChangePlaymode))
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("校验已发布流程"))
+                    MobaSkillPipelineExporter.Check();
+                if (GUILayout.Button("预检并发布全部流程"))
+                    MobaSkillPipelineExporter.PublishFromInspector(preview =>
+                        EditorUtility.DisplayDialog("发布 MOBA 技能流程", preview, "确认发布", "取消"));
+            }
         }
 
         private void ExpandSelection(string selectedPath)

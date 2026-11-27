@@ -1,4 +1,6 @@
+using AbilityKit.Ability.Behavior;
 using AbilityKit.Demo.Moba.Services.Motion;
+using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services;
@@ -20,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
 
         private MobaLocomotionRuntimeService _locomotion;
         private MobaActorRegistry _actors;
+        private MobaBrainService _brains;
         private int _sampleLogCount;
 
         /// <summary>
@@ -36,6 +39,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
             Services.TryResolve(out _combatRules);
             _locomotion = Services.Resolve<MobaLocomotionRuntimeService>();
             _actors = Services.Resolve<MobaActorRegistry>();
+            Services.TryResolve(out _brains);
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.Motion,
@@ -71,6 +75,15 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                 }
 
                 var speed = new MobaAttrs(e).MoveSpeed;
+                if (e.hasOwnerLink && e.hasActorBrain && _brains != null &&
+                    (e.moveInput.Dx != 0f || e.moveInput.Dz != 0f) &&
+                    _brains.TryGetBehavior(e.actorBrain.BehaviorInstanceId, out var behavior) &&
+                    behavior != null && behavior.Phase == BehaviorPhase.Running)
+                {
+                    var intent = MobaBrainIntentReader.Read(behavior);
+                    if (intent.FollowsOwner)
+                        speed = MobaOwnerFollowMovement.ResolveSpeed(e, _actors, in intent, speed, _clock.DeltaTime);
+                }
 
                 if (loco == null) loco = _locomotion.Create(e, version, speed);
                 else loco.Speed = speed;

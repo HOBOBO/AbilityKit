@@ -130,6 +130,117 @@ public sealed class MobaSkillContextRollbackTests
     }
 
     [Fact]
+    public void Local_rollback_currently_reprojects_purged_ended_history_and_restarts_the_window()
+    {
+        const int keepEndedFrames = 8;
+        using var contexts = new MobaExecutionContextRegistry();
+        using var trace = new MobaTraceRegistry();
+        using var skills = CreateSkills(contexts);
+        var clock = new FrameTime();
+        trace.AttachFrameTime(clock);
+        trace.OnInit(new ExecutionContextResolver(contexts));
+
+        var root = contexts.Create(new MobaExecutionContextCreateRequest(
+            MobaExecutionKind.SkillCast, 1001, 1, 2));
+        var child = contexts.Create(new MobaExecutionContextCreateRequest(
+            MobaExecutionKind.BuffApply, 2001, 1, 2, parentContextId: root.ContextId));
+        Assert.True(contexts.End(root.ContextId, (int)MobaExecutionEndReason.Completed, 1));
+        Assert.True(contexts.End(child.ContextId, (int)MobaExecutionEndReason.Completed, 2));
+        var frame = new FrameIndex(20);
+        clock.Reset(frame, 1f, 0.05f);
+        var provider = new MobaSkillRuntimeRollbackProvider(skills);
+        var checkpoint = provider.Export(frame);
+
+        Assert.Equal(1, trace.PurgeReleased(frame.Value, keepEndedFrames));
+        Assert.False(trace.Contains(root.ContextId));
+        Assert.False(trace.Contains(child.ContextId));
+        Assert.True(contexts.TryGet(child.ContextId, out var endedBeforeRestore));
+        Assert.True(endedBeforeRestore.IsEnded);
+
+        provider.Import(frame, checkpoint);
+
+        Assert.Equal(0L, trace.ObservationFailureCount);
+        Assert.True(trace.TryGetRootState(root.ContextId, out var rebuiltRoot));
+        Assert.Equal(0, rebuiltRoot.ActiveCount);
+        Assert.Equal(frame.Value, rebuiltRoot.LastTouchedFrame);
+        var rebuiltChild = trace.TryGetSnapshot(child.ContextId);
+        Assert.Equal(root.ContextId, rebuiltChild.ParentId);
+        Assert.True(rebuiltChild.IsEnded);
+        Assert.Equal(endedBeforeRestore.EndedFrame, rebuiltChild.EndedFrame);
+        clock.StepTo(new FrameIndex(frame.Value + keepEndedFrames - 1), 0.05f);
+        Assert.Equal(0, trace.PurgeReleased(clock.Frame.Value, keepEndedFrames));
+        clock.StepTo(new FrameIndex(frame.Value + keepEndedFrames), 0.05f);
+        Assert.Equal(1, trace.PurgeReleased(clock.Frame.Value, keepEndedFrames));
+        Assert.False(trace.Contains(root.ContextId));
+        Assert.True(contexts.TryGet(child.ContextId, out var endedAfterPurge));
+        Assert.Equal(endedBeforeRestore, endedAfterPurge);
+    }
+
+    [Fact]
+    public void Local_rollback_can_reactivate_a_purged_root_that_existed_at_the_checkpoint()
+    {
+        using var contexts = new MobaExecutionContextRegistry();
+        using var trace = new MobaTraceRegistry();
+        using var skills = CreateSkills(contexts);
+        trace.OnInit(new ExecutionContextResolver(contexts));
+        var root = contexts.Create(new MobaExecutionContextCreateRequest(
+            MobaExecutionKind.SkillCast, 1001, 1, 2));
+        var runtime = CreateRuntime(skills, root.ContextId);
+        var handle = runtime.Handle;
+        var frame = new FrameIndex(10);
+        var provider = new MobaSkillRuntimeRollbackProvider(skills);
+        var checkpoint = provider.Export(frame);
+
+        skills.ForceTerminate(in handle);
+        Assert.True(contexts.TryGet(root.ContextId, out var ended));
+        if (!ended.IsEnded)
+            Assert.True(contexts.End(root.ContextId, (int)MobaExecutionEndReason.Completed, 11));
+        Assert.True(trace.TryPurgeReleasedRoot(root.ContextId));
+        Assert.False(trace.Contains(root.ContextId));
+
+        provider.Import(frame, checkpoint);
+
+        Assert.Equal(0L, trace.ObservationFailureCount);
+        Assert.True(skills.TryGet(in handle, out _));
+        Assert.True(contexts.TryGet(root.ContextId, out var restored));
+        Assert.False(restored.IsEnded);
+        Assert.True(trace.TryGetRootState(root.ContextId, out var restoredRoot));
+        Assert.Equal(1, restoredRoot.ActiveCount);
+        Assert.False(trace.TryGetSnapshot(root.ContextId).IsEnded);
+        Assert.False(trace.TryPurgeReleasedRoot(root.ContextId));
+    }
+
+    [Fact]
+    public void Local_rollback_currently_reports_a_trace_conflict_when_a_late_child_lost_its_parent()
+    {
+        using var contexts = new MobaExecutionContextRegistry();
+        using var trace = new MobaTraceRegistry();
+        using var skills = CreateSkills(contexts);
+        trace.OnInit(new ExecutionContextResolver(contexts));
+        var root = contexts.Create(new MobaExecutionContextCreateRequest(
+            MobaExecutionKind.SkillCast, 1001, 1, 2));
+        Assert.True(contexts.End(root.ContextId, (int)MobaExecutionEndReason.Completed, 1));
+        Assert.True(trace.TryPurgeReleasedRoot(root.ContextId));
+
+        var child = contexts.Create(new MobaExecutionContextCreateRequest(
+            MobaExecutionKind.EffectExecution, 2001, 1, 2, parentContextId: root.ContextId, frame: 20));
+        var projectedChild = trace.TryGetSnapshot(child.ContextId);
+        Assert.True(projectedChild.IsValid);
+        Assert.True(projectedChild.IsRoot);
+        Assert.Equal(0L, trace.ObservationFailureCount);
+        var frame = new FrameIndex(20);
+        var provider = new MobaSkillRuntimeRollbackProvider(skills);
+        var checkpoint = provider.Export(frame);
+
+        provider.Import(frame, checkpoint);
+
+        Assert.True(contexts.TryGet(child.ContextId, out var authoritativeChild));
+        Assert.Equal(root.ContextId, authoritativeChild.RootContextId);
+        Assert.Equal(root.ContextId, authoritativeChild.ParentContextId);
+        Assert.Equal(1L, trace.ObservationFailureCount);
+    }
+
+    [Fact]
     public void Local_rollback_without_trace_still_restores_runtime()
     {
         using var skills = new MobaSkillCastRuntimeService();

@@ -4,15 +4,9 @@ using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
-using AbilityKit.Triggering.Runtime.ActionScheduler;
 using AbilityKit.Triggering.Runtime.Context;
 using AbilityKit.Triggering.Runtime.Config;
-using AbilityKit.Triggering.Runtime.Dispatcher;
 using AbilityKit.Triggering.Runtime.Plan;
-using AbilityKit.Triggering.Runtime.RuleScheduler;
-using AbilityKit.Triggering.Runtime.Schedule;
-using AbilityKit.Triggering.Runtime.Schedule.Behavior;
-using AbilityKit.Triggering.Runtime.Schedule.Data;
 using AbilityKit.Triggering.Validation;
 using NUnit.Framework;
 
@@ -149,22 +143,6 @@ namespace AbilityKit.Triggering.Tests
         {
         }
 
-        private sealed class TestDispatcherContext : ITriggerDispatcherContext
-        {
-            public TestDispatcherContext(TestContext context)
-            {
-                Context = context;
-            }
-
-            public object Context { get; }
-
-            public TestContext Current => (TestContext)Context;
-
-            public T GetService<T>() where T : class => Context as T;
-
-            public float CurrentTimeMs => 0f;
-        }
-
         [Test]
         public void Register_NotifiesLifecycleForEveryTriggerOnSameKey()
         {
@@ -207,6 +185,53 @@ namespace AbilityKit.Triggering.Tests
             bus.Publish(key, new Ping());
 
             Assert.That(executionCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// 在同键嵌套派发中验证增删的可见范围，并确认最后释放确实令总线退订。
+        /// </summary>
+        [Test]
+        public void Dispatch_SeesRegistrationMutationsOnlyAtTheApplicableBoundary()
+        {
+            var bus = new EventBus();
+            var runner = new TriggerRunner<TestContext>(bus, new FunctionRegistry(), new ActionRegistry());
+            var key = new EventKey<bool>(StableStringId.Get("test:trigger_runner:nested_mutation"));
+            var order = new List<string>();
+            var removedEvaluations = 0;
+            IDisposable replacement = null;
+
+            try
+            {
+                using var removed = runner.Register(key, new DelegateTrigger<bool, TestContext>((nested, context) =>
+                {
+                    removedEvaluations++;
+                    return true;
+                }, (nested, context) => order.Add("removed")), priority: 5);
+                using var first = runner.Register(key, CreateRule(nested =>
+                {
+                    order.Add(nested ? "inner:first" : "outer:first");
+                    if (nested) return;
+
+                    removed.Dispose();
+                    replacement = runner.Register(key, CreateRule(inner => order.Add(inner ? "inner:new" : "outer:new")), priority: 20);
+                    bus.Publish(key, true);
+                }), priority: 10);
+                using var tail = runner.Register(key, CreateRule(nested => order.Add(nested ? "inner:tail" : "outer:tail")));
+
+                bus.Publish(key, false);
+
+                Assert.That(order, Is.EqualTo(new[] { "outer:first", "inner:new", "inner:first", "inner:tail", "outer:tail" }));
+                Assert.That(removedEvaluations, Is.Zero);
+            }
+            finally
+            {
+                replacement?.Dispose();
+            }
+
+            Assert.That(bus.HasSubscribers(key), Is.False);
+
+            DelegateTrigger<bool, TestContext> CreateRule(Action<bool> execute)
+                => new DelegateTrigger<bool, TestContext>((nested, context) => true, (nested, context) => execute(nested));
         }
 
         /// <summary>
@@ -424,60 +449,10 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
-        public void ScheduledPlannedTrigger_DelayedAction_UsesLatestContextAtExecutionTime()
+        public void ImmediatePlan_UsesCurrentContextWithoutScheduler()
         {
             var bus = new EventBus();
             var actions = new ActionRegistry();
-            var schedulerManager = new ActionSchedulerManager();
-            var contextSource = new MutableContextSource { Current = new TestContext(1) };
-            var observedContextValues = new List<int>();
-            var actionId = new ActionId(StableStringId.Get("test:trigger_runner:scheduled_context_action"));
-
-            actions.Register<NamedAction0<Ping, object, TestContext>>(
-                actionId,
-                (triggerArgs, actionArgs, ctx) => observedContextValues.Add(ctx.Context.Value),
-                isDeterministic: true);
-
-            var runner = new TriggerRunner<TestContext>(
-                bus,
-                new FunctionRegistry(),
-                actions,
-                contextSource: contextSource,
-                actionSchedulerManager: schedulerManager);
-
-            var key = new EventKey<Ping>(StableStringId.Get("test:trigger_runner:scheduled_context_event"));
-            var call = new ActionCallPlan(
-                actionId,
-                0,
-                default,
-                default,
-                null,
-                EActionScheduleMode.Delayed,
-                1f,
-                1,
-                true,
-                EActionExecutionPolicy.Immediate);
-            var plan = new TriggerPlan<Ping>(phase: 0, priority: 0, triggerId: 1001, actions: new[] { call });
-
-            runner.RegisterPlan<Ping, TestContext>(key, in plan);
-
-            contextSource.Current = new TestContext(1);
-            bus.Publish(key, new Ping());
-
-            contextSource.Current = new TestContext(2);
-            bus.Publish(key, new Ping());
-
-            schedulerManager.Update(1f, new TestDispatcherContext(contextSource.Current));
-
-            Assert.That(observedContextValues, Is.EqualTo(new[] { 2 }));
-        }
-
-        [Test]
-        public void ScheduledPlannedTrigger_ImmediateAction_UsesLatestContextAtExecutionTime()
-        {
-            var bus = new EventBus();
-            var actions = new ActionRegistry();
-            var schedulerManager = new ActionSchedulerManager();
             var contextSource = new MutableContextSource { Current = new TestContext(1) };
             var observedContextValues = new List<int>();
             var actionId = new ActionId(StableStringId.Get("test:trigger_runner:immediate_latest_context"));
@@ -491,8 +466,7 @@ namespace AbilityKit.Triggering.Tests
                 bus,
                 new FunctionRegistry(),
                 actions,
-                contextSource: contextSource,
-                actionSchedulerManager: schedulerManager);
+                contextSource: contextSource);
 
             var key = new EventKey<Ping>(StableStringId.Get("test:trigger_runner:immediate_latest_context_event"));
             var call = new ActionCallPlan(
@@ -513,54 +487,6 @@ namespace AbilityKit.Triggering.Tests
             bus.Publish(key, new Ping());
 
             Assert.That(observedContextValues, Is.EqualTo(new[] { 7 }));
-        }
-
-        [Test]
-        public void ScheduledPlannedTrigger_PeriodicAction_UsesScheduleSubPlanForIntervalsAndMaxExecutions()
-        {
-            var bus = new EventBus();
-            var actions = new ActionRegistry();
-            var schedulerManager = new ActionSchedulerManager();
-            var contextSource = new MutableContextSource { Current = new TestContext(3) };
-            var observedContextValues = new List<int>();
-            var actionId = new ActionId(StableStringId.Get("test:trigger_runner:periodic_schedule_sub_plan"));
-
-            actions.Register<NamedAction0<Ping, object, TestContext>>(
-                actionId,
-                (triggerArgs, actionArgs, ctx) => observedContextValues.Add(ctx.Context.Value),
-                isDeterministic: true);
-
-            var runner = new TriggerRunner<TestContext>(
-                bus,
-                new FunctionRegistry(),
-                actions,
-                contextSource: contextSource,
-                actionSchedulerManager: schedulerManager);
-
-            var key = new EventKey<Ping>(StableStringId.Get("test:trigger_runner:periodic_schedule_sub_plan_event"));
-            var call = new ActionCallPlan(
-                actionId,
-                0,
-                default,
-                default,
-                null,
-                EActionScheduleMode.Periodic,
-                10f,
-                2,
-                true,
-                EActionExecutionPolicy.Immediate);
-            var plan = new TriggerPlan<Ping>(phase: 0, priority: 0, triggerId: 1002, actions: new[] { call });
-
-            runner.RegisterPlan<Ping, TestContext>(key, in plan);
-            bus.Publish(key, new Ping());
-
-            schedulerManager.Update(9f, new TestDispatcherContext(contextSource.Current));
-            schedulerManager.Update(1f, new TestDispatcherContext(contextSource.Current));
-            schedulerManager.Update(9f, new TestDispatcherContext(contextSource.Current));
-            schedulerManager.Update(1f, new TestDispatcherContext(contextSource.Current));
-            schedulerManager.Update(10f, new TestDispatcherContext(contextSource.Current));
-
-            Assert.That(observedContextValues, Is.EqualTo(new[] { 3, 3 }));
         }
     }
 }

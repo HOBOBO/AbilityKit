@@ -40,6 +40,10 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float BounceSearchRadius;
         public float TrackingArcHeight;
         public float TrackingArcHeightPerUnit;
+        /// <summary>
+        /// ?????????????????????
+        /// </summary>
+        public float PresentationArcHeight;
         public float TrackingArcDurationSeconds;
         public int HitCooldownMs;
         public int HitIdentityPolicy;

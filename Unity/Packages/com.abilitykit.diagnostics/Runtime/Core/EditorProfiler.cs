@@ -1,3 +1,5 @@
+#nullable enable annotations
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -110,10 +112,19 @@ namespace AbilityKit.Diagnostics
                 }
             }
 
-            public void Add(in PendingMetricOperation operation)
+            public void Add(in PendingMetricOperation operation, EditorProfiler? durationOwner = null)
             {
                 lock (_sync)
                 {
+                    /*
+                     * 入队与缓冲清空、合并共用此锁。迟到的时长摘要不能写进新一代缓冲，
+                     * 也不能挤掉新会话的数据；检查只读取门禁，不反向取得聚合锁。
+                     */
+                    if (durationOwner != null && !durationOwner.CanCompleteProbe(operation.Generation))
+                    {
+                        return;
+                    }
+
                     if (_count == _operations.Length)
                     {
                         _dropped++;
@@ -320,23 +331,6 @@ namespace AbilityKit.Diagnostics
             public bool RequiresFullRefresh;
         }
 
-        private sealed class ActiveFrame
-        {
-            public ActiveFrame(string name, string category, FlameNode node, long startTimestamp)
-            {
-                Name = name;
-                Category = category;
-                Node = node;
-                StartTimestamp = startTimestamp;
-            }
-
-            public string Name { get; }
-            public string Category { get; }
-            public FlameNode Node { get; }
-            public long StartTimestamp { get; }
-            public long ChildNanoseconds { get; set; }
-        }
-
         private const int DefaultMaxSamplesPerMetric = 512;
         private const int DefaultMaxDiagnosticEvents = 256;
         private const int DefaultMetricBufferCapacity = 256;
@@ -361,7 +355,8 @@ namespace AbilityKit.Diagnostics
         private readonly Dictionary<string, RateThresholdRule> _rateThresholds = new Dictionary<string, RateThresholdRule>(64);
         private readonly Dictionary<string, long> _eventCooldowns = new Dictionary<string, long>(128);
         private readonly Queue<DiagnosticEventRecord> _events = new Queue<DiagnosticEventRecord>(DefaultMaxDiagnosticEvents);
-        private readonly Dictionary<int, Stack<ActiveFrame>> _threadStacks = new Dictionary<int, Stack<ActiveFrame>>();
+        private readonly ProfilerScopeTracker _scopes = new ProfilerScopeTracker();
+        private readonly Action<ProfilerScopeTracker.Frame, long, long> _recordScope;
         private ProfilerOptions _options = ProfilerOptions.CreateDefault();
         private volatile bool _isEnabled;
         private int _sessionIndex;
@@ -380,6 +375,7 @@ namespace AbilityKit.Diagnostics
 
         public EditorProfiler()
         {
+            _recordScope = RecordScopeLocked;
             _threadMetricBuffer = new ThreadLocal<ThreadMetricBuffer>(CreateThreadMetricBuffer);
             _threadSpanBuffer = new ThreadLocal<ThreadSpanBuffer>(CreateThreadSpanBuffer);
             _metricGeneration = 0L;
@@ -437,6 +433,7 @@ namespace AbilityKit.Diagnostics
                 _metricGeneration++;
                 PublishMetricGateLocked(forceCollectionDisabled: true);
                 FlushMetricBuffersLocked();
+                _scopes.Clear();
                 FlushSpanBuffersLocked();
                 _root.EndTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             }
@@ -463,12 +460,12 @@ namespace AbilityKit.Diagnostics
                 var next = (options ?? ProfilerOptions.CreateDefault()).Clone();
                 _options = next;
 
-                // A detailed scope owns an entry in the per-thread flame stack. If collection is
-                // downgraded while scopes are active, discard those entries rather than allowing
-                // a later Standard session to inherit stale nesting state.
+                /*
+                 * 退出详细采集时丢弃活跃树栈，避免恢复详细采集后继承旧嵌套。
+                 */
                 if (!next.CollectsDetailedData)
                 {
-                    _threadStacks.Clear();
+                    _scopes.Clear();
                 }
 
                 var maxSamples = next.MaxSamplesPerMetric <= 0 ? DefaultMaxSamplesPerMetric : next.MaxSamplesPerMetric;
@@ -633,11 +630,17 @@ namespace AbilityKit.Diagnostics
             }
         }
 
+        /// <summary>
+        /// 开始一次作用域采样，不满足采集门禁时返回默认令牌。
+        /// </summary>
         public ProbeToken Begin(string name)
         {
             return Begin(name, 0L);
         }
 
+        /// <summary>
+        /// 开始一次作用域采样，并将关联 ID 写入可用的跨度记录。
+        /// </summary>
         public ProbeToken Begin(string name, long contextId)
         {
             if (!_isEnabled || string.IsNullOrEmpty(name))
@@ -645,26 +648,22 @@ namespace AbilityKit.Diagnostics
                 return default;
             }
 
-            var startTimestamp = Stopwatch.GetTimestamp();
             var gate = Volatile.Read(ref _metricGate);
-            if (gate == null || !gate.IsCollectionEnabled)
+            if (!gate.IsCollectionEnabled)
             {
                 return default;
             }
 
             if (!gate.CollectsDetailedData)
             {
-                if (!ShouldRecord(name, MetricKind.Duration, gate))
-                {
-                    return default;
-                }
-
-                return new ProbeToken(this, name, startTimestamp, contextId, hasDetailedState: false, generation: gate.Generation);
+                return ShouldRecord(name, MetricKind.Duration, gate)
+                    ? CreateSummaryProbe(name, contextId, gate.Generation)
+                    : default;
             }
 
             lock (_lock)
             {
-                if (!ShouldRecordLocked(name, MetricKind.Duration))
+                if (!_isEnabled || gate.Generation != _metricGeneration || !ShouldRecordLocked(name, MetricKind.Duration))
                 {
                     return default;
                 }
@@ -672,128 +671,82 @@ namespace AbilityKit.Diagnostics
                 EnsureMetricLocked(name, MetricKind.Duration, "ms");
                 if (!_options.CollectsDetailedData)
                 {
-                    return new ProbeToken(this, name, startTimestamp, contextId, hasDetailedState: false, generation: _metricGeneration);
+                    return CreateSummaryProbe(name, contextId, _metricGeneration);
                 }
 
                 var threadId = Thread.CurrentThread.ManagedThreadId;
-                var stack = GetThreadStack(threadId);
                 var category = GetMetricCategoryLocked(name);
-                var parent = stack.Count > 0 ? stack.Peek().Node : _root.GetOrCreateRoot(category);
+                var parent = _scopes.GetCurrentNode(threadId) ?? _root.GetOrCreateRoot(category);
                 var node = parent.GetOrCreateChild(name, category);
-                stack.Push(new ActiveFrame(name, category, node, startTimestamp));
-                return new ProbeToken(this, name, startTimestamp, contextId, hasDetailedState: true, generation: _metricGeneration);
+                var capture = new ProfilerScopeTracker.Capture(name, Stopwatch.GetTimestamp(), contextId, _metricGeneration, threadId);
+                _scopes.Push(capture, node);
+                return new ProbeToken(this, capture);
             }
         }
 
+        private ProbeToken CreateSummaryProbe(string name, long contextId, long generation)
+        {
+            return new ProbeToken(this, new ProfilerScopeTracker.Capture(name, Stopwatch.GetTimestamp(), contextId, generation));
+        }
+
+        internal bool CanCompleteProbe(long generation)
+        {
+            var gate = Volatile.Read(ref _metricGate);
+            return _isEnabled && gate.IsCollectionEnabled && gate.Generation == generation;
+        }
+
+        /// <summary>
+        /// 完成令牌一次。详细采样沿开始线程的栈配对，乱序时先结束仍活动的子作用域。
+        /// </summary>
         public void Complete(ProbeToken token)
         {
-            if (!_isEnabled || !token.IsValid)
+            var capture = token.GetCapture(this);
+            if (capture == null || !capture.IsPending || !_isEnabled)
             {
                 return;
             }
 
-            var nowTimestamp = Stopwatch.GetTimestamp();
-            var elapsedNanoseconds = TicksToNanoseconds(nowTimestamp - token.StartTimestamp);
-            var appendSpan = false;
-            var threadId = Thread.CurrentThread.ManagedThreadId;
-            var frame = 0L;
-
-            var gate = Volatile.Read(ref _metricGate);
-            if (gate == null || !gate.IsCollectionEnabled)
+            if (!capture.IsDetailed)
             {
-                return;
-            }
+                if (capture.TryComplete() && CanCompleteProbe(capture.Generation))
+                {
+                    EnqueueDurationSummary(capture.Name, TicksToNanoseconds(Stopwatch.GetTimestamp() - capture.StartTimestamp),
+                        capture.Generation);
+                }
 
-            if (token.Generation != gate.Generation)
-            {
-                return;
-            }
-
-            if (!token.HasDetailedState)
-            {
-                EnqueueDurationSummary(token.Name, elapsedNanoseconds, token.Generation);
                 return;
             }
 
             lock (_lock)
             {
-                if (_options == null || !_options.IsCollectionEnabled || _metricGeneration != token.Generation)
+                if (!_isEnabled || _metricGeneration != capture.Generation || !capture.IsPending)
                 {
                     return;
                 }
 
-                if (!_options.CollectsDetailedData)
+                if (!_options.IsCollectionEnabled)
                 {
-                    EnqueueDurationSummary(token.Name, elapsedNanoseconds, token.Generation);
+                    capture.TryComplete();
                     return;
                 }
 
-                var stack = GetThreadStack(threadId);
-                if (stack.Count == 0)
+                var now = Stopwatch.GetTimestamp();
+                if (_options.CollectsDetailedData && _scopes.TryClose(capture, now, Volatile.Read(ref _currentFrame), _recordScope))
                 {
-                    RecordDurationLocked(token.Name, elapsedNanoseconds, attachToCurrentStack: true);
-                    appendSpan = true;
-                    frame = Volatile.Read(ref _currentFrame);
+                    return;
                 }
-                else
+
+                /*
+                 * 降低采集等级后原树栈已清空，不把仍待结束的采样插入后来创建的详细栈。
+                 */
+                if (capture.TryComplete())
                 {
-                    var top = stack.Peek();
-                    if (string.Equals(top.Name, token.Name, StringComparison.Ordinal))
-                    {
-                        CompleteFrameLocked(stack, stack.Pop(), elapsedNanoseconds);
-                        appendSpan = true;
-                        frame = Volatile.Read(ref _currentFrame);
-                    }
-                    else
-                    {
-                        var popped = new List<ActiveFrame>();
-                        ActiveFrame targetFrame = null;
-                        while (stack.Count > 0)
-                        {
-                            var activeFrame = stack.Pop();
-                            popped.Add(activeFrame);
-                            if (string.Equals(activeFrame.Name, token.Name, StringComparison.Ordinal))
-                            {
-                                targetFrame = activeFrame;
-                                break;
-                            }
-                        }
-
-                        if (targetFrame == null)
-                        {
-                            for (var i = popped.Count - 1; i >= 0; i--)
-                            {
-                                stack.Push(popped[i]);
-                            }
-
-                            RecordDurationLocked(token.Name, elapsedNanoseconds, attachToCurrentStack: true);
-                        }
-                        else
-                        {
-                            for (var i = 0; i < popped.Count - 1; i++)
-                            {
-                                var activeFrame = popped[i];
-                                var frameElapsed = TicksToNanoseconds(nowTimestamp - activeFrame.StartTimestamp);
-                                RecordFrameMeasurementLocked(activeFrame, frameElapsed);
-                                popped[i + 1].ChildNanoseconds += frameElapsed;
-                            }
-
-                            CompleteFrameLocked(stack, targetFrame, elapsedNanoseconds);
-                        }
-
-                        appendSpan = true;
-                        frame = Volatile.Read(ref _currentFrame);
-                    }
+                    EnqueueDurationSummary(capture.Name, TicksToNanoseconds(now - capture.StartTimestamp), capture.Generation);
                 }
-            }
-
-            if (appendSpan)
-            {
-                AppendSpan(token.Name, token.StartTimestamp, elapsedNanoseconds, token.ContextId, threadId, frame);
             }
         }
 
-        private void AppendSpan(string name, long startTimestamp, long elapsedNanoseconds, long contextId, int threadId, long frame)
+        private void AppendSpanLocked(string name, long startTimestamp, long elapsedNanoseconds, long contextId, int threadId, long frame)
         {
             if (_spanBufferCapacity <= 0 || elapsedNanoseconds < 0L)
             {
@@ -876,7 +829,7 @@ namespace AbilityKit.Diagnostics
                 Value = nanoseconds,
                 Timestamp = 0L,
                 Generation = generation
-            });
+            }, this);
         }
 
         private void ApplyCounterAddLocked(string counter, long value, long timestamp)
@@ -932,30 +885,26 @@ namespace AbilityKit.Diagnostics
             }
         }
 
-        private void RecordFrameMeasurementLocked(ActiveFrame frame, long elapsedNanoseconds)
+        private void RecordScopeLocked(ProfilerScopeTracker.Frame frame, long elapsedNanoseconds, long logicalFrame)
         {
+            var capture = frame.Capture;
             frame.Node.AddMeasurement(elapsedNanoseconds);
             var elapsedMilliseconds = elapsedNanoseconds / 1000000.0d;
-            AddSampleLocked(frame.Name, elapsedMilliseconds);
-            UpdateDurationSummaryLocked(frame.Name, elapsedMilliseconds);
-            CheckDurationThresholdLocked(frame.Name, elapsedMilliseconds);
+            AddSampleLocked(capture.Name, elapsedMilliseconds);
+            UpdateDurationSummaryLocked(capture.Name, elapsedMilliseconds);
+            CheckDurationThresholdLocked(capture.Name, elapsedMilliseconds);
 
             var selfNanoseconds = elapsedNanoseconds - frame.ChildNanoseconds;
             if (selfNanoseconds > 0)
             {
                 frame.Node.SelfNanoseconds += selfNanoseconds;
             }
+            AppendSpanLocked(capture.Name, capture.StartTimestamp, elapsedNanoseconds, capture.ContextId, capture.ThreadId, logicalFrame);
         }
 
-        private void CompleteFrameLocked(Stack<ActiveFrame> stack, ActiveFrame frame, long elapsedNanoseconds)
-        {
-            RecordFrameMeasurementLocked(frame, elapsedNanoseconds);
-            if (stack.Count > 0)
-            {
-                stack.Peek().ChildNanoseconds += elapsedNanoseconds;
-            }
-        }
-
+        /// <summary>
+        /// 记录外部测得的纳秒耗时；详细模式下归到调用线程当前的作用域。
+        /// </summary>
         public void Record(string name, long nanoseconds)
         {
             if (!_isEnabled || string.IsNullOrEmpty(name) || nanoseconds < 0)
@@ -979,13 +928,10 @@ namespace AbilityKit.Diagnostics
                 return;
             }
 
-            var appendSpan = false;
-            var startTimestamp = 0L;
-            var frame = 0L;
             var threadId = Thread.CurrentThread.ManagedThreadId;
             lock (_lock)
             {
-                if (!ShouldRecordLocked(name, MetricKind.Duration))
+                if (!_isEnabled || gate.Generation != _metricGeneration || !ShouldRecordLocked(name, MetricKind.Duration))
                 {
                     return;
                 }
@@ -997,18 +943,11 @@ namespace AbilityKit.Diagnostics
                     return;
                 }
 
-                RecordDurationLocked(name, nanoseconds, attachToCurrentStack: true);
+                RecordDurationLocked(name, nanoseconds, threadId);
 
                 // ??????????????? - ????????????????
-                var now = Stopwatch.GetTimestamp();
-                startTimestamp = now - NanosecondsToTicks(nanoseconds);
-                frame = Volatile.Read(ref _currentFrame);
-                appendSpan = true;
-            }
-
-            if (appendSpan)
-            {
-                AppendSpan(name, startTimestamp, nanoseconds, 0L, threadId, frame);
+                var startTimestamp = Stopwatch.GetTimestamp() - NanosecondsToTicks(nanoseconds);
+                AppendSpanLocked(name, startTimestamp, nanoseconds, 0L, threadId, Volatile.Read(ref _currentFrame));
             }
         }
 
@@ -1235,21 +1174,12 @@ namespace AbilityKit.Diagnostics
             return result;
         }
 
-        private void RecordDurationLocked(string name, long nanoseconds, bool attachToCurrentStack)
+        private void RecordDurationLocked(string name, long nanoseconds, int threadId)
         {
             var category = GetMetricCategoryLocked(name);
-            FlameNode node;
-            var stack = attachToCurrentStack ? GetThreadStack(Thread.CurrentThread.ManagedThreadId) : null;
-
-            if (stack != null && stack.Count > 0)
-            {
-                node = stack.Peek().Node.GetOrCreateChild(name, category);
-                stack.Peek().ChildNanoseconds += nanoseconds;
-            }
-            else
-            {
-                node = _root.GetOrCreateRoot(category).GetOrCreateChild(name, category);
-            }
+            var parent = _scopes.GetCurrentNode(threadId) ?? _root.GetOrCreateRoot(category);
+            var node = parent.GetOrCreateChild(name, category);
+            _scopes.AddChildDuration(threadId, nanoseconds);
 
             var milliseconds = nanoseconds / 1000000.0d;
             node.AddMeasurement(nanoseconds);
@@ -1268,17 +1198,6 @@ namespace AbilityKit.Diagnostics
 
             EnsureMetricLocked(name, MetricKind.Duration, "ms");
             UpdateDurationSummaryLocked(name, nanoseconds / 1000000.0d);
-        }
-
-        private Stack<ActiveFrame> GetThreadStack(int threadId)
-        {
-            if (!_threadStacks.TryGetValue(threadId, out var stack))
-            {
-                stack = new Stack<ActiveFrame>();
-                _threadStacks[threadId] = stack;
-            }
-
-            return stack;
         }
 
         private void AddSampleLocked(string name, double value)
@@ -1708,7 +1627,7 @@ namespace AbilityKit.Diagnostics
             _rates.Clear();
             _eventCooldowns.Clear();
             _events.Clear();
-            _threadStacks.Clear();
+            _scopes.Clear();
             _metricOperationsDropped = 0L;
             for (var i = 0; i < _threadMetricBuffers.Count; i++)
             {

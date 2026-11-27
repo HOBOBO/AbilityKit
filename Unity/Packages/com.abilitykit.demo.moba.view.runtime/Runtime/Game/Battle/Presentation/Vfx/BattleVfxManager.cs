@@ -223,7 +223,7 @@ namespace AbilityKit.Game.Battle.Vfx
             if (entity.TryGetRef(out BattleViewGameObjectComponent visual) && visual?.GameObject != null)
             {
                 var go = visual.GameObject;
-                BattlePresentationScaleState.ApplyCueScale(go, request.Scale, request.Radius);
+                BattlePresentationScaleState.ApplyCueScale(go, request.Scale, request.Radius, request.Parameters);
                 var scales = go.GetComponent<BattlePresentationScaleState>();
                 var state = go.GetComponent<UnityPresentationInstanceState>() ?? go.AddComponent<UnityPresentationInstanceState>();
                 state.Bind("BattleVfx", in request, scales.BaseModelScale, scales.Sources, _rateResolver, requestScaleInSources: true);

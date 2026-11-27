@@ -518,6 +518,40 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         Infinite = 2
     }
 
+    /// <summary>
+    /// 效果实例在申请创建时记录的只读来源证据；不作为恢复输入。
+    /// </summary>
+    public readonly struct BattleDiagnosticEffectApplication : IEquatable<BattleDiagnosticEffectApplication>
+    {
+        /// <summary>
+        /// 保存应用帧与已知来源；来源实体和上下文可以各自缺失。
+        /// </summary>
+        public BattleDiagnosticEffectApplication(int frame, BattleDiagnosticRuntimeObjectReference sourceActor,
+            long sourceContextId, long sourceRootContextId = 0L)
+        {
+            if (!BattleDiagnosticFrames.IsValid(frame)) throw new ArgumentOutOfRangeException(nameof(frame));
+            Frame = frame;
+            SourceActor = sourceActor;
+            SourceContextId = sourceContextId;
+            SourceRootContextId = sourceRootContextId;
+            IsCaptured = true;
+        }
+
+        public bool IsCaptured { get; }
+        public int Frame { get; }
+        public BattleDiagnosticRuntimeObjectReference SourceActor { get; }
+        public long SourceContextId { get; }
+        public long SourceRootContextId { get; }
+
+        public bool Equals(BattleDiagnosticEffectApplication other) => IsCaptured == other.IsCaptured &&
+            Frame == other.Frame && SourceActor.Equals(other.SourceActor) && SourceContextId == other.SourceContextId &&
+            SourceRootContextId == other.SourceRootContextId;
+
+        public override bool Equals(object obj) => obj is BattleDiagnosticEffectApplication other && Equals(other);
+        public override int GetHashCode() => (((Frame * 397) ^ SourceActor.GetHashCode()) * 397 ^
+            SourceContextId.GetHashCode()) * 397 ^ SourceRootContextId.GetHashCode();
+    }
+
     public readonly struct BattleDiagnosticActorEffect : IEquatable<BattleDiagnosticActorEffect>
     {
         public BattleDiagnosticActorEffect(
@@ -535,7 +569,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             float durationSeconds,
             float periodSeconds,
             int componentCount,
-            bool executePeriodicOnApply)
+            bool executePeriodicOnApply,
+            BattleDiagnosticEffectApplication application = default)
         {
             if (!BattleDiagnosticFrames.IsValid(frame)) throw new ArgumentOutOfRangeException(nameof(frame));
             if (actorId == 0) throw new ArgumentOutOfRangeException(nameof(actorId));
@@ -565,6 +600,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             PeriodSeconds = periodSeconds;
             ComponentCount = componentCount;
             ExecutePeriodicOnApply = executePeriodicOnApply;
+            Application = application;
         }
 
         public BattleDiagnosticSessionScope Scope { get; }
@@ -582,6 +618,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public float PeriodSeconds { get; }
         public int ComponentCount { get; }
         public bool ExecutePeriodicOnApply { get; }
+        /// <summary>
+        /// 此宿主的此实例在应用时的证据；未采集时不推断来源。
+        /// </summary>
+        public BattleDiagnosticEffectApplication Application { get; }
 
         private static void ValidateNonNegativeFinite(float value, string parameterName)
         {
@@ -597,7 +637,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    RemainingSeconds.Equals(other.RemainingSeconds) && HasRemainingTime == other.HasRemainingTime &&
                    NextTickInSeconds.Equals(other.NextTickInSeconds) && HasPeriodicTick == other.HasPeriodicTick &&
                    DurationSeconds.Equals(other.DurationSeconds) && PeriodSeconds.Equals(other.PeriodSeconds) &&
-                   ComponentCount == other.ComponentCount && ExecutePeriodicOnApply == other.ExecutePeriodicOnApply;
+                   ComponentCount == other.ComponentCount && ExecutePeriodicOnApply == other.ExecutePeriodicOnApply &&
+                   Application.Equals(other.Application);
         }
 
         public override bool Equals(object obj) => obj is BattleDiagnosticActorEffect other && Equals(other);
@@ -621,6 +662,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ PeriodSeconds.GetHashCode();
                 hashCode = (hashCode * 397) ^ ComponentCount;
                 hashCode = (hashCode * 397) ^ ExecutePeriodicOnApply.GetHashCode();
+                hashCode = (hashCode * 397) ^ Application.GetHashCode();
                 return hashCode;
             }
         }
@@ -752,11 +794,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             float health,
             float maximumHealth,
             bool isAlive,
-            string displayName = "")
+            string displayName = "",
+            int generation = 0)
         {
             if (!BattleDiagnosticFrames.IsValid(frame)) throw new ArgumentOutOfRangeException(nameof(frame));
             if (actorId == 0) throw new ArgumentOutOfRangeException(nameof(actorId));
             if (maximumHealth < 0) throw new ArgumentOutOfRangeException(nameof(maximumHealth));
+            if (generation < 0) throw new ArgumentOutOfRangeException(nameof(generation));
 
             Scope = scope;
             Frame = frame;
@@ -771,6 +815,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             MaximumHealth = maximumHealth;
             IsAlive = isAlive;
             DisplayName = displayName ?? string.Empty;
+            Generation = generation;
         }
 
         public BattleDiagnosticSessionScope Scope { get; }
@@ -786,10 +831,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public float MaximumHealth { get; }
         public bool IsAlive { get; }
         public string DisplayName { get; }
+        /// <summary>
+        /// 采样时的诊断目录代次；0 表示未采集。
+        /// </summary>
+        public int Generation { get; }
 
         public bool Equals(BattleDiagnosticActorSummary other)
         {
             return Scope.Equals(other.Scope) && Frame == other.Frame && ActorId == other.ActorId &&
+                   Generation == other.Generation &&
                    Kind == other.Kind && ConfigId == other.ConfigId && TeamId == other.TeamId &&
                    PositionX.Equals(other.PositionX) && PositionY.Equals(other.PositionY) &&
                    PositionZ.Equals(other.PositionZ) && Health.Equals(other.Health) &&
@@ -806,6 +856,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 var hashCode = Scope.GetHashCode();
                 hashCode = (hashCode * 397) ^ Frame;
                 hashCode = (hashCode * 397) ^ ActorId.GetHashCode();
+                hashCode = (hashCode * 397) ^ Generation;
                 hashCode = (hashCode * 397) ^ (int)Kind;
                 hashCode = (hashCode * 397) ^ ConfigId;
                 hashCode = (hashCode * 397) ^ TeamId;

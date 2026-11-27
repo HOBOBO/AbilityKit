@@ -3,11 +3,14 @@ using System;
 namespace AbilityKit.Battle.SearchTarget.Selectors
 {
     /// <summary>
-    /// 前若干个评分结果选择器。
+    /// 对完整命中集合排序，再按查询上限写入结果的无状态选择器。
     /// </summary>
     [TargetSelector(0x1001, "TopKByScore")]
     public sealed class TopKByScoreSelector : ITargetSelector
     {
+        /// <summary>
+        /// 按查询排序项依次比较，同分时按实体键升序；未设置上限时写入全部命中。
+        /// </summary>
         public void Select(
             in SearchQuery query,
             SearchContext context,
@@ -36,11 +39,17 @@ namespace AbilityKit.Battle.SearchTarget.Selectors
     }
 
     /// <summary>
-    /// 使用查询内局部缓冲区计算前若干个评分结果，选择器实例本身不保存执行状态。
+    /// 允许引擎将 Top-K 融合进候选遍历的无状态选择器。
     /// </summary>
     [TargetSelector(0x1002, "StreamingTopKByScore")]
     public sealed class StreamingTopKByScoreSelector : IStreamingTopKByScoreSelector
     {
+        /// <summary>
+        /// 对已收集的命中执行回退选择；无上限时完整排序，有上限时维护局部 Top-K。
+        /// </summary>
+        /// <remarks>
+        /// 通过引擎执行有上限查询时，由引擎直接选择，不进入此回调。
+        /// </remarks>
         public void Select(
             in SearchQuery query,
             SearchContext context,

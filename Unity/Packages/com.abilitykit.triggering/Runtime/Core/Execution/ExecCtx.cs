@@ -4,7 +4,6 @@ using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
-using AbilityKit.Triggering.Runtime.ActionScheduler;
 using AbilityKit.Triggering.Collections;
 
 namespace AbilityKit.Triggering.Runtime
@@ -31,7 +30,7 @@ namespace AbilityKit.Triggering.Runtime
         /// </summary>
         public readonly IStronglyTypedPayloadAccessorRegistry StronglyTypedPayloads;
 
-        public ExecCtx(TCtx context, IEventBus eventBus, FunctionRegistry functions, ActionRegistry actions, IBlackboardResolver blackboards, IPayloadAccessorRegistry payloads, IIdNameRegistry idNames, INumericVarDomainRegistry numericDomains, INumericRpnFunctionRegistry numericFunctions, ExecPolicy policy, ExecutionControl control, ActionSchedulerManager actionSchedulerManager = null, ITriggerCollectionResolver collections = null, ITriggerRandomSource randomSource = null, ITriggerExecutionScheduler executionScheduler = null)
+        public ExecCtx(TCtx context, IEventBus eventBus, FunctionRegistry functions, ActionRegistry actions, IBlackboardResolver blackboards, IPayloadAccessorRegistry payloads, IIdNameRegistry idNames, INumericVarDomainRegistry numericDomains, INumericRpnFunctionRegistry numericFunctions, ExecPolicy policy, ExecutionControl control, IFlatActionScheduler flatActionScheduler = null, ITriggerCollectionResolver collections = null, ITriggerRandomSource randomSource = null, ITriggerExecutionScheduler executionScheduler = null)
         {
             Context = context;
             EventBus = eventBus;
@@ -45,13 +44,13 @@ namespace AbilityKit.Triggering.Runtime
             Policy = policy;
             Control = control;
             StronglyTypedPayloads = null;
-            ActionSchedulerManager = actionSchedulerManager;
+            FlatActionScheduler = flatActionScheduler;
             Collections = collections;
             RandomSource = randomSource;
             ExecutionScheduler = executionScheduler;
         }
 
-        public ExecCtx(TCtx context, IEventBus eventBus, FunctionRegistry functions, ActionRegistry actions, IBlackboardResolver blackboards, IPayloadAccessorRegistry payloads, IStronglyTypedPayloadAccessorRegistry stronglyTypedPayloads, IIdNameRegistry idNames, INumericVarDomainRegistry numericDomains, INumericRpnFunctionRegistry numericFunctions, ExecPolicy policy, ExecutionControl control, ActionSchedulerManager actionSchedulerManager = null, ITriggerCollectionResolver collections = null, ITriggerRandomSource randomSource = null, ITriggerExecutionScheduler executionScheduler = null)
+        public ExecCtx(TCtx context, IEventBus eventBus, FunctionRegistry functions, ActionRegistry actions, IBlackboardResolver blackboards, IPayloadAccessorRegistry payloads, IStronglyTypedPayloadAccessorRegistry stronglyTypedPayloads, IIdNameRegistry idNames, INumericVarDomainRegistry numericDomains, INumericRpnFunctionRegistry numericFunctions, ExecPolicy policy, ExecutionControl control, IFlatActionScheduler flatActionScheduler = null, ITriggerCollectionResolver collections = null, ITriggerRandomSource randomSource = null, ITriggerExecutionScheduler executionScheduler = null)
         {
             Context = context;
             EventBus = eventBus;
@@ -65,16 +64,16 @@ namespace AbilityKit.Triggering.Runtime
             Policy = policy;
             Control = control;
             StronglyTypedPayloads = stronglyTypedPayloads;
-            ActionSchedulerManager = actionSchedulerManager;
+            FlatActionScheduler = flatActionScheduler;
             Collections = collections;
             RandomSource = randomSource;
             ExecutionScheduler = executionScheduler;
         }
 
         /// <summary>
-        /// ActionScheduler 管理器（可选，为 null 时表示当前执行上下文不启用 ActionScheduler）
+        /// 可选的扁平动作登记入口；为 null 时只执行即时扁平动作。
         /// </summary>
-        public readonly ActionSchedulerManager ActionSchedulerManager;
+        public readonly IFlatActionScheduler FlatActionScheduler;
 
         /// <summary>
         /// 尝试使用强类型访问器获取 Payload 字段值

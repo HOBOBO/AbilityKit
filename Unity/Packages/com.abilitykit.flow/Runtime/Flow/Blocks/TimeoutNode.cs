@@ -2,6 +2,9 @@ using System;
 
 namespace AbilityKit.Ability.Flow.Blocks
 {
+    /// <summary>
+    /// 累计推进时间；超过时限时中断子节点并返回失败。
+    /// </summary>
     public sealed class TimeoutNode : IFlowNode
     {
         private readonly float _seconds;
@@ -10,6 +13,9 @@ namespace AbilityKit.Ability.Flow.Blocks
         private float _elapsed;
         private bool _entered;
 
+        /// <summary>
+        /// 指定非负时限（秒）和受限子节点。
+        /// </summary>
         public TimeoutNode(float seconds, IFlowNode child)
         {
             if (seconds < 0f) throw new ArgumentOutOfRangeException(nameof(seconds));
@@ -17,52 +23,49 @@ namespace AbilityKit.Ability.Flow.Blocks
             _child = child ?? throw new ArgumentNullException(nameof(child));
         }
 
+        /// <summary>
+        /// 重置累计时间，子节点在首次推进时进入。
+        /// </summary>
         public void Enter(FlowContext ctx)
         {
             _elapsed = 0f;
             _entered = false;
         }
 
+        /// <summary>
+        /// 先检查累积时间是否严格大于时限，未超时时推进子节点。
+        /// </summary>
         public FlowStatus Tick(FlowContext ctx, float deltaTime)
         {
             if (!_entered)
             {
-                FlowDiagnostics.Enter(ctx, _child);
-                _entered = true;
+                FlowDiagnostics.EnterTracked(ctx, _child, ref _entered);
             }
 
             _elapsed += deltaTime;
             if (_elapsed > _seconds)
             {
-                FlowDiagnostics.Interrupt(ctx, _child, FlowStatus.Failed);
-                _entered = false;
+                FlowDiagnostics.CloseTracked(ctx, _child, ref _entered, interrupt: true, status: FlowStatus.Failed);
                 return FlowStatus.Failed;
             }
 
-            var s = FlowDiagnostics.Tick(ctx, _child, deltaTime);
-            if (s == FlowStatus.Running) return FlowStatus.Running;
+            var status = FlowDiagnostics.Tick(ctx, _child, deltaTime);
+            if (status == FlowStatus.Running) return FlowStatus.Running;
 
-            FlowDiagnostics.Exit(ctx, _child, s);
-            _entered = false;
-            return s;
+            FlowDiagnostics.CloseTracked(ctx, _child, ref _entered, interrupt: false, status: status);
+            return status;
         }
 
-        public void Exit(FlowContext ctx)
-        {
-            if (_entered)
-            {
-                FlowDiagnostics.Exit(ctx, _child);
-                _entered = false;
-            }
-        }
+        /// <summary>
+        /// 退出仍活动的子节点。
+        /// </summary>
+        public void Exit(FlowContext ctx) =>
+            FlowDiagnostics.CloseTracked(ctx, _child, ref _entered, interrupt: false, status: FlowStatus.Succeeded);
 
-        public void Interrupt(FlowContext ctx)
-        {
-            if (_entered)
-            {
-                FlowDiagnostics.Interrupt(ctx, _child);
-                _entered = false;
-            }
-        }
+        /// <summary>
+        /// 中断仍活动的子节点。
+        /// </summary>
+        public void Interrupt(FlowContext ctx) =>
+            FlowDiagnostics.CloseTracked(ctx, _child, ref _entered, interrupt: true, status: FlowStatus.Canceled);
     }
 }

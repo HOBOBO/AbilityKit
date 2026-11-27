@@ -16,6 +16,11 @@ namespace AbilityKit.Demo.Moba.Triggering
         public int[] Targets;
         public Vec3[] Positions;
 
+        /// <summary>
+        /// 可选的发射方向。设置时使用 Positions 中的世界位置，不绑定角色或弹体。
+        /// </summary>
+        public Vec3? LaunchForward;
+
         public int SourceActorId;
         public int TargetActorId;
         public long SourceContextId;

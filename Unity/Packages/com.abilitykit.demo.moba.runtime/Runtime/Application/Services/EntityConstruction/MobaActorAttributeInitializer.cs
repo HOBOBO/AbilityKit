@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Deterministic;
 using AbilityKit.Effect;
 using MO = AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 
@@ -95,29 +97,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             var mana = Grow(template.Mana, template.ManaGrowth, levelOffset);
             var maxMana = Grow(template.MaxMana, template.MaxManaGrowth, levelOffset);
             group.SetBase(MobaAttributeIds.HP, hp);
-            group.SetBase(MobaAttributeIds.MAX_HP, maxHp);
-            group.SetBase(MobaAttributeIds.EXTRA_HP, Grow(template.ExtraHp, template.ExtraHpGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.PHYSICS_ATTACK, Grow(template.PhysicsAttack, template.PhysicsAttackGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.MAGIC_ATTACK, Grow(template.MagicAttack, template.MagicAttackGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.EXTRA_PHYSICS_ATTACK, Grow(template.ExtraPhysicsAttack, template.ExtraPhysicsAttackGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.EXTRA_MAGIC_ATTACK, Grow(template.ExtraMagicAttack, template.ExtraMagicAttackGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.PHYSICS_DEFENSE, Grow(template.PhysicsDefense, template.PhysicsDefenseGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.MAGIC_DEFENSE, Grow(template.MagicDefense, template.MagicDefenseGrowth, levelOffset));
             group.SetBase(MobaAttributeIds.MANA, mana);
-            group.SetBase(MobaAttributeIds.MAX_MANA, maxMana);
-            group.SetBase(MobaAttributeIds.CRITICAL_R, Grow(template.CriticalR, template.CriticalRGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.ATTACK_SPEED_R, Grow(template.AttackSpeedR, template.AttackSpeedRGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.COOLDOWN_REDUCE_R, Grow(template.CooldownReduceR, template.CooldownReduceRGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.PHYSICS_PENETRATION_R, Grow(template.PhysicsPenetrationR, template.PhysicsPenetrationRGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.MAGIC_PENETRATION_R, Grow(template.MagicPenetrationR, template.MagicPenetrationRGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.MOVE_SPEED, Grow(template.MoveSpeed, template.MoveSpeedGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.PHYSICS_BLOODSUCKING_R, Grow(template.PhysicsBloodsuckingR, template.PhysicsBloodsuckingRGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.MAGIC_BLOODSUCKING_R, Grow(template.MagicBloodsuckingR, template.MagicBloodsuckingRGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.ATTACK_RANGE, Grow(template.AttackRange, template.AttackRangeGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.PER_SECOND_BLOOD_R, Grow(template.PerSecondBloodR, template.PerSecondBloodRGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.PER_SECOND_MANA_R, Grow(template.PerSecondManaR, template.PerSecondManaRGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.RESILIENCE_R, Grow(template.ResilienceR, template.ResilienceRGrowth, levelOffset));
-            group.SetBase(MobaAttributeIds.MANA_REGEN_PER_SECOND, Grow(template.ManaRegenPerSecond, template.ManaRegenPerSecondGrowth, levelOffset));
+            VisitTemplateStats(template, (id, basis, growth) => group.SetBase(id, Grow(basis, growth, levelOffset)));
 
             var resources = new ResourceContainer
             {
@@ -130,6 +111,102 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         }
 
         private static float Grow(float value, float growth, int levelOffset) => value + growth * levelOffset;
+
+        /// <summary>
+        /// 为本地样例调试原地变更等级贡献和血蓝上限，按原比例写回现有资源。
+        /// 调用方负责限制本地会话并传入当前实体对应的模板；不替代出生或玩法升级命令。
+        /// </summary>
+        public static bool TryApplyDebugLevel(global::ActorEntity entity, MO.BattleAttributeTemplateMO template, int level)
+        {
+            if (entity == null || template == null || level < 1 || !entity.hasChampionLevel ||
+                !entity.hasAttributeGroup || !entity.hasResourceContainer)
+                return false;
+
+            var previousLevel = entity.championLevel.Value;
+            if (previousLevel == level) return true;
+            var group = entity.attributeGroup.Group;
+            var context = entity.attributeGroup.Ctx;
+            var resources = entity.resourceContainer.Value?.Map;
+            if (previousLevel < 1 || group == null || context == null || resources == null ||
+                !resources.TryGetValue(ResourceType.Hp, out var hp) || hp == null || hp.MaxAttribute != MobaAttributeIds.MAX_HP ||
+                !resources.TryGetValue(ResourceType.Mana, out var mana) || mana == null || mana.MaxAttribute != MobaAttributeIds.MAX_MANA ||
+                !TryGetResourceLimits(group, out var oldMaxHp, out var oldMaxMana))
+                return false;
+
+            var changes = new List<(AttributeInstance Attribute, float Previous, float Next)>();
+            VisitTemplateStats(template, (id, basis, growth) =>
+            {
+                if (growth == 0f) return;
+                var attribute = group.GetOrCreate(id);
+                var previous = attribute.BaseValue;
+                var delta = Grow(basis, growth, level - 1) - Grow(basis, growth, previousLevel - 1);
+                changes.Add((attribute, previous, previous + delta));
+            });
+            foreach (var change in changes)
+            {
+                if (!IsFinite(change.Next)) return false;
+            }
+
+            foreach (var change in changes) change.Attribute.BaseValue = change.Next;
+            if (!TryGetResourceLimits(group, out var newMaxHp, out var newMaxMana))
+            {
+                foreach (var change in changes) change.Attribute.BaseValue = change.Previous;
+                return false;
+            }
+
+            ScaleResource(group, MobaAttributeIds.HP, hp, oldMaxHp, newMaxHp);
+            ScaleResource(group, MobaAttributeIds.MANA, mana, oldMaxMana, newMaxMana);
+            entity.ReplaceChampionLevel(level);
+            MobaResourceAttributeContextProjector.Refresh(entity);
+            return true;
+        }
+
+        private static bool TryGetResourceLimits(AttributeGroup group, out Fixed64 maxHp, out Fixed64 maxMana)
+        {
+            var hp = group.GetValue(MobaAttributeIds.MAX_HP);
+            var mana = group.GetValue(MobaAttributeIds.MAX_MANA);
+            maxHp = MobaResourceFixedConvert.ToFixed(hp);
+            maxMana = MobaResourceFixedConvert.ToFixed(mana);
+            return IsFinite(hp) && IsFinite(mana) && maxHp > Fixed64.Zero && mana >= 0f;
+        }
+
+        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+        private static void ScaleResource(AttributeGroup group, AttributeId currentAttribute, ResourceState resource,
+            Fixed64 oldMax, Fixed64 newMax)
+        {
+            if (oldMax <= Fixed64.Zero || resource.Current <= Fixed64.Zero) resource.Current = Fixed64.Zero;
+            else if (resource.Current >= oldMax) resource.Current = newMax;
+            else if (oldMax != newMax) resource.Current = resource.Current / oldMax * newMax;
+            resource.LastMax = newMax;
+            group.SetBase(currentAttribute, MobaResourceFixedConvert.ToSingle(resource.Current));
+        }
+
+        private static void VisitTemplateStats(MO.BattleAttributeTemplateMO template, Action<AttributeId, float, float> visit)
+        {
+            visit(MobaAttributeIds.MAX_HP, template.MaxHp, template.MaxHpGrowth);
+            visit(MobaAttributeIds.EXTRA_HP, template.ExtraHp, template.ExtraHpGrowth);
+            visit(MobaAttributeIds.PHYSICS_ATTACK, template.PhysicsAttack, template.PhysicsAttackGrowth);
+            visit(MobaAttributeIds.MAGIC_ATTACK, template.MagicAttack, template.MagicAttackGrowth);
+            visit(MobaAttributeIds.EXTRA_PHYSICS_ATTACK, template.ExtraPhysicsAttack, template.ExtraPhysicsAttackGrowth);
+            visit(MobaAttributeIds.EXTRA_MAGIC_ATTACK, template.ExtraMagicAttack, template.ExtraMagicAttackGrowth);
+            visit(MobaAttributeIds.PHYSICS_DEFENSE, template.PhysicsDefense, template.PhysicsDefenseGrowth);
+            visit(MobaAttributeIds.MAGIC_DEFENSE, template.MagicDefense, template.MagicDefenseGrowth);
+            visit(MobaAttributeIds.MAX_MANA, template.MaxMana, template.MaxManaGrowth);
+            visit(MobaAttributeIds.CRITICAL_R, template.CriticalR, template.CriticalRGrowth);
+            visit(MobaAttributeIds.ATTACK_SPEED_R, template.AttackSpeedR, template.AttackSpeedRGrowth);
+            visit(MobaAttributeIds.COOLDOWN_REDUCE_R, template.CooldownReduceR, template.CooldownReduceRGrowth);
+            visit(MobaAttributeIds.PHYSICS_PENETRATION_R, template.PhysicsPenetrationR, template.PhysicsPenetrationRGrowth);
+            visit(MobaAttributeIds.MAGIC_PENETRATION_R, template.MagicPenetrationR, template.MagicPenetrationRGrowth);
+            visit(MobaAttributeIds.MOVE_SPEED, template.MoveSpeed, template.MoveSpeedGrowth);
+            visit(MobaAttributeIds.PHYSICS_BLOODSUCKING_R, template.PhysicsBloodsuckingR, template.PhysicsBloodsuckingRGrowth);
+            visit(MobaAttributeIds.MAGIC_BLOODSUCKING_R, template.MagicBloodsuckingR, template.MagicBloodsuckingRGrowth);
+            visit(MobaAttributeIds.ATTACK_RANGE, template.AttackRange, template.AttackRangeGrowth);
+            visit(MobaAttributeIds.PER_SECOND_BLOOD_R, template.PerSecondBloodR, template.PerSecondBloodRGrowth);
+            visit(MobaAttributeIds.PER_SECOND_MANA_R, template.PerSecondManaR, template.PerSecondManaRGrowth);
+            visit(MobaAttributeIds.RESILIENCE_R, template.ResilienceR, template.ResilienceRGrowth);
+            visit(MobaAttributeIds.MANA_REGEN_PER_SECOND, template.ManaRegenPerSecond, template.ManaRegenPerSecondGrowth);
+        }
 
         public void Apply(global::ActorEntity entity, in MobaPreparedActorAttributes prepared)
         {

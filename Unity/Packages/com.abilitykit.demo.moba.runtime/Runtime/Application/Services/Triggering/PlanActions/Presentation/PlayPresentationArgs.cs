@@ -12,6 +12,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         PayloadAttacker = 5,
         PayloadTarget = 6,
         Position = 7,
+        /// <summary>
+        /// 仅从投射物生成事件读取世界位置与发射方向，播放一次且不跟随。
+        /// </summary>
+        ProjectileLaunchPose = 8,
     }
 
     public struct PlayPresentationArgs

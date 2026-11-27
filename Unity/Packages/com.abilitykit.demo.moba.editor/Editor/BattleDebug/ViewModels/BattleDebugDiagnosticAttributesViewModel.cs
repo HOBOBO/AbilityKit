@@ -35,6 +35,7 @@ namespace AbilityKit.Game.Editor
         private long _lastStoreRevision = -1;
         private long _lastActorId;
         private int _lastFrame;
+        private bool _lastExactEvidence;
         private bool _hasCachedResult;
         private IReadOnlyList<BattleDiagnosticActorAttribute> _attributes =
             Array.Empty<BattleDiagnosticActorAttribute>();
@@ -136,10 +137,12 @@ namespace AbilityKit.Game.Editor
         public void RefreshIfNeeded(
             IBattleDiagnosticReadOnlySession session,
             long actorId,
-            int frame = 0)
+            int frame = 0,
+            bool exactEvidence = false)
         {
             if (session == null) throw new ArgumentNullException(nameof(session));
             if (actorId == 0) throw new ArgumentOutOfRangeException(nameof(actorId));
+            if (exactEvidence && !BattleDiagnosticFrames.IsValid(frame)) throw new ArgumentOutOfRangeException(nameof(frame));
 
             var scope = session.SessionInfo.Scope;
             var revision = session.ActorAttributeStoreRevision;
@@ -149,7 +152,7 @@ namespace AbilityKit.Game.Editor
                 _lastScope == scope &&
                 _lastStoreRevision == revision &&
                 _lastActorId == actorId &&
-                _lastFrame == queryFrame)
+                _lastFrame == queryFrame && _lastExactEvidence == exactEvidence)
             {
                 return;
             }
@@ -158,19 +161,33 @@ namespace AbilityKit.Game.Editor
             if (_lastRequestId <= 0) _lastRequestId = 1;
 
             var attributeResult = session.QueryActorAttributes(_lastRequestId, queryFrame, actorId);
-            var modifierResult = session.QueryActorAttributeModifiers(_lastRequestId, queryFrame, actorId);
+            if (exactEvidence && attributeResult.Items != null)
+            {
+                foreach (var attribute in attributeResult.Items)
+                {
+                    if (attribute.Frame == queryFrame) continue;
+                    attributeResult = BattleDiagnosticQueryResult<BattleDiagnosticActorAttribute>.Unavailable(
+                        _lastRequestId, revision, BattleDiagnosticDataAvailability.NotCaptured,
+                        $"未采集第 {queryFrame} 帧的属性；已采集属性位于第 {attribute.Frame} 帧。");
+                    break;
+                }
+            }
+            var modifierResult = exactEvidence ? default
+                : session.QueryActorAttributeModifiers(_lastRequestId, queryFrame, actorId);
 
             _lastSession = session;
             _lastScope = scope;
             _lastStoreRevision = revision;
             _lastActorId = actorId;
             _lastFrame = queryFrame;
+            _lastExactEvidence = exactEvidence;
             _hasCachedResult = true;
             AttributeQueryStatus = attributeResult.Status;
             ModifierQueryStatus = modifierResult.Status;
             _attributes = attributeResult.Items ?? Array.Empty<BattleDiagnosticActorAttribute>();
             _modifiers = modifierResult.Items ?? Array.Empty<BattleDiagnosticActorAttributeModifier>();
-            StatusMessage = BuildStatusMessage(attributeResult.Status, modifierResult.Status);
+            StatusMessage = exactEvidence ? attributeResult.Status.Message
+                : BuildStatusMessage(attributeResult.Status, modifierResult.Status);
         }
 
         private static string BuildStatusMessage(

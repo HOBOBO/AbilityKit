@@ -126,9 +126,13 @@ namespace AbilityKit.Demo.Moba.Console
 
         BattleConfig.BattleStartConfig IBattleStartConfigProvider.Config => _config;
 
+        private readonly bool _enableInteractiveInput;
+
         public ConsoleBattleBootstrapper(BattleConfig.BattleStartConfig? config = null, MobaConfigDatabase? mobaConfig = null,
-            IEnumerable<IWorldModule>? additionalModules = null, RecordConfig? recordConfig = null)
+            IEnumerable<IWorldModule>? additionalModules = null, RecordConfig? recordConfig = null,
+            bool enableInteractiveInput = true)
         {
+            _enableInteractiveInput = enableInteractiveInput;
             _recordConfig = recordConfig ?? new RecordConfig();
             _modules = new List<IWorldModule> { new Bootstrap.ConsoleConfigModule() };
 
@@ -441,7 +445,7 @@ namespace AbilityKit.Demo.Moba.Console
             // _inputFeature.OnAttach(_context);
             // _hudFeature.OnAttach(_context);
 
-            _inputHandler.Start();
+            if (_enableInteractiveInput) _inputHandler.Start();
             _flow.Start();
 
             if (_syncAdapter is StateSyncAdapter stateSync && _config.SyncMode == ShareSyncMode.SnapshotAuthority)

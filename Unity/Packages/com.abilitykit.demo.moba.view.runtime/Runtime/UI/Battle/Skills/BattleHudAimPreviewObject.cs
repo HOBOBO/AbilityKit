@@ -1,3 +1,4 @@
+using AbilityKit.Game.Battle.Component;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -13,8 +14,10 @@ namespace AbilityKit.Game.Flow
         private readonly GameObject _casterRing;
         private readonly GameObject _edgeRing;
         private readonly GameObject _skillVfx;
+        private readonly BattleAreaLengthScaleBinding _rectangleBinding;
 
         public GameObject Root { get; }
+        internal string RectangleLengthParameter => _rectangleBinding != null ? _rectangleBinding.PreviewLengthParameter : null;
 
         public BattleHudAimPreviewObject(
             GameObject root,
@@ -34,12 +37,14 @@ namespace AbilityKit.Game.Flow
             _casterRing = casterRing;
             _edgeRing = edgeRing;
             _skillVfx = skillVfx;
+            _rectangleBinding = skillVfx != null ? skillVfx.GetComponent<BattleAreaLengthScaleBinding>() : null;
         }
 
-        public void Apply(in BattleHudAimPreviewState state, in BattleHudSkillPresentationSpec spec)
+        public void Apply(in BattleHudAimPreviewState state, in BattleHudSkillPresentationSpec spec, float rectangleLength = 0f)
         {
             SetVisible(true);
             SetColor(spec.Color);
+            var rectangleAxis = Vector3.zero;
             if (_skillVfx != null)
             {
                 _skillVfx.SetActive(true);
@@ -53,7 +58,13 @@ namespace AbilityKit.Game.Flow
                 var scale = spec.PreviewShape == BattleHudSkillPreviewShape.SelfCircle
                     ? Mathf.Max(0.25f, spec.SelfRadius * 0.35f)
                     : Mathf.Max(0.25f, spec.Radius > 0f ? spec.Radius * 0.35f : spec.Width * 0.35f);
-                _skillVfx.transform.localScale = Vector3.one * scale;
+                var localScale = Vector3.one * scale;
+                if (_rectangleBinding != null && _rectangleBinding.TryResolvePreview(rectangleLength, scale, out var boundScale, out var localAxis))
+                {
+                    localScale = boundScale;
+                    rectangleAxis = _skillVfx.transform.rotation * localAxis;
+                }
+                _skillVfx.transform.localScale = localScale;
             }
 
             var direction = state.AimDirection.sqrMagnitude > 0.001f ? state.AimDirection.normalized : Vector3.forward;
@@ -97,6 +108,15 @@ namespace AbilityKit.Game.Flow
                     break;
                 case BattleHudSkillPreviewShape.TargetCircle:
                     ShowCasterRing(state.CasterPosition, 0.85f);
+                    if (rectangleAxis.sqrMagnitude > 0f)
+                    {
+                        ShowLine(target - rectangleAxis * (rectangleLength * .5f), rectangleAxis, rectangleLength, _rectangleBinding.PreviewWidth);
+                        HideCircle();
+                        HideDot();
+                        if (_edgeRing != null) _edgeRing.SetActive(false);
+                        HideSector();
+                        break;
+                    }
                     HideLine();
                     ShowCircle(target, Mathf.Max(0.25f, spec.Radius));
                     ShowDot(target, Mathf.Max(0.28f, spec.Radius * 0.2f));

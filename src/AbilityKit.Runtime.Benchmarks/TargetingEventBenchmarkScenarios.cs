@@ -5,11 +5,12 @@ using AbilityKit.Core.Eventing;
 
 namespace AbilityKit.Runtime.Benchmarks;
 
-public sealed class TargetingStreamingTopKScenario : BenchmarkScenarioBase
+public sealed class TargetingTopKScenario : BenchmarkScenarioBase
 {
     private readonly int _candidateCount;
     private readonly int _topK;
     private readonly int _batchSize;
+    private readonly bool _streaming;
     private readonly BenchmarkDescriptor _descriptor;
     private readonly TargetSearchEngine _engine = new();
     private readonly SearchContext _context = new();
@@ -19,7 +20,7 @@ public sealed class TargetingStreamingTopKScenario : BenchmarkScenarioBase
     private long _resultCount;
     private ulong _checksum;
 
-    public TargetingStreamingTopKScenario(int candidateCount, int topK, int batchSize = 10)
+    public TargetingTopKScenario(int candidateCount, int topK, bool streaming, int batchSize = 10)
     {
         if (candidateCount <= 0)
             throw new ArgumentOutOfRangeException(nameof(candidateCount));
@@ -31,16 +32,18 @@ public sealed class TargetingStreamingTopKScenario : BenchmarkScenarioBase
         _candidateCount = candidateCount;
         _topK = topK;
         _batchSize = batchSize;
+        _streaming = streaming;
         _results = new List<EntityId>(topK);
+        var selectorName = streaming ? "streaming-top-k" : "buffered-top-k";
         _descriptor = new BenchmarkDescriptor(
-            $"targeting.streaming-top-k.candidates-{candidateCount}.top-{topK}",
+            $"targeting.{selectorName}.candidates-{candidateCount}.top-{topK}",
             "targeting",
             "candidate-evaluation",
             new Dictionary<string, string>
             {
                 [BenchmarkWorkloadDimensions.Scope] = BenchmarkScenarioScopes.Package,
                 ["candidateCount"] = candidateCount.ToString(),
-                ["selector"] = "streaming-top-k",
+                ["selector"] = selectorName,
                 ["sortDirection"] = "score-descending",
                 ["topK"] = topK.ToString(),
                 ["batchSize"] = batchSize.ToString(),
@@ -56,7 +59,7 @@ public sealed class TargetingStreamingTopKScenario : BenchmarkScenarioBase
             new SequentialCandidateProvider(_candidateCount),
             null!,
             new[] { new SearchOrder(EntityValueScorer.Instance) },
-            new StreamingTopKByScoreSelector(),
+            _streaming ? new StreamingTopKByScoreSelector() : new TopKByScoreSelector(),
             _topK);
 
         _engine.SearchIds(in _query, _context, _results);
@@ -97,7 +100,13 @@ public sealed class TargetingStreamingTopKScenario : BenchmarkScenarioBase
         var expectedChecksum = checked(expectedPerSearch * (ulong)_searchCount);
 
         if (_resultCount != expectedResultCount || _checksum != expectedChecksum)
-            throw new InvalidOperationException("Targeting streaming Top-K result is inconsistent.");
+            throw new InvalidOperationException($"{Descriptor.Id} returned an unexpected result count or checksum.");
+
+        for (var index = 0; index < _results.Count; index++)
+        {
+            if (_results[index].Value != (ulong)(_candidateCount - index))
+                throw new InvalidOperationException($"{Descriptor.Id} returned results outside the expected score order.");
+        }
     }
 
     public override string GetDeterminismDigest() =>

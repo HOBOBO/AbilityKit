@@ -374,6 +374,71 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void DiagnosticSource_SuggestedTrace_OpensRetainedEvidenceAtTheRecordedFrame()
+        {
+            using var source = new BattleDebugDiagnosticSource();
+            source.Open(Export(CreateSnapshot(includeBackgroundTrace: true)), "with-trace.json");
+            var catalog = (IBattleDiagnosticTraceRootSession)source.Session;
+            var defaultRank = catalog.QueryTraceRoots(new BattleDiagnosticTraceRootQuery(
+                1, new BattleDiagnosticPageRequest(0, 0, 1)));
+            Assert.That(defaultRank.Items[0].RootContextId, Is.EqualTo(960));
+            Assert.That(source.TryGetSuggestedTrace(out var root), Is.True);
+            Assert.That(root.RootContextId, Is.EqualTo(900));
+            var node = root.Root;
+            var workspace = new BattleDiagnosticWorkspaceState();
+            workspace.AttachSession(source.Session.SessionInfo.Scope, source.LatestCompleteFrame);
+            workspace.Select(BattleDebugNavigation.CreateTraceSelection(in node));
+            Assert.That(workspace.FrameCursor.Frame, Is.EqualTo(Frame - 2));
+
+            var trace = new BattleDebugDiagnosticTraceViewModel();
+            trace.RefreshIfNeeded(source.Session, root.RootContextId);
+            Assert.That(trace.SelectContext(node.ContextId), Is.True);
+            Assert.That(trace.Rows.Count, Is.EqualTo(2));
+            var panel = new BattleDebugDiagnosticTracePanel();
+            var context = new BattleDebugContext(null, default, null, null,
+                diagnosticSession: source.Session, isOffline: true, workspaceState: workspace);
+            panel.LoadRoot(in context, source.Session, 960);
+            Assert.That(workspace.Selection.Id, Is.EqualTo(960));
+            Assert.That(workspace.FrameCursor.Frame, Is.EqualTo(Frame - 10));
+            Assert.That(workspace.GoBack(), Is.True);
+            Assert.That(workspace.Selection.Id, Is.EqualTo(node.ContextId));
+            Assert.That(workspace.FrameCursor.Frame, Is.EqualTo(node.StartFrame));
+            Assert.That(workspace.GoForward(), Is.True);
+            Assert.That(workspace.Selection.Id, Is.EqualTo(960));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DiagnosticSource_NoRetainedTrace_LeavesEventsAvailable(bool traceSupported)
+        {
+            using var source = new BattleDebugDiagnosticSource();
+            source.Open(Export(CreateSnapshot()), "with-trace.json");
+            source.Open(Export(CreateSnapshot(includeTrace: false, traceSupported: traceSupported)), "no-trace.json");
+
+            Assert.That(source.TryGetSuggestedTrace(out _), Is.False);
+            Assert.That(source.HasEvents, Is.True);
+            Assert.That(source.Actors.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void OfflineTraceTimeline_ReadsSameRootEventsBeyondFrameZero()
+        {
+            using var source = new BattleDebugDiagnosticSource();
+            source.Open(Export(CreateSnapshot()), "timeline.json");
+            var timeline = new BattleDebugTraceTimelineEvents();
+            timeline.Refresh(source.Session, 900);
+
+            Assert.That(timeline.Items, Is.Not.Empty);
+            Assert.That(timeline.Items.All(item => item.RootContextId == 900 && item.Frame == Frame), Is.True);
+
+            var trace = new BattleDebugDiagnosticTraceViewModel();
+            trace.RefreshIfNeeded(source.Session, 900);
+            Assert.That(timeline.Items.Any(item => trace.TryGetLinkedNode(item.Scope, item.RootContextId, item.ContextId, out _)), Is.True);
+            Assert.That(timeline.Items.Any(item => item.ContextId == 902 &&
+                !trace.TryGetLinkedNode(item.Scope, item.RootContextId, item.ContextId, out _)), Is.True);
+        }
+
+        [Test]
         public void DiagnosticSource_InvalidReplacement_PreservesCurrentOfflineArtifact()
         {
             using (var source = new BattleDebugDiagnosticSource())
@@ -695,7 +760,66 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             return MobaBattleDiagnosticArtifactCodec.ExportToString(CreateArtifact(snapshot));
         }
 
-        private BattleDiagnosticSessionSnapshot CreateSnapshot(bool traceStable = true)
+        [Test]
+        public void OfflineRelations_RoundTripTypesAndKeepReusedIdsSeparate()
+        {
+            var records = new[]
+            {
+                ActorRecord(1, 2, BattleDiagnosticActorKind.Minion, 201, 20, 60),
+                ActorRecord(1, 3, BattleDiagnosticActorKind.Hero, 101, 60, -1),
+                new BattleDiagnosticRuntimeObject(BattleDiagnosticRuntimeObjectKind.Projectile, 1, 2,
+                    BattleDiagnosticDefinitionKind.Projectile, 901, 0, 2, 1, 2, 40, 50, 101, 103,
+                    BattleDiagnosticRuntimeObjectState.Ended, 0, "Projectile"),
+                new BattleDiagnosticRuntimeObject(BattleDiagnosticRuntimeObjectKind.Actor, 3, 1,
+                    BattleDiagnosticDefinitionKind.Actor, 301, 3, 0, 0, 0, -1, -1, 0, 0,
+                    BattleDiagnosticRuntimeObjectState.Active, 0, "Backfilled",
+                    BattleDiagnosticRuntimeObjectDiscoveryKind.ActiveBackfill, 100)
+            };
+            var source = CreateSnapshot(objects: new BattleDiagnosticObjectCatalogSnapshot(_scope, 20, false, records));
+            var snapshot = MobaBattleDiagnosticArtifactCodec.ImportSnapshot(
+                MobaBattleDiagnosticArtifactCodec.ExportSnapshotToString(source));
+            using var session = new BattleDiagnosticOfflineSession(snapshot);
+
+            var oldActor = new BattleDiagnosticRuntimeObjectReference(BattleDiagnosticRuntimeObjectKind.Actor, 1, 2);
+            var historical = session.ResolveRelation(_scope, in oldActor, Frame);
+            Assert.That(historical.CatalogEntry.Value.ActorKind, Is.EqualTo(BattleDiagnosticActorKind.Minion));
+            Assert.That(historical.CatalogEntry.Value.DefinitionId, Is.EqualTo(201));
+            Assert.That(historical.ActorSnapshot, Is.Null, "an exact lifetime ref is not a snapshot of a later generation");
+
+            var newActor = snapshot.Trace.Nodes[0].SourceObject;
+            var current = session.ResolveRelation(_scope, in newActor, Frame);
+            Assert.That(current.ActorSnapshot.Value.Generation, Is.EqualTo(3));
+            Assert.That(current.ActorSnapshot.Value.Health, Is.EqualTo(90f));
+            Assert.That(session.ResolveRelation(_scope, in newActor, Frame - 1).ActorSnapshot, Is.Null);
+
+            var bare = new BattleDiagnosticRuntimeObjectReference(BattleDiagnosticRuntimeObjectKind.Actor, 1, 0);
+            Assert.That(session.ResolveRelation(_scope, in bare, 60).IsAmbiguous, Is.True);
+            Assert.That(session.ResolveRelation(_scope, in bare, 40).CatalogEntry.Value.Generation, Is.EqualTo(2));
+            Assert.That(session.ResolveRelation(_scope, in bare, -1).CatalogEntry, Is.Null);
+            var other = new BattleDiagnosticSessionScope("other-session", _scope.WorldId, _scope.WorldEpoch);
+            Assert.That(session.ResolveRelation(other, in oldActor, 40).CatalogEntry, Is.Null);
+
+            var projectile = records[2].Reference;
+            var subject = session.ResolveRelation(_scope, in projectile, 40).CatalogEntry.Value;
+            Assert.That((subject.SourceActorId, subject.OwnerActorId, subject.TargetActorId), Is.EqualTo((1L, 2L, 2L)));
+            Assert.That(subject.ContextId, Is.EqualTo(103));
+            var backfilled = new BattleDiagnosticRuntimeObjectReference(BattleDiagnosticRuntimeObjectKind.Actor, 3, 0);
+            Assert.That(session.ResolveRelation(_scope, in backfilled, 99).CatalogEntry, Is.Null);
+            Assert.That(session.ResolveRelation(_scope, in backfilled, 100).CatalogEntry, Is.Not.Null);
+        }
+
+        private static BattleDiagnosticRuntimeObject ActorRecord(long id, int generation, BattleDiagnosticActorKind kind,
+            int config, int firstFrame, int lastFrame)
+        {
+            return new BattleDiagnosticRuntimeObject(BattleDiagnosticRuntimeObjectKind.Actor, id, generation,
+                BattleDiagnosticDefinitionKind.Actor, config, id, 0, 0, 0, firstFrame, lastFrame, 0, 0,
+                lastFrame < 0 ? BattleDiagnosticRuntimeObjectState.Active : BattleDiagnosticRuntimeObjectState.Ended,
+                0, string.Empty, actorKind: kind);
+        }
+
+        private BattleDiagnosticSessionSnapshot CreateSnapshot(bool traceStable = true,
+            BattleDiagnosticObjectCatalogSnapshot objects = null, bool includeTrace = true, bool traceSupported = true,
+            bool includeBackgroundTrace = false)
         {
             var info = new BattleDiagnosticSessionInfo(
                 _scope,
@@ -706,11 +830,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 BattleDiagnosticCapabilities.WorldState |
                 BattleDiagnosticCapabilities.ActorState |
                 BattleDiagnosticCapabilities.Events |
-                BattleDiagnosticCapabilities.Trace |
+                (traceSupported ? BattleDiagnosticCapabilities.Trace : BattleDiagnosticCapabilities.None) |
                 BattleDiagnosticCapabilities.ActorAttributes |
                 BattleDiagnosticCapabilities.ActorBuffs |
                 BattleDiagnosticCapabilities.ActorTags |
                 BattleDiagnosticCapabilities.ActorEffects |
+                (objects == null ? BattleDiagnosticCapabilities.None : BattleDiagnosticCapabilities.RuntimeObjects) |
                 BattleDiagnosticCapabilities.FrameMetrics |
                 BattleDiagnosticCapabilities.Definitions |
                 BattleDiagnosticCapabilities.Export,
@@ -944,12 +1069,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var metrics = new BattleDiagnosticStoreMetrics(16, events.Length, EventRevision, 2, 0, 1, true);
             var actors = new[]
             {
-                new BattleDiagnosticActorSummary(_scope, Frame, 1, BattleDiagnosticActorKind.Hero, 101, 1, 1f, 2f, 3f, 90f, 100f, true, "Mage"),
+                new BattleDiagnosticActorSummary(_scope, Frame, 1, BattleDiagnosticActorKind.Hero, 101, 1, 1f, 2f, 3f, 90f, 100f, true, "Mage", generation: 3),
                 new BattleDiagnosticActorSummary(_scope, Frame, 2, BattleDiagnosticActorKind.Hero, 102, 2, 4f, 5f, 6f, 70f, 100f, true, "Target")
             };
-            var traces = new[]
+            var traces = new List<BattleDiagnosticTraceNodeSummary>
             {
-                new BattleDiagnosticTraceNodeSummary(_scope, 900, 900, 0, Frame - 2, Frame, BattleDiagnosticTraceNodeState.Ended, 1, 101, "SkillPhase", "Completed", 101, 7001, "cast.release", 2, 701, 3, 5, BattleDiagnosticDefinitionKind.Skill, (int)MobaExecutionKind.AreaStay, 601, BattleDiagnosticDefinitionKind.Area),
+                new BattleDiagnosticTraceNodeSummary(_scope, 900, 900, 0, Frame - 2, Frame, BattleDiagnosticTraceNodeState.Ended, 1, 101, "SkillCast", "Completed", 101, 7001, "cast.release", 2, 701, 3, 5, BattleDiagnosticDefinitionKind.Skill, (int)MobaExecutionKind.AreaStay, 601, BattleDiagnosticDefinitionKind.Area),
                 new BattleDiagnosticTraceNodeSummary(_scope, 900, 901, 900, Frame - 1, Frame, BattleDiagnosticTraceNodeState.Ended, 2, 201, "Damage", "Failed")
             };
             var attributes = new[]
@@ -1006,6 +1131,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     3d,
                     "local")
             };
+            if (includeBackgroundTrace)
+                traces.Add(new BattleDiagnosticTraceNodeSummary(_scope, 960, 960, 0, Frame - 10,
+                    BattleDiagnosticFrames.Invalid, BattleDiagnosticTraceNodeState.Active, 2, 201, "SkillEffect", string.Empty));
             var frameMetricStoreMetrics = new BattleDiagnosticStoreMetrics(
                 64,
                 frameMetricSamples.Length,
@@ -1060,11 +1188,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 1030,
                 new BattleDiagnosticEventTrackSnapshot(EventRevision, in metrics, events),
                 new BattleDiagnosticStateTrackSnapshot(12, Frame, world, actors),
-                new BattleDiagnosticTraceTrackSnapshot(13, traces, false, traceStable),
+                new BattleDiagnosticTraceTrackSnapshot(13, includeTrace ? traces : null, false, traceStable),
                 new BattleDiagnosticAttributeTrackSnapshot(14, Frame, attributes, modifiers),
                 new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorBuff>(15, Frame, buffs),
                 new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorTag>(16, Frame, tags),
                 new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect>(17, Frame, effects),
+                objects: objects,
                 frameMetrics: new BattleDiagnosticMetricTrackSnapshot(
                     18,
                     in frameMetricStoreMetrics,

@@ -124,8 +124,9 @@ namespace AbilityKit.GameplayTags
         }
 
         /// <summary>
-        /// 请求注册一个标签（不存在则创建）
+        /// 规范化名称并返回标签；不存在时注册标签及其缺失的父标签，不派发通知。
         /// </summary>
+        /// <exception cref="ArgumentException">名称为空或不符合层级名称规则。</exception>
         public GameplayTag RequestTag(string name)
         {
             if (!TryNormalize(name, out var normalized))
@@ -133,56 +134,49 @@ namespace AbilityKit.GameplayTags
                 throw new ArgumentException("Invalid tag name", nameof(name));
             }
 
+            return RegisterNormalized(normalized, out _);
+        }
+
+        /// <summary>
+        /// 按输入顺序注册有效标签，跳过无效名称，不派发通知；空引用视为无输入。
+        /// </summary>
+        public void RegisterTags(IEnumerable<string> names) => RegisterBatch(names, notify: false);
+
+        /// <summary>
+        /// 按输入顺序注册有效标签，只为显式输入且首次注册的规范化名称派发通知。
+        /// 隐式创建的父标签不通知；监听器在注册锁外执行，单个监听器失败不影响后续派发。
+        /// </summary>
+        public void RegisterTagsWithNotification(IEnumerable<string> names) => RegisterBatch(names, notify: true);
+
+        private void RegisterBatch(IEnumerable<string> names, bool notify)
+        {
+            if (names == null) return;
+            foreach (var name in names)
+            {
+                if (!TryNormalize(name, out var normalized))
+                {
+                    continue;
+                }
+
+                var tag = RegisterNormalized(normalized, out var added);
+                if (notify && added)
+                {
+                    NotifyTagChanged(tag, GameplayTagChangeType.Added);
+                }
+            }
+        }
+
+        private GameplayTag RegisterNormalized(string name, out bool added)
+        {
             lock (_sync)
             {
-                var id = GetOrCreate(normalized);
+                added = !_byName.TryGetValue(name, out var id);
+                if (added)
+                {
+                    id = GetOrCreate(name);
+                }
+
                 return new GameplayTag(id, _nodes[id].NetIndex);
-            }
-        }
-
-        /// <summary>
-        /// 批量注册标签
-        /// </summary>
-        public void RegisterTags(IEnumerable<string> names)
-        {
-            if (names == null) return;
-            foreach (var name in names)
-            {
-                try
-                {
-                    RequestTag(name);
-                }
-                catch
-                {
-                }
-            }
-        }
-
-        /// <summary>
-        /// 批量注册标签（带事件通知）
-        /// </summary>
-        public void RegisterTagsWithNotification(IEnumerable<string> names)
-        {
-            if (names == null) return;
-            foreach (var name in names)
-            {
-                try
-                {
-                    bool wasAdded;
-                    GameplayTag tag;
-                    lock (_sync)
-                    {
-                        wasAdded = !_byName.ContainsKey(name);
-                        tag = RequestTag(name);
-                    }
-                    if (wasAdded)
-                    {
-                        NotifyTagChanged(tag, GameplayTagChangeType.Added);
-                    }
-                }
-                catch
-                {
-                }
             }
         }
 

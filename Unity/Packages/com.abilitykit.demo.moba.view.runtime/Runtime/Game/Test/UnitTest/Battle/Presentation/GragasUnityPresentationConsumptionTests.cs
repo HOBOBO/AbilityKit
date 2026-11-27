@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using AbilityKit.Ability.Host;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
@@ -118,9 +119,115 @@ namespace AbilityKit.Game.Test.UnitTest
         public IEnumerator Q_manual_detonation_seeks_tail_and_releases_same_bucket() =>
             Projectile(1, 30050201, 32050201, 90035009, manual: true);
 
-        [UnityTest]
-        public IEnumerator R_real_flight_creates_actor_following_vfx_and_releases_on_arrival() =>
-            Projectile(4, 30050501, 32050501, 90035013);
+        [Test]
+        public void R_real_flight_creates_actor_following_vfx_and_releases_on_arrival()
+        {
+            const string cueKind = "projectile.flight_arc";
+            using var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 30050501 },
+                worldId: "gragas_r_flight", heroId: 3005, attributeTemplateId: 3005);
+            harness.EnterGameAndWarmup();
+            var actor = harness.AssertPlayerActorBound();
+            var world = new EntityWorld();
+            var frameRoot = world.Create("gragas-frame-flight");
+            var baselineRoot = world.Create("gragas-state-flight");
+            var query = new BattleEntityQuery(world, new BattleEntityLookup());
+            var database = BattleViewFactory.GetOrLoadVfxDb();
+            var manager = new BattleVfxManager(database);
+            var frameHandler = new BattlePresentationCueViewEventHandler(world, query, manager, frameRoot);
+            var baselineHandler = new BattlePresentationCueViewEventHandler(world, query, manager, baselineRoot);
+            var projectileHandler = new BattleProjectileViewEventHandler(world, query, manager, in frameRoot,
+                new BattleViewResourceProvider(harness.Config, database));
+            var service = harness.World.Services.Resolve<MobaPresentationCueSnapshotService>();
+            var output = harness.World.Services.Resolve<IWorldStateSnapshotBatchProvider>();
+            var snapshots = new List<WorldStateSnapshot>();
+            string requestKey = null;
+            var recovered = false;
+            var ended = false;
+            try
+            {
+                Assert.IsTrue(harness.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(actor, 4,
+                    new Vec3(6, 0, 0), Vec3.Right, 0).Success);
+                for (var tick = 0; tick < 120 && !ended; tick++)
+                {
+                    harness.Tick(1);
+                    snapshots.Clear();
+                    output.CollectSnapshots(harness.FrameTime.Frame, snapshots, 32);
+                    foreach (var snapshot in snapshots)
+                    {
+                        if (snapshot.OpCode == MobaOpCodes.Snapshot.ProjectileEvent)
+                        {
+                            var projectiles = MobaProjectileEventSnapshotCodec.Deserialize(snapshot.Payload)
+                                .Where(entry => entry.TemplateId == 32050501)
+                                .Select(entry => ProjectileEventSnapshotMapper.Map(in entry)).ToArray();
+                            projectileHandler.HandleSnapshot(projectiles);
+                            if (projectiles.Any(entry => entry.Kind == ProjectilePresentationEventKind.Spawn))
+                                Assert.AreEqual(0, frameRoot.ChildCount, "Legacy Spawn must not duplicate the follow effect.");
+                            continue;
+                        }
+                        if (snapshot.OpCode != MobaOpCodes.Snapshot.PresentationCue) continue;
+                        foreach (var entry in MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload))
+                        {
+                            if (entry.CueKind != cueKind) continue;
+                            var cue = PresentationCueSnapshotMapper.Map(in entry);
+                            frameHandler.HandleSnapshot(new[] { cue }, projectileHandler);
+                            if (cue.Stage == PresentationCueStage.Started)
+                            {
+                                Assert.IsNull(requestKey);
+                                requestKey = entry.RequestKey;
+                                AssertFlight(frameRoot, cue.TargetActorId);
+                            }
+                            else if (BattlePresentationCueResolver.ShouldStop(cue.Stage))
+                            {
+                                Assert.AreEqual(requestKey, entry.RequestKey);
+                                ended = true;
+                            }
+                        }
+                    }
+
+                    if (requestKey == null || recovered || ended) continue;
+                    var baseline = ReadBaseline();
+                    var flight = baseline.Single(cue => cue.CueKind == cueKind);
+                    baselineHandler.HandleSnapshot(baseline);
+                    baselineHandler.HandleSnapshot(baseline);
+                    AssertFlight(baselineRoot, flight.TargetActorId);
+                    recovered = true;
+                }
+
+                Assert.IsTrue(recovered && ended, "Missing flight start, baseline, or lifecycle removal.");
+                Assert.AreEqual(0, frameRoot.ChildCount);
+                baselineHandler.HandleSnapshot(ReadBaseline());
+                Assert.AreEqual(0, baselineRoot.ChildCount, "An empty baseline must retire the in-flight view.");
+            }
+            finally
+            {
+                baselineHandler.Clear();
+                frameHandler.Clear();
+                manager.Clear(frameRoot);
+                manager.Clear(baselineRoot);
+                if (frameRoot.IsValid) frameRoot.Destroy();
+                if (baselineRoot.IsValid) baselineRoot.Destroy();
+            }
+
+            PresentationCueData[] ReadBaseline()
+            {
+                Assert.IsTrue(service.TryCaptureStateSyncBaseline(harness.FrameTime.Frame, out var snapshot));
+                return MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload)
+                    .Where(entry => entry.CueKind == cueKind || entry.SnapshotKind == (int)PresentationCueSnapshotKind.ActiveBaselineEnd)
+                    .Select(entry => PresentationCueSnapshotMapper.Map(in entry)).ToArray();
+            }
+
+            static void AssertFlight(IEntity root, int actorId)
+            {
+                Assert.AreEqual(1, root.ChildCount);
+                var entity = root.GetChild(0);
+                Assert.IsTrue(entity.TryGetRef(out BattleVfxComponent vfx));
+                Assert.AreEqual(90035013, vfx.VfxId);
+                Assert.IsTrue(entity.TryGetRef(out BattleViewFollowComponent follow));
+                Assert.AreEqual(actorId, follow.TargetActorId);
+                Assert.IsTrue(entity.TryGetRef(out BattleViewGameObjectComponent visual));
+                Assert.IsNotEmpty(visual.GameObject.GetComponentsInChildren<Renderer>(true));
+            }
+        }
 
         [TestCase(1f, 0f)]
         [TestCase(0f, 1f)]

@@ -2,10 +2,13 @@ using AbilityKit.Ability.Behavior;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.Map;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Demo.Moba.Input;
 
 namespace AbilityKit.Demo.Moba.Systems
@@ -32,6 +35,8 @@ namespace AbilityKit.Demo.Moba.Systems
         private IMobaMapRuntimeService _maps;
         private MobaCombatRulesService _combatRules;
         private MobaSkillLoadoutService _loadout;
+        private IWorldClock _clock;
+        private MobaActorRegistry _actors;
         private Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaBrainOutputApplySystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -47,6 +52,8 @@ namespace AbilityKit.Demo.Moba.Systems
             Services.TryResolve(out _maps);
             Services.TryResolve(out _combatRules);
             Services.TryResolve(out _loadout);
+            Services.TryResolve(out _clock);
+            Services.TryResolve(out _actors);
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.ActorBrain));
@@ -99,7 +106,11 @@ namespace AbilityKit.Demo.Moba.Systems
                     // The behavior's stop range is also used by its strict cast-range
                     // condition. An added tolerance can stop just outside that range,
                     // leaving the actor unable to move or cast indefinitely.
-                    if (length > intent.MoveStopRange)
+                    var shouldMove = intent.FollowsOwner
+                        ? _actors != null && MobaOwnerFollowMovement.ResolveSpeed(e, _actors, in intent,
+                            new MobaAttrs(e).MoveSpeed, _clock?.DeltaTime ?? 0f) > 0f
+                        : length > intent.MoveStopRange;
+                    if (shouldMove && length > 0f)
                     {
                         WriteMoveInput(e, dx / length, dz / length);
                         wroteMovement = true;

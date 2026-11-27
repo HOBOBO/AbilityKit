@@ -13,6 +13,11 @@ namespace AbilityKit.Game.Flow.Battle.Presentation.Timeline
         private long _castId;
         private float _elapsed;
 
+        /// <summary>
+        /// 表现片段当前使用的作者时间（秒），包含已有的播放速率映射。
+        /// </summary>
+        public float AuthoredSeconds => _runtime?.Time ?? 0f;
+
         public MobaSkillPresentationCastDriver(string json, IMobaSkillPresentationTimelineSink sink,
             IMobaPresentationTemplateResolver templateResolver = null,
             PresentationRateResolver rateResolver = null)

@@ -9,7 +9,10 @@ public sealed class PeriodicTaskTests
     [Theory]
     [InlineData(0f)]
     [InlineData(-1f)]
-    public void Non_positive_period_throws_at_construction(float period)
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    [InlineData(float.Epsilon)]
+    public void Period_that_cannot_advance_the_schedule_throws_at_construction(float period)
     {
         Assert.Throws<ArgumentOutOfRangeException>(
             () => new PeriodicTask(() => { }, period));
@@ -46,6 +49,26 @@ public sealed class PeriodicTaskTests
         Assert.Equal(3, fired);
         Assert.Equal(3, task.ExecutionCount);
         Assert.False(task.IsCompleted);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Terminating_in_callback_stops_remaining_catch_up_invocations(bool cancel)
+    {
+        PeriodicTask task = null;
+        task = new PeriodicTask(() =>
+        {
+            if (cancel)
+                task.RequestCancel("stop in callback");
+            else
+                task.Complete();
+        }, 1f);
+
+        task.Update(5f);
+
+        Assert.Equal(1, task.ExecutionCount);
+        Assert.Equal(cancel ? TaskState.Canceled : TaskState.Completed, task.State);
     }
 
     [Fact]

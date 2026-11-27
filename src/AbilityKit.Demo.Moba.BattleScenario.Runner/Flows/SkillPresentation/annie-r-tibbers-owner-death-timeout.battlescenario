@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 3, "caseId": "annie-r-tibbers-owner-death-timeout", "displayName": "Annie R - Tibbers times out after owner death",
+  "tags": ["skill-presentation", "annie", "summon-lifecycle"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 4000},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3003, "attributeTemplateId": 3003, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "beam-1", "heroId": 3007, "attributeTemplateId": 3007, "teamId": 2, "position": {"x": 7, "y": 0, "z": 17}},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.SetMobaActorAttributeBlock, AbilityKit.Demo.Moba.Environment", "actorAlias": "caster", "property": "hp", "value": 1}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 4, "position": {"x": 7, "y": 0, "z": 1}, "direction": {"x": 0, "y": 0, "z": 1}},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 11700, "action": "cast_skill", "actorAlias": "beam-1", "slot": 4, "position": {"x": 7, "y": 0, "z": -4}, "direction": {"x": 0, "y": 0, "z": -1}}
+    ],
+    "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SummonSpawn", "configId": 30030502, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "caster", "property": "summoncount:30030502", "comparator": "eq", "expectedValue": "0"},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "caster", "property": "hp", "comparator": "eq", "expectedValue": "0"}
+    ]
+  }
+}

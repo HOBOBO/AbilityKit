@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3, "caseId": "annie-w", "displayName": "Annie W",
+  "schemaVersion": 3, "caseId": "annie-w", "displayName": "Annie W - two inside, one outside",
   "tags": ["skill-presentation", "annie"],
   "sections": {
     "settings": [
@@ -8,14 +8,20 @@
     ],
     "setup": [
       {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3003, "attributeTemplateId": 3003, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"},
-      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": 0}}
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": 0}},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "second", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 8, "y": 0, "z": -1}},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "outside", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 10.5, "y": 0, "z": -3.4}}
     ],
     "timeline": [
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 2, "position": {"x": 7, "y": 0, "z": 0}, "direction": {"x": 0, "y": 0, "z": 1}}
     ],
     "assertions": [
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30030301},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30030301}
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30030301, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30030301, "minCount": 2, "maxCount": 2},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertNoTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "BuffApply", "configId": 30030211},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "target", "property": "hp", "comparator": "lt", "expectedValue": "50000"},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "second", "property": "hp", "comparator": "lt", "expectedValue": "50000"},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "outside", "property": "hp", "comparator": "eq", "expectedValue": "50000"}
     ]
   }
 }

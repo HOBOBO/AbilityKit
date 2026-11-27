@@ -38,7 +38,7 @@ namespace AbilityKit.Samples.Logic.Samples.Triggering
             Output.Bullet("PayloadAccessorRegistry - 载荷访问器，访问事件数据");
             Output.Bullet("NumericVarDomains - 数值变量域");
             Output.Bullet("NumericFunctions - 数值函数 (RPN)");
-            Output.Bullet("ActionSchedulerManager - 动作调度管理器");
+            Output.Bullet("FlatActionScheduler - 可选的扁平动作登记接口");
             Log("");
 
             // 3. ExecutionControl
@@ -129,14 +129,9 @@ namespace AbilityKit.Samples.Logic.Samples.Triggering
             // 9. 动作调度
             Log("【9】动作调度");
             Log("");
-            Log("  // 获取动作调度器");
-            Log("  var scheduler = ctx.ActionSchedulerManager.GetOrCreate(\"default\");");
-            Log("");
-            Log("  // 调度动作");
-            Log("  scheduler.Schedule(new ActionInstance(");
-            Log("      () => ApplyDamage(target, damage),");
-            Log("      delay: 0.1f");
-            Log("  ));");
+            Log("  宿主通过 flatActionScheduler: 注入扁平动作调度实现。");
+            Log("  计划用 actionId.Delayed(100f) 声明 100 毫秒延迟。");
+            Log("  计划执行时只登记动作，由宿主推进同一个实现。");
             Log("");
 
             // 10. 完整示例

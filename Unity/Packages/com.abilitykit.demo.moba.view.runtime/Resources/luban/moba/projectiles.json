@@ -27,7 +27,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 2,
@@ -57,7 +59,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30020101,
@@ -87,7 +91,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30040201,
@@ -123,7 +129,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30050101,
@@ -156,7 +164,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30050201,
@@ -186,7 +196,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30050301,
@@ -216,7 +228,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30060301,
@@ -253,7 +267,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30020001,
@@ -283,7 +299,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30040011,
@@ -313,7 +331,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30050001,
@@ -343,7 +363,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30060001,
@@ -373,7 +395,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30070001,
@@ -403,7 +427,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30070301,
@@ -437,7 +463,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30070201,
@@ -473,7 +501,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30070202,
@@ -509,7 +539,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30070302,
@@ -549,7 +581,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30080001,
@@ -579,7 +613,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30080101,
@@ -615,7 +651,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30080201,
@@ -653,7 +691,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30080301,
@@ -691,7 +731,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 30080401,
@@ -729,7 +771,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32010101,
@@ -739,7 +783,7 @@
     "HitCooldownMs": 0,
     "HitPolicyKind": 2,
     "HitsRemaining": 4,
-    "LifetimeMs": 2500,
+    "LifetimeMs": 4375,
     "MaxDistance": 60,
     "Name": "Jhin Q bouncing grenade",
     "OnExitTriggerIds": [],
@@ -753,12 +797,12 @@
     "SpawnRandomOffsetX": 0,
     "SpawnRandomOffsetY": 0,
     "SpawnRandomOffsetZ": 0,
-    "Speed": 20,
+    "Speed": 8,
     "StateMachineProfileId": "",
     "TickIntervalMs": 33,
     "VfxId": 90013001,
     "BounceSearchRadius": 6,
-    "TrackingArcHeight": 1,
+    "TrackingArcHeight": 1.9,
     "TrackingArcDurationSeconds": 0,
     "TrackingArcHeightPerUnit": 0.1,
     "HitUnitSubType": 0,
@@ -772,7 +816,9 @@
       90013022,
       90013023,
       90013024
-    ]
+    ],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32010201,
@@ -844,7 +890,9 @@
     ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32010401,
@@ -916,7 +964,9 @@
     ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32010402,
@@ -990,7 +1040,9 @@
     ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32010601,
@@ -1028,7 +1080,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32010602,
@@ -1066,7 +1120,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32010301,
@@ -1106,7 +1162,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32030101,
@@ -1142,7 +1200,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32020201,
@@ -1180,7 +1240,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32020202,
@@ -1218,7 +1280,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32020203,
@@ -1251,7 +1315,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32020403,
@@ -1284,7 +1350,11 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [
+      30020404
+    ],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32040101,
@@ -1317,7 +1387,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32040501,
@@ -1359,7 +1431,9 @@
     ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32050201,
@@ -1408,7 +1482,9 @@
     "OnArrivalTriggerIds": [
       30050211
     ],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32050501,
@@ -1457,7 +1533,9 @@
     ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 1.25
   },
   {
     "Id": 32060101,
@@ -1495,7 +1573,9 @@
     "CollisionRules": [],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32070101,
@@ -1538,7 +1618,9 @@
     ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32070201,
@@ -1581,7 +1663,9 @@
     ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32070301,
@@ -1637,7 +1721,9 @@
     ],
     "MaxDistanceResponse": 2,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32070401,
@@ -1686,7 +1772,9 @@
     ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   },
   {
     "Id": 32040011,
@@ -1728,6 +1816,8 @@
     ],
     "MaxDistanceResponse": 0,
     "OnArrivalTriggerIds": [],
-    "HitOrdinalVfxIds": []
+    "HitOrdinalVfxIds": [],
+    "OnSpawnTriggerIds": [],
+    "PresentationArcHeight": 0
   }
 ]

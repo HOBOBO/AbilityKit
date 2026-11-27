@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 3, "caseId": "jinx-q-toggle-only", "displayName": "Jinx Q - toggle only",
+  "tags": ["skill-presentation", "jinx", "active-skill"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 1900},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3002, "attributeTemplateId": 3002, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 1},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 2000, "action": "cast_skill", "actorAlias": "caster", "slot": 1}
+    ],
+    "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30020101, "minCount": 2, "maxCount": 2}
+    ]
+  }
+}

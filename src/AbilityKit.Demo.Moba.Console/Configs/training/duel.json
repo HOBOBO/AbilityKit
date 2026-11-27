@@ -1,0 +1,20 @@
+{
+  "name": "TrainingDuel",
+  "playerId": "p1",
+  "tickRate": 30,
+  "syncMode": "Lockstep",
+  "enableDebug": false,
+  "players": [
+    {
+      "playerId": "p1", "teamId": 1, "heroId": 3004, "attributeTemplateId": 3004, "level": 1,
+      "mainType": 1, "unitSubType": 1, "positionX": 7, "positionZ": -4,
+      "basicAttackSkillId": 30040101, "skillIds": [30040201, 30040301, 30040401, 30040501]
+    },
+    {
+      "playerId": "p2", "teamId": 2, "heroId": 3005, "attributeTemplateId": 3005, "level": 1,
+      "mainType": 1, "unitSubType": 1, "positionX": 7, "positionZ": 1,
+      "brainId": 100, "enableBrainOnSpawn": true,
+      "basicAttackSkillId": 30050101, "skillIds": [30050201, 30050301, 30050401, 30050501]
+    }
+  ]
+}

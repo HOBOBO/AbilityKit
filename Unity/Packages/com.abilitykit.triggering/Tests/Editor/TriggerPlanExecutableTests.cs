@@ -228,6 +228,60 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
+        public void RandomExecutable_ReplaysBranchOrderFromRestoredSourceUnderDeterministicPolicy()
+        {
+            var first = new CountingExecutable();
+            var second = new CountingExecutable();
+            var root = TriggerPlanExecutableDsl.Random(first, second);
+            var random = new SequenceRandomSource(0.75f, 0.25f, 0.875f, 0.625f, 0.125f);
+            var context = CreateContext(randomSource: random, policy: ExecPolicy.DeterministicOnly);
+
+            Assert.That(root.Execute<object>(null, in context).IsSuccess, Is.True);
+            var checkpoint = random.ReadCount;
+            Assert.That(checkpoint, Is.EqualTo(1));
+
+            var original = ExecuteInputs();
+            random.Restore(checkpoint);
+            var replay = ExecuteInputs();
+
+            Assert.That(original, Is.EqualTo(new[] { true, false, false, true }));
+            Assert.That(replay, Is.EqualTo(original));
+
+            bool[] ExecuteInputs()
+            {
+                var branches = new bool[4];
+                for (var input = 0; input < branches.Length; input++)
+                {
+                    var firstBefore = first.Count;
+                    var secondBefore = second.Count;
+                    var result = root.Execute<object>(null, in context);
+                    Assert.That(result.IsSuccess, Is.True);
+                    Assert.That(result.ExecutedCount, Is.EqualTo(1));
+                    Assert.That(first.Count + second.Count - firstBefore - secondBefore, Is.EqualTo(1));
+                    branches[input] = first.Count != firstBefore;
+                    Assert.That(random.ReadCount, Is.EqualTo(checkpoint + input + 1));
+                }
+
+                return branches;
+            }
+        }
+
+        [Test]
+        public void RandomExecutable_FailsWithoutInjectedSourceUnderDeterministicPolicy()
+        {
+            var selected = new CountingExecutable();
+            var root = TriggerPlanExecutableDsl.Random(selected);
+            var context = CreateContext(policy: ExecPolicy.DeterministicOnly);
+
+            var result = root.Execute<object>(null, in context);
+
+            Assert.That(result.IsFailed, Is.True);
+            Assert.That(result.Reason, Does.Contain(nameof(ITriggerRandomSource)));
+            Assert.That(result.ExecutedCount, Is.Zero);
+            Assert.That(selected.Count, Is.Zero);
+        }
+
+        [Test]
         public void Validator_RejectsInvalidScheduledExecutableConfig()
         {
             var root = TriggerPlanExecutableDsl.Periodic(null, 0f, maxExecutions: 0);
@@ -337,21 +391,23 @@ namespace AbilityKit.Triggering.Tests
 
         private static ExecCtx<object> CreateContext(
             ITriggerRandomSource randomSource = null,
-            ITriggerExecutionScheduler executionScheduler = null)
+            ITriggerExecutionScheduler executionScheduler = null,
+            ExecPolicy policy = default)
         {
             return new ExecCtx<object>(
                 null, null, null, null, null, null, null, null, null,
-                default, null,
+                policy, null,
                 randomSource: randomSource,
                 executionScheduler: executionScheduler);
         }
 
         private sealed class SequenceRandomSource : ITriggerRandomSource
         {
-            private readonly float _value;
-            public SequenceRandomSource(float value) => _value = value;
+            private readonly float[] _values;
+            public SequenceRandomSource(params float[] values) => _values = values;
             public int ReadCount { get; private set; }
-            public float NextFloat01() { ReadCount++; return _value; }
+            public float NextFloat01() => _values[ReadCount++];
+            public void Restore(int readCount) => ReadCount = readCount;
         }
     }
 }

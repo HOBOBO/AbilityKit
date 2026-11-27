@@ -1,111 +1,16 @@
-# com.abilitykit.host.network
+# Host Network
 
-将 `com.abilitykit.network.host` 的服务端 Session 接入 `com.abilitykit.host` 权威世界运行时。
-该包不创建固定协议，也不要求 TCP。
+`com.abilitykit.host.network` 提供将服务端网络 session、认证身份与 HostRuntime 的连接索引衔接。
 
-`Runtime/Connections` 管理 Host 身份映射与连接生命周期；`Runtime/Transports` 提供 TCP 和进程内装配；`Runtime/Abstractions` 定义 codec、请求处理及身份映射端口。底层监听、帧编解码、会话队列由 `network.host` / `network.runtime` 负责，认证和房间策略由项目负责。
+## 安装与首次使用
 
-纯 C#，Unity 安装需满足依赖（`host` 要求 2022.3）；.NET 10 直接编译同一份包源码。直接依赖见 [package.json](package.json)。
+从项目配置的包来源安装；版本、Unity 最低版本和直接依赖以 [package.json](package.json) 为准，同时满足传递依赖与所需第三方程序集的条件。本轮核校基于仓库源码与 .NET 镜像，不等于隔离安装或 Unity 发布验收。
 
-## 扩展点
+按使用指南装配已有 world factory、codec 与 handler，再启动监听。关闭时等待原 StopAsync，再切换生命周期，并单独关闭世界。
 
-- `IHostMessageCodec`：把 `ServerMessage` 编码为通用网络包。
-- `IHostNetworkRequestHandler`：把入站网络包转换为 Host/World 命令。
-- `IAsyncHostNetworkRequestHandler`：支持取消的异步 Host/World 命令入口。
-- `IHostClientIdResolver`：把网络 Session 映射为 Host ClientId；认证系统可替换默认实现。
-- `IChannelListener`：决定 TCP、WebSocket、KCP、Relay 或 InProcess 接入方式。
+## 文档
 
-## 默认 TCP 装配
+- [文档索引](Documentation~/README.md)：阅读顺序、当前契约与验证边界。
+- [使用指南](Documentation~/Usage.md)：接入前提、调用顺序、所有权与失败行为。
 
-```csharp
-var connections = TcpHostNetwork.CreateConfigured(
-    new TcpChannelListenerOptions
-    {
-        Address = IPAddress.Any,
-        Port = 9000
-    },
-    hostMessageCodec,
-    hostRequestHandler);
-
-var (host, _) = WorldHostBuilder.Create()
-    .SetWorldFactory(worldFactory)
-    .SetConnectionManager(connections)
-    .BuildWithOptions();
-
-connections.Start();
-```
-
-## 内置本机组合
-
-单机模式、编辑器联调和集成测试可以使用低成本组合入口，但仍完整经过客户端
-`ConnectionManager`、帧协议、服务端 Session 和 Pipeline：
-
-```csharp
-using var network = new InProcessHostNetwork(hostMessageCodec, hostRequestHandler);
-
-var (host, _) = WorldHostBuilder.Create()
-    .SetWorldFactory(worldFactory)
-    .SetConnectionManager(network.Connections)
-    .BuildWithOptions();
-
-network.Start();
-using var client = network.CreateClientConnection();
-client.Open("inprocess", 1);
-```
-
-这只是官方提供的 `IChannelListener` 组合，不改变抽象层级，也不会让 Host 核心内定 TCP
-或 InProcess。生产环境仍可替换为 WebSocket、KCP、Relay 等 listener。
-
-## 认证后绑定身份
-
-连接建立时默认使用 Channel Id 作为临时 ClientId。登录验证成功后，可在请求 handler 中
-原子替换为账号或玩家身份：
-
-```csharp
-if (!connections.TryBindClient(session.Id, new ServerClientId(accountId)))
-{
-    session.Close(); // 身份已被其他在线 Session 占用
-}
-```
-
-重绑定会同步更新 `HostRuntime` 的连接索引。重复身份不会覆盖已有连接，并可通过
-`OnClientRebound` 观察身份变化。成功的 `TryBindClient` 同时调用
-`session.Context.MarkEstablished()`，因此可以直接配合 `NetworkHostOptions.EstablishmentTimeout`
-限制未认证连接占用时间。
-
-异步入口使用 `HostNetworkConnectionManager.CreateAsync(...)` 或
-`InProcessHostNetwork.CreateAsync(...)`。同一 Session 的请求串行执行，并在断连时取消。
-配置 `NetworkHostOptions.IdleTimeout` 后，从宿主循环调用 `connections.Tick()`；运行指标可从
-`connections.GetDiagnostics()` 获取。
-
-进程退出或热切换时可调用：
-
-```csharp
-await connections.StopAsync(TimeSpan.FromSeconds(5), cancellationToken);
-```
-
-管理器会先排空已进入队列的 Host handler，再从 `HostRuntime` 移除连接。停止后的
-`GetDiagnostics()` 仍保留最后一次终态快照；活动会话明细可在运行期间通过
-`GetSessionSnapshots()` 获取。`InProcessHostNetwork` 提供相同的 `StopAsync` 和快照 API。
-
-从宿主控制流串行调用生命周期入口。开始排空后，等待原 `StopAsync` 完成，再重启、解绑或释放；不要用第二次停止调用代替等待。启动检查通过前不会调用监听器工厂；工厂返回的监听器由管理器接管。运行中的桥不能切换到另一个 `HostRuntime`。
-
-若配置由外部 address/port 提供，也可以使用 `TcpHostNetwork.Create(...)` 后调用
-`StartListen(address, port)`。
-
-## 自定义传输
-
-```csharp
-var connections = new HostNetworkConnectionManager(
-    () => yourChannelListener,
-    hostMessageCodec,
-    hostRequestHandler,
-    authenticatedClientIdResolver);
-
-builder.SetConnectionManager(connections);
-connections.Start();
-```
-
-`IConnectionManager` 只负责连接与 Host 的绑定；通用生命周期由
-`IConnectionManagerLifecycle` 表达，IP address/port 能力单独位于
-`IEndpointConnectionManager`，因此核心契约不会内定 Socket 端点。
+- [变更记录](CHANGELOG.md)。

@@ -12,7 +12,7 @@
 
   <!-- 只包含 Core 部分，排除 Unity 子目录 -->
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/**/*.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.hfsm.core/Runtime/Core/**/*.cs" />
   </ItemGroup>
 
   <!-- 项目引用 -->

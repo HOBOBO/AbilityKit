@@ -26,7 +26,9 @@ namespace AbilityKit.Editor.FrameSync
 
         private int _selectedFrameIndex = -1;
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/FrameSync Test")]
+        /// <summary>
+        /// 打开帧同步测试窗口，不创建 Harness、启动会话或连接服务器。
+        /// </summary>
         public static void Open()
         {
             GetWindow<FrameSyncTestWindow>("FrameSync Test");

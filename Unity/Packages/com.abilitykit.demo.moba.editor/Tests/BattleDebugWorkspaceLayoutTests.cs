@@ -1,4 +1,7 @@
+using System;
+using System.IO;
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Editor.BattleScenario;
 using AbilityKit.Game.Editor;
 using NUnit.Framework;
 
@@ -6,6 +9,130 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 {
     public sealed class BattleDebugWorkspaceLayoutTests
     {
+        [Test]
+        public void ScenarioRunCatalog_ListsPublishedBatchesWithoutOpeningEvidence()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "moba-run-catalog-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                WriteRun(root, "run-01");
+                WriteRun(root, "run-02");
+                WriteRun(root, ".writing-run-03");
+                var broken = Directory.CreateDirectory(Path.Combine(root, "broken"));
+                File.WriteAllText(Path.Combine(broken.FullName, "batch_summary_v1.json"), "{");
+
+                var catalog = new BattleDebugScenarioRunCatalog();
+                catalog.Refresh(root);
+                Assert.That(catalog.UnreadableCount, Is.EqualTo(1));
+                Assert.That(catalog.Runs.Count, Is.EqualTo(2));
+                Assert.That(catalog.Runs[0].runId, Is.EqualTo("run-02"));
+                Assert.That(catalog.Find("run-01")?.runId, Is.EqualTo("run-01"));
+                Assert.That(catalog.Find(".writing-run-03"), Is.Null);
+                var run = catalog.Runs[0];
+                Assert.That(run.cases[0].status, Is.EqualTo("failed"));
+                Assert.Throws<FileNotFoundException>(() => catalog.ResolveFile(run, run.cases[0].diagnosticUri));
+                Assert.Throws<InvalidDataException>(() => catalog.ResolveFile(run, "../run-01/batch_summary_v1.json"));
+                Assert.Throws<InvalidDataException>(() => catalog.ResolveFile(run, "C:\\outside.json"));
+                Assert.That(catalog.ResolveFile(run, "batch_summary_v1.json"),
+                    Is.EqualTo(Path.Combine(root, "run-02", "batch_summary_v1.json")));
+            }
+            finally
+            {
+                if (Directory.Exists(root)) Directory.Delete(root, true);
+            }
+        }
+
+        [Test]
+        public void ScenarioRunArchive_KeepsPresetsSeparateAndDoesNotCreateLibraryOnBrowse()
+        {
+            var parent = Path.Combine(Path.GetTempPath(), "moba-analysis-" + Guid.NewGuid().ToString("N"));
+            var presets = Path.Combine(parent, "presets");
+            var output = Path.Combine(parent, "presets-library");
+            Assert.DoesNotThrow(() => BattleDebugScenarioRuns.ValidateBatchDirectories(presets, output));
+            Assert.Throws<IOException>(() => BattleDebugScenarioRuns.ValidateBatchDirectories(presets, presets));
+            Assert.Throws<IOException>(() => BattleDebugScenarioRuns.ValidateBatchDirectories(presets, Path.Combine(presets, "output")));
+
+            var catalog = new BattleDebugScenarioRunCatalog();
+            catalog.Refresh(output);
+            Assert.That(catalog.Runs, Is.Empty);
+            Assert.That(Directory.Exists(output), Is.False);
+            Assert.That(BattleDebugScenarioRuns.DefaultAnalysisRoot(), Does.EndWith(Path.Combine("BattleAnalysis", "MOBA", "runs")));
+        }
+
+        [Test, Explicit("需要本仓库预设和 .NET SDK；仅由 Console 执行实战。")]
+        public void ScenarioRunArchive_ConsoleHostPublishesSevenHeroBatch()
+        {
+            var presets = MobaBattleScenarioRunner.DefaultArchivePresetDirectory();
+            var root = Path.GetFullPath(Path.Combine(UnityEngine.Application.dataPath, "..", "..", "local", "Logs",
+                "moba-scenario-editor-verification", "analysis library " + Guid.NewGuid().ToString("N")));
+            var cases = new[] { "annie-q", "gragas-q", "jhin-q", "jinx-w", "karthus-q-two-targets", "lux-q-two-targets", "veigar-q-two-targets" };
+            var execution = MobaBattleScenarioRunner.ExecuteArchiveBatch(presets, root, "all", cases).GetAwaiter().GetResult();
+            Assert.That(execution.Error, Is.Null, execution.LogDirectory);
+            Assert.That(execution.ExitCode, Is.EqualTo(0), execution.LogDirectory);
+
+            var catalog = new BattleDebugScenarioRunCatalog();
+            catalog.Refresh(root);
+            var run = catalog.Find(execution.RunId);
+            Assert.That(run, Is.Not.Null);
+            Assert.That(run.host, Is.EqualTo("dotnet-console"));
+            Assert.That(run.counts.passed, Is.EqualTo(cases.Length));
+            foreach (var entry in run.cases)
+            {
+                Assert.That(entry.evidenceStatus, Is.EqualTo("available"));
+                Assert.That(File.Exists(catalog.ResolveFile(run, entry.diagnosticUri)), Is.True);
+            }
+            TestContext.WriteLine($"Analysis library: {root}\nConsole logs: {execution.LogDirectory}");
+        }
+
+        private static void WriteRun(string root, string runId)
+        {
+            var directory = Directory.CreateDirectory(Path.Combine(root, runId));
+            File.WriteAllText(Path.Combine(directory.FullName, "batch_summary_v1.json"),
+                "{\"schemaVersion\":1,\"suiteId\":\"moba-battle-scenario\",\"runId\":\"" + runId +
+                "\",\"counts\":{\"total\":1,\"failed\":1},\"cases\":[{\"caseId\":\"sample\",\"status\":\"failed\"," +
+                "\"diagnosticUri\":\"missing.json\"}]}");
+        }
+
+        [Test]
+        public void ModuleCatalog_ExplainsUnsupportedSourceAndMissingData()
+        {
+            var live = new BattleDebugContext(null, default, null, null);
+            var offline = new BattleDebugContext(null, default, null, null, isOffline: true);
+            var metadata = new MetadataPanel();
+            Assert.That(BattleDebugModuleCatalog.GetUnavailableReason(metadata, in live), Is.EqualTo("不支持实时来源"));
+            Assert.That(BattleDebugModuleCatalog.GetUnavailableReason(metadata, in offline), Is.EqualTo("当前来源未提供所需诊断数据"));
+            Assert.That(BattleDebugModuleCatalog.GetUnavailableReason(new BattleDebugTagsPanel(), in offline), Is.Null);
+
+            var attributes = new BattleDebugAttributesPanel();
+            Assert.That(BattleDebugModuleCatalog.GetStableId(attributes), Is.EqualTo(BattleDebugModuleIds.ActorAttributes));
+            Assert.That(BattleDebugNavigation.GroupOf(attributes), Is.EqualTo(BattleDebugNavigationGroup.Actor));
+        }
+
+        [Test]
+        public void TraceAttributeRoute_RestoresTheNodeAndEvidenceFrameThroughHistory()
+        {
+            var scope = new BattleDiagnosticSessionScope("session", "world", 1);
+            var otherScope = new BattleDiagnosticSessionScope("session", "world", 2);
+            var node = new BattleDiagnosticTraceNodeSummary(scope, 100, 101, 100, 0, 9,
+                default, actorId: 11, targetActorId: 12);
+            Assert.That(BattleDebugNavigation.TryCreateTraceAttributeRoute(otherScope, in node, 12, out _, out _), Is.False);
+            Assert.That(BattleDebugNavigation.TryCreateTraceAttributeRoute(scope, in node, 13, out _, out _), Is.False);
+            Assert.That(BattleDebugNavigation.TryCreateTraceAttributeRoute(scope, in node, 12, out var origin, out var target), Is.True);
+            var workspace = new BattleDiagnosticWorkspaceState();
+            workspace.AttachSession(scope, 20);
+            workspace.Select(origin);
+            workspace.Select(target);
+            Assert.That(workspace.Selection.Kind, Is.EqualTo(BattleDiagnosticSelectionKind.ActorAttributeEvidence));
+            Assert.That(workspace.Selection.Id, Is.EqualTo(12));
+            Assert.That(workspace.Selection.RelatedId, Is.EqualTo(101));
+            Assert.That(workspace.FrameCursor.Frame, Is.Zero);
+            Assert.That(workspace.GoBack(), Is.True);
+            Assert.That(workspace.Selection.Kind, Is.EqualTo(BattleDiagnosticSelectionKind.TraceNode));
+            Assert.That(workspace.Selection.Id, Is.EqualTo(101));
+            Assert.That(workspace.GoForward(), Is.True);
+            Assert.That(workspace.Selection, Is.EqualTo(target));
+        }
+
         [Test]
         public void ModuleCatalog_UsesMetadataForStableIdentityAndCapabilities()
         {
@@ -184,6 +311,20 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     loadedRange,
                     new BattleDiagnosticFrameRange(20, 30)),
                 Is.Zero);
+        }
+
+        [Test]
+        public void RuntimeObjectTimeline_UsesOnlyKnownFramesForPointOrSpan()
+        {
+            Assert.That(BattleDebugTraceObjectSpan.TryProject(0, 9, -1, out var start, out var end, out var point), Is.True);
+            Assert.That((start, end, point), Is.EqualTo((0, 9, false)));
+            Assert.That(BattleDebugTraceObjectSpan.TryProject(3, -1, -1, out start, out end, out point), Is.True);
+            Assert.That((start, end, point), Is.EqualTo((3, 3, true)));
+            Assert.That(BattleDebugTraceObjectSpan.TryProject(-1, 7, 3, out start, out end, out point), Is.True);
+            Assert.That((start, end, point), Is.EqualTo((7, 7, true)));
+            Assert.That(BattleDebugTraceObjectSpan.TryProject(-1, -1, 4, out start, out end, out point), Is.True);
+            Assert.That((start, end, point), Is.EqualTo((4, 4, true)));
+            Assert.That(BattleDebugTraceObjectSpan.TryProject(-1, -1, -1, out _, out _, out _), Is.False);
         }
 
         [Test]

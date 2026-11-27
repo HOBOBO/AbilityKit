@@ -20,6 +20,6 @@
   ],
   "dependencies": {
     "com.abilitykit.core": "0.1.0",
-    "com.abilitykit.hfsm": "0.1.0"
+    "com.abilitykit.hfsm.core": "0.1.0"
   }
 }

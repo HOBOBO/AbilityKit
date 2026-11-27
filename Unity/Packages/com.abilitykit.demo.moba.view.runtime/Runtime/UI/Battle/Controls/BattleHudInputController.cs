@@ -19,6 +19,7 @@ namespace AbilityKit.Game.Flow
 
         private readonly HashSet<int> _appliedSkillStateSlots = new HashSet<int>();
         private readonly Dictionary<int, int> _skillLevels = new Dictionary<int, int>();
+        internal IReadOnlyDictionary<int, int> SkillLevels => _skillLevels;
         private readonly List<PresentationCueData> _pendingBuffCues = new List<PresentationCueData>();
 
         private BattleHudInputUi _inputUi;

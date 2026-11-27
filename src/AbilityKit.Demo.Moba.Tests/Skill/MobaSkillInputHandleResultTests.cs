@@ -5,6 +5,32 @@ namespace AbilityKit.Demo.Moba.Tests.Skill;
 
 public sealed class MobaSkillInputHandleResultTests
 {
+    [Theory]
+    [InlineData("Input", "skill.input.invalidSlot", MobaFrameInputDisposition.Rejected)]
+    [InlineData("Input", "skill.input.unsupportedPhase", MobaFrameInputDisposition.Rejected)]
+    [InlineData("Input", "skill.input.noRunningForHold", MobaFrameInputDisposition.Rejected)]
+    [InlineData("Input", "skill.input.noRunningForCancel", MobaFrameInputDisposition.Rejected)]
+    [InlineData("Input", "skill.input.invalidActor", MobaFrameInputDisposition.Unknown)]
+    [InlineData("Cast", "skill.input.noRunningForHold", MobaFrameInputDisposition.Unknown)]
+    [InlineData("Cast", "skill.start.alreadyRunning", MobaFrameInputDisposition.Unknown)]
+    [InlineData("Pipeline", "skill.pipeline.failed", MobaFrameInputDisposition.Unknown)]
+    public void State_sync_only_terminates_known_input_rejections(string source, string code,
+        MobaFrameInputDisposition expected)
+    {
+        var failure = new MobaSkillCastFailure(source, null, code, "Rejected.");
+        var skillResult = new MobaSkillInputHandleResult(false, "Rejected.", in failure);
+        var result = new MobaInputCommandResult(false, MobaInputCommandFailureCode.SkillRejected,
+                "Rejected.", "player", actorId: 7, opCode: 17)
+            .WithSkillInputRejection(in skillResult)
+            .WithSkillDiagnostic(2, 1, 0, default)
+            .WithDiagnosticCommandId(42);
+
+        Assert.Equal(MobaInputCommandFailureCode.SkillRejected, result.FailureCode);
+        Assert.Equal(MobaFrameInputDisposition.Unknown, result.ClassifyAuthorityDisposition());
+        Assert.Equal(expected, result.ClassifyStateSyncDisposition());
+        Assert.Equal(MobaFrameInputDisposition.Duplicate, result.AsDuplicate().ClassifyStateSyncDisposition());
+    }
+
     [Fact]
     public void Failed_creates_stable_input_failure_code()
     {

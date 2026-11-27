@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Editor
         private MobaMapStructureResource _resource;
         private Vector2 _scroll;
 
-        [MenuItem("Tools/AbilityKit/Demos/MOBA/Edit Map Structures", priority = 21)]
+        [MenuItem(MobaMapSceneGenerator.MenuRoot + "编辑地图建筑", priority = 32)]
         private static void Open()
         {
             var window = GetWindow<MobaMapStructureEditorWindow>();
@@ -29,7 +29,8 @@ namespace AbilityKit.Game.Editor
             if (GUILayout.Button("Reload")) Reload();
             if (GUILayout.Button("Add Base")) AddStructure("Base");
             if (GUILayout.Button("Add Tower")) AddStructure("Tower");
-            if (GUILayout.Button("Validate And Publish")) Publish();
+            using (new EditorGUI.DisabledScope(_resource == null || EditorApplication.isPlayingOrWillChangePlaymode))
+                if (GUILayout.Button("校验并预览发布")) Publish();
             EditorGUILayout.EndHorizontal();
 
             if (_resource == null) return;
@@ -107,6 +108,12 @@ namespace AbilityKit.Game.Editor
                     if (p == null || Math.Abs(p.X - bounds.Center.X) > bounds.Size.X * 0.5f || Math.Abs(p.Z - bounds.Center.Z) > bounds.Size.Z * 0.5f)
                         throw new InvalidOperationException($"Structure is outside map bounds. structureId={structure.Id}");
                 }
+                if (!EditorUtility.DisplayDialog("发布 MOBA 地图建筑",
+                        $"地图 {_resource.MapId}，已校验 {_resource.Structures.Count} 个建筑。将写入：\n\n" +
+                        $"{SourceRelativePath}\n{RuntimeRelativePath}\n{ConsoleRelativePath}\n\n" +
+                        "现有文件将被覆盖；不刷新地图 Prefab。多个文件的写入不是事务。",
+                        "确认发布", "取消")) return;
+
                 Write(root, SourceRelativePath, serialized);
                 Write(root, RuntimeRelativePath, serialized);
                 Write(root, ConsoleRelativePath, serialized);

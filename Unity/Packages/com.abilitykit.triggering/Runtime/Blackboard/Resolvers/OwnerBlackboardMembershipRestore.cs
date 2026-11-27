@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Newtonsoft.Json;
 
 namespace AbilityKit.Triggering.Blackboard
 {
@@ -29,8 +28,7 @@ namespace AbilityKit.Triggering.Blackboard
                 return false;
             }
 
-            // Detach mutable DTOs; the caller cannot alter a prepared plan through its input.
-            var target = BlackboardSnapshotSet.FromJson(snapshot.ToJson());
+            var target = snapshot.CopyDetached();
             var allowed = new HashSet<long>(mutableOwnerKeys);
             if (allowed.Contains(0)) { error = "Owner key zero is invalid."; return false; }
             var targetKeys = new HashSet<long>();
@@ -74,7 +72,7 @@ namespace AbilityKit.Triggering.Blackboard
             private readonly OwnerBlackboardStore _staged;
             private readonly Dictionary<long, IBlackboardResolver> _originalOwners;
             private readonly List<BlackboardInitializationPlan> _originalPlans;
-            private readonly string _originalTemplate;
+            private readonly BlackboardInitializationTemplateSnapshot _originalTemplate;
             private bool _consumed;
 
             public MembershipRestorePlan(OwnerBlackboardStore store, BlackboardSnapshotSet target, OwnerBlackboardStore staged)
@@ -84,14 +82,14 @@ namespace AbilityKit.Triggering.Blackboard
                 _staged = staged;
                 _originalOwners = new Dictionary<long, IBlackboardResolver>(store._owners);
                 _originalPlans = store._plans;
-                _originalTemplate = JsonConvert.SerializeObject(store._plans);
+                _originalTemplate = new BlackboardInitializationTemplateSnapshot(store._plans);
             }
 
             public bool TryApply(out string error)
             {
                 error = null;
                 if (_consumed || !ReferenceEquals(_originalPlans, _store._plans) ||
-                    !string.Equals(_originalTemplate, JsonConvert.SerializeObject(_store._plans), StringComparison.Ordinal) ||
+                    !_originalTemplate.Matches(_store._plans) ||
                     _originalOwners.Count != _store._owners.Count)
                 {
                     error = "Blackboard membership restore plan is consumed or stale.";

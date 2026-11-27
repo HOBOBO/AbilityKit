@@ -68,7 +68,7 @@ namespace AbilityKit.Game.Tests
                     var cast = skills.TryCastBySlot(actorId, 4, default,
                         new Vec3(originalForward.x, originalForward.y, originalForward.z), 0);
                     Assert.IsTrue(cast.Success, cast.FailReason);
-                    for (; elapsedTicks < harness.TickRate * 12 && !stopped; elapsedTicks++)
+                    for (; elapsedTicks < harness.TickRate * 17 && !stopped; elapsedTicks++)
                     {
                         var shotLimit = ending == "four_shots" ? 4 : 2;
                         if (elapsedTicks >= nextShot && shots < shotLimit)
@@ -162,7 +162,7 @@ namespace AbilityKit.Game.Tests
                     if (ending == "timeout")
                     {
                         Assert.AreEqual(2, shots);
-                        Assert.Greater(elapsedTicks, harness.TickRate * 9);
+                        Assert.Greater(elapsedTicks, harness.TickRate * 14);
                     }
                 }
             }

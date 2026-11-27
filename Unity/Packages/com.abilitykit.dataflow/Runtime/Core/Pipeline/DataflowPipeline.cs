@@ -95,7 +95,9 @@ namespace AbilityKit.Dataflow
             Name = name ?? typeof(TInput).Name + "->" + typeof(TOutput).Name;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// 按本次执行开始时的处理器顺序推进，并在中断或失败时保留最后一次完整输出。
+        /// </summary>
         public DataflowResult<TOutput> Execute(TInput input, IDataflowContext context)
         {
             if (context == null)
@@ -132,6 +134,7 @@ namespace AbilityKit.Dataflow
 
                     var processor = processors[i];
                     failedProcessorIndex = i;
+                    failedProcessorName = null;
                     failedProcessorName = processor.Name;
                     var output = processor.Process(input, context);
                     lastOutput = output;

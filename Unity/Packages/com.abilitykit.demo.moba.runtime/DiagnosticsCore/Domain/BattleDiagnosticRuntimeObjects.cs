@@ -466,7 +466,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             string displayName,
             BattleDiagnosticRuntimeObjectDiscoveryKind discoveryKind =
                 BattleDiagnosticRuntimeObjectDiscoveryKind.Unknown,
-            int backfilledFrame = -1)
+            int backfilledFrame = -1,
+            BattleDiagnosticActorKind actorKind = BattleDiagnosticActorKind.Unknown)
         {
             if (kind == BattleDiagnosticRuntimeObjectKind.Unknown)
                 throw new ArgumentOutOfRangeException(nameof(kind));
@@ -506,6 +507,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             DisplayName = displayName ?? string.Empty;
             DiscoveryKind = discoveryKind;
             BackfilledFrame = backfilledFrame;
+            ActorKind = actorKind;
         }
 
         public BattleDiagnosticRuntimeObjectKind Kind { get; }
@@ -526,6 +528,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public string DisplayName { get; }
         public BattleDiagnosticRuntimeObjectDiscoveryKind DiscoveryKind { get; }
         public int BackfilledFrame { get; }
+        /// <summary>
+        /// Actor 生命周期记录中采集的实体分类；不表示当前战斗状态。
+        /// </summary>
+        public BattleDiagnosticActorKind ActorKind { get; }
         public bool WasBackfilled =>
             DiscoveryKind == BattleDiagnosticRuntimeObjectDiscoveryKind.ActiveBackfill;
         public BattleDiagnosticDataCompleteness Completeness =>

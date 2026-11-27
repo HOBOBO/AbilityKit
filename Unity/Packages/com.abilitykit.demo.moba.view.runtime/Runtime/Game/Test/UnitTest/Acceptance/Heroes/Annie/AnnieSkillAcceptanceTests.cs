@@ -42,11 +42,13 @@ namespace AbilityKit.Game.Test.UnitTest
         private const int PassiveId = 30030000;
         private const int BasicAttackSkillId = 30030101;
         private const int TibbersBasicAttackSkillId = 30030102;
+        private const int TibbersEnragedAttackSkillId = 30030103;
         private const int QSkillId = 30030201;
         private const int WSkillId = 30030301;
         private const int ESkillId = 30030401;
         private const int RSkillId = 30030501;
         private const int TibbersSummonId = 30030502;
+        private const int TibbersEnrageBuffId = 30030503;
         private const int EMoveSpeedBuffId = 30030402;
         private const int PassiveTriggerId = 30030002;
         private const int CounterKeyId = 30030002;
@@ -1286,13 +1288,14 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
-        [Test]
-        public void Tibbers_OwnerDeathShouldDespawnWithoutKilledCleanup()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void Tibbers_OwnerDeathShouldPreserveSameSummonUntilTimeoutOrKilled(bool killTibbers)
         {
             using (var harness = HeroSkillHeadlessContract.CreateHarness(
-                Annie, "annie_tibbers_owner_death_cleanup_runtime_contract_world"))
+                Annie, "annie_tibbers_owner_death_survival_runtime_contract_world"))
             {
-                harness.EnterGameAndWarmup(reason: "Annie Tibbers owner-death cleanup contract");
+                harness.EnterGameAndWarmup(reason: "Annie Tibbers owner-death survival contract");
                 var ownerActorId = harness.AssertPlayerActorBound();
                 var enemyActorId = HeroSkillHeadlessContract.SpawnEnemyHero(
                     harness, "annie_owner_death_target", 9322, x: 3f, z: 0f);
@@ -1301,26 +1304,78 @@ namespace AbilityKit.Game.Test.UnitTest
                     aimDir: Vec3.Right);
                 Assert.IsTrue(cast.Success, "Annie R should release successfully: " + cast.FailReason);
                 harness.TickUntilTraceNode(MobaExecutionKind.SummonSpawn, TibbersSummonId, maxTicks: 80,
-                    message: "Annie R should spawn Tibbers before its owner-death cleanup check.");
+                    message: "Annie R should spawn Tibbers before Annie dies.");
 
                 var summons = harness.World.Services.Resolve<MobaSummonService>();
                 var actors = harness.World.Services.Resolve<MobaActorRegistry>();
+                var brains = harness.World.Services.Resolve<MobaBrainService>();
+                var damage = harness.World.Services.Resolve<MobaDamageService>();
                 var summonIds = new List<int>(1);
                 Assert.IsTrue(summons.TryGetSummons(ownerActorId, summonIds, TibbersSummonId));
                 Assert.AreEqual(1, summonIds.Count);
                 var tibbersActorId = summonIds[0];
-                var ownerDeath = harness.World.Services.Resolve<MobaDamageService>().CommitDamage(
+                var tibbers = harness.AssertActorEntity(tibbersActorId);
+                var behaviorId = tibbers.actorBrain.BehaviorInstanceId;
+                Assert.IsTrue(tibbers.hasLifetime);
+                var originalEndTimeMs = tibbers.lifetime.EndTimeMs;
+                Assert.IsFalse(harness.HasActorBuff(tibbersActorId, TibbersEnrageBuffId));
+                var ordinaryAttack = harness.TickUntilTraceNode(MobaExecutionKind.SkillCast, TibbersBasicAttackSkillId,
+                    maxTicks: 80, message: "Tibbers must start an ordinary attack while Annie is alive.");
+                var ordinaryHit = harness.TickUntilTraceNodeInRoot(ordinaryAttack.RootId, MobaExecutionKind.DamageApply,
+                    TibbersBasicAttackSkillId, maxTicks: 1, message: "The in-progress ordinary attack must settle once.");
+                var ownerDeath = damage.CommitDamage(
                     enemyActorId, ownerActorId, (int)DamageType.Physical, 1000000f,
                     (int)DamageReasonKind.BasicAttack);
                 Assert.IsTrue(ownerDeath.BecameDead,
-                    "Lethal damage must commit Annie's owner death before summon cleanup.");
+                    "Lethal damage must commit Annie's death before checking the summon.");
                 harness.Tick(1);
+                Assert.AreEqual(1, summons.GetAliveCount(ownerActorId, TibbersSummonId),
+                    "Tibbers must remain under the original owner after Annie dies.");
+                Assert.IsTrue(actors.TryGet(tibbersActorId, out var survivingTibbers));
+                Assert.AreSame(tibbers, survivingTibbers, "Owner death must not replace Tibbers.");
+                Assert.AreEqual(behaviorId, survivingTibbers.actorBrain.BehaviorInstanceId);
+                Assert.IsTrue(brains.TryGetBehavior(behaviorId, out _));
+                Assert.AreEqual(originalEndTimeMs, survivingTibbers.lifetime.EndTimeMs,
+                    "Owner death must not reset Tibbers' original expiration time.");
+                Assert.IsTrue(harness.TryGetActorBuffStackCount(tibbersActorId, TibbersEnrageBuffId, out var enrageStacks));
+                Assert.AreEqual(1, enrageStacks);
+
+                var cleanupReason = killTibbers ? SummonDespawnReason.Killed : SummonDespawnReason.Timeout;
+                if (killTibbers)
+                {
+                    var summonDeath = damage.CommitDamage(enemyActorId, tibbersActorId,
+                        (int)DamageType.Physical, 1000000f, (int)DamageReasonKind.BasicAttack);
+                    Assert.IsTrue(summonDeath.BecameDead, "Tibbers must still be killable after Annie dies.");
+                    harness.Tick(1);
+                }
+                else
+                {
+                    var firstEnragedAttack = harness.TickUntilTraceNode(MobaExecutionKind.SkillCast, TibbersEnragedAttackSkillId,
+                        maxTicks: 85, message: "After the ordinary attack, the same Tibbers must use the enraged attack.");
+                    var firstEnragedHit = harness.TickUntilTraceNodeInRoot(firstEnragedAttack.RootId,
+                        MobaExecutionKind.DamageApply, TibbersBasicAttackSkillId, maxTicks: 1,
+                        message: "The first enraged cast must settle real basic attack damage.");
+                    var secondEnragedHit = harness.TickUntilTraceNodeAfter(firstEnragedHit.ContextId,
+                        MobaExecutionKind.DamageApply, TibbersBasicAttackSkillId, maxTicks: 40,
+                        message: "Enrage must persist across attacks and shorten the actual cadence.");
+                    Assert.AreEqual(tibbersActorId, firstEnragedHit.Metadata.SourceActorId);
+                    Assert.AreEqual(enemyActorId, firstEnragedHit.Metadata.TargetActorId);
+                    Assert.AreEqual(tibbersActorId, secondEnragedHit.Metadata.SourceActorId);
+                    Assert.GreaterOrEqual(firstEnragedHit.CreatedFrame - ordinaryHit.CreatedFrame, 24,
+                        "The owner-death trigger must not reset the in-progress ordinary attack's cooldown.");
+                    Assert.That(secondEnragedHit.CreatedFrame - firstEnragedHit.CreatedFrame, Is.InRange(18, 23));
+                    for (var tick = 0; tick < 500 && summons.GetAliveCount(ownerActorId, TibbersSummonId) > 0; tick++)
+                        harness.Tick(1);
+                }
+
                 Assert.AreEqual(0, summons.GetAliveCount(ownerActorId, TibbersSummonId),
-                    "DespawnOnOwnerDie must remove Tibbers after Annie dies.");
+                    $"Tibbers must be cleaned up by {cleanupReason} after Annie dies.");
                 Assert.IsFalse(actors.TryGet(tibbersActorId, out _),
-                    "Owner-death cleanup must remove Tibbers from the actor registry.");
-                Assert.IsFalse(summons.TryDespawn(tibbersActorId, SummonDespawnReason.OwnerDead),
-                    "Owner-death cleanup must not be applied a second time.");
+                    "Terminal cleanup must remove Tibbers from the actor registry.");
+                Assert.IsFalse(brains.TryGetBehavior(behaviorId, out _),
+                    "Terminal cleanup must release Tibbers' behavior runtime.");
+                Assert.IsFalse(summons.TryDespawn(tibbersActorId, cleanupReason),
+                    "Terminal cleanup must not be applied a second time.");
             }
         }
 

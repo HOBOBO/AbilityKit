@@ -6,13 +6,16 @@ using System.Collections.Generic;
 namespace AbilityKit.Compute
 {
     /// <summary>
-    /// Tries explicitly configured backends in order. No backend is registered globally or implicitly.
+    /// 按配置顺序尝试计算后端，不隐式添加或全局注册后端。
     /// </summary>
     public sealed class ComputeBackendChain
     {
         private readonly IComputeBackend[] _backends;
         private readonly IComputeObserver? _observer;
 
+        /// <summary>
+        /// 固定后端顺序并校验标识唯一性；可选观察器用于报告每次尝试。
+        /// </summary>
         public ComputeBackendChain(IEnumerable<IComputeBackend> backends, IComputeObserver? observer = null)
         {
             if (backends == null)
@@ -46,8 +49,17 @@ namespace AbilityKit.Compute
             _observer = observer;
         }
 
+        /// <summary>
+        /// 获取已配置的后端数量，包括当前不可用的后端。
+        /// </summary>
         public int BackendCount => _backends.Length;
 
+        /// <summary>
+        /// 依次探测并执行后端，返回首个成功结果；提供验证器时，成功结果还须通过验证。
+        /// </summary>
+        /// <remarks>
+        /// 探测或执行异常计为后端故障，并继续尝试下一后端。失败不会恢复输出缓冲区。
+        /// </remarks>
         public ComputeExecutionResult Execute<TKernel, TInput, TOutput>(
             TKernel kernel,
             TInput[] inputs,
@@ -66,27 +78,23 @@ namespace AbilityKit.Compute
             for (var index = 0; index < _backends.Length; index++)
             {
                 var backend = _backends[index];
+                var backendId = backend.Id;
                 ComputeAttempt attempt;
-                if (!backend.IsAvailable)
+                try
                 {
-                    attempt = ComputeAttempt.Unavailable(backend.Id);
+                    attempt = backend.IsAvailable
+                        ? backend.Execute(kernel, inputs, outputs, count, in options)
+                        : ComputeAttempt.Unavailable(backendId);
                 }
-                else
+                catch (Exception exception)
                 {
-                    try
-                    {
-                        attempt = backend.Execute(kernel, inputs, outputs, count, in options);
-                    }
-                    catch (Exception exception)
-                    {
-                        attempt = ComputeAttempt.Faulted(backend.Id, exception);
-                    }
+                    attempt = ComputeAttempt.Faulted(backendId, exception);
                 }
 
-                if (!string.Equals(attempt.BackendId, backend.Id, StringComparison.Ordinal))
+                if (!string.Equals(attempt.BackendId, backendId, StringComparison.Ordinal))
                 {
                     attempt = ComputeAttempt.Faulted(
-                        backend.Id,
+                        backendId,
                         new InvalidOperationException("The backend returned an attempt for a different backend id."));
                 }
 
@@ -96,13 +104,13 @@ namespace AbilityKit.Compute
                     {
                         if (!validator.Validate(inputs, outputs, count, out var reason))
                         {
-                            attempt = ComputeAttempt.InvalidOutput(backend.Id, reason);
+                            attempt = ComputeAttempt.InvalidOutput(backendId, reason);
                         }
                     }
                     catch (Exception exception)
                     {
                         attempt = ComputeAttempt.InvalidOutput(
-                            backend.Id,
+                            backendId,
                             "The accelerated output validator threw an exception.",
                             exception);
                     }

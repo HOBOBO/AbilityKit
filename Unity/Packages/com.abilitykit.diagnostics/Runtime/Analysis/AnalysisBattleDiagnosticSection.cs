@@ -210,6 +210,7 @@ namespace AbilityKit.Diagnostics.Analysis
     {
         public int Frame { get; set; }
         public long ActorId { get; set; }
+        public int Generation { get; set; }
         public int Kind { get; set; }
         public int ConfigId { get; set; }
         public int TeamId { get; set; }
@@ -481,6 +482,11 @@ namespace AbilityKit.Diagnostics.Analysis
         public float PeriodSeconds { get; set; }
         public int ComponentCount { get; set; }
         public bool ExecutePeriodicOnApply { get; set; }
+        public int ApplicationFrame { get; set; } = -1;
+        public long SourceActorId { get; set; }
+        public int SourceActorGeneration { get; set; }
+        public long SourceContextId { get; set; }
+        public long SourceRootContextId { get; set; }
     }
 
     public sealed class AnalysisBattleDiagnosticMetricTrack
@@ -579,6 +585,7 @@ namespace AbilityKit.Diagnostics.Analysis
     public sealed class AnalysisBattleDiagnosticRuntimeObject
     {
         public int Kind { get; set; }
+        public int ActorKind { get; set; }
         public long RuntimeId { get; set; }
         public int Generation { get; set; }
         public int DefinitionKind { get; set; }

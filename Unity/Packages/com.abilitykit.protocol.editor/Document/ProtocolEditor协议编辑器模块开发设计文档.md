@@ -1,5 +1,7 @@
 # Ability-Kit Protocol Editor 协议编辑器模块开发设计文档
 
+> 2026-11-25 导航补充：现行环境、保存/编译/导出副作用和迁移步骤见[工作区使用指南](../Documentation~/Usage.md)。本文旧轨说明与历史正文保留，不因新增入口而整体获得当前核校日期。
+
 > **【已冻结 / SUPERSEDED（2026-08）】**
 > 本文档描述的 ScriptableObject 协议定义 + 代码生成双轨入口已被 **YAML Protocol Workspace** 取代
 > （`Tools/AbilityKit/Framework/Protocol/Protocol Workspace`，设计见仓库 `Docs/design/` 协议目录）。

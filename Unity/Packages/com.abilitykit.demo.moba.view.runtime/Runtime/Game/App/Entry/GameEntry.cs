@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using AbilityKit.World.ECS;
 using AbilityKit.Demo.Common.Rooms;
@@ -443,11 +444,19 @@ namespace AbilityKit.Game
         private Vector2 _localDebugPanelScroll;
         private float _localDebugPanelScale = 1f;
         private bool _localDebugPanelVisible = true;
+        private string _dummyOffsetX = "4";
+        private string _dummyOffsetZ = "0";
+        private bool _trainingRangesVisible;
+        private int _trainingSkillSlot = 1;
+        private string _trainingTargetActorId = string.Empty;
+        private readonly BattleTrainingReadout _trainingReadout = new BattleTrainingReadout();
+        private float _nextTrainingFailureRefresh;
 
         public void Bind(GameEntry entry)
         {
             if (!ReferenceEquals(_entry, entry))
             {
+                _trainingReadout.Dispose();
                 _localDebug = null;
                 _localDebugMessage = null;
                 _replaceHeroIdText = "1001";
@@ -458,6 +467,8 @@ namespace AbilityKit.Game
 
             _entry = entry;
         }
+
+        private void OnDisable() => _trainingReadout.Dispose();
 
         private void OnGUI()
         {
@@ -508,12 +519,17 @@ namespace AbilityKit.Game
         private void DrawLocalDebugShortcuts()
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (!ShouldDrawLocalDebugShortcuts()) return;
+            if (!ShouldDrawLocalDebugShortcuts())
+            {
+                _trainingReadout.Dispose();
+                return;
+            }
 
             EnsureLocalDebugController();
             var debugSnapshot = _localDebug != null
                 ? _localDebug.CaptureSnapshot()
                 : default;
+            _trainingReadout.Bind(debugSnapshot.IsAvailable ? ResolveBattleContext() : null);
 
             if (GUI.Button(
                     new Rect(10f, 10f, 150f, 32f),
@@ -530,7 +546,7 @@ namespace AbilityKit.Game
             GUIUtility.ScaleAroundPivot(
                 new Vector2(_localDebugPanelScale, _localDebugPanelScale),
                 new Vector2(10f, 50f));
-            GUILayout.BeginArea(new Rect(10f, 50f, width, height), "英雄技能验收", GUI.skin.window);
+            GUILayout.BeginArea(new Rect(10f, 50f, width, height), "英雄技能训练", GUI.skin.window);
             GUILayout.BeginHorizontal();
             GUILayout.Label("面板缩放", GUILayout.Width(70f));
             _localDebugPanelScale = GUILayout.HorizontalSlider(
@@ -543,10 +559,29 @@ namespace AbilityKit.Game
             _localDebugPanelScroll = GUILayout.BeginScrollView(_localDebugPanelScroll);
             var previousEnabled = GUI.enabled;
             GUI.enabled = _localDebug != null && debugSnapshot.IsAvailable;
+            GUILayout.Label("英雄", GUI.skin.box);
             if (GUILayout.Button("切换主控单位（P1/P2）", GUILayout.Height(30f)))
             {
                 RunLocalDebugAction(_localDebug.TrySwitchControl);
             }
+
+            GUILayout.Label(debugSnapshot.CurrentHeroLevel > 0
+                ? $"当前英雄等级：{debugSnapshot.CurrentHeroLevel}"
+                : "当前英雄等级：—");
+            var debugActionsEnabled = GUI.enabled;
+            GUI.enabled = debugActionsEnabled && debugSnapshot.CurrentHeroLevel > 0;
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("增加等级 (+1)", GUILayout.Height(30f)))
+            {
+                RunLocalDebugAction(_localDebug.TryIncreaseHeroLevel);
+            }
+            if (GUILayout.Button("重置等级", GUILayout.Height(30f)))
+            {
+                RunLocalDebugAction(_localDebug.TryResetHeroLevel);
+            }
+            GUILayout.EndHorizontal();
+            GUI.enabled = debugActionsEnabled;
+
             GUILayout.Label("完整替换当前英雄");
             var includePlaceholders = GUILayout.Toggle(
                 debugSnapshot.IncludePlaceholderHeroes,
@@ -600,16 +635,56 @@ namespace AbilityKit.Game
                 }
             }
 
+            GUILayout.Label("技能与资源", GUI.skin.box);
+            var noCooldown = false;
+            var infiniteMana = false;
+            _localDebug?.ReadTrainingOptions(out noCooldown, out infiniteMana);
+            GUILayout.BeginHorizontal();
+            var nextNoCooldown = GUILayout.Toggle(noCooldown, "技能无冷却");
+            var nextInfiniteMana = GUILayout.Toggle(infiniteMana, "无限法力");
+            GUILayout.EndHorizontal();
+            if (nextNoCooldown != noCooldown || nextInfiniteMana != infiniteMana)
+                _localDebug.TrySetTrainingOptions(nextNoCooldown, nextInfiniteMana, out _localDebugMessage);
+
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("重置技能冷却", GUILayout.Height(30f)))
             {
                 RunLocalDebugAction(_localDebug.TryResetCooldowns);
             }
+            if (GUILayout.Button("补满技能资源", GUILayout.Height(30f)))
+            {
+                RunLocalDebugAction(_localDebug.TryRestoreResources);
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Label("技能槽（同时用于范围观测）");
+            _trainingSkillSlot = GUILayout.SelectionGrid(_trainingSkillSlot - 1, TrainingSlots, 6) + 1;
+            if (_localDebug.TryReadSkillRank(_trainingSkillSlot, out var rank, out var maxRank))
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"技能 Rank：{rank}/{maxRank}");
+                var actionsEnabled = GUI.enabled;
+                GUI.enabled = actionsEnabled && rank > 1;
+                if (GUILayout.Button("−1"))
+                    _localDebug.TrySetSkillRank(_trainingSkillSlot, rank - 1, out _localDebugMessage);
+                if (GUILayout.Button("重置"))
+                    _localDebug.TrySetSkillRank(_trainingSkillSlot, 1, out _localDebugMessage);
+                GUI.enabled = actionsEnabled && rank < maxRank;
+                if (GUILayout.Button("+1"))
+                    _localDebug.TrySetSkillRank(_trainingSkillSlot, rank + 1, out _localDebugMessage);
+                GUI.enabled = actionsEnabled;
+                GUILayout.EndHorizontal();
+            }
+            else
+            {
+                GUILayout.Label("该槽无可调整的技能等级表");
+            }
+
+            GUILayout.Label("目标与场景", GUI.skin.box);
             if (GUILayout.Button(debugSnapshot.IsEnemyAiEnabled ? "关闭敌方 AI" : "开启敌方 AI", GUILayout.Height(30f)))
             {
                 RunLocalDebugAction(_localDebug.TryToggleEnemyAi);
             }
-            GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("创建己方英雄", GUILayout.Height(30f)))
@@ -622,6 +697,63 @@ namespace AbilityKit.Game
                 RunLocalDebugAction(_localDebug.TrySpawnEnemy);
             }
             GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("相对偏移 X / Z", GUILayout.Width(90f));
+            _dummyOffsetX = GUILayout.TextField(_dummyOffsetX);
+            _dummyOffsetZ = GUILayout.TextField(_dummyOffsetZ);
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("放置固定靶", GUILayout.Height(28f)))
+            {
+                if (float.TryParse(_dummyOffsetX, NumberStyles.Float, CultureInfo.InvariantCulture, out var offsetX) &&
+                    float.TryParse(_dummyOffsetZ, NumberStyles.Float, CultureInfo.InvariantCulture, out var offsetZ))
+                    _localDebug.TrySpawnDummy(offsetX, offsetZ, out _localDebugMessage);
+                else
+                    _localDebugMessage = "请输入有效的 X/Z 偏移";
+            }
+            if (GUILayout.Button("清除固定靶", GUILayout.Height(28f)))
+                RunLocalDebugAction(_localDebug.TryClearDummies);
+            GUILayout.EndHorizontal();
+
+            GUILayout.Label("观测", GUI.skin.box);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("目标 Actor ID", GUILayout.Width(95f));
+            _trainingTargetActorId = GUILayout.TextField(_trainingTargetActorId);
+            GUILayout.EndHorizontal();
+            var validTarget = string.IsNullOrWhiteSpace(_trainingTargetActorId) ||
+                (int.TryParse(_trainingTargetActorId, out var parsedTarget) && parsedTarget > 0);
+            var targetId = validTarget && int.TryParse(_trainingTargetActorId, out var explicitTarget) ? explicitTarget : 0;
+            if (validTarget)
+                _trainingReadout.SetTarget(targetId);
+            GUILayout.Label(validTarget ? (targetId > 0 ? $"伤害统计目标：#{targetId}" : "伤害统计：全部目标") : "请输入有效的目标 ID");
+            GUILayout.Label($"单次命中 {_trainingReadout.LastHit:0.##}  /  累计 {_trainingReadout.TotalDamage:0.##}（{_trainingReadout.HitCount} 次）");
+            if (GUILayout.Button("清零伤害统计")) _trainingReadout.ResetDamage();
+
+            if (Event.current.type == EventType.Repaint && Time.unscaledTime >= _nextTrainingFailureRefresh)
+            {
+                _trainingReadout.RefreshFailure();
+                _nextTrainingFailureRefresh = Time.unscaledTime + 0.25f;
+            }
+            GUILayout.Label("最近施法失败：" + (_trainingReadout.FailureText ?? "—"));
+
+            _trainingRangesVisible = GUILayout.Toggle(_trainingRangesVisible, "显示普攻 / 技能范围");
+            var drawRanges = false;
+            var rangeCenter = Vector3.zero;
+            var attackRange = 0f;
+            var skillRange = 0f;
+            if (debugSnapshot.IsAvailable && _trainingRangesVisible && validTarget)
+            {
+                if (targetId == 0) GUILayout.Label("距离目标：最近敌方单位");
+                if (_localDebug.TryReadRanges(_trainingSkillSlot, targetId, out var position, out attackRange,
+                        out skillRange, out var actualTarget, out var distance))
+                {
+                    GUILayout.Label($"普攻 {attackRange:0.##}  /  槽 {_trainingSkillSlot}：{skillRange:0.##}");
+                    GUILayout.Label(actualTarget > 0 ? $"目标 #{actualTarget}：距离 {distance:0.##}" : "无可用目标");
+                    rangeCenter = new Vector3(position.X, position.Y, position.Z);
+                    drawRanges = true;
+                }
+            }
             GUI.enabled = previousEnabled;
 
             if (!string.IsNullOrEmpty(_localDebugMessage))
@@ -632,8 +764,48 @@ namespace AbilityKit.Game
             GUILayout.EndScrollView();
             GUILayout.EndArea();
             GUI.matrix = previousMatrix;
+            if (drawRanges && Event.current.type == EventType.Repaint)
+            {
+                var camera = (BattleFlowDebugProvider.CurrentView as IViewFeatureRuntime)?.CameraController?.Camera ?? Camera.main;
+                if (camera != null)
+                {
+                    DrawTrainingRange(camera, rangeCenter, attackRange, new Color(0.25f, 0.95f, 0.50f, 0.9f));
+                    if (!Mathf.Approximately(skillRange, attackRange))
+                        DrawTrainingRange(camera, rangeCenter, skillRange, new Color(0.35f, 0.76f, 1f, 0.9f));
+                }
+            }
 #endif
         }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private static readonly string[] TrainingSlots = { "1", "2", "3", "4", "5", "6" };
+
+        private static void DrawTrainingRange(Camera camera, Vector3 center, float radius, Color color)
+        {
+            if (!(radius > 0f) || float.IsInfinity(radius)) return;
+            const int segments = 48;
+            var savedColor = GUI.color;
+            var savedMatrix = GUI.matrix;
+            GUI.color = color;
+            var previous = camera.WorldToScreenPoint(center + Vector3.right * radius);
+            for (var segment = 1; segment <= segments; segment++)
+            {
+                var theta = segment * (2f * Mathf.PI / segments);
+                var point = center + new Vector3(Mathf.Cos(theta) * radius, 0f, Mathf.Sin(theta) * radius);
+                var current = camera.WorldToScreenPoint(point);
+                if (previous.z > 0f && current.z > 0f)
+                {
+                    var start = new Vector2(previous.x, Screen.height - previous.y);
+                    var delta = new Vector2(current.x - previous.x, previous.y - current.y);
+                    GUIUtility.RotateAroundPivot(Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg, start);
+                    GUI.DrawTexture(new Rect(start.x, start.y, delta.magnitude, 2f), Texture2D.whiteTexture);
+                    GUI.matrix = savedMatrix;
+                }
+                previous = current;
+            }
+            GUI.color = savedColor;
+        }
+#endif
 
         private void DrawHeroOption(BattleDebugHeroOption option)
         {

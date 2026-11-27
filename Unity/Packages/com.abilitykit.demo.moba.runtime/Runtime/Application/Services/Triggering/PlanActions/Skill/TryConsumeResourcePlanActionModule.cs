@@ -48,7 +48,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 !actors.TryGetActorEntity(input.CasterActorId, out var actor) ||
                 !ctx.Context.TryResolve<MobaCombatRulesService>(out var rules))
             { LogRejected(ctx, "Periodic payment requires a caster and combat rules."); return; }
-            var paid = TryPay(actor, rules.IsAlive(actor), args.ResourceType, args.Amount, args.DeathCastSkillId);
+            var alive = rules.IsAlive(actor);
+            var freeMana = alive && args.ResourceType == ResourceType.Mana &&
+                MobaResourceMutation.TryGetState(actor, ResourceType.Mana, out _) &&
+                ctx.Context.TryResolve<MobaSkillEconomyService>(out var economy) &&
+                economy.IsTrainingInfiniteMana(input.CasterActorId);
+            var paid = freeMana || TryPay(actor, alive, args.ResourceType, args.Amount, args.DeathCastSkillId);
             if (!MobaPlanActionOutput.TryWrite(in ctx, in args.Result, paid ? 1 : 0, out var writeError))
                 LogRejected(ctx, writeError);
         }

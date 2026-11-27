@@ -34,7 +34,7 @@ namespace AbilityKit.Combat.Projectile
             float searchRadius, out int targetActorId, out Vec3 targetPosition);
     }
 
-    public sealed class ProjectileWorld
+    public sealed partial class ProjectileWorld
     {
         private sealed class ReferenceComparer<T> : IEqualityComparer<T> where T : class
         {
@@ -226,7 +226,11 @@ namespace AbilityKit.Combat.Projectile
                 projectile.SpawnPosition.ToVec3(),
                 projectile.DistanceTravelled.ToSingle(),
                 projectile.SpawnFrame,
-                projectile.ElapsedSeconds.ToSingle(), projectile.ArrivedFrame);
+                projectile.ElapsedSeconds.ToSingle(), projectile.ArrivedFrame,
+                projectile.TrackingTargetActorId == 0 && projectile.BounceSearchRadius == Fixed64.Zero &&
+                projectile.MaxDistanceResponse == ProjectileMaxDistanceResponse.Exit && projectile.ReturnAfterFrames == 0 &&
+                !projectile.IsReturning && projectile.DistanceLeft > Fixed64.Zero
+                    ? (projectile.DistanceTravelled + projectile.DistanceLeft).ToSingle() : 0f);
             return true;
         }
 
@@ -259,13 +263,18 @@ namespace AbilityKit.Combat.Projectile
             return true;
         }
 
-        public byte[] ExportRollback(FrameIndex frame)
+        public byte[] ExportRollback(FrameIndex frame) => MemoryPackSerializer.Serialize(CaptureState(frame));
+
+        internal ProjectileWorldSnapshotPayload CaptureState(FrameIndex frame, Predicate<IProjectileHitFilter>? validateLocalFilter = null)
         {
             var items = new ProjectileWorldSnapshotItem[_active.Count];
             for (int i = 0; i < _active.Count; i++)
             {
                 var p = _active[i];
                 if (p == null) continue;
+                if (validateLocalFilter != null && (p.HitPolicy is not ExitOnHitPolicy ||
+                    p.HitFilterKey != 0 && !validateLocalFilter(p.HitFilter)))
+                    throw new InvalidOperationException("Unsupported local flight policy or filter.");
                 items[i] = new ProjectileWorldSnapshotItem(
                     id: p.Id.Value,
                     ownerId: p.OwnerId,
@@ -322,17 +331,18 @@ namespace AbilityKit.Combat.Projectile
                     lastHitAllowedFrame: p.LastHitAllowedFrame,
                     hitIdentityPolicy: p.HitIdentityPolicy,
                     maxDistanceResponse: p.MaxDistanceResponse, arrivedFrame: p.ArrivedFrame, returnHitActorIds: p.ReturnHitActorIds.ToArray(),
-                    hitFilterSnapshot: (p.HitFilter as IProjectileHitFilterSnapshotSource)?.CaptureSnapshot()
+                    hitFilterSnapshot: validateLocalFilter == null
+                        ? (p.HitFilter as IProjectileHitFilterSnapshotSource)?.CaptureSnapshot() : null
                 );
             }
 
-            return MemoryPackSerializer.Serialize(new ProjectileWorldSnapshotPayload(
+            return new ProjectileWorldSnapshotPayload(
                 version: 18,
                 frame: frame,
                 nextId: _nextId,
                 items: items,
                 nextHitFilterKey: _nextHitFilterKey
-            ));
+            );
         }
 
         internal static ProjectileWorldSnapshotPayload ReadRollbackSnapshot(byte[] payload, FrameIndex? frame = null)
@@ -340,6 +350,12 @@ namespace AbilityKit.Combat.Projectile
             if (payload == null || payload.Length == 0)
                 throw new InvalidOperationException("Missing projectile world rollback payload.");
             var snap = MemoryPackSerializer.Deserialize<ProjectileWorldSnapshotPayload>(payload);
+            ValidateState(in snap, frame);
+            return snap;
+        }
+
+        internal static void ValidateState(in ProjectileWorldSnapshotPayload snap, FrameIndex? frame)
+        {
             if (snap.Version != 18) throw new InvalidOperationException("Unsupported projectile rollback version.");
             if ((frame.HasValue && snap.Frame.Value != frame.Value.Value) || snap.NextId <= 0 ||
                 snap.NextHitFilterKey <= 0 || snap.Items == null)
@@ -364,7 +380,6 @@ namespace AbilityKit.Combat.Projectile
                       (item.MaxDistanceResponse == ProjectileMaxDistanceResponse.ReturnToSource && item.IsReturning != 0))))
                     throw new InvalidOperationException("Invalid projectile destination snapshot.");
             }
-            return snap;
         }
 
         internal void ValidateRollbackDependencies(in ProjectileWorldSnapshotPayload snapshot)
@@ -390,7 +405,13 @@ namespace AbilityKit.Combat.Projectile
         {
             if (payload == null || payload.Length == 0) { Clear(); return; }
             var snap = ReadRollbackSnapshot(payload, frame);
-            ValidateRollbackDependencies(in snap);
+            ImportState(in snap);
+        }
+
+        internal void ImportState(in ProjectileWorldSnapshotPayload snap, IProjectileHitFilter? localFilter = null,
+            bool exactLocalLifetime = false)
+        {
+            if (localFilter == null) ValidateRollbackDependencies(in snap);
             var items = snap.Items ?? Array.Empty<ProjectileWorldSnapshotItem>();
             var policies = new IProjectileHitPolicy[items.Length];
             var filters = new IProjectileHitFilter[items.Length];
@@ -403,7 +424,9 @@ namespace AbilityKit.Combat.Projectile
             {
                 policies[i] = ProjectileHitPolicyFactory.Create(items[i].HitPolicyKind, items[i].HitPolicyParam);
                 var item = items[i];
-                if ((item.HitFilterSnapshot == null || item.HitFilterSnapshot.Length == 0) &&
+                if (item.HitFilterKey > 0 && localFilter != null)
+                    filters[i] = localFilter;
+                else if ((item.HitFilterSnapshot == null || item.HitFilterSnapshot.Length == 0) &&
                     preparedFilters.TryGetValue(item.HitFilterKey, out var prepared))
                     filters[i] = prepared;
                 else
@@ -465,7 +488,7 @@ namespace AbilityKit.Combat.Projectile
                 p.ReturnSpeed = Fixed64.FromRaw(it.ReturnSpeedRaw);
                 p.ReturnStopDistance = Fixed64.FromRaw(it.ReturnStopDistanceRaw);
                 p.IsReturning = it.IsReturning != 0;
-                p.LifetimeFramesLeft = it.LifetimeFramesLeft > 0 ? it.LifetimeFramesLeft : int.MaxValue;
+                p.LifetimeFramesLeft = exactLocalLifetime || it.LifetimeFramesLeft > 0 ? it.LifetimeFramesLeft : int.MaxValue;
                 p.DistanceLeft = Fixed64.FromRaw(it.DistanceLeftRaw);
                 p.CollisionLayerMask = it.CollisionLayerMask;
                 p.IgnoreCollider = new ColliderId(it.IgnoreCollider);
@@ -672,485 +695,11 @@ namespace AbilityKit.Combat.Projectile
 
             for (int i = 0; i < _active.Count; i++)
             {
-                var p = _active[i];
-                if (p == null)
+                if (TickProjectile(i, frame, fixedDeltaSeconds, hitEvents, exitEvents, tickEvents, arrivalEvents))
                 {
                     RemoveAtSwapBack(i);
                     i--;
-                    continue;
                 }
-
-                if (p.IsSuspended)
-                {
-                    EmitTickIfDue(p, frame, tickEvents);
-                    continue;
-                }
-
-                if (p.LifetimeFramesLeft <= 0)
-                {
-                    exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Lifetime, frame, p.Position.ToVec3()));
-                    RemoveAtSwapBack(i);
-                    i--;
-                    continue;
-                }
-
-                // 返回发射者逻辑（服务器权威）。MaxDistance 只约束出程，回程由 ReturnArrived/Lifetime 结束。
-                if (!p.IsReturning && p.ReturnAfterFrames > 0 && frame - p.SpawnFrame >= p.ReturnAfterFrames)
-                {
-                    p.IsReturning = true;
-                    p.DistanceLeft = Fixed64.Zero;
-                }
-
-                var returnDistance = Fixed64.Zero;
-                var hasTrackingTarget = false;
-                if (p.IsReturning)
-                {
-                    if (_returnTargetProvider == null ||
-                        !TryResolveReturnTarget(p.LauncherActorId, p.RootActorId, out var targetPos))
-                    {
-                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.ReturnTargetLost, frame, p.Position.ToVec3()));
-                        RemoveAtSwapBack(i);
-                        i--;
-                        continue;
-                    }
-
-                    var returnTarget = targetPos.ToFixed();
-
-                    if (p.ReturnStopDistance >= Fixed64.Zero)
-                    {
-                        var delta = returnTarget - p.Position;
-                        var sqr = delta.SqrMagnitude;
-                        var stopSqr = p.ReturnStopDistance * p.ReturnStopDistance;
-                        if (sqr <= stopSqr)
-                        {
-                            exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.ReturnArrived, frame, p.Position.ToVec3()));
-                            RemoveAtSwapBack(i);
-                            i--;
-                            continue;
-                        }
-                    }
-
-                    var to = returnTarget - p.Position;
-                    returnDistance = to.Magnitude;
-                    if (to.SqrMagnitude > Fixed64.Zero)
-                    {
-                        p.Direction = to.Normalized;
-                    }
-                }
-
-                else if (p.TrackingTargetActorId > 0)
-                {
-                    if (_trackingTargetProvider == null ||
-                        !_trackingTargetProvider.TryGetTrackingTargetPosition(p.TrackingTargetActorId, out var targetPos))
-                    {
-                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.TrackingTargetLost, frame, p.Position.ToVec3()));
-                        RemoveAtSwapBack(i);
-                        i--;
-                        continue;
-                    }
-
-                    var to = targetPos.ToFixed() - p.Position;
-                    hasTrackingTarget = true;
-                    to = new FixedVec3(to.X, Fixed64.Zero, to.Z);
-                    if (p.TrackingArcHeightPerUnit > Fixed64.Zero || p.TrackingArcBaseHeight > Fixed64.Zero)
-                    {
-                        if (!p.TrackingArcDurationConfigured && p.TrackingArcDuration <= Fixed64.Zero && p.Speed > Fixed64.Zero)
-                        {
-                            p.TrackingArcStartY = p.Position.Y;
-                            p.TrackingArcElapsed = Fixed64.Zero;
-                            p.TrackingArcDuration = to.Magnitude / p.Speed;
-                        }
-                        p.TrackingArcEndY = targetPos.Y.ToFixed();
-                        // Freeze one distance-scaled arc height for this segment. Target motion
-                        // changes the endpoint, but does not make the arc height oscillate per tick.
-                        if (p.TrackingArcElapsed <= Fixed64.Zero && p.TrackingArcHeightPerUnit > Fixed64.Zero)
-                            p.TrackingArcHeight = p.TrackingArcBaseHeight + to.Magnitude * p.TrackingArcHeightPerUnit;
-                    }
-                    if (to.SqrMagnitude > Fixed64.Zero)
-                    {
-                        p.Direction = to.Normalized;
-                    }
-                }
-
-                var speed = (p.IsReturning && p.ReturnSpeed > Fixed64.Zero) ? p.ReturnSpeed : p.Speed;
-                var move = speed * fixedDeltaSeconds;
-                var hasDistanceLimit = p.DistanceLeft > Fixed64.Zero;
-                if (move <= Fixed64.Zero)
-                {
-                    p.LifetimeFramesLeft--;
-                    continue;
-                }
-
-                var dir = p.Direction;
-                var hasTrackingArc = hasTrackingTarget && p.TrackingArcHeight > Fixed64.Zero && p.TrackingArcDuration > Fixed64.Zero;
-                var arcDeltaY = Fixed64.Zero;
-                var arcProgressStart = Fixed64.Zero;
-                var arcProgressEnd = Fixed64.Zero;
-                if (hasTrackingArc)
-                {
-                    arcProgressStart = p.TrackingArcElapsed / p.TrackingArcDuration;
-                    p.TrackingArcElapsed += fixedDeltaSeconds;
-                    var progress = p.TrackingArcElapsed / p.TrackingArcDuration;
-                    if (progress > Fixed64.One) progress = Fixed64.One;
-                    arcProgressEnd = progress;
-                    var currentArc = Fixed64.FromInt32(4) * p.TrackingArcHeight * progress * (Fixed64.One - progress);
-                    var currentY = p.TrackingArcStartY + (p.TrackingArcEndY - p.TrackingArcStartY) * progress + currentArc;
-                    arcDeltaY = currentY - p.Position.Y;
-                    var horizontalDirection = new FixedVec3(dir.X, Fixed64.Zero, dir.Z);
-                    if (horizontalDirection.SqrMagnitude > Fixed64.Zero)
-                        dir = horizontalDirection.Normalized;
-                }
-
-                if (p.IsReturning && returnDistance > Fixed64.Zero && move > returnDistance) move = returnDistance;
-                if (p.DistanceLeft > Fixed64.Zero && move > p.DistanceLeft)
-                {
-                    move = p.DistanceLeft;
-                }
-
-                if (hasTrackingArc && move > Fixed64.Zero)
-                {
-                    var horizontalStep = new FixedVec3(dir.X * move, Fixed64.Zero, dir.Z * move);
-                    var arcStep = new FixedVec3(horizontalStep.X, arcDeltaY, horizontalStep.Z);
-                    var arcDistance = arcStep.Magnitude;
-                    if (p.DistanceLeft > Fixed64.Zero && arcDistance > p.DistanceLeft)
-                    {
-                        var budgetScale = p.DistanceLeft / arcDistance;
-                        arcStep = arcStep * budgetScale;
-                        arcDistance = p.DistanceLeft;
-                    }
-                    if (arcDistance > Fixed64.Zero)
-                    {
-                        dir = arcStep / arcDistance;
-                        move = arcDistance;
-                        p.Direction = dir;
-                    }
-                }
-
-                var arcSweepPending = hasTrackingArc && move > Fixed64.Zero;
-                var arcSweepStart = p.Position;
-                var arcSweepEnd = p.Position + dir * move;
-
-                var remaining = move;
-
-                // 单帧内允许多次命中（穿透），同时保持确定性上限。
-                const int maxHitsPerStep = 8;
-                var hitCount = 0;
-                var origin = p.Position;
-
-                // 防止同一帧内对同一个碰撞体重复触发命中回调。
-                // 这样可保留“返回过程可跨帧多次命中同一目标”的行为，
-                // 同时避免单帧内多段射线检测造成重复触发。
-                var hitColliderIdsThisTick = p.HitColliderIdsThisTick;
-                Array.Clear(hitColliderIdsThisTick, 0, hitColliderIdsThisTick.Length);
-                var hitColliderCount = 0;
-                var skippedDistanceThisTick = Fixed64.Zero;
-                if (p.IgnoreCollider.Value != 0)
-                {
-                    hitColliderIdsThisTick[hitColliderCount++] = p.IgnoreCollider.Value;
-                }
-
-                while (remaining > Fixed64.Zero)
-                {
-                    RaycastHit hit;
-                    Fixed64 sweptDistance;
-                    if (arcSweepPending)
-                    {
-                        arcSweepPending = false;
-                        if (_collisionQueries.TrySweepTrackingArcSegments(
-                                arcSweepStart,
-                                arcSweepEnd,
-                                arcProgressStart,
-                                arcProgressEnd,
-                                p.TrackingArcHeight,
-                                p.TrackingArcStartY,
-                                p.TrackingArcEndY,
-                                p.CollisionLayerMask,
-                                hitColliderIdsThisTick,
-                                hitColliderCount,
-                                p.CollisionHalfExtents,
-                                out hit,
-                                out sweptDistance,
-                                out var segmentDirection))
-                        {
-                            dir = segmentDirection;
-                        }
-                        else
-                        {
-                            origin = arcSweepEnd;
-                            remaining = Fixed64.Zero;
-                            break;
-                        }
-                    }
-                    else if (!_collisionQueries.TrySweepSkippingIgnored(origin, dir, remaining, p.CollisionLayerMask, hitColliderIdsThisTick, hitColliderCount, p.CollisionHalfExtents, out hit))
-                    {
-                        // 剩余线段内没有命中。
-                        origin = origin + dir * remaining;
-                        remaining = Fixed64.Zero;
-                        break;
-                    }
-                    else
-                    {
-                        sweptDistance = Fixed64.FromSingle(hit.Distance);
-                    }
-
-                    var cumulativeHitDistance = p.DistanceTravelled + skippedDistanceThisTick + sweptDistance;
-                    var elapsedAtHit = p.ElapsedSeconds + ProjectileCollisionQueries.EstimateElapsedWithinTick(
-                        fixedDeltaSeconds, skippedDistanceThisTick + sweptDistance, move);
-                    var hitEvt = new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame, hitCount: 0,
-                        spawnPosition: p.SpawnPosition.ToVec3(), distanceTravelled: cumulativeHitDistance.ToSingle(), elapsedFrames: Math.Max(0, frame - p.SpawnFrame), spawnFrame: p.SpawnFrame, elapsedSeconds: elapsedAtHit.ToSingle());
-                    var collisionResponse = ResolveCollisionResponse(p, hit.Collider, frame);
-
-                    if (collisionResponse == ProjectileCollisionResponse.Block)
-                    {
-                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Hit, frame, hit.Point));
-                        RemoveAtSwapBack(i);
-                        i--;
-                        goto NextProjectile;
-                    }
-
-                    // 命中过滤和按碰撞体冷却。
-                    if (collisionResponse == ProjectileCollisionResponse.Ignore)
-                    {
-                        skippedDistanceThisTick += sweptDistance + EpsilonAdvance;
-                        if (hitColliderCount < hitColliderIdsThisTick.Length)
-                        {
-                            hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
-                        }
-
-                        origin = hit.Point.ToFixed() + dir * EpsilonAdvance;
-                        remaining -= sweptDistance + EpsilonAdvance;
-                        hitCount++;
-                        if (hitCount >= maxHitsPerStep || remaining <= Fixed64.Zero)
-                        {
-                            remaining = Fixed64.Zero;
-                            break;
-                        }
-                        continue;
-                    }
-
-                    if (p.HitCooldownFrames > 0 && hit.Collider.Equals(p.LastHitCollider) && frame < p.LastHitAllowedFrame)
-                    {
-                        skippedDistanceThisTick += sweptDistance + EpsilonAdvance;
-                        if (hitColliderCount < hitColliderIdsThisTick.Length)
-                        {
-                            hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
-                        }
-
-                        origin = hit.Point.ToFixed() + dir * EpsilonAdvance;
-                        remaining -= sweptDistance + EpsilonAdvance;
-                        hitCount++;
-                        if (hitCount >= maxHitsPerStep || remaining <= Fixed64.Zero)
-                        {
-                            remaining = Fixed64.Zero;
-                            break;
-                        }
-                        continue;
-                    }
-
-                    // Bounce and opt-in identity policies exclude previously accepted actors.
-                    // A target can own multiple colliders, and the next tracking arc starts at
-                    // the previous hit point, so suppress every collider that resolves to an
-                    // actor already in the bounce history before applying hit policy again.
-                    var candidateActorId = 0;
-                    var identityProvider = p.HitIdentityPolicy != ProjectileHitIdentityPolicy.Collider
-                        ? _actorIdentityProvider : p.HitPolicyKind == ProjectileHitPolicyKind.Bounce ? _bounceTargetProvider : null;
-                    var hasActorIdentity = identityProvider != null &&
-                        identityProvider.TryResolveActorId(hit.Collider, out candidateActorId) && candidateActorId > 0;
-                    var acceptedActors = p.HitIdentityPolicy == ProjectileHitIdentityPolicy.OncePerActorPerLeg && p.IsReturning
-                        ? p.ReturnHitActorIds : p.HitActorIds;
-                    if (hasActorIdentity && acceptedActors.Contains(candidateActorId))
-                    {
-                        skippedDistanceThisTick += sweptDistance + EpsilonAdvance;
-                        if (hitColliderCount < hitColliderIdsThisTick.Length)
-                        {
-                            hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
-                        }
-
-                        origin = hit.Point.ToFixed() + dir * EpsilonAdvance;
-                        remaining -= sweptDistance + EpsilonAdvance;
-                        hitCount++;
-                        if (hitCount >= maxHitsPerStep || remaining <= Fixed64.Zero)
-                        {
-                            remaining = Fixed64.Zero;
-                            break;
-                        }
-                        continue;
-                    }
-
-                    var alreadyHitThisTick = false;
-                    for (int hc = 0; hc < hitColliderCount; hc++)
-                    {
-                        if (hitColliderIdsThisTick[hc] == hit.Collider.Value)
-                        {
-                            alreadyHitThisTick = true;
-                            break;
-                        }
-                    }
-
-                    if (alreadyHitThisTick)
-                    {
-                        skippedDistanceThisTick += sweptDistance + EpsilonAdvance;
-                        origin = hit.Point.ToFixed() + dir * EpsilonAdvance;
-                        remaining -= sweptDistance + EpsilonAdvance;
-                        hitCount++;
-                        if (hitCount >= maxHitsPerStep || remaining <= Fixed64.Zero)
-                        {
-                            remaining = Fixed64.Zero;
-                            break;
-                        }
-                        continue;
-                    }
-
-                    if (hitColliderCount < hitColliderIdsThisTick.Length)
-                    {
-                        hitColliderIdsThisTick[hitColliderCount++] = hit.Collider.Value;
-                    }
-
-                    if (hasActorIdentity) acceptedActors.Add(candidateActorId);
-                    p.TotalHitCount++;
-                    var hitDistance = p.DistanceTravelled + skippedDistanceThisTick + sweptDistance;
-                    var elapsedAtAcceptedHit = p.ElapsedSeconds + ProjectileCollisionQueries.EstimateElapsedWithinTick(
-                        fixedDeltaSeconds, skippedDistanceThisTick + sweptDistance, move);
-                    hitEvents?.Add(new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame, p.TotalHitCount,
-                        p.SpawnPosition.ToVec3(), hitDistance.ToSingle(), Math.Max(0, frame - p.SpawnFrame), p.SpawnFrame, elapsedAtAcceptedHit.ToSingle()));
-                    if (p.HitCooldownFrames > 0)
-                    {
-                        p.LastHitCollider = hit.Collider;
-                        p.LastHitAllowedFrame = frame + p.HitCooldownFrames;
-                    }
-
-                    var hitsRemaining = p.HitsRemaining;
-                    var shouldExit = collisionResponse == ProjectileCollisionResponse.HitAndStop ||
-                        collisionResponse != ProjectileCollisionResponse.HitAndContinue &&
-                        (p.HitPolicy ?? ExitOnHitPolicy.Instance).ShouldExitOnHit(in hitEvt, ref hitsRemaining);
-                    p.HitsRemaining = hitsRemaining;
-
-                    if (shouldExit)
-                    {
-                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Hit, frame, hit.Point));
-                        RemoveAtSwapBack(i);
-                        i--;
-                        goto NextProjectile;
-                    }
-
-                    // 命中后继续推进到命中点之后。
-                    if (p.HitPolicyKind == ProjectileHitPolicyKind.Bounce)
-                    {
-                        if (_bounceTargetProvider == null ||
-                            !_bounceTargetProvider.TryResolveActorId(hit.Collider, out var hitActorId) || hitActorId <= 0)
-                        {
-                            exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Hit, frame, hit.Point));
-                            RemoveAtSwapBack(i);
-                            i--;
-                            goto NextProjectile;
-                        }
-
-                        if (!p.HitActorIds.Contains(hitActorId)) p.HitActorIds.Add(hitActorId);
-                        if (!_bounceTargetProvider.TrySelectNextTarget(p.OwnerId, hitActorId, hit.Point, p.HitActorIds,
-                                p.BounceSearchRadius.ToSingle(),
-                                out var nextActorId, out var nextTargetPosition) ||
-                            nextActorId <= 0 || p.HitActorIds.Contains(nextActorId))
-                        {
-                            exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Hit, frame, hit.Point));
-                            RemoveAtSwapBack(i);
-                            i--;
-                            goto NextProjectile;
-                        }
-
-                        var nextDirection = nextTargetPosition.ToFixed() - hit.Point.ToFixed();
-                        if (nextDirection.SqrMagnitude <= Fixed64.Zero)
-                        {
-                            exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Hit, frame, hit.Point));
-                            RemoveAtSwapBack(i);
-                            i--;
-                            goto NextProjectile;
-                        }
-
-                        var fixedArcDuration = p.TrackingArcDuration;
-                        var arcDurationConfigured = p.TrackingArcDurationConfigured;
-                        var nextPlanar = new FixedVec3(
-                            nextTargetPosition.X.ToFixed() - hit.Point.ToFixed().X,
-                            Fixed64.Zero,
-                            nextTargetPosition.Z.ToFixed() - hit.Point.ToFixed().Z);
-                        p.TrackingTargetActorId = nextActorId;
-                        p.TrackingArcDurationConfigured = arcDurationConfigured;
-                        if (arcDurationConfigured)
-                        {
-                            p.TrackingArcDuration = fixedArcDuration;
-                        }
-                        else if (p.Speed > Fixed64.Zero)
-                        {
-                            p.TrackingArcDuration = nextPlanar.Magnitude / p.Speed;
-                        }
-                        else
-                        {
-                            p.TrackingArcDuration = Fixed64.Zero;
-                        }
-                        p.TrackingArcElapsed = Fixed64.Zero;
-                        p.TrackingArcStartY = hit.Point.ToFixed().Y;
-                        p.TrackingArcEndY = nextTargetPosition.Y.ToFixed();
-                        p.TrackingArcHeight = p.TrackingArcBaseHeight + nextPlanar.Magnitude * p.TrackingArcHeightPerUnit;
-                        p.Direction = nextDirection.Normalized;
-                        dir = p.Direction;
-                        arcSweepPending = false;
-                        if (p.TrackingArcHeight > Fixed64.Zero)
-                        {
-                            origin = hit.Point.ToFixed();
-                            remaining = Fixed64.Zero;
-                            break;
-                        }
-                    }
-
-                    origin = hit.Point.ToFixed() + dir * EpsilonAdvance;
-                    remaining -= sweptDistance + EpsilonAdvance;
-                    hitCount++;
-                    if (hitCount >= maxHitsPerStep || remaining <= Fixed64.Zero)
-                    {
-                        // 避免无限循环，本帧停止处理。
-                        remaining = Fixed64.Zero;
-                        break;
-                    }
-                }
-
-                p.Position = origin;
-                p.LifetimeFramesLeft--;
-                p.ElapsedSeconds += fixedDeltaSeconds;
-
-                // 移动后发送周期性 Tick 事件。
-                EmitTickIfDue(p, frame, tickEvents);
-
-                var travelled = (p.Position - arcSweepStart).Magnitude;
-                p.DistanceTravelled += travelled;
-                if (hasDistanceLimit)
-                {
-                    p.DistanceLeft -= travelled;
-                    if (p.DistanceLeft <= EpsilonAdvance)
-                    {
-                        if (p.MaxDistanceResponse == ProjectileMaxDistanceResponse.ReturnToSource)
-                        {
-                            p.DistanceLeft = Fixed64.Zero;
-                            p.ArrivedFrame = frame;
-                            p.IsReturning = true;
-                            continue;
-                        }
-                        if (p.MaxDistanceResponse == ProjectileMaxDistanceResponse.SuspendAtDestination)
-                        {
-                            p.DistanceLeft = Fixed64.Zero;
-                            p.ArrivedFrame = frame;
-                            p.IsSuspended = true;
-                            arrivalEvents?.Add(new ProjectileArrivalEvent(p.Id, p.OwnerId, p.TemplateId,
-                                p.LauncherActorId, p.RootActorId, frame, p.Position.ToVec3(), p.Direction.ToVec3()));
-                            continue;
-                        }
-                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.MaxDistance, frame, p.Position.ToVec3()));
-                        RemoveAtSwapBack(i);
-                        i--;
-                        continue;
-                    }
-                }
-
-            NextProjectile:
-                ;
             }
         }
 

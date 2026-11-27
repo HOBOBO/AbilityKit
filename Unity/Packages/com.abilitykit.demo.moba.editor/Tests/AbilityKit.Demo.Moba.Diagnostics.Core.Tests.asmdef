@@ -15,6 +15,7 @@
     "AbilityKit.Protocol.Moba",
     "AbilityKit.Diagnostics",
     "AbilityKit.Demo.Moba.Editor",
+    "AbilityKit.Demo.Moba.Environment",
     "AbilityKit.Demo.Moba.View.Runtime",
     "AbilityKit.Game.UnitTests",
     "AbilityKit.Ability.Editor",

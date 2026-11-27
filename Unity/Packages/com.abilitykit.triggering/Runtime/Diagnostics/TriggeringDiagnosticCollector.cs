@@ -1,5 +1,7 @@
+#nullable enable
+
+using System;
 using System.Collections.Generic;
-using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Triggering.Validation;
 
 namespace AbilityKit.Triggering.Runtime.Diagnostics
@@ -14,9 +16,9 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
         /// </summary>
         Validation = 0,
         /// <summary>
-        /// JSON 加载诊断。
+        /// 计划数据的加载诊断，不限于某种输入格式。
         /// </summary>
-        JsonLoad = 1,
+        PlanLoad = 1,
         /// <summary>
         /// 调用方报告的执行失败。
         /// </summary>
@@ -32,6 +34,25 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
     }
 
     /// <summary>
+    /// 计划加载诊断的严重程度，由各输入格式映射到此分类。
+    /// </summary>
+    public enum TriggeringLoadDiagnosticSeverity
+    {
+        /// <summary>
+        /// 提示信息。
+        /// </summary>
+        Info = 0,
+        /// <summary>
+        /// 警告。
+        /// </summary>
+        Warning = 1,
+        /// <summary>
+        /// 错误。
+        /// </summary>
+        Error = 2
+    }
+
+    /// <summary>
     /// 保存一条诊断事件的来源、定位信息和关联标识。
     /// </summary>
     public readonly struct TriggeringDiagnosticRecord
@@ -43,29 +64,29 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
         /// <summary>
         /// 诊断来源；未提供时为空。
         /// </summary>
-        public readonly string Source;
+        public readonly string? Source;
         /// <summary>
         /// 关联的配置路径或兼容入口；未提供时为空。
         /// </summary>
-        public readonly string Path;
+        public readonly string? Path;
         /// <summary>
         /// 诊断代码或严重程度文本；未提供时为空。
         /// </summary>
-        public readonly string Code;
+        public readonly string? Code;
         /// <summary>
         /// 调用方提供的描述；未提供时为空。
         /// </summary>
-        public readonly string Message;
+        public readonly string? Message;
         /// <summary>
-        /// 该记录携带的错误数，不代表快照的 JSON 分级计数。
+        /// 该记录携带的错误数，不是累计计数。
         /// </summary>
         public readonly int ErrorCount;
         /// <summary>
-        /// 该记录携带的警告数，不代表快照的 JSON 分级计数。
+        /// 该记录携带的警告数，不是累计计数。
         /// </summary>
         public readonly int WarningCount;
         /// <summary>
-        /// 该记录携带的信息数，不代表快照的 JSON 分级计数。
+        /// 该记录携带的信息数，不是累计计数。
         /// </summary>
         public readonly int InfoCount;
         /// <summary>
@@ -79,23 +100,23 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
         /// <summary>
         /// 调用方提供的调度句柄文本；未提供时为空。
         /// </summary>
-        public readonly string ScheduleHandle;
+        public readonly string? ScheduleHandle;
 
         /// <summary>
         /// 用给定诊断信息构造记录，不更新收集器计数。
         /// </summary>
         public TriggeringDiagnosticRecord(
             TriggeringDiagnosticEventKind kind,
-            string source = null,
-            string path = null,
-            string code = null,
-            string message = null,
+            string? source = null,
+            string? path = null,
+            string? code = null,
+            string? message = null,
             int errorCount = 0,
             int warningCount = 0,
             int infoCount = 0,
             int triggerId = 0,
             int actionId = 0,
-            string scheduleHandle = null)
+            string? scheduleHandle = null)
         {
             Kind = kind;
             Source = source;
@@ -129,17 +150,17 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
         /// </summary>
         public readonly int ValidationInfos;
         /// <summary>
-        /// 累计的 JSON 错误数。
+        /// 累计的计划加载错误数。
         /// </summary>
-        public readonly int JsonErrors;
+        public readonly int LoadErrors;
         /// <summary>
-        /// 累计的 JSON 警告数。
+        /// 累计的计划加载警告数。
         /// </summary>
-        public readonly int JsonWarnings;
+        public readonly int LoadWarnings;
         /// <summary>
-        /// 累计的其他 JSON 诊断数。
+        /// 累计的计划加载提示数。
         /// </summary>
-        public readonly int JsonInfos;
+        public readonly int LoadInfos;
         /// <summary>
         /// 调用方报告的执行失败次数。
         /// </summary>
@@ -164,9 +185,9 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
             int validationErrors,
             int validationWarnings,
             int validationInfos,
-            int jsonErrors,
-            int jsonWarnings,
-            int jsonInfos,
+            int loadErrors,
+            int loadWarnings,
+            int loadInfos,
             int executionFailures,
             int scheduleEvents,
             int legacyHits,
@@ -175,9 +196,9 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
             ValidationErrors = validationErrors;
             ValidationWarnings = validationWarnings;
             ValidationInfos = validationInfos;
-            JsonErrors = jsonErrors;
-            JsonWarnings = jsonWarnings;
-            JsonInfos = jsonInfos;
+            LoadErrors = loadErrors;
+            LoadWarnings = loadWarnings;
+            LoadInfos = loadInfos;
             ExecutionFailures = executionFailures;
             ScheduleEvents = scheduleEvents;
             LegacyHits = legacyHits;
@@ -194,9 +215,9 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
         private int _validationErrors;
         private int _validationWarnings;
         private int _validationInfos;
-        private int _jsonErrors;
-        private int _jsonWarnings;
-        private int _jsonInfos;
+        private int _loadErrors;
+        private int _loadWarnings;
+        private int _loadInfos;
         private int _executionFailures;
         private int _scheduleEvents;
         private int _legacyHits;
@@ -213,9 +234,9 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
             _validationErrors,
             _validationWarnings,
             _validationInfos,
-            _jsonErrors,
-            _jsonWarnings,
-            _jsonInfos,
+            _loadErrors,
+            _loadWarnings,
+            _loadInfos,
             _executionFailures,
             _scheduleEvents,
             _legacyHits,
@@ -230,9 +251,9 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
             _validationErrors = 0;
             _validationWarnings = 0;
             _validationInfos = 0;
-            _jsonErrors = 0;
-            _jsonWarnings = 0;
-            _jsonInfos = 0;
+            _loadErrors = 0;
+            _loadWarnings = 0;
+            _loadInfos = 0;
             _executionFailures = 0;
             _scheduleEvents = 0;
             _legacyHits = 0;
@@ -241,7 +262,7 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
         /// <summary>
         /// 累计校验问题数并追加一条汇总记录。
         /// </summary>
-        public void RecordValidation(in ValidationResult result, string source = null)
+        public void RecordValidation(in ValidationResult result, string? source = null)
         {
             _validationErrors += result.Errors.Count;
             _validationWarnings += result.Warnings.Count;
@@ -255,41 +276,48 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
         }
 
         /// <summary>
-        /// 逐条追加 JSON 诊断并按严重程度计数；输入为空时不记录。
+        /// 追加一条计划加载诊断并计数；不执行加载，也不修改加载策略。
         /// </summary>
-        public void RecordJsonDiagnostics(IEnumerable<TriggerPlanJsonDiagnostic> diagnostics)
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// 严重程度不在支持的分类内；不追加记录或更新计数。
+        /// </exception>
+        public void RecordLoadDiagnostic(
+            TriggeringLoadDiagnosticSeverity severity,
+            string? message,
+            string? source = null,
+            string? path = null,
+            string? code = null)
         {
-            if (diagnostics == null)
-                return;
-
-            foreach (var diagnostic in diagnostics)
+            switch (severity)
             {
-                switch (diagnostic.Severity)
-                {
-                    case TriggerPlanJsonDiagnosticSeverity.Error:
-                        _jsonErrors++;
-                        break;
-                    case TriggerPlanJsonDiagnosticSeverity.Warning:
-                        _jsonWarnings++;
-                        break;
-                    default:
-                        _jsonInfos++;
-                        break;
-                }
-
-                _records.Add(new TriggeringDiagnosticRecord(
-                    TriggeringDiagnosticEventKind.JsonLoad,
-                    diagnostic.SourceName,
-                    diagnostic.Path,
-                    diagnostic.Severity.ToString(),
-                    diagnostic.Message));
+                case TriggeringLoadDiagnosticSeverity.Error:
+                    _loadErrors++;
+                    break;
+                case TriggeringLoadDiagnosticSeverity.Warning:
+                    _loadWarnings++;
+                    break;
+                case TriggeringLoadDiagnosticSeverity.Info:
+                    _loadInfos++;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(severity), severity, null);
             }
+
+            _records.Add(new TriggeringDiagnosticRecord(
+                TriggeringDiagnosticEventKind.PlanLoad,
+                source,
+                path,
+                code ?? severity.ToString(),
+                message,
+                errorCount: severity == TriggeringLoadDiagnosticSeverity.Error ? 1 : 0,
+                warningCount: severity == TriggeringLoadDiagnosticSeverity.Warning ? 1 : 0,
+                infoCount: severity == TriggeringLoadDiagnosticSeverity.Info ? 1 : 0));
         }
 
         /// <summary>
         /// 追加一次执行失败，保留调用方提供的动作和触发器编号。
         /// </summary>
-        public void RecordExecutionFailure(int triggerId, int actionId, string message, string path = null)
+        public void RecordExecutionFailure(int triggerId, int actionId, string? message, string? path = null)
         {
             _executionFailures++;
             _records.Add(new TriggeringDiagnosticRecord(
@@ -304,7 +332,7 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
         /// <summary>
         /// 记录调度事件，不创建或推进调度任务。
         /// </summary>
-        public void RecordScheduleEvent(string scheduleHandle, string message = null, int triggerId = 0, int actionId = 0)
+        public void RecordScheduleEvent(string? scheduleHandle, string? message = null, int triggerId = 0, int actionId = 0)
         {
             _scheduleEvents++;
             _records.Add(new TriggeringDiagnosticRecord(
@@ -318,7 +346,7 @@ namespace AbilityKit.Triggering.Runtime.Diagnostics
         /// <summary>
         /// 记录调用方报告的兼容入口及替代路径，不执行替换。
         /// </summary>
-        public void RecordLegacyHit(string entry, string replacement, string caller = null)
+        public void RecordLegacyHit(string? entry, string? replacement, string? caller = null)
         {
             _legacyHits++;
             _records.Add(new TriggeringDiagnosticRecord(

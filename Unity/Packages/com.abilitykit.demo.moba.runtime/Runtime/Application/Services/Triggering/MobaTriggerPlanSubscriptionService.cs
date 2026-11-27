@@ -501,7 +501,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
                     ctx.NumericFunctions,
                     ctx.Policy,
                     ctx.Control,
-                    ctx.ActionSchedulerManager,
+                    ctx.FlatActionScheduler,
                     ctx.Collections);
             }
         }

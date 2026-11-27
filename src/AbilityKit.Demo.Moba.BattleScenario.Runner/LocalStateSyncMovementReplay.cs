@@ -11,17 +11,6 @@ internal static class LocalStateSyncMovementReplay
     private const int TickRate = 20;
     private const int PreviewModelId = 3005;
 
-    internal static void Export(string directory)
-    {
-        var json = Record().Serialize();
-        var recovery = RecordProofRecovery().Serialize();
-        Require(string.Equals(json, Record().Serialize(), StringComparison.Ordinal), "Movement recording is not repeatable.");
-        Require(string.Equals(recovery, RecordProofRecovery().Serialize(), StringComparison.Ordinal), "Movement recovery recording is not repeatable.");
-        Directory.CreateDirectory(directory);
-        File.WriteAllText(Path.Combine(directory, FileName), json + "\n");
-        File.WriteAllText(Path.Combine(directory, RecoveryFileName), recovery + "\n");
-    }
-
     internal static LocalStateSyncReplay Record()
     {
         const float deltaTime = 1f / TickRate;

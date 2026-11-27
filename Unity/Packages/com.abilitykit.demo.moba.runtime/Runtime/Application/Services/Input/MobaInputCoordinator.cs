@@ -59,7 +59,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (_clientBound || _replayActive || observe == null) return TrySubmit(frame, inputs);
             return TrySubmitWithContext(frame, inputs, null, afterCommand: (ordinal, result) =>
-                observe(ordinal, result.ClassifyAuthorityDisposition()));
+                observe(ordinal, result.ClassifyStateSyncDisposition()));
         }
 
         public MobaInputCoordinator(MobaLogicWorldRunGateService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, MobaInputCommandContractRegistry contracts)

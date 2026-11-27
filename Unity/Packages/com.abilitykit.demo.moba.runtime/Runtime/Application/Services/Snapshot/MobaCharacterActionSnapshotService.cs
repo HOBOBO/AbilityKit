@@ -48,8 +48,10 @@ namespace AbilityKit.Demo.Moba.Services
                 _casts?.TryGetPresentationFrame(action.CastInstanceId, id, out castFrame);
                 var castStartFrame = -1;
                 var castDurationMs = 0;
-                if (runtime.IsAuxiliaryPresentationCast && _coordinator != null &&
-                    _coordinator.TryGetRunningByInstanceId(id, action.CastInstanceId, out var running) &&
+                var hasRunning = _coordinator != null && action.CastInstanceId > 0;
+                var running = default(SkillPipelineRunner.RunningSnapshot);
+                hasRunning = hasRunning && _coordinator.TryGetRunningByInstanceId(id, action.CastInstanceId, out running);
+                if (runtime.IsAuxiliaryPresentationCast && hasRunning &&
                     _configs != null && _configs.TryGetSkill(action.SkillId, out var skill) &&
                     _configs.TryGetSkillFlow(skill.CastFlowId, out var flow) && flow.Phases.Count == 1 &&
                     flow.Phases[0].Type == (int)SkillPhaseType.Timeline && flow.Phases[0].Timeline.DurationMs > 0)
@@ -60,7 +62,8 @@ namespace AbilityKit.Demo.Moba.Services
                 current.Add(new CharacterActionData(id, _actors.GetEntityVersion(id), runtime.Frame,
                     action.Path, action.InstanceId, action.StartFrame, action.LocalFrame,
                     action.CastInstanceId, action.SkillId, action.ModeId, action.ModeInstanceId,
-                    action.ModeStartFrame, action.ModeLocalFrame, castFrame, castStartFrame, castDurationMs));
+                    action.ModeStartFrame, action.ModeLocalFrame, castFrame, castStartFrame, castDurationMs,
+                    hasRunning ? running.WindupTiming : default));
             }
 
             var entries = current.ToArray();
@@ -86,7 +89,7 @@ namespace AbilityKit.Demo.Moba.Services
                     a.Path != b.Path || a.InstanceId != b.InstanceId ||
                     a.StartFrame != b.StartFrame || a.CastInstanceId != b.CastInstanceId ||
                     a.SkillId != b.SkillId || a.CastStartFrame != b.CastStartFrame ||
-                    a.CastDurationMs != b.CastDurationMs || a.ModeId != b.ModeId ||
+                    a.CastDurationMs != b.CastDurationMs || !a.WindupTiming.Equals(b.WindupTiming) || a.ModeId != b.ModeId ||
                     a.ModeInstanceId != b.ModeInstanceId ||
                     a.ModeStartFrame != b.ModeStartFrame ||
                     a.ModeLocalFrame != b.ModeLocalFrame || !a.CastFrame.Equals(b.CastFrame)) return false;

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
+using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services.StateImport;
@@ -15,6 +16,7 @@ using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Network.Battle.Projection;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Network.Sdk;
 
@@ -41,7 +43,9 @@ namespace AbilityKit.Game.Flow
         private readonly BattleSimulationRuntime _simulation;
         private readonly BattleSessionHandles _handles;
         private readonly HashSet<int> _managedActorIds = new HashSet<int>();
+        private HashSet<int> _committedProjectionActorIds = new HashSet<int>();
         private IWorld _managedWorld;
+        private CommittedActorProjection _committedProjection;
         private BattleStartPlan _plan;
         private BattleContext _context;
         private float _fixedDeltaSeconds;
@@ -166,8 +170,62 @@ namespace AbilityKit.Game.Flow
             if (!StateSyncWorldRuntime.TryCommitTick(_handles.RemoteDriven.World, snapshot.Frame, _fixedDeltaSeconds))
                 return false;
 
+            _committedProjectionActorIds.Clear();
+            if (UsesScopedLogicImport(in _plan))
+                _committedProjectionActorIds.UnionWith(_managedActorIds);
+            else if (snapshot.Actors != null)
+                foreach (var actor in snapshot.Actors)
+                    _committedProjectionActorIds.Add(actor.ActorId);
             _simulation.RemoteDrivenLastTickedFrame = snapshot.Frame;
             return true;
+        }
+
+        internal IActorProjectionProducer ResolveCommittedProjection()
+        {
+            if (!_plan.UsesStateSyncAuthority || _handles.RemoteDriven.Capabilities.ProjectionProducer is not { } producer)
+                return null;
+            if (_committedProjection == null || !ReferenceEquals(_committedProjection.Source, producer))
+                _committedProjection = new CommittedActorProjection(producer, _committedProjectionActorIds);
+            return _committedProjection;
+        }
+
+        /// <summary>
+        /// 权威快照控制对照视图的可见名单，字段仍从导入后的世界提取。
+        /// 已排队退场但尚未物理清理的 Actor 不会留在对照轨。
+        /// </summary>
+        private sealed class CommittedActorProjection : IActorProjectionProducer
+        {
+            private readonly HashSet<int> _committedIds;
+            internal IActorProjectionProducer Source { get; }
+
+            internal CommittedActorProjection(IActorProjectionProducer source, HashSet<int> committedIds)
+            {
+                Source = source;
+                _committedIds = committedIds;
+            }
+
+            public ActorProjectionData ExtractFull(int actorId) =>
+                _committedIds.Contains(actorId) ? Source.ExtractFull(actorId) : default;
+
+            public ActorProjectionData ExtractSpawn(int actorId) =>
+                _committedIds.Contains(actorId) ? Source.ExtractSpawn(actorId) : default;
+
+            public void ExtractAll(List<ActorProjectionData> buffer)
+            {
+                if (buffer == null) return;
+                Source.ExtractAll(buffer);
+                buffer.RemoveAll(IsOutsideCommittedScope);
+            }
+
+            private bool IsOutsideCommittedScope(ActorProjectionData actor) => !_committedIds.Contains(actor.ActorId);
+        }
+
+        internal bool MatchesLocalCastActor(in LocalStateSyncCastScope scope)
+        {
+            var services = _handles.RemoteDriven.World?.Services;
+            return _plan.UsesStateSyncAuthority && services != null &&
+                services.TryResolve<MobaActorRegistry>(out var actors) && actors.TryGet(scope.ActorId, out _) &&
+                actors.GetEntityVersion(scope.ActorId) == scope.EntityVersion;
         }
 
         public void ResetAfterReconnect()
@@ -192,6 +250,9 @@ namespace AbilityKit.Game.Flow
         {
             _managedWorld = null;
             _managedActorIds.Clear();
+            _committedProjectionActorIds.Clear();
+            _committedProjectionActorIds = new HashSet<int>();
+            _committedProjection = null;
         }
 
         internal static bool UsesScopedLogicImport(in BattleStartPlan plan) =>
@@ -301,13 +362,12 @@ namespace AbilityKit.Game.Flow
         private long _lastReliableEventResyncWindowId = -1L;
         private long _reliableEventResyncSuppressedCount;
         private bool _usesMovementProof;
+        private ILocalStateSyncCastSession _localCast;
 
         /// <summary>
         /// 当前已提交固定基线截面附带的证明。恢复中或当前截面缺少证明时为空。
         /// </summary>
         internal GatewayStateSyncMovementProof? CommittedMovementProof { get; private set; }
-        internal StateSyncMovementPrediction MovementPrediction { get; private set; }
-        private BattleLogicSession _movementSession;
 
         internal AuthoritativeStateRecoveryRuntime(
             BattleReplicationRuntime replication,
@@ -342,6 +402,8 @@ namespace AbilityKit.Game.Flow
         }
 
         internal bool PendingStateImport => _replication.PendingStateImport;
+        internal IActorProjectionProducer ResolveCommittedProjection() =>
+            (_worldRecovery as BattleAuthoritativeWorldRecoveryPort)?.ResolveCommittedProjection();
         internal Task PendingExecution => _operation.PendingExecution;
         internal NetworkSessionRecoveryDecision RecoveryDecision =>
             _sessionRecovery.CurrentDecision;
@@ -369,7 +431,7 @@ namespace AbilityKit.Game.Flow
         internal void AttachStateSyncTransport(AbilityKit.Network.Battle.NetworkTransport transport,
             ulong worldId, IMobaReliableBattleEventCheckpointStore checkpointStore, BattleContext context,
             in BattleStartPlan plan, float fixedDeltaSeconds, Action<WireReliableBattleEvent> eventSink,
-            Action firstFrameReceived, BattleLogicSession session = null)
+            Action firstFrameReceived)
         {
             if (!plan.UsesStateSyncAuthority || worldId == 0)
                 throw new ArgumentException("A state-authority plan with a numeric world id is required.", nameof(plan));
@@ -384,17 +446,6 @@ namespace AbilityKit.Game.Flow
             {
                 BeginGeneration(new NetworkBattleRecoveryTransportOperations(transport), checkpointStore, context,
                     in plan, fixedDeltaSeconds, _ => 0, () => false, eventSink, firstFrameReceived);
-                if (_usesMovementProof && plan.Authority.EnableStateSyncMovementPrediction &&
-                    transport.Options.StateSyncInputGeneration != Guid.Empty && fixedDeltaSeconds > 0f &&
-                    !float.IsInfinity(fixedDeltaSeconds))
-                {
-                    var player = new PlayerId(plan.World.PlayerId);
-                    MovementPrediction = new StateSyncMovementPrediction(transport.Options.StateSyncInputGeneration,
-                        new WorldId(plan.World.WorldId), player, worldId,
-                        DefaultBattleSessionTransportFactory.ParsePlayerId(player), fixedDeltaSeconds);
-                    _movementSession = session;
-                    if (session != null) session.StateSyncMovement = MovementPrediction;
-                }
             }
             catch
             {
@@ -466,7 +517,156 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        internal void HandleSnapshot(object rawSnapshot)
+        internal void HandleSnapshot(object rawSnapshot) => HandleSnapshotCore(rawSnapshot, null);
+
+        /// <summary>
+        /// 离线投递时捕获的客户端会话代际，不能用快照 ID 或输入终结序号代替。
+        /// </summary>
+        internal int LocalReplayGeneration => _operation.Generation;
+
+        /// <summary>
+        /// 离线配方使用真实快照提交路径。返回值仅表示本次是否提交成功，
+        /// 成功提交也可能没有输入证明；不从缓存推断本次结果。
+        /// </summary>
+        internal bool TryCommitLocalReplaySnapshot(int deliveryGeneration, in GatewayStateSyncSnapshot snapshot,
+            out GatewayStateSyncMovementProof? proof)
+        {
+            proof = null;
+            if (!_operation.IsCurrent(deliveryGeneration)) return false;
+
+            var committed = false;
+            GatewayStateSyncMovementProof? observedProof = null;
+            HandleSnapshotCore(snapshot, (_, value) =>
+            {
+                committed = true;
+                observedProof = value;
+            });
+            if (!committed || !_operation.IsCurrent(deliveryGeneration)) return false;
+            proof = observedProof;
+            return true;
+        }
+
+        /// <summary>
+        /// 仅显式离线验收装配施法域；由当前恢复代际负责释放。
+        /// </summary>
+        internal LocalStateSyncCastSession<TAnchor, TObservation> AttachLocalCast<TAnchor, TObservation>(
+            in LocalStateSyncCastScope scope, Func<ILocalStateSyncCastWorld<TAnchor, TObservation>> create,
+            bool movementEnabled = false, int projectileMask = 0)
+        {
+            if (!_operation.IsCurrent(scope.Generation) || _localCast != null ||
+                _replication.Transport?.Options.StateSyncInputGeneration != scope.InputGeneration ||
+                _worldRecovery is not BattleAuthoritativeWorldRecoveryPort)
+                throw new InvalidOperationException("本地施法必须装配到当前独立的状态同步代际。");
+            var session = new LocalStateSyncCastSession<TAnchor, TObservation>(in scope, create, movementEnabled, projectileMask);
+            _localCast = session;
+            return session;
+        }
+
+        /// <summary>
+        /// 显式离线装配正式战斗候选，所有权交给当前恢复代际的施法会话。
+        /// </summary>
+        internal LocalStateSyncCastSession<LocalStateSyncBattleCastCut, LocalStateSyncBattleCastObservation> AttachLocalBattleCast(
+            in LocalStateSyncCastScope scope, float fixedDelta, Func<EntitasWorld> createWorld,
+            bool observeCastProgress = false, bool movementEnabled = false, int projectileMask = 0, bool observeActorPose = false)
+        {
+            var identity = scope;
+            return AttachLocalCast<LocalStateSyncBattleCastCut, LocalStateSyncBattleCastObservation>(in scope,
+                () => new LocalStateSyncBattleCastWorld(in identity, fixedDelta, createWorld, observeCastProgress, projectileMask, observeActorPose),
+                movementEnabled, projectileMask);
+        }
+
+        /// <summary>
+        /// 先提交权威角色；只有同次提交的施法覆盖和终结证明才能进入恢复。
+        /// 缺失或错配的覆盖只采用权威观测，不用随附证明裁剪输入。
+        /// </summary>
+        internal LocalStateSyncCastResult CommitLocalBattleCastSnapshot(
+            LocalStateSyncCastSession<LocalStateSyncBattleCastCut, LocalStateSyncBattleCastObservation> session,
+            in GatewayStateSyncSnapshot snapshot, in LocalStateSyncCastStamp stamp, in LocalStateSyncCastEconomy economy,
+            LocalStateSyncCastTerminalProof? terminal, in LocalStateSyncBattleCastCoverage coverage,
+            LocalStateSyncMovementCut? movement = null, LocalStateSyncProjectileCut projectile = null)
+        {
+            if (!TryCommitLocalCastActor(session, in snapshot, in stamp, out var actor, out var materialized))
+                return LocalStateSyncCastResult.Ignored;
+
+            var state = new MobaActorStateImport(actor.ActorId, actor.X, actor.Y, actor.Z, actor.Rotation,
+                actor.Hp, actor.HpMax, actor.TeamId, actor.Kind, actor.Code, actor.OwnerNetId);
+            var castCovered = coverage.Matches(in stamp);
+            var movementCovered = session.MovementEnabled
+                ? movement is { } motion && motion.Matches(in stamp, in state)
+                : !movement.HasValue;
+            var windup = castCovered ? coverage.Windup : null;
+            var projectileCovered = session.ProjectileMask == 0 ? projectile == null :
+                projectile != null && windup == null && !session.MovementEnabled &&
+                projectile.Matches(in stamp, session.ProjectileMask, materialized.Actors);
+            var cut = new LocalStateSyncBattleCastCut(stamp.Tick, state, windup?.Economy ?? economy, windup,
+                movementCovered ? movement : null, projectileCovered ? projectile : null);
+            var anchor = new LocalStateSyncCastAnchor<LocalStateSyncBattleCastCut, LocalStateSyncBattleCastObservation>(
+                in stamp, cut, cut.Observe());
+            return session.Adopt(in anchor, castCovered && movementCovered && projectileCovered ? terminal : null);
+        }
+
+        /// <summary>
+        /// 在真实角色快照提交后才处理施法截面，终结证明独立于移动。
+        /// </summary>
+        internal LocalStateSyncCastResult CommitLocalCastSnapshot<TAnchor, TObservation>(
+            LocalStateSyncCastSession<TAnchor, TObservation> session, in GatewayStateSyncSnapshot snapshot,
+            in LocalStateSyncCastAnchor<TAnchor, TObservation> anchor, LocalStateSyncCastTerminalProof? terminal)
+        {
+            return TryCommitLocalCastActor(session, in snapshot, in anchor.Stamp, out _, out _)
+                ? session.Adopt(in anchor, terminal) : LocalStateSyncCastResult.Ignored;
+        }
+
+        private bool TryCommitLocalCastActor<TAnchor, TObservation>(
+            LocalStateSyncCastSession<TAnchor, TObservation> session, in GatewayStateSyncSnapshot snapshot,
+            in LocalStateSyncCastStamp stamp, out GatewayStateSyncActorSnapshot actor, out GatewayStateSyncSnapshot materialized)
+        {
+            actor = default;
+            materialized = default;
+            var scope = session.Scope;
+            if (!ReferenceEquals(session, _localCast) || !_operation.IsCurrent(scope.Generation) ||
+                _operation.ConnectionRecoveryPending)
+                return false;
+
+            GatewayStateSyncSnapshot? committed = null;
+            HandleSnapshotCore(snapshot, (state, _) => committed = state);
+            if (committed is not { } committedState || !ReferenceEquals(session, _localCast) ||
+                !_operation.IsCurrent(scope.Generation) || _operation.ConnectionRecoveryPending ||
+                _replication.PendingStateImport)
+                return false;
+            materialized = committedState;
+
+            if (!snapshot.UsesFixedBaseline || snapshot.WorldId != scope.WorldId || snapshot.StateStreamGeneration != scope.Stream ||
+                !TryGetLocalCastOwner(in materialized, in scope, out actor) ||
+                !((BattleAuthoritativeWorldRecoveryPort)_worldRecovery).MatchesLocalCastActor(in scope))
+            {
+                _localCast = null;
+                session.Dispose();
+                return false;
+            }
+
+            if (stamp.Revision != snapshot.SnapshotId || stamp.Tick != materialized.Frame || !scope.Matches(in stamp.Scope))
+            {
+                session.Suspend();
+                return false;
+            }
+            return true;
+        }
+
+        private static bool TryGetLocalCastOwner(in GatewayStateSyncSnapshot snapshot, in LocalStateSyncCastScope scope,
+            out GatewayStateSyncActorSnapshot actor)
+        {
+            if (snapshot.Actors != null)
+                foreach (var entry in snapshot.Actors)
+                    if (entry.ActorId == scope.ActorId && entry.OwnerNetId > 0 && (ulong)entry.OwnerNetId == scope.PlayerId)
+                    {
+                        actor = entry;
+                        return true;
+                    }
+            actor = default;
+            return false;
+        }
+
+        private void HandleSnapshotCore(object rawSnapshot, Action<GatewayStateSyncSnapshot, GatewayStateSyncMovementProof?> observeCommitted)
         {
             var snapshotAdmission = _replication.SnapshotAdmission;
             if (rawSnapshot is not GatewayStateSyncSnapshot snapshot ||
@@ -487,7 +687,7 @@ namespace AbilityKit.Game.Flow
                 {
                     if (status == MobaSnapshotAdmissionStatus.BaselineRequired)
                     {
-                        snapshotAdmission.RequireFullBaseline();
+                        RequireFullStateBaseline();
                         ReportAndExecute(NetworkSessionRecoverySignalKind.SnapshotResyncRequired,
                             SyncHealthSeverity.Error, "snapshot-fixed-baseline-mismatch",
                             snapshotAdmission.LastAcceptedFrame);
@@ -511,7 +711,7 @@ namespace AbilityKit.Game.Flow
                     $"status={admission.Status} worldId={snapshot.WorldId} frame={snapshot.Frame}");
                 if (admission.ShouldRequestFullResync)
                 {
-                    snapshotAdmission.RequireFullBaseline();
+                    RequireFullStateBaseline();
                     ReportAndExecute(
                         NetworkSessionRecoverySignalKind.SnapshotResyncRequired,
                         SyncHealthSeverity.Error,
@@ -569,7 +769,8 @@ namespace AbilityKit.Game.Flow
             CommittedMovementProof = _usesMovementProof && !_operation.ConnectionRecoveryPending &&
                 snapshot.MovementProof is { } proof && proof.Matches(in snapshot) &&
                 ContainsMovementActor(in materialized, proof.ActorId) ? proof : null;
-            MovementPrediction?.ReceiveCommitted(CommittedMovementProof, in materialized);
+            if (observeCommitted != null && _operation.IsCurrent(generation))
+                observeCommitted(materialized, CommittedMovementProof);
 
             if (pendingStateImport)
                 FinishStateImport(snapshot.Frame);
@@ -620,13 +821,18 @@ namespace AbilityKit.Game.Flow
             _sessionRecovery.TryReport(in recovered, out _);
         }
 
-        private void FailSnapshotApplication(int frame, string reason)
+        private void RequireFullStateBaseline()
         {
             CommittedMovementProof = null;
-            MovementPrediction?.Suspend();
             _replication.PendingStateImport = true;
-            _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
             _replication.SnapshotAdmission?.RequireFullBaseline();
+            _localCast?.Suspend();
+            _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
+        }
+
+        private void FailSnapshotApplication(int frame, string reason)
+        {
+            RequireFullStateBaseline();
             ReportAndExecute(NetworkSessionRecoverySignalKind.SnapshotResyncRequired, SyncHealthSeverity.Error,
                 reason, frame);
         }
@@ -643,8 +849,8 @@ namespace AbilityKit.Game.Flow
         {
             if (!_replication.IsBuilt) return;
             CommittedMovementProof = null;
-            MovementPrediction?.Suspend();
             _operation.ConnectionRecoveryPending = true;
+            _localCast?.Suspend();
             Log.Warning(
                 "[AuthoritativeStateRecoveryRuntime] Battle connection lost; " +
                 "transport recovery is pending.");
@@ -659,6 +865,7 @@ namespace AbilityKit.Game.Flow
         {
             if (!_replication.IsBuilt || !_operation.ConnectionRecoveryPending) return;
             _operation.ConnectionRecoveryPending = false;
+            RequireFullStateBaseline();
             ReportAndExecute(
                 NetworkSessionRecoverySignalKind.ConnectionRestored,
                 SyncHealthSeverity.Info,
@@ -680,6 +887,7 @@ namespace AbilityKit.Game.Flow
                 $"[AuthoritativeStateRecoveryRuntime] Authentication failed: {exception?.Message}. " +
                 "Disconnecting for transport re-authentication.");
             _operation.ConnectionRecoveryPending = true;
+            _localCast?.Suspend();
             ReportAndExecute(
                 NetworkSessionRecoverySignalKind.ConnectionError,
                 SyncHealthSeverity.Error,
@@ -743,11 +951,7 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            CommittedMovementProof = null;
-            MovementPrediction?.Suspend();
-            _replication.PendingStateImport = true;
-            _context?.SetGameplayInputBlocked(BattleGameplayInputBlockReason.AuthoritativeRecovery, true);
-            _replication.SnapshotAdmission?.RequireFullBaseline();
+            RequireFullStateBaseline();
             _replication.AuthoritativeSnapshotState?.ResetForRecovery();
             _replication.InterpolationController?.Reset();
             _reliableEvents.RequireAuthoritativeBaseline();
@@ -902,11 +1106,8 @@ namespace AbilityKit.Game.Flow
         private Task EndGenerationAsync()
         {
             CommittedMovementProof = null;
-            var movement = MovementPrediction;
-            MovementPrediction = null;
-            if (_movementSession != null && ReferenceEquals(_movementSession.StateSyncMovement, movement))
-                _movementSession.StateSyncMovement = null;
-            _movementSession = null;
+            var localCast = _localCast;
+            _localCast = null;
             _usesMovementProof = false;
             var pendingExecution = _operation.EndAsync();
 
@@ -919,8 +1120,11 @@ namespace AbilityKit.Game.Flow
             _sessionRecovery.Reset();
 
             Exception cleanupFailure = null;
-            try { movement?.Dispose(); }
-            catch (Exception exception) { cleanupFailure = exception; }
+            try { localCast?.Dispose(); }
+            catch (Exception exception)
+            {
+                cleanupFailure = cleanupFailure == null ? exception : new AggregateException(cleanupFailure, exception);
+            }
             try
             {
                 _reliableEvents.Dispose();

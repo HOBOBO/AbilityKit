@@ -30,6 +30,20 @@ namespace AbilityKit.Game.Editor
 
         private readonly BattleDebugDiagnosticTraceViewModel _viewModel =
             new BattleDebugDiagnosticTraceViewModel();
+        private readonly BattleDebugDiagnosticAttributesViewModel _attributeEvidenceViewModel =
+            new BattleDebugDiagnosticAttributesViewModel();
+        private readonly BattleDebugRuntimeObjectsViewModel _relatedObjectsViewModel =
+            new BattleDebugRuntimeObjectsViewModel();
+        private readonly BattleDebugTraceTimelineEvents _timelineEvents = new BattleDebugTraceTimelineEvents();
+        private BattleDiagnosticEvent? _timelineEvent;
+        private BattleDiagnosticRuntimeObject? _timelineObject;
+        private BattleDiagnosticSessionScope _timelineSelectionScope;
+        private bool _showTraceTrack = true;
+        private bool _showEventTrack = true;
+        private bool _showObjectTrack = true;
+        private BattleDiagnosticSelection _attributeEvidence;
+        private bool _showRelatedObjects;
+        private Vector2 _evidenceScroll;
         private string _rootContextIdText = string.Empty;
         private long _pendingRootContextId;
         private long _pendingContextId;
@@ -76,6 +90,12 @@ namespace AbilityKit.Game.Editor
         public void ClearSessionState()
         {
             _viewModel.Clear();
+            _timelineEvents.Clear();
+            ClearTimelineSelection();
+            _attributeEvidenceViewModel.InvalidateCache();
+            _relatedObjectsViewModel.Invalidate();
+            _relatedObjectsViewModel.ClearSelection();
+            ResetEvidence();
             _rootContextIdText = string.Empty;
             _pendingRootContextId = 0;
             _pendingContextId = 0;
@@ -152,7 +172,7 @@ namespace AbilityKit.Game.Editor
                 EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.Warning);
             }
 
-            DrawFlowSummary();
+            DrawFlowSummary(ctx.AvailableContentWidth);
             DrawTree(in ctx);
             DrawSelectionDetails(in ctx);
         }
@@ -172,6 +192,7 @@ namespace AbilityKit.Game.Editor
         private void DrawDetailsWidget(in BattleDebugContext ctx)
         {
             if (!TryPrepareWidget(in ctx, drawToolbar: false)) return;
+            if (DrawTimelineSelection(in ctx)) return;
             if (_viewModel.SelectedPath.Count == 0)
             {
                 EditorGUILayout.HelpBox("请从 Trace 树或帧瀑布图中选择一个节点。", MessageType.Info);
@@ -249,7 +270,7 @@ namespace AbilityKit.Game.Editor
                 EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.Warning);
             }
 
-            DrawFlowSummary();
+            DrawFlowSummary(ctx.AvailableContentWidth);
             return true;
         }
 
@@ -258,13 +279,18 @@ namespace AbilityKit.Game.Editor
             IBattleDiagnosticReadOnlySession session)
         {
             _viewModel.RefreshRootIndexIfNeeded(session);
+            var compact = ctx.AvailableContentWidth > 0 && ctx.AvailableContentWidth < 700f;
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             DrawRootPicker(in ctx, session);
-            GUILayout.Space(8f);
-            GUILayout.Label("根 ID", GUILayout.Width(48));
+            if (compact)
+            {
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            }
+            GUILayout.Label("根 ID", GUILayout.Width(38));
             _rootContextIdText = GUILayout.TextField(
                 _rootContextIdText ?? string.Empty,
-                GUILayout.Width(100));
+                GUILayout.Width(compact ? 60 : 100));
 
             var hasValidRoot = long.TryParse(_rootContextIdText, out var rootContextId) &&
                                rootContextId > 0;
@@ -307,7 +333,11 @@ namespace AbilityKit.Game.Editor
                 _treeScroll = Vector2.zero;
                 _waterfallScroll = Vector2.zero;
             }
-            GUILayout.Space(8f);
+            if (compact)
+            {
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            }
             GUILayout.Label("搜索", GUILayout.Width(44));
             var searchText = GUILayout.TextField(
                 _viewModel.SearchText,
@@ -321,6 +351,11 @@ namespace AbilityKit.Game.Editor
 
             if (!string.IsNullOrEmpty(_viewModel.SearchText))
             {
+                if (compact)
+                {
+                    EditorGUILayout.EndHorizontal();
+                    EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+                }
                 GUILayout.Label($"{_viewModel.SearchMatchCount} 命中", EditorStyles.miniLabel, GUILayout.Width(55));
                 EditorGUI.BeginDisabledGroup(_viewModel.SearchMatchCount == 0);
                 if (GUILayout.Button("<", EditorStyles.toolbarButton, GUILayout.Width(24)))
@@ -341,7 +376,8 @@ namespace AbilityKit.Game.Editor
                 }
             }
 
-            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             EditorGUI.BeginDisabledGroup(_viewModel.Rows.Count == 0 || !string.IsNullOrEmpty(_viewModel.SearchText));
             if (GUILayout.Button("全部折叠", EditorStyles.toolbarButton, GUILayout.Width(60)))
             {
@@ -363,6 +399,11 @@ namespace AbilityKit.Game.Editor
             }
             EditorGUI.EndDisabledGroup();
 
+            if (compact)
+            {
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            }
             EditorGUI.BeginDisabledGroup(!_viewModel.IsPinnedContextAvailable);
             if (GUILayout.Button("返回固定", EditorStyles.toolbarButton, GUILayout.Width(64)))
             {
@@ -399,13 +440,14 @@ namespace AbilityKit.Game.Editor
             if (roots.Count == 0)
             {
                 EditorGUI.BeginDisabledGroup(true);
-                EditorGUILayout.Popup(0, new[] { "没有保留的 Trace 根节点" }, GUILayout.Width(260));
+                EditorGUILayout.Popup(0, new[] { "没有保留的 Trace 根节点" },
+                    GUILayout.MaxWidth(320), GUILayout.ExpandWidth(true));
                 EditorGUI.EndDisabledGroup();
                 return;
             }
 
             var labels = new string[roots.Count + 1];
-            labels[0] = "选择最近的 Trace 根节点";
+            labels[0] = "选择要排查的 Trace";
             var selectedIndex = 0;
             for (var i = 0; i < roots.Count; i++)
             {
@@ -414,23 +456,36 @@ namespace AbilityKit.Game.Editor
                 if (root.RootContextId == _viewModel.RootContextId) selectedIndex = i + 1;
             }
 
-            var nextIndex = EditorGUILayout.Popup(selectedIndex, labels, GUILayout.Width(320));
+            var nextIndex = EditorGUILayout.Popup(selectedIndex, labels,
+                GUILayout.MaxWidth(320), GUILayout.ExpandWidth(true));
             if (nextIndex > 0 && nextIndex != selectedIndex)
             {
                 LoadRoot(in ctx, session, roots[nextIndex - 1].RootContextId);
             }
         }
 
-        private void LoadRoot(
+        /// <summary>
+        /// 切换根目录并把实际保留的节点写入共享导航历史。
+        /// </summary>
+        internal void LoadRoot(
             in BattleDebugContext ctx,
             IBattleDiagnosticReadOnlySession session,
             long rootContextId)
         {
+            ClearTimelineSelection();
+            ResetEvidence();
             _rootContextIdText = rootContextId.ToString();
             _treeScroll = Vector2.zero;
             _waterfallScroll = Vector2.zero;
             _viewModel.InvalidateCache();
             _viewModel.RefreshIfNeeded(session, rootContextId);
+            _viewModel.SelectContext(rootContextId);
+            if (_viewModel.SelectedPath.Count > 0)
+            {
+                var node = _viewModel.SelectedPath[_viewModel.SelectedPath.Count - 1];
+                ctx.WorkspaceState?.Select(BattleDebugNavigation.CreateTraceSelection(in node));
+                ScrollToSelection();
+            }
             ctx.RequestRepaint?.Invoke();
         }
 
@@ -446,11 +501,23 @@ namespace AbilityKit.Game.Editor
                    $"{root.NodeCount} 个节点 | F{root.Root.StartFrame}-F{root.LastFrame}";
         }
 
-        private void DrawFlowSummary()
+        private void DrawFlowSummary(float availableWidth)
         {
             var summary = _viewModel.Summary;
             var visible = _viewModel.VisibleSummary;
             if (summary.NodeCount == 0) return;
+
+            if (availableWidth > 0f && availableWidth < 700f)
+            {
+                EditorGUILayout.LabelField($"根节点 #{_viewModel.RootContextId} · " +
+                    $"节点 {visible.NodeCount}/{summary.NodeCount} · 效果 {visible.EffectCount}/{summary.EffectCount} · " +
+                    $"动作 {visible.ActionCount}/{summary.ActionCount} · 问题 {visible.IssueCount}/{summary.IssueCount} · " +
+                    $"进行中 {visible.ActiveCount}/{summary.ActiveCount} · 深度 {visible.MaximumDepth}",
+                    EditorStyles.wordWrappedMiniLabel);
+                if (visible.NodeCount > 0)
+                    EditorGUILayout.LabelField(BuildSummaryFrameText(in visible), EditorStyles.wordWrappedMiniLabel);
+                return;
+            }
 
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUILayout.Label($"根节点 #{_viewModel.RootContextId}", EditorStyles.miniBoldLabel, GUILayout.Width(100));
@@ -509,24 +576,26 @@ namespace AbilityKit.Game.Editor
 
         private void DrawWaterfall(in BattleDebugContext ctx)
         {
-            EditorGUILayout.LabelField("Trace 帧瀑布图", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("执行时间轴", EditorStyles.boldLabel);
             EditorGUILayout.LabelField(
-                "条带表示帧跨度，不代表 CPU 耗时。",
-                EditorStyles.miniLabel);
+                "共享逻辑帧 · 事件用点表示；对象仅在已知创建和结束帧时显示完整条带。",
+                EditorStyles.wordWrappedMiniLabel);
+            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+            {
+                _showTraceTrack = GUILayout.Toggle(_showTraceTrack, "Trace", EditorStyles.toolbarButton);
+                _showEventTrack = GUILayout.Toggle(_showEventTrack, "事件", EditorStyles.toolbarButton);
+                _showObjectTrack = GUILayout.Toggle(_showObjectTrack, "对象", EditorStyles.toolbarButton);
+                GUILayout.FlexibleSpace();
+            }
 
             var rows = _viewModel.VisibleRows;
-            if (rows.Count == 0) return;
 
             var cursorFrame = ctx.WorkspaceState?.FrameCursor.Frame ?? BattleDiagnosticFrames.Invalid;
-            var automaticRange = ResolveTraceRange(rows, cursorFrame);
-            var visibleRange = ctx.WorkspaceState != null
-                ? ctx.WorkspaceState.TimeRange.Resolve(automaticRange)
-                : automaticRange;
             _waterfallItems.Clear();
             _overviewItems.Clear();
-            for (var i = 0; i < rows.Count; i++)
+            for (var index = 0; _showTraceTrack && index < rows.Count; index++)
             {
-                var row = rows[i];
+                var row = rows[index];
                 var node = row.Node;
                 var effectiveEnd = node.EndFrame >= 0
                     ? node.EndFrame
@@ -544,13 +613,28 @@ namespace AbilityKit.Game.Editor
                     node.StartFrame,
                     effectiveEnd,
                     row.Depth,
-                    node.ContextId == _viewModel.SelectedContextId,
+                    !_timelineEvent.HasValue && !_timelineObject.HasValue && node.ContextId == _viewModel.SelectedContextId,
                     GetStateColor(node.State)));
-                _overviewItems.Add(new BattleDebugTimelineOverviewItem(
-                    node.StartFrame,
-                    effectiveEnd));
             }
 
+            AppendTimelineEvidence(in ctx);
+            if (_waterfallItems.Count == 0)
+            {
+                EditorGUILayout.HelpBox("当前启用的轨道没有可定位的记录。", MessageType.Info);
+                return;
+            }
+            var firstFrame = int.MaxValue;
+            var lastFrame = BattleDiagnosticFrames.Invalid;
+            foreach (var item in _waterfallItems)
+            {
+                firstFrame = Mathf.Min(firstFrame, item.StartFrame);
+                lastFrame = Mathf.Max(lastFrame, item.EndFrame);
+                _overviewItems.Add(new BattleDebugTimelineOverviewItem(item.StartFrame, item.EndFrame));
+            }
+            var automaticRange = new BattleDiagnosticFrameRange(firstFrame, lastFrame);
+            var visibleRange = ctx.WorkspaceState != null
+                ? ctx.WorkspaceState.TimeRange.Resolve(automaticRange)
+                : automaticRange;
             var overviewInteraction = BattleDebugTimelineOverview.Draw(
                 _overviewItems,
                 automaticRange,
@@ -569,25 +653,185 @@ namespace AbilityKit.Game.Editor
 
             var clickedId = waterfallResult.SelectedId;
             if (clickedId == 0L) return;
+            if (waterfallResult.SelectedTrack != BattleDebugWaterfallTrack.Trace)
+            {
+                SelectTimelineEvidence(in ctx, waterfallResult.SelectedTrack, (int)clickedId - 1);
+                return;
+            }
 
             for (var i = 0; i < rows.Count; i++)
             {
                 var node = rows[i].Node;
                 if (node.ContextId != clickedId) continue;
-
-                _viewModel.SelectContext(node.ContextId);
-                var kind = node.ContextId == node.RootContextId
-                    ? BattleDiagnosticSelectionKind.TraceRoot
-                    : BattleDiagnosticSelectionKind.TraceNode;
-                ctx.WorkspaceState?.Select(new BattleDiagnosticSelection(
-                    node.Scope,
-                    kind,
-                    node.ContextId,
-                    node.StartFrame,
-                    node.RootContextId));
-                ctx.RequestRepaint?.Invoke();
+                SelectNode(in ctx, in node);
                 break;
             }
+        }
+
+        private void AppendTimelineEvidence(in BattleDebugContext ctx)
+        {
+            if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session)) return;
+            var rootId = _viewModel.RootContextId;
+            if (_timelineSelectionScope.IsValid && (_timelineSelectionScope != session.SessionInfo.Scope ||
+                (_timelineEvent.HasValue && _timelineEvent.Value.RootContextId != rootId) ||
+                (_timelineObject.HasValue && _timelineObject.Value.RootContextId != rootId)))
+                ClearTimelineSelection();
+            if (_showEventTrack) AppendTimelineEvents(session, rootId);
+            if (_showObjectTrack) AppendTimelineObjects(session, rootId);
+        }
+
+        private void AppendTimelineEvents(IBattleDiagnosticReadOnlySession session, long rootId)
+        {
+            _timelineEvents.Refresh(session, rootId);
+            var events = _timelineEvents.Items;
+            for (var index = 0; index < events.Count; index++)
+            {
+                var item = events[index];
+                var label = $"#{item.Sequence} {BattleDebugDisplayText.EventKind(item.Kind)}";
+                _waterfallItems.Add(new BattleDebugWaterfallItem(index + 1, label,
+                    $"{label} · F{item.Frame}\n{item.Summary}", item.Frame, item.Frame, 0,
+                    _timelineEvent?.Sequence == item.Sequence, new Color(0.45f, 0.74f, 1f),
+                    BattleDebugWaterfallTrack.Event, point: true));
+            }
+            DrawTimelineTrackStatus("事件", events.Count, _timelineEvents.Status, _timelineEvents.Status.HasMore);
+        }
+
+        private void AppendTimelineObjects(IBattleDiagnosticReadOnlySession session, long rootId)
+        {
+            var objects = _relatedObjectsViewModel;
+            if (objects.RootContextId != rootId)
+            {
+                objects.RootContextId = rootId;
+                objects.ClearSelection();
+            }
+            objects.RefreshIfNeeded(session);
+            var undatedCount = 0;
+            for (var index = 0; index < objects.Items.Count; index++)
+            {
+                var item = objects.Items[index];
+                if (!BattleDebugTraceObjectSpan.TryProject(item.CreatedFrame, item.DestroyedFrame, item.BackfilledFrame,
+                        out var start, out var end, out var point))
+                {
+                    undatedCount++;
+                    continue;
+                }
+
+                var label = $"{BattleDebugDisplayText.RuntimeObjectKind(item.Kind)} #{item.RuntimeId}";
+                _waterfallItems.Add(new BattleDebugWaterfallItem(index + 1, label,
+                    $"{item.Reference} · {item.DisplayName}\n{FormatObjectFrames(in item)}", start, end, 0,
+                    _timelineObject.HasValue && _timelineObject.Value.Reference.Equals(item.Reference),
+                    new Color(0.79f, 0.62f, 0.93f), BattleDebugWaterfallTrack.RuntimeObject, point));
+                if (_timelineObject.HasValue && _timelineSelectionScope == session.SessionInfo.Scope &&
+                    _timelineObject.Value.RootContextId == rootId && _timelineObject.Value.Reference.Equals(item.Reference))
+                    _timelineObject = item;
+            }
+            DrawTimelineTrackStatus("对象", objects.Items.Count, objects.QueryStatus, objects.HasMore);
+            if (undatedCount > 0)
+                EditorGUILayout.LabelField($"{undatedCount} 个对象没有可定位的帧，未绘制。", EditorStyles.miniLabel);
+        }
+
+        private static void DrawTimelineTrackStatus(string track, int count, BattleDiagnosticQueryStatus status, bool hasMore)
+        {
+            if (!status.CanDisplayResults && status.Phase != BattleDiagnosticQueryPhase.Empty)
+                EditorGUILayout.LabelField($"{track}轨：{BattleDebugDisplayText.Availability(status.Availability)}",
+                    EditorStyles.miniLabel);
+            else if (count == 0 || hasMore)
+                EditorGUILayout.LabelField(count == 0 ? $"{track}轨：无同根记录。"
+                    : $"{track}轨：已加载 {count} 条，尚有更多记录。", EditorStyles.miniLabel);
+        }
+
+        private void SelectTimelineEvidence(in BattleDebugContext ctx, BattleDebugWaterfallTrack track, int index)
+        {
+            ClearTimelineSelection();
+            _timelineSelectionScope = ctx.WorkspaceState?.Scope ?? default;
+            if (track == BattleDebugWaterfallTrack.Event && index >= 0 && index < _timelineEvents.Items.Count)
+            {
+                _timelineEvent = _timelineEvents.Items[index];
+                ctx.WorkspaceState?.SetFrame(_timelineEvent.Value.Frame);
+            }
+            else if (track == BattleDebugWaterfallTrack.RuntimeObject && index >= 0 && index < _relatedObjectsViewModel.Items.Count)
+            {
+                var item = _relatedObjectsViewModel.Items[index];
+                _timelineObject = item;
+                if (BattleDebugTraceObjectSpan.TryProject(item.CreatedFrame, item.DestroyedFrame, item.BackfilledFrame,
+                        out var firstFrame, out _, out _))
+                    ctx.WorkspaceState?.SetFrame(firstFrame);
+            }
+            ctx.RequestRepaint?.Invoke();
+        }
+
+        private bool DrawTimelineSelection(in BattleDebugContext ctx)
+        {
+            var rootId = _viewModel.RootContextId;
+            if (_timelineSelectionScope != (ctx.WorkspaceState?.Scope ?? default)) return false;
+            if (_timelineEvent.HasValue && _timelineEvent.Value.RootContextId == rootId)
+            {
+                var item = _timelineEvent.Value;
+                EditorGUILayout.LabelField($"事件 #{item.Sequence} · F{item.Frame}", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField($"{BattleDebugDisplayText.EventKind(item.Kind)} · {BattleDebugDisplayText.EventOutcome(item.Outcome)}",
+                    EditorStyles.wordWrappedLabel);
+                if (!BattleDebugOfflineRelations.DrawEvent(in ctx, in item))
+                    EditorGUILayout.LabelField($"来源 #{item.SourceActorId} · 目标 #{item.TargetActorId} · 上下文 #{item.ContextId}",
+                        EditorStyles.wordWrappedMiniLabel);
+                EditorGUILayout.LabelField(item.Summary, EditorStyles.wordWrappedLabel);
+                DrawLinkedNode(in ctx, item.Scope, item.RootContextId, item.ContextId);
+                if (ctx.OpenEvent != null && GUILayout.Button("打开事件详情")) ctx.OpenEvent.Invoke(item);
+                DrawReturnToNodeDetails();
+                return true;
+            }
+            if (_timelineObject.HasValue && _timelineObject.Value.RootContextId == rootId)
+            {
+                var item = _timelineObject.Value;
+                EditorGUILayout.LabelField($"{BattleDebugDisplayText.RuntimeObjectKind(item.Kind)} #{item.RuntimeId}", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField($"{item.Reference} · {item.DisplayName} · {BattleDebugDisplayText.RuntimeObjectState(item.State)}",
+                    EditorStyles.wordWrappedLabel);
+                EditorGUILayout.LabelField(FormatObjectFrames(in item), EditorStyles.wordWrappedMiniLabel);
+                if (!BattleDebugOfflineRelations.DrawObjectActors(in ctx, in item, BattleDebugOfflineRelations.ObjectFrame(in item)))
+                    EditorGUILayout.LabelField($"上下文 #{item.ContextId} · 来源 #{item.SourceActorId} · 所有者 #{item.OwnerActorId} · 目标 #{item.TargetActorId}",
+                        EditorStyles.wordWrappedMiniLabel);
+                DrawLinkedNode(in ctx, _timelineSelectionScope, item.RootContextId, item.ContextId);
+                DrawReturnToNodeDetails();
+                return true;
+            }
+            return false;
+        }
+
+        private void DrawLinkedNode(in BattleDebugContext ctx, BattleDiagnosticSessionScope scope,
+            long rootContextId, long contextId)
+        {
+            if (!_viewModel.TryGetLinkedNode(scope, rootContextId, contextId, out var node))
+            {
+                var message = contextId <= 0 ? "没有记录关联的 Trace 节点。"
+                    : $"关联上下文 #{contextId}，当前 Trace 未包含该节点。";
+                EditorGUILayout.LabelField(message, EditorStyles.wordWrappedMiniLabel);
+                return;
+            }
+
+            var caption = BattleDebugDisplayText.TraceKind(node.Kind);
+            if (!GUILayout.Button(new GUIContent($"定位关联节点 · {caption} · {FormatKnownFrame(node.StartFrame)}",
+                    $"精确定位 #{node.ContextId}；若节点被筛选隐藏，将展开路径或回到完整流程。"))) return;
+            SelectNode(in ctx, in node);
+            _viewModel.RevealSelection();
+            _showTraceTrack = true;
+            ScrollToSelection();
+        }
+
+        private static string FormatObjectFrames(in BattleDiagnosticRuntimeObject item) =>
+            $"创建：{FormatKnownFrame(item.CreatedFrame)} · 结束：{FormatKnownFrame(item.DestroyedFrame)}" +
+            (BattleDiagnosticFrames.IsValid(item.BackfilledFrame) ? $" · 回填：F{item.BackfilledFrame}" : string.Empty);
+
+        private static string FormatKnownFrame(int frame) => BattleDiagnosticFrames.IsValid(frame) ? $"F{frame}" : "未记录";
+
+        private void DrawReturnToNodeDetails()
+        {
+            if (GUILayout.Button("返回 Trace 节点详情")) ClearTimelineSelection();
+        }
+
+        private void ClearTimelineSelection()
+        {
+            _timelineEvent = null;
+            _timelineObject = null;
+            _timelineSelectionScope = default;
         }
 
         private static void ApplyTimelineInteraction(
@@ -604,37 +848,6 @@ namespace AbilityKit.Game.Editor
             {
                 ctx.RequestRepaint?.Invoke();
             }
-        }
-
-        private static BattleDiagnosticFrameRange ResolveTraceRange(
-            IReadOnlyList<BattleDebugDiagnosticTraceRow> rows,
-            int cursorFrame)
-        {
-            if (rows == null || rows.Count == 0)
-            {
-                return new BattleDiagnosticFrameRange(
-                    BattleDiagnosticFrames.Invalid,
-                    BattleDiagnosticFrames.Invalid);
-            }
-
-            var minFrame = rows[0].Node.StartFrame;
-            var maxFrame = ResolveEffectiveEnd(rows[0].Node, cursorFrame);
-            for (var i = 1; i < rows.Count; i++)
-            {
-                minFrame = Mathf.Min(minFrame, rows[i].Node.StartFrame);
-                maxFrame = Mathf.Max(maxFrame, ResolveEffectiveEnd(rows[i].Node, cursorFrame));
-            }
-            return new BattleDiagnosticFrameRange(minFrame, maxFrame);
-        }
-
-        private static int ResolveEffectiveEnd(
-            BattleDiagnosticTraceNodeSummary node,
-            int cursorFrame)
-        {
-            if (node.EndFrame >= 0) return node.EndFrame;
-            return BattleDiagnosticFrames.IsValid(cursorFrame)
-                ? Mathf.Max(cursorFrame, node.StartFrame)
-                : node.StartFrame;
         }
 
         private enum TraceWidgetKind
@@ -860,6 +1073,9 @@ namespace AbilityKit.Game.Editor
             if (path.Count == 0) return;
 
             var selected = path[path.Count - 1];
+            if (_attributeEvidence.IsValid &&
+                (!_attributeEvidence.BelongsTo(selected.Scope) || _attributeEvidence.RelatedId != selected.ContextId))
+                ResetEvidence();
             EditorGUILayout.Space(4);
             EditorGUILayout.LabelField("所选流程节点", EditorStyles.boldLabel);
             EditorGUILayout.LabelField(
@@ -903,6 +1119,7 @@ namespace AbilityKit.Game.Editor
             }
 
             DrawActorRoute(in ctx, in selected);
+            DrawRelatedEvidence(in ctx, in selected);
             EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginDisabledGroup(!BattleDiagnosticFrames.IsValid(selected.StartFrame));
             if (GUILayout.Button("定位起始帧", GUILayout.Width(88)))
@@ -1094,48 +1311,141 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("总时长 / 秒", facts.DurationSeconds.ToString("0.###"));
         }
 
-        private static void DrawActorRoute(
+        private void DrawActorRoute(
             in BattleDebugContext ctx,
             in BattleDiagnosticTraceNodeSummary node)
         {
+            var offline = BattleDebugOfflineRelations.Draw(in ctx, node.Scope, "来源", node.SourceObject, node.StartFrame);
+            DrawActorButtons(in ctx, in node, node.SourceObject, "来源", offline);
+            BattleDebugOfflineRelations.Draw(in ctx, node.Scope, "目标", node.TargetObject, node.StartFrame);
+            DrawActorButtons(in ctx, in node, node.TargetObject, "目标", offline);
+        }
+
+        private void DrawActorButtons(
+            in BattleDebugContext ctx,
+            in BattleDiagnosticTraceNodeSummary node,
+            BattleDiagnosticRuntimeObjectReference reference,
+            string role,
+            bool offline)
+        {
+            if (reference.Kind != BattleDiagnosticRuntimeObjectKind.Actor) return;
+            var actorId = reference.RuntimeId;
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.PrefixLabel("来源 -> 目标");
-            DrawActorButton(in ctx, node.SourceActorId, "来源");
-            GUILayout.Label("->", GUILayout.Width(18));
-            DrawActorButton(in ctx, node.TargetActorId, "目标");
+            if (!offline)
+            {
+                using (new EditorGUI.DisabledScope(actorId <= 0 || ctx.SelectActor == null))
+                {
+                    if (GUILayout.Button(actorId > 0 ? $"{role} #{actorId}" : $"{role} -", GUILayout.Width(112)))
+                        ctx.SelectActor?.Invoke(actorId);
+                }
+            }
+            using (new EditorGUI.DisabledScope(actorId <= 0 || actorId > int.MaxValue ||
+                       ctx.OpenTraceActorAttributes == null || !BattleDiagnosticFrames.IsValid(node.StartFrame)))
+            {
+                if (GUILayout.Button(new GUIContent("查看属性", "查询此节点起始帧的属性证据，不移动回放"),
+                        GUILayout.Width(76)))
+                    ctx.OpenTraceActorAttributes?.Invoke(node, actorId);
+            }
+            var scope = ctx.WorkspaceState?.Scope ?? default;
+            var canPreview = BattleDebugNavigation.TryCreateTraceAttributeRoute(
+                scope, in node, actorId, out _, out var evidence);
+            using (new EditorGUI.DisabledScope(!canPreview))
+            {
+                if (GUILayout.Button(new GUIContent("在此查看", "保留 Trace 树，在详情中查看同帧属性"),
+                        GUILayout.Width(76)))
+                {
+                    var close = _attributeEvidence == evidence;
+                    ResetEvidence();
+                    if (!close) _attributeEvidence = evidence;
+                }
+            }
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
         }
 
-        private static void DrawActorButton(
-            in BattleDebugContext ctx,
-            long actorId,
-            string role)
+        private void DrawRelatedEvidence(in BattleDebugContext ctx, in BattleDiagnosticTraceNodeSummary node)
         {
-            EditorGUI.BeginDisabledGroup(actorId <= 0 || ctx.SelectActor == null);
-            if (GUILayout.Button(
-                    actorId > 0 ? $"{role} #{actorId}" : $"{role} -",
-                    GUILayout.Width(112)))
+            if (GUILayout.Button(_showRelatedObjects ? "收起关联对象" : "关联运行时对象", GUILayout.Width(126)))
             {
-                ctx.SelectActor?.Invoke(actorId);
+                var show = !_showRelatedObjects;
+                ResetEvidence();
+                _showRelatedObjects = show;
             }
-            EditorGUI.EndDisabledGroup();
+
+            if (_attributeEvidence.IsValid)
+            {
+                BattleDebugAttributesPanel.DrawTraceEvidence(in ctx, in _attributeEvidence,
+                    _attributeEvidenceViewModel, ref _evidenceScroll, showLatestShortcut: false);
+                return;
+            }
+            if (!_showRelatedObjects) return;
+
+            EditorGUILayout.LabelField($"同根对象 · Trace #{node.RootContextId}", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("直接关联仅表示对象记录的上下文等于选中节点；不推断归属。",
+                EditorStyles.wordWrappedMiniLabel);
+            if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session) ||
+                session.SessionInfo.Scope != node.Scope ||
+                !session.SessionInfo.Supports(BattleDiagnosticCapabilities.RuntimeObjects))
+            {
+                EditorGUILayout.HelpBox("此来源未提供运行时对象目录。", MessageType.Info);
+                return;
+            }
+
+            var model = _relatedObjectsViewModel;
+            if (model.RootContextId != node.RootContextId)
+            {
+                model.RootContextId = node.RootContextId;
+                model.ClearSelection();
+                _evidenceScroll = Vector2.zero;
+            }
+            model.RefreshIfNeeded(session);
+            if (model.Items.Count == 0)
+            {
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(model.QueryStatus, subject: "同根运行时对象"));
+                return;
+            }
+
+            _evidenceScroll = EditorGUILayout.BeginScrollView(_evidenceScroll, GUILayout.MaxHeight(200));
+            foreach (var item in model.Items)
+            {
+                var relation = item.ContextId == node.ContextId ? "直接" : "同根";
+                var label = $"{relation} · {BattleDebugDisplayText.RuntimeObjectKind(item.Kind)} #{item.RuntimeId} · {item.DisplayName}";
+                if (GUILayout.Button(new GUIContent(label, item.Reference.ToString()), EditorStyles.miniButton))
+                    model.Select(in item);
+            }
+            EditorGUILayout.EndScrollView();
+
+            if (model.HasMore && GUILayout.Button("加载更多对象", GUILayout.Width(110)))
+                model.LoadMore(session);
+            if (!string.IsNullOrEmpty(model.PagingStatusMessage))
+                EditorGUILayout.HelpBox(model.PagingStatusMessage, MessageType.Info);
+            if (!model.Selected.HasValue) return;
+
+            var selected = model.Selected.Value;
+            EditorGUILayout.LabelField($"{selected.Reference} · {BattleDebugDisplayText.RuntimeObjectState(selected.State)} · {BattleDebugDisplayText.Completeness(selected.Completeness)}",
+                EditorStyles.wordWrappedMiniLabel);
+            EditorGUILayout.LabelField($"定义 {selected.DefinitionKind}:{selected.DefinitionId} · 上下文 #{selected.ContextId}",
+                EditorStyles.wordWrappedMiniLabel);
+            if (!BattleDebugOfflineRelations.DrawObjectActors(in ctx, in selected, BattleDebugOfflineRelations.ObjectFrame(in selected)))
+                EditorGUILayout.LabelField($"来源 #{selected.SourceActorId} · 所有者 #{selected.OwnerActorId} · 目标 #{selected.TargetActorId}",
+                    EditorStyles.wordWrappedMiniLabel);
+            DrawLinkedNode(in ctx, session.SessionInfo.Scope, selected.RootContextId, selected.ContextId);
+        }
+
+        private void ResetEvidence()
+        {
+            _attributeEvidence = default;
+            _showRelatedObjects = false;
+            _evidenceScroll = Vector2.zero;
         }
 
         private void SelectNode(
             in BattleDebugContext ctx,
             in BattleDiagnosticTraceNodeSummary node)
         {
+            ClearTimelineSelection();
             _viewModel.SelectContext(node.ContextId);
-            var selectionKind = node.ContextId == node.RootContextId
-                ? BattleDiagnosticSelectionKind.TraceRoot
-                : BattleDiagnosticSelectionKind.TraceNode;
-            ctx.WorkspaceState?.Select(new BattleDiagnosticSelection(
-                node.Scope,
-                selectionKind,
-                node.ContextId,
-                node.StartFrame,
-                node.RootContextId));
+            ctx.WorkspaceState?.Select(BattleDebugNavigation.CreateTraceSelection(in node));
             ctx.RequestRepaint?.Invoke();
         }
 
@@ -1153,12 +1463,15 @@ namespace AbilityKit.Game.Editor
 
         public void OpenTrace(long rootContextId, long contextId)
         {
+            ClearTimelineSelection();
+            ResetEvidence();
             if (rootContextId <= 0) return;
 
             _rootContextIdText = rootContextId.ToString();
             _pendingRootContextId = rootContextId;
             _pendingContextId = contextId > 0 ? contextId : rootContextId;
             _treeScroll = Vector2.zero;
+            _waterfallScroll = Vector2.zero;
             _viewModel.Clear();
         }
 

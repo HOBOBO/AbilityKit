@@ -3,7 +3,7 @@
   "tags": ["skill-presentation", "jhin", "marked-hero", "crowd-control"],
   "sections": {
     "settings": [
-      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 2600},
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 5000},
       {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
     ],
     "setup": [

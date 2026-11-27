@@ -1,9 +1,11 @@
 # AbilityKit Flow（com.abilitykit.flow）
 
 > 文档类型：包入口与使用导航
-> 核校状态：2026-11-25 对照 Runner、Session、Context、节点实现和随包样例；.NET Flow 单步 236 项通过，未运行 Unity Player。
+> 核校状态：2026-11-25；工作区 .NET 回归与 Unity 编译、宿主验证范围见[使用契约](Documentation~/Usage.md#源码和验证范围)。
 
 `AbilityKit Flow` 是一套轻量、可组合的流程（workflow）运行时，用于在游戏业务中组织 **可中断、可取消、可超时、可并行** 的“任务流程”。
+
+Unity 项目只需直接安装 `com.abilitykit.flow`：其依赖会自动解析到 `com.abilitykit.core` 和 `com.abilitykit.hfsm.core`，不安装 HFSM 的 Unity 适配、图编辑器或示例。
 
 它的外形看起来像 tick 行为树（Behavior Tree），但定位更偏向 **异步流程编排 / 任务树（Task Tree）**：
 
@@ -70,7 +72,7 @@
 - scope 内 `Set<T>()` 只写入当前 scope；`TryGet<T>()` 优先查 scope 再查全局
 - scope 释放后，局部注入自动回收
 
-`FlowRunner.Start()` 会创建根 scope，并注入 `FlowWakeUp` 和诊断对象；正常完成、Stop 或捕获执行异常后会尝试释放根 scope。Dispose 也会清空 Context 槽位。
+`FlowRunner.Start()` 会创建根作用域，并注入 `FlowWakeUp` 和诊断对象。正常完成、停止或失败时，Runner 清理本次运行的根作用域及其未关闭的子作用域，保留外层槽位。`Dispose()` 清空整个 Context。
 
 ## 2. 快速上手
 
@@ -92,7 +94,7 @@
 
 ### 2.3 配置 Pump 防死循环
 
-默认 Pump 上限为 128 次推进；超过上限会将运行标为失败并尝试中断根节点。节点清理或通知回调仍可能抛出异常。
+默认 Pump 上限为 128 次推进；超过上限会将运行标为失败并尝试中断根节点。生命周期重入与异常传播的边界见[使用契约](Documentation~/Usage.md#失败与收尾)。
 
 > 建议：线上保持默认值或根据业务调整；调试时可适当调小以尽早暴露死循环。
 

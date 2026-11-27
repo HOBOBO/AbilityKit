@@ -3,6 +3,8 @@ using System.Reflection;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Logging;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Effect;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
@@ -47,6 +49,13 @@ namespace AbilityKit.Demo.Moba.Systems
             if (_targetAssembly == typeof(MobaServicesAutoModule).Assembly)
             {
                 MobaGeneratedWorldServiceManifest.Configure(builder, WorldServiceProfile.All);
+                builder.Register<IEffectApplicationObserver>(WorldLifetime.Scoped, resolver =>
+                {
+                    resolver.TryResolve<IMobaBattleDiagnosticCapturePolicy>(out var policy);
+                    resolver.TryResolve<IMobaRuntimeObjectKeyResolver>(out var keys);
+                    resolver.TryResolve<MobaExecutionContextRegistry>(out var contexts);
+                    return new MobaEffectApplicationObserver(policy, keys, contexts);
+                });
                 Log.Info("[MobaServicesAutoModule] Configure done (generated manifest)");
                 return;
             }

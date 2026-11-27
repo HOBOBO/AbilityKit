@@ -31,7 +31,7 @@ namespace AbilityKit.Game.Flow
                     DefaultBattleSessionTransportFactory.ParseWorldId(new WorldId(_plan.World.WorldId)),
                     _bootstrapper as IMobaReliableBattleEventCheckpointStore, _ctx, _plan,
                     GetFixedDeltaSeconds(), value => ReliableBattleEventReceived?.Invoke(value),
-                    NotifyFirstFrameReceivedOnce, session);
+                    NotifyFirstFrameReceivedOnce);
                 return session;
             }
             catch

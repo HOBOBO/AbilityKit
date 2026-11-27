@@ -2,7 +2,13 @@
 
 ECS 风格的实体-属性管理框架，让非 ECS 系统也能享受类似 ECS 的开发体验。
 
-完整职责、读取模式、观察器隔离、显式身份恢复及当前限制见 [设计文档](Document/Context上下文注册与快照模块开发设计文档.md)。本包提供基础注册/解析/内存快照，不是完整 ECS、Trace 因果树或权威恢复仓库；MOBA 业务适配见 [Runtime Context 设计](../com.abilitykit.demo.moba.runtime/Document/RuntimeContext运行时值与快照设计文档.md)。
+本包提供基础注册、精确值解析与内存快照；Flow 只组织流程归属，不自动释放实体。先从[使用导航](Documentation~/README.md)与[完整使用示例](Documentation~/Usage.md)开始，局部背景见[原设计说明](Document/Context上下文注册与快照模块开发设计文档.md)。
+
+## 环境与安装
+
+版本 0.1.0、Unity 2022.3 与直接依赖 `com.abilitykit.core` 以 [package.json](package.json) 为准。宿主从其 UPM 来源安装本包及依赖；本地可用 Package Manager 的 **Add package from disk** 选择 package.json。自定义 asmdef 引用 `AbilityKit.Context`。本轮验证同源 .NET 10 镜像与局部示例，未验收独立 UPM 安装、Unity Player 或完整恢复链。
+
+首次使用运行[精确引用与快照示例](Documentation~/Usage.md#2-完整示例精确实时引用与独立快照)，预期输出 `context references and snapshots passed`；调用者负责实体销毁、订阅清理及快照容量。以下保留的分段代码用于 API 速览，不应拼为一个程序。
 
 ## 核心概念对齐
 
@@ -41,14 +47,14 @@ ECS 风格的实体-属性管理框架，让非 ECS 系统也能享受类似 ECS
 // 定义属性（对齐 ECS 的 Component）
 public sealed class HealthProperty : IProperty
 {
-    public int TypeId => 0; // 由 PropertyTypeRegistry 自动分配
+    public int TypeId => PropertyTypeRegistry.Instance.Register<HealthProperty>().Id;
     public int Current { get; set; }
     public int Max { get; set; }
 }
 
 public sealed class PositionProperty : IProperty
 {
-    public int TypeId => 0;
+    public int TypeId => PropertyTypeRegistry.Instance.Register<PositionProperty>().Id;
     public float X { get; set; }
     public float Y { get; set; }
     public float Z { get; set; }
@@ -108,7 +114,7 @@ registry.Subscribe(evt =>
 ### 5. 快照存储
 
 ```csharp
-// 快照用于持久化实体状态
+// 兼容最新视图示例：只在内存保存，不会落盘；受管不可变快照见使用指南
 public struct EntitySnapshot : IContextSnapshot, IDestroyableSnapshot
 {
     public long EntityId { get; set; }
@@ -236,7 +242,7 @@ var result = reader.ReadSnapshot<MySnapshot, float>(reference, "Damage");
 ## 模块结构
 
 ```
-com.abilitykit.context/
+com.abilitykit.context/Runtime/
 ├── Property/
 │   ├── IProperty.cs        # 属性接口
 │   └── PropertyType.cs     # 属性类型注册表

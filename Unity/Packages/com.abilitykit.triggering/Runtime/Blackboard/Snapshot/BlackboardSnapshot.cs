@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Newtonsoft.Json;
 
 namespace AbilityKit.Triggering.Blackboard
 {
@@ -21,19 +20,6 @@ namespace AbilityKit.Triggering.Blackboard
         public int Version = CurrentVersion;
         public long OwnerKey;
         public List<BlackboardSnapshotBoard> Boards = new List<BlackboardSnapshotBoard>();
-
-        public string ToJson()
-        {
-            return JsonConvert.SerializeObject(this, Formatting.None);
-        }
-
-        public static BlackboardSnapshot FromJson(string json)
-        {
-            if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("Snapshot JSON is required.", nameof(json));
-            var snapshot = JsonConvert.DeserializeObject<BlackboardSnapshot>(json);
-            if (snapshot == null) throw new InvalidOperationException("Snapshot JSON produced no snapshot.");
-            return snapshot;
-        }
     }
 
     [Serializable]
@@ -44,17 +30,43 @@ namespace AbilityKit.Triggering.Blackboard
         public int Version = CurrentVersion;
         public List<BlackboardSnapshot> Owners = new List<BlackboardSnapshot>();
 
-        public string ToJson()
+        internal BlackboardSnapshotSet CopyDetached()
         {
-            return JsonConvert.SerializeObject(this, Formatting.None);
+            /*
+             * 保留输入中的空集合引用和空条目，由现有还原校验决定是否接受。
+             */
+            var copy = new BlackboardSnapshotSet
+            {
+                Version = Version,
+                Owners = Owners == null ? null! : new List<BlackboardSnapshot>(Owners.Count)
+            };
+            if (Owners == null) return copy;
+
+            foreach (var owner in Owners)
+                copy.Owners.Add(CopyOwner(owner));
+            return copy;
         }
 
-        public static BlackboardSnapshotSet FromJson(string json)
+        private static BlackboardSnapshot CopyOwner(BlackboardSnapshot owner)
         {
-            if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("Snapshot set JSON is required.", nameof(json));
-            var snapshots = JsonConvert.DeserializeObject<BlackboardSnapshotSet>(json);
-            if (snapshots == null) throw new InvalidOperationException("Snapshot set JSON produced no snapshots.");
-            return snapshots;
+            if (owner == null) return null!;
+            var copy = new BlackboardSnapshot
+            {
+                Version = owner.Version,
+                OwnerKey = owner.OwnerKey,
+                Boards = owner.Boards == null ? null! : new List<BlackboardSnapshotBoard>(owner.Boards.Count)
+            };
+            if (owner.Boards == null) return copy;
+
+            foreach (var board in owner.Boards)
+            {
+                copy.Boards.Add(board == null ? null! : new BlackboardSnapshotBoard
+                {
+                    BoardId = board.BoardId,
+                    Entries = board.Entries == null ? null! : new List<BlackboardSnapshotEntry>(board.Entries)
+                });
+            }
+            return copy;
         }
     }
 

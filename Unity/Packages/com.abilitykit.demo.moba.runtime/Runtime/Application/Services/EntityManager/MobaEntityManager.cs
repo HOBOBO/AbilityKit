@@ -297,7 +297,8 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
                 MobaRuntimeObjectDefinitionKind.Actor,
                 definitionId,
                 relatedActorId: actorId,
-                ownerActorId: ownerActorId);
+                ownerActorId: ownerActorId,
+                actorKind: MobaBattleDiagnosticStateSampler.ResolveActorKind(entity));
             hook.TryObserve(in observation);
         }
 

@@ -97,7 +97,7 @@ AllowExternal 当前位置（配置/DTO 层）：
 ## 第二套的额外能力（旧 skill 完全未覆盖）
 
 - **TriggerPlan 行为树**：`Sequence / Selector / Parallel / Random / Repeat / Until / If / Invert / Succeed / Fail / Scheduled / ActionCall / Metadata`
-- **校验器**：`CycleDetectorValidator` / `UgcLimitsValidator` / `TriggerPlanExecutableValidator`
+- **校验器**：`CycleDetectorValidator` / `FlatTriggerPlanLimitsValidator` / `TriggerPlanExecutableValidator`
 - **Cue / Lifecycle / Observer / Tracer**：可观测的派发链
 - **ExecutionControl**：hard-stop、cancel、stop-propagation
 - **phase + priority 排序**：精细化派发顺序控制

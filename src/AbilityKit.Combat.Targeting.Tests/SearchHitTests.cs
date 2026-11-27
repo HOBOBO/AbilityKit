@@ -111,32 +111,46 @@ public sealed class SearchHitTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Detailed_stats_reports_actual_candidate_decisions_without_changing_selection(bool streaming)
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Candidate_decisions_and_stats_match_across_selection_paths(int selectorKind)
     {
         var stats = new DetailedSearchStats();
+        ITargetSelector? selector = selectorKind switch
+        {
+            1 => new TopKByScoreSelector(),
+            2 => new StreamingTopKByScoreSelector(),
+            _ => null
+        };
         var query = new SearchQuery(
-            new ArrayProvider(1, 2, 3, 1),
+            new ArrayProvider(0, 2, 1, 7, 3, 5, 3),
             new ITargetRule[] { OddActorIdRule.Instance },
-            new[] { new SearchOrder(new ActorIdScorer()) },
-            streaming ? new StreamingTopKByScoreSelector() : new TopKByScoreSelector(),
-            1, SearchDuplicatePolicy.DistinctByEntityKey);
+            new[] { new SearchOrder(new FirstActorNaNScorer()) },
+            selector!,
+            2, SearchDuplicatePolicy.DistinctByEntityKey);
         using var context = new SearchContext { SearchStats = stats };
         var results = new List<EntityId>();
 
         new TargetSearchEngine().SearchIds(in query, context, results);
 
-        Assert.Equal(new[] { 3 }, ActorIds(results));
+        Assert.Equal(new[] { 7, 5 }, ActorIds(results));
         Assert.Equal(new[] {
-            SearchCandidateDecision.Eligible,
+            SearchCandidateDecision.Invalid,
             SearchCandidateDecision.RuleRejected,
+            SearchCandidateDecision.ScoreUnavailable,
+            SearchCandidateDecision.Eligible,
+            SearchCandidateDecision.Eligible,
             SearchCandidateDecision.Eligible,
             SearchCandidateDecision.Duplicate
         }, stats.Decisions);
+        Assert.Equal(new float?[] { null, null, null, 7f, 3f, 5f, null }, stats.Scores);
         Assert.Equal(0, stats.RejectedRuleIndex);
         Assert.Equal(nameof(OddActorIdRule), stats.RejectedRuleName);
-        Assert.Equal(3f, stats.Scores[2]);
+        Assert.Equal(7, stats.CandidateCount);
+        Assert.Equal(3, stats.HitCount);
+        Assert.Equal(2, stats.ResultCount);
+        Assert.Equal(1, stats.ResultReportCount);
     }
 
     [Fact]
@@ -477,6 +491,62 @@ public sealed class SearchHitTests
     }
 
     [Fact]
+    public void Result_id_view_is_read_only_and_does_not_follow_the_next_lease()
+    {
+        var oldLease = TargetingPool.RentResult();
+        IReadOnlyList<EntityId> oldView;
+        using (oldLease)
+        {
+            oldLease.MutableIds.Add(new EntityId(1));
+            oldView = oldLease.Ids;
+            Assert.Same(oldView, oldLease.Ids);
+        }
+
+        using var currentLease = TargetingPool.RentResult();
+        Assert.Same(oldLease, currentLease);
+        currentLease.MutableIds.Add(new EntityId(2));
+        Assert.Empty(oldView);
+        Assert.Equal(new EntityId(2), Assert.Single(currentLease.Ids));
+        Assert.False(currentLease.Ids is IList<EntityId> writable && !writable.IsReadOnly);
+    }
+
+    [Fact]
+    public void Pooled_result_trims_oversized_storage_after_release()
+    {
+        var previousLease = TargetingPool.RentResult();
+        using (previousLease)
+        {
+            previousLease.MutableIds.Capacity = 8192;
+            previousLease.MutableIds.Add(new EntityId(1));
+        }
+
+        using var currentLease = TargetingPool.RentResult();
+        Assert.Same(previousLease, currentLease);
+        Assert.Empty(currentLease.Ids);
+        Assert.InRange(currentLease.MutableIds.Capacity, 1, 4096);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Equal_scores_sort_by_entity_key_regardless_of_candidate_order(int selectorKind)
+    {
+        ITargetSelector? selector = selectorKind switch
+        {
+            1 => new TopKByScoreSelector(),
+            2 => new StreamingTopKByScoreSelector(),
+            _ => null,
+        };
+        var orders = new[] { new SearchOrder(new ConstantScorer(5)) };
+        var first = new SearchQuery(new ArrayProvider(4, 2, 3, 1), null!, orders, selector!, 2);
+        var second = new SearchQuery(new ArrayProvider(3, 1, 4, 2), null!, orders, selector!, 2);
+
+        Assert.Equal(new[] { 1, 2 }, ActorIds(Execute(first)));
+        Assert.Equal(new[] { 1, 2 }, ActorIds(Execute(second)));
+    }
+
+    [Fact]
     public void SearchResult_CopyTo_rejects_null_destination()
     {
         var result = TargetingPool.RentResult();
@@ -507,6 +577,37 @@ public sealed class SearchHitTests
         Assert.Equal(0, stats.CandidateCount);
         Assert.Equal(0, stats.HitCount);
         Assert.Equal(0, stats.ResultCount);
+        Assert.Equal(1, stats.ResultReportCount);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void No_eligible_candidates_reports_zero_once_without_calling_custom_selector(
+        bool streaming, bool allRejected)
+    {
+        var stats = new RecordingSearchStats();
+        var customSelector = new RecordingSelector();
+        ITargetSelector selector = streaming ? new StreamingTopKByScoreSelector() : customSelector;
+        var query = new SearchQuery(
+            allRejected ? new ArrayProvider(2, 4) : new ArrayProvider(),
+            new ITargetRule[] { OddActorIdRule.Instance },
+            null!,
+            selector,
+            1);
+        using var context = new SearchContext { SearchStats = stats };
+        var results = new List<EntityId> { new EntityId(7) };
+
+        new TargetSearchEngine().SearchIds(in query, context, results);
+
+        Assert.Empty(results);
+        Assert.Equal(0, customSelector.CallCount);
+        Assert.Equal(allRejected ? 2 : 0, stats.CandidateCount);
+        Assert.Equal(0, stats.HitCount);
+        Assert.Equal(0, stats.ResultCount);
+        Assert.Equal(1, stats.ResultReportCount);
     }
 
     [Fact]
@@ -908,6 +1009,7 @@ public sealed class SearchHitTests
 
     private sealed class RecordingSelector : ITargetSelector
     {
+        public int CallCount { get; private set; }
         public int ReceivedHitCount { get; private set; }
 
         public void Select(
@@ -916,6 +1018,7 @@ public sealed class SearchHitTests
             SearchHitView hits,
             SearchResultWriter results)
         {
+            CallCount++;
             ReceivedHitCount = hits.Count;
             for (int i = 0; i < hits.Count; i++)
             {
@@ -967,16 +1070,20 @@ public sealed class SearchHitTests
         }
     }
 
-    private sealed class DetailedSearchStats : ISearchDetailedStats
+    private sealed class DetailedSearchStats : RecordingSearchStats, ISearchDetailedStats
     {
         public List<SearchCandidateDecision> Decisions { get; } = new();
         public List<float?> Scores { get; } = new();
         public int RejectedRuleIndex { get; private set; } = -1;
         public string? RejectedRuleName { get; private set; }
-        public void Reset() { Decisions.Clear(); Scores.Clear(); RejectedRuleIndex = -1; RejectedRuleName = null; }
-        public void OnCandidate() { }
-        public void OnHit() { }
-        public void OnResult(int count) { }
+        public override void Reset()
+        {
+            base.Reset();
+            Decisions.Clear();
+            Scores.Clear();
+            RejectedRuleIndex = -1;
+            RejectedRuleName = null;
+        }
         public void OnDecision(EntityId id, SearchCandidateDecision decision, int ruleIndex,
             string? ruleName, float? primaryScore)
         {
@@ -988,17 +1095,19 @@ public sealed class SearchHitTests
         }
     }
 
-    private sealed class RecordingSearchStats : ISearchStats
+    private class RecordingSearchStats : ISearchStats
     {
         public int CandidateCount { get; private set; }
         public int HitCount { get; private set; }
         public int ResultCount { get; private set; }
+        public int ResultReportCount { get; private set; }
 
-        public void Reset()
+        public virtual void Reset()
         {
             CandidateCount = 0;
             HitCount = 0;
             ResultCount = 0;
+            ResultReportCount = 0;
         }
 
         public void OnCandidate()
@@ -1014,6 +1123,7 @@ public sealed class SearchHitTests
         public void OnResult(int count)
         {
             ResultCount = count;
+            ResultReportCount++;
         }
     }
 

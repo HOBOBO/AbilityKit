@@ -1,6 +1,14 @@
 # AbilityKit Demo MOBA CodeGen
 
-本包负责 MOBA 示例运行时专用的编译期行为：
+本包为 MOBA 项目生成静态清单、配置工厂和部分字段访问/Schema 代码，并提供对应 Roslyn 诊断。它是项目专用编译资产；普通 AbilityKit 配置使用不要求引用本包。
+
+## 定位与环境
+
+包版本、Unity 最低版本和直接依赖见 [package.json](package.json)，当前为 0.0.1 / Unity 2022.3。生成器工程面向 `netstandard2.0`，依赖 Roslyn 3.9；本包测试工程面向 .NET 10。包声明为空依赖不代表它能为任意项目生成内容：实际生成取决于消费编译中的 MOBA 特性、接口、命名空间与 partial 壳。
+
+框架侧现存分析器位于仓库的 `com.abilitykit.analyzer`；旧的 `com.abilitykit.codegen` 已移除。二者的维护边界和仓库级 gate 由仓库设计维护。
+
+## 主要能力
 
 - 为配置表、计划动作、载荷字段、事件、目标查询、投射物、引导阶段、行为树节点、快照、战斗路由和输入处理器生成静态清单。
 - 配置表清单包含强类型 DTO 表和运行时条目表工厂，以及变更 ID 收集器。运行时条目仍通过现有的 `MO(DTO)` 构造函数创建，因此自定义字段转换归 MO 实现负责，不由生成器推断。
@@ -15,20 +23,19 @@
 - 投射物发射器诊断（`AKSG5001` 和 `AKSG5002`）要求实现发射序列接口、生成代码可访问、类型具体且非泛型、具有可访问的无参构造函数，并保证发射器类型/优先级组合无歧义。
 - 快照发射器诊断（`AKSG8001`）要求运行时发射器具体、非泛型、可由生成代码访问、实现快照接口，并使用常量整数优先级。没有运行时清单的外部程序集继续使用反射/DI 扩展路径。
 
-框架级生成器仍位于 `com.abilitykit.codegen`，框架级分析器仍位于 `com.abilitykit.analyzer`。
+此外还有服务/类型注册、World/回滚 manifest、PlanAction Schema 和源码可移植性、Entitas 组件字段检查。具体入口见 [使用指南](Documentation~/Usage.md)，不以本页枚举代替源码诊断目录。
 
-每组 MOBA 生成器/分析器从 `Contracts/` 使用共享契约。生成器过滤无效声明并生成确定性源码；诊断只归分析器负责。所有权测试会阻止诊断回流到生成器实现，也会阻止成对组件的专用验证绕过共享契约。
+成对 Generator/Analyzer 的声明形态校验复用 `Contracts/`；部分 Generator 还会报告空清单等完整性诊断，不能概括为“生成器从不发诊断”。
 
-使用以下命令构建 Roslyn 组件：
+## 首次使用与维护
 
-```powershell
-dotnet build DotNet~/AbilityKit.Demo.Moba.CodeGen/AbilityKit.Demo.Moba.CodeGen.csproj
-```
+Unity 消费包根 `AbilityKit.Demo.Moba.CodeGen.dll` 及其 `RoslynAnalyzer` importer 设置，不会自动构建 `DotNet~` 工程。维护者从 [构建、导入与排错指南](Documentation~/Usage.md) 开始；构建有覆盖包根 DLL 的副作用，应先确认现有 DLL 与工作区归属。
 
-构建会把 `AbilityKit.Demo.Moba.CodeGen.dll` 复制到包根目录。Unity 通过 `RoslynAnalyzer` 标签导入该 DLL。生成清单及其强类型配置工厂是默认的 MOBA 运行时路径。增量重载会先构建并验证整个变更批次的候选 DTO 和 MO 表，再替换现有表内容，因此转换或验证失败不会改变当前数据库状态。没有生成工厂的注册表和配置定义继续保留现有反射回退，以兼容外部或旧注册项。
+- [包内导航](Documentation~/README.md)
+- [使用契约、编译输入和失败定位](Documentation~/Usage.md)
+- [生成器与分析器源码](DotNet~/AbilityKit.Demo.Moba.CodeGen)
+- [契约测试源码](DotNet~/AbilityKit.Demo.Moba.CodeGen.Tests)
 
-合并编译期修改前运行仓库契约门禁：
+## 核校与限制
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate moba-codegen
-```
+2026-11-25 已在源码相同的隔离副本中通过 19 项测试，未覆盖原包 DLL。仓库所有权检查单步通过；完整 `moba-codegen` gate、Unity 导入/生成结果和现有 DLL 与源码的对应关系未在本批验证。数据 reload 的提交、身份、事件及线程语义由数据库消费者定义，生成成功不保证运行时事务或业务有效性。

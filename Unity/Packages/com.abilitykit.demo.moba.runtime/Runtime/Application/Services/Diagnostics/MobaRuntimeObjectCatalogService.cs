@@ -149,7 +149,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 if (_records == null) return false;
                 var identity = new ObjectIdentity(kind, runtimeId);
-                if (frame < 0 && _latest.TryGetValue(identity, out var latest))
+                if (_latest.TryGetValue(identity, out var latest) && (frame < 0 || latest.CoversFrame(frame)))
                 {
                     key = latest.Key;
                     return true;
@@ -159,8 +159,7 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     var state = _records[i];
                     if (!state.Identity.Equals(identity)) continue;
-                    if (state.CreatedFrame >= 0 && frame < state.CreatedFrame) continue;
-                    if (state.DestroyedFrame >= 0 && frame > state.DestroyedFrame) continue;
+                    if (!state.CoversFrame(frame)) continue;
                     key = state.Key;
                     return true;
                 }
@@ -612,12 +611,17 @@ namespace AbilityKit.Demo.Moba.Services
             public string DisplayName;
             public BattleDiagnosticRuntimeObjectDiscoveryKind DiscoveryKind;
             public int BackfilledFrame;
+            public BattleDiagnosticActorKind ActorKind;
+
+            public bool CoversFrame(int frame) => (CreatedFrame < 0 || frame >= CreatedFrame) &&
+                                                  (DestroyedFrame < 0 || frame <= DestroyedFrame);
 
             public void Merge(in MobaRuntimeObjectLifecycleObservation observation)
             {
                 if (observation.DefinitionKind != MobaRuntimeObjectDefinitionKind.Unknown)
                     DefinitionKind = observation.DefinitionKind;
                 if (observation.DefinitionId != 0) DefinitionId = observation.DefinitionId;
+                if (ActorKind == BattleDiagnosticActorKind.Unknown) ActorKind = observation.ActorKind;
                 if (observation.RelatedActorId != 0L) RelatedActorId = observation.RelatedActorId;
                 if (observation.OwnerActorId != 0L) OwnerActorId = observation.OwnerActorId;
                 if (observation.SourceActorId != 0L) SourceActorId = observation.SourceActorId;
@@ -655,7 +659,8 @@ namespace AbilityKit.Demo.Moba.Services
                     EndReason,
                     DisplayName,
                     DiscoveryKind,
-                    BackfilledFrame);
+                    BackfilledFrame,
+                    ActorKind);
             }
         }
 

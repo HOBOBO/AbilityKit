@@ -58,7 +58,7 @@ public sealed class OwnerBlackboardMembershipRestoreTests
         Assert.True(store.TryCaptureSnapshotSet(out var before, out _));
         Assert.False(store.TryPrepareMembershipRestore(snapshot, Array.Empty<long>(), out _, out _));
         Assert.True(store.TryCaptureSnapshotSet(out var after, out _));
-        Assert.Equal(before.ToJson(), after.ToJson());
+        Assert.Equal(BlackboardSnapshotJsonCodec.Serialize(before), BlackboardSnapshotJsonCodec.Serialize(after));
     }
 
     [Theory]
@@ -111,13 +111,18 @@ public sealed class OwnerBlackboardMembershipRestoreTests
         Assert.False(plan.TryApply(out var error));
         Assert.Contains("previous state restored", error);
         Assert.True(store.TryCaptureSnapshotSet(out var after, out _));
-        Assert.Equal(before.ToJson(), after.ToJson());
+        Assert.Equal(BlackboardSnapshotJsonCodec.Serialize(before), BlackboardSnapshotJsonCodec.Serialize(after));
         Assert.Same(first, store.GetOrCreate(11));
         Assert.Same(second, store.GetOrCreate(12));
     }
 
-    [Fact]
-    public void In_place_template_changes_invalidate_prepared_plan()
+    [Theory]
+    [InlineData("type")]
+    [InlineData("permission")]
+    [InlineData("default")]
+    [InlineData("key-list")]
+    [InlineData("scope")]
+    public void In_place_template_changes_invalidate_prepared_plan(string mutation)
     {
         var template = new BlackboardInitializationPlan
         {
@@ -130,8 +135,16 @@ public sealed class OwnerBlackboardMembershipRestoreTests
         Assert.True(store.TryCaptureSnapshotSet(out var snapshot, out _));
         store.Release(11);
         Assert.True(store.TryPrepareMembershipRestore(snapshot, new long[] { 11 }, out var plan, out _));
-        template.Keys[0].Type = BlackboardKeyType.Bool;
-        Assert.False(plan.TryApply(out _));
+        switch (mutation)
+        {
+            case "type": template.Keys[0].Type = BlackboardKeyType.Bool; break;
+            case "permission": template.Keys[0].CanWrite = false; break;
+            case "default": template.Keys[0].IntValue = 11; break;
+            case "key-list": template.Keys.Add(null!); break;
+            case "scope": template.Scope = BlackboardInitializationScopes.Global; break;
+        }
+        Assert.False(plan.TryApply(out var error));
+        Assert.Contains("stale", error);
         Assert.False(store.TryGet(11, out _));
     }
 
@@ -154,9 +167,17 @@ public sealed class OwnerBlackboardMembershipRestoreTests
         store.GetOrCreate(11);
         Assert.True(store.TryCaptureSnapshotSet(out var snapshot, out _));
         Assert.True(store.TryPrepareMembershipRestore(snapshot, new long[] { 11 }, out var detached, out _));
+        var entry = snapshot.Owners[0].Boards[0].Entries[0];
+        entry.IntValue = 73;
+        snapshot.Owners[0].Boards[0].Entries[0] = entry;
+        snapshot.Owners[0].Boards[0].Entries.Clear();
+        snapshot.Owners[0].Boards.Clear();
         snapshot.Owners.Clear();
         Assert.True(detached.TryApply(out var error), error);
-        Assert.True(store.TryGet(11, out _));
+        Assert.True(store.TryGet(11, out var resolver));
+        Assert.True(resolver.TryResolve(1, out var board));
+        Assert.True(board.TryGetInt(2, out var value));
+        Assert.Equal(3, value);
 
         Assert.True(store.TryCaptureSnapshotSet(out snapshot, out _));
         Assert.True(store.TryPrepareMembershipRestore(snapshot, new long[] { 11 }, out var stale, out _));

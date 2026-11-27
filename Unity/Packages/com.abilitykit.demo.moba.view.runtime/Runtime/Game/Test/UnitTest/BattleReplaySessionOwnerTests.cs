@@ -1,9 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
@@ -484,6 +486,39 @@ namespace AbilityKit.Game.Test.UnitTest
 
             secondRuntime.DisposeRecordWriter();
             Assert.That(secondWriter.DisposeCount, Is.EqualTo(1));
+        }
+
+        [TestCase(BattleRecordCoverage.InputsAndHashes, 0)]
+        [TestCase(BattleRecordCoverage.WithSnapshots, 1)]
+        public void RecordController_WritesOnlyTheRequestedTracks(BattleRecordCoverage coverage, int snapshotCount)
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"abilitykit-battle-record-{Guid.NewGuid():N}.bin");
+            var plan = BattleStartPlanBuilder.ForWorld("battle-world", "moba", "client-1", "player-1", 30, 0)
+                .WithRunMode(BattleRunMode.Record, true, path, false, string.Empty, coverage).Build();
+            var controller = new SessionReplayController();
+            var context = new BattleContext();
+            using var runtime = CreateReplayRuntime();
+            try
+            {
+                controller.SetupReplayOrRecord(plan, context, runtime);
+                var frame = new FrameIndex(1);
+                context.InputRecordWriter.Append(new PlayerInputCommand(frame, new PlayerId("player-1"), 71, new byte[] { 11 }));
+                context.InputRecordWriter.AppendStateHash(frame.Value, 1, 42u);
+                controller.OnFrameReceived(plan, new BattleSessionState(), context,
+                    new FramePacket(new WorldId("battle-world"), frame, null, new WorldStateSnapshot(72, new byte[] { 21 })));
+                runtime.DisposeRecordWriter();
+
+                var record = BattleRecordFiles.Load(path);
+                Assert.That(record.Inputs.Count, Is.EqualTo(1));
+                Assert.That(record.StateHashes.Count, Is.EqualTo(1));
+                Assert.That(record.Snapshots.Count, Is.EqualTo(snapshotCount));
+                Assert.That(context.InputRecordWriter, Is.Null);
+            }
+            finally
+            {
+                runtime.DisposeRecordWriter();
+                File.Delete(path);
+            }
         }
 
         private static BattleReplayRuntime CreateReplayRuntime()

@@ -187,7 +187,7 @@
   {
     "Id": 90013001,
     "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Q",
-    "DurationMs": 700
+    "DurationMs": 4375
   },
   {
     "Id": 90013002,
@@ -507,7 +507,7 @@
   {
     "Id": 90035012,
     "Resource": "moba/presentation/gragas/R_Impact",
-    "DurationMs": 1000
+    "DurationMs": 1250
   },
   {
     "Id": 90035013,
@@ -536,7 +536,7 @@
   },
   {
     "Id": 90036002,
-    "Resource": "ChampionVfx/11.Karthus_Project/Karthus_Project_AA_Projectile",
+    "Resource": "moba/presentation/karthus/AA_Projectile",
     "DurationMs": 0
   },
   {
@@ -636,7 +636,7 @@
   },
   {
     "Id": 90037007,
-    "Resource": "ChampionVfx/12.Lux_DarkStar/Lux_DarkStar_Passive_Hit",
+    "Resource": "moba/presentation/lux/Passive_Hit",
     "DurationMs": 1600
   },
   {
@@ -703,6 +703,16 @@
     "Id": 90036016,
     "Resource": "moba/presentation/karthus/W_Preview",
     "DurationMs": 0
+  },
+  {
+    "Id": 90036017,
+    "Resource": "moba/presentation/karthus/E_Activation",
+    "DurationMs": 1100
+  },
+  {
+    "Id": 90036018,
+    "Resource": "moba/presentation/karthus/E_Deactivation",
+    "DurationMs": 1100
   },
   {
     "Id": 90013020,
@@ -788,5 +798,20 @@
     "Id": 90032003,
     "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_AA_Rocket_Cast",
     "DurationMs": 400
+  },
+  {
+    "Id": 90031002,
+    "Resource": "ChampionVfx/13.Jhin_Battlecast/Jhin_Battlecast_Mark_Buff",
+    "DurationMs": 0
+  },
+  {
+    "Id": 90032028,
+    "Resource": "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_R_Cast",
+    "DurationMs": 400
+  },
+  {
+    "Id": 90032030,
+    "Resource": "MobaVfx/Jinx/W_ZapRange",
+    "DurationMs": 500
   }
 ]

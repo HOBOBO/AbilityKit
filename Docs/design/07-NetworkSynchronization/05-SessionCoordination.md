@@ -3,6 +3,7 @@
 > **文档类型：Canonical 设计**
 >
 > **事实基线：2026-08-16**
+> **局部核校：2026-11-25**；本次仅更新 Coordinator 包的目录归属、使用入口和限定验证摘要，其余会话链路保留原基线。
 >
 > **规范范围：** Room 控制面、battle 数据面、同步能力绑定、可靠事件恢复和客户端所有权；不替项目定义房间交互状态机。
 
@@ -136,10 +137,11 @@ flowchart TB
 
 ### 4.1 当前保留内容与缺失实现面
 
-当前 Package 可用于共享配置、host/policy 契约和数据边界，但不能直接创建或驱动一次客户端会话。已核验的 Runtime 文件集中在 `Core` 和 `Data`：
+当前 Package 可用于共享配置、host/policy 契约和数据边界，但不能直接创建或驱动一次客户端会话。现行接入、失败与所有权契约统一见 [Coordinator 使用指南](../../../Unity/Packages/com.abilitykit.coordinator/Documentation~/Usage.md)，Runtime 文件按以下目录归属：
 
-- Core：`ILogicWorldDriveGate`、`ILogicWorldDriverBridge`、`ISessionCoordinatorHost`、`ISessionCoordinatorConfigPolicy`、`ISpawnService`、会话配置与 ID。
-- Data：payload codec、实体状态、帧快照、网络端点、玩家输入和 spawn data。
+- `Session`：`ISessionCoordinatorHost`、`ISessionCoordinatorConfigPolicy`、会话配置、派生策略、ID 与网络端点。
+- `WorldBridge`：`ILogicWorldDriveGate`、`ILogicWorldDriverBridge`、可选缓冲桥接与扩展、`ISpawnService`。
+- `Data`：payload codec、实体状态、帧快照、玩家输入和 spawn data。
 
 以下历史实现当前不存在：
 
@@ -160,6 +162,8 @@ flowchart TB
 | 历史 coordinator/adapter 可直接使用 | 当前无实现文件 | 不成立 |
 | Console Demo 有 Local/Remote/Hybrid adapter | Console Demo 源码 | E1，限 Demo 实验路径 |
 | 同步 Profile 与远端能力协商 | SDK/Room 源码、Shooter/MOBA 消费者与专项测试 | E1-E3；不代表框架提供统一同步算法 |
+
+2026-11-25 另执行 Coordinator 现有 .NET 契约测试及指南完整本地示例，范围为配置派生、输入、采样缓冲与 payload 往返；命令、结果和未覆盖项见[本批记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#12-d3-协议工具与会话协调契约核校记录2026-11-25)。这些局部 E3 不验证本节后续 Room/Battle 会话、世界推进、帧同步重演或状态同步恢复链。
 
 ---
 
@@ -728,4 +732,4 @@ Batch W 的 Network SDK E3 为 `96/96`；Network Room `36/36` 来自 Batch V，G
 
 ---
 
-*文档版本：v3.2 | 最后更新：2026-08-16 | 文档类型：Canonical 设计*
+*文档版本：v3.3 | 最后更新：2026-11-25（第 4 节及导航）| 文档类型：Canonical 设计*

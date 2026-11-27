@@ -1,0 +1,2813 @@
+{
+  "format": "abilitykit.local-statesync-replay",
+  "version": 3,
+  "caseId": "annie-w-e-local-skill",
+  "variant": "rejected",
+  "tickRate": 30,
+  "skillDelivery": {
+    "primaryLabel": "安妮 W",
+    "secondaryLabel": "安妮 E",
+    "firstInputTick": 36,
+    "anchorTick": 63,
+    "inputTick": 90,
+    "deliveryTick": 93,
+    "terminalThroughSequence": 1,
+    "pendingSequence": 2,
+    "replayedSequence": 2,
+    "oldInputRejectCode": "skill.start.alreadyRunning",
+    "steps": [
+      {
+        "tick": 64,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 65,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 66,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 67,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 68,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 69,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 70,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 71,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 72,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 73,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 74,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 75,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 76,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 77,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 78,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 79,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 80,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 81,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 82,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 83,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 84,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 85,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 86,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 87,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 88,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 89,
+        "state": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      },
+      {
+        "tick": 90,
+        "state": {
+          "manaRaw": 1537598291968,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 12994
+        }
+      },
+      {
+        "tick": 91,
+        "state": {
+          "manaRaw": 1537827356905,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 12994
+        }
+      },
+      {
+        "tick": 92,
+        "state": {
+          "manaRaw": 1538056421842,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 12994
+        }
+      },
+      {
+        "tick": 93,
+        "state": {
+          "manaRaw": 1538285486779,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 12994
+        }
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "command": "skill",
+      "deliveryTick": 35,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 36,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1494648619008,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1494648619008,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 37,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1494877683945,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1494877683945,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 38,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1495106748882,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1495106748882,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 39,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1495335813819,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1495335813819,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 40,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1495564878756,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1495564878756,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 41,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1495793943693,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1495793943693,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 42,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1496023008630,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1496023008630,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 43,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1496252073567,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1496252073567,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 44,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1496481138504,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1496481138504,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 45,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1496710203441,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1496710203441,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 46,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1496939268378,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1496939268378,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 47,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1497168333315,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1497168333315,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 48,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1497397398252,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1497397398252,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 49,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1497626463189,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1497626463189,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 50,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1497855528126,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1497855528126,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 51,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1498084593063,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1498084593063,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 52,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1498313658000,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1498313658000,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 53,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1498542722937,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1498542722937,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 54,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1498771787874,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1498771787874,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 55,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1499000852811,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1499000852811,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 56,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1499229917748,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1499229917748,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 57,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1499458982685,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1499458982685,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 58,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1499688047622,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1499688047622,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 59,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1499917112559,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1499917112559,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 60,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1500146177496,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1500146177496,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 61,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1500375242433,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1500375242433,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 62,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1500604307370,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1500604307370,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 63,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1500833372307,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1500833372307,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 64,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1501062437244,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1501062437244,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 65,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1501291502181,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1501291502181,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 66,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1501520567118,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1501520567118,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 67,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1501749632055,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1501749632055,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 68,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1501978696992,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1501978696992,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 69,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1502207761929,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1502207761929,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 70,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1502436826866,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1502436826866,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 71,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1502665891803,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1502665891803,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 72,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1502894956740,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1502894956740,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 73,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1503124021677,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1503124021677,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 74,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1503353086614,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1503353086614,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 75,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1503582151551,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1503582151551,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 76,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1503811216488,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1503811216488,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 77,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1504040281425,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1504040281425,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 78,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1504269346362,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1504269346362,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 79,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1504498411299,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1504498411299,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 80,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1504727476236,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1504727476236,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 81,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1504956541173,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1504956541173,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 82,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1505185606110,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1505185606110,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 83,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1505414671047,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1505414671047,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 84,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1505643735984,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1505643735984,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 85,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1505872800921,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1505872800921,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 86,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1506101865858,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1506101865858,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 87,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1506330930795,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1506330930795,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 88,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1506559995732,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1506559995732,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 89,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1506789060669,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1506789060669,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 90,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1507018125606,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1507018125606,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 91,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1507247190543,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1507247190543,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 92,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1507476255480,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1507476255480,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 93,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1507705320417,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1538285486779,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 12994
+        }
+      }
+    },
+    {
+      "command": "skill",
+      "deliveryTick": 94,
+      "generation": 0,
+      "admission": null,
+      "validation": null,
+      "reconciliation": null,
+      "sequence": 0,
+      "appliedTick": 0,
+      "baselineTick": 0,
+      "publishedRevision": null,
+      "reconciledRevision": 0,
+      "terminalSequence": 0,
+      "streamWaiting": false,
+      "predictionWaiting": false,
+      "imports": 0,
+      "publishedPosition": null,
+      "authority": null,
+      "prediction": null,
+      "pending": [],
+      "replayTicks": [],
+      "skill": {
+        "authority": {
+          "manaRaw": 1795296329728,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 0
+        },
+        "oldPrediction": {
+          "manaRaw": 1507934385354,
+          "targetHealthRaw": 214547932992854,
+          "primaryCooldownEndMs": 8194,
+          "secondaryCooldownEndMs": 0
+        },
+        "published": {
+          "manaRaw": 1538514551716,
+          "targetHealthRaw": 214748364800000,
+          "primaryCooldownEndMs": 0,
+          "secondaryCooldownEndMs": 12994
+        }
+      }
+    }
+  ]
+}

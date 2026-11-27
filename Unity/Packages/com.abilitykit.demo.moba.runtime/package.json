@@ -15,6 +15,7 @@
                          "com.abilitykit.attributes":  "0.1.0",
                          "com.abilitykit.actionschema":  "0.1.0",
                          "com.abilitykit.hfsm":  "0.1.0",
+                         "com.abilitykit.hfsm.core":  "0.1.0",
                          "com.abilitykit.host":  "0.1.0",
                          "com.abilitykit.world.di":  "0.1.0",
                          "com.abilitykit.world.entitas":  "0.1.0",

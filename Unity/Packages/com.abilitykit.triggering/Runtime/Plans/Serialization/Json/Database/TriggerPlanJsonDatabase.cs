@@ -79,7 +79,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         public long MutationVersion { get; private set; }
 
         /// <summary>
-        /// 按加载或写入顺序返回记录；原始输入可能含重复 ID。
+        /// 直接加载后按输入顺序返回原始行，可能含重复 ID。
+        /// 合库或成功按 ID 写入后，每个 ID 只保留生效记录，位置按 ID 首次出现的顺序排列。
         /// </summary>
         public IReadOnlyList<Record> Records => _store.Records;
 
@@ -103,16 +104,19 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         public bool TryGetString(int id, out string value) => _store.TryGetString(id, out value!);
 
         /// <summary>
-        /// 按 ID 查询索引记录；原始输入重复时返回最后加载的记录。
+        /// 按 ID 查询完整记录；直接加载的输入有重复 ID 时，返回最后加载的一条记录。
         /// </summary>
+        /// <remarks>
+        /// 运行态应从这条记录同时读取作用域、计划和执行根。执行根为空时，不回退到同 ID 的旧执行根。
+        /// </remarks>
         public bool TryGetRecordByTriggerId(int triggerId, out Record record) => _store.TryGetRecord(triggerId, out record);
 
         /// <summary>
-        /// 按 ID 查询索引记录对应的计划。
+        /// 按 ID 查询索引记录对应的计划；需要作用域或执行根时，应查询完整记录。
         /// </summary>
         public bool TryGetPlanByTriggerId(int triggerId, out TriggerPlan<object> plan)
         {
-            if (_store.TryGetRecord(triggerId, out var record))
+            if (TryGetRecordByTriggerId(triggerId, out var record))
             {
                 plan = record.Plan;
                 return true;
@@ -123,9 +127,12 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         /// <summary>
-        /// 查询执行根索引；原始输入重复时索引保留最后一个非空执行根。
-        /// 覆盖写入不使用此规则，新记录没有执行根时会清除已有索引。
+        /// 查询历史执行根索引；原始输入重复时索引保留最后一个非空执行根。
         /// </summary>
+        /// <remarks>
+        /// 直接加载重复 ID 时，返回的执行根可能不是索引记录上的执行根，不要用本方法为计划配对。
+        /// 合库或成功按 ID 写入后，索引只对应生效记录；无执行根时不再保留历史值。
+        /// </remarks>
         public bool TryGetExecutionRootByTriggerId(int triggerId, out ITriggerPlanExecutable root) =>
             _store.TryGetRoot(triggerId, out root!);
 
@@ -140,7 +147,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         /// <summary>
-        /// 写入计划记录；覆盖时替换整条记录并同步更新执行根索引。
+        /// 按 ID 写入整条记录；成功写入时先收敛目标库中的重复 ID，并同步执行根索引。
         /// </summary>
         public void AddRecord(in Record record, bool replaceExisting = true)
         {
@@ -150,16 +157,16 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         /// <summary>
-        /// 按源库的记录顺序合并字符串、触发器计划和黑板初始化配置。
+        /// 合并字符串、触发器计划和黑板初始化配置；计划按 ID 首次出现的顺序合并生效记录。
         /// </summary>
-        /// <param name="source">待合并的源库；为空时不修改目标库。</param>
-        /// <param name="replaceExisting">为真时同 ID 的后续定义覆盖已有定义；否则保留最先加入的定义。</param>
+        /// <param name="source">待合并的源库，不会被修改；为空或为当前库时不执行合并。</param>
+        /// <param name="replaceExisting">是否用源库的生效记录覆盖目标库已有的同 ID 记录，不改变单库内最后一条生效的规则。</param>
         /// <remarks>
         /// 此操作不发现文件、不校验配置，也不初始化黑板；由宿主决定输入、合并顺序及校验时机。
         /// </remarks>
         public void MergeFrom(TriggerPlanJsonDatabase source, bool replaceExisting = true)
         {
-            if (source == null) return;
+            if (source == null || ReferenceEquals(source, this)) return;
             _store.MergeFrom(source._store, replaceExisting);
             ContentRevision = ContentRevision == null || source.ContentRevision == null ? null :
                 HashRevision(new JArray(ContentRevision, source.ContentRevision, replaceExisting));

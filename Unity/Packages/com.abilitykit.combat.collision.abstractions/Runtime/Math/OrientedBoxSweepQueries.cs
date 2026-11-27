@@ -125,7 +125,12 @@ namespace AbilityKit.Core.Mathematics
             {
                 var separating = MinSeparatingAxis(in localOrigin, in expanded);
                 localNormal = separating;
-                if (Vec3.Dot(localDir, separating) >= 0f)
+                /*
+                 * 世界与盒本地系换算、切向投影均会留下浮点尾差。
+                 * 已接触时将数值容差内的朝内分量视为切向，避免第二次扫掠
+                 * 把沿墙位移再次拦为零距离命中。
+                 */
+                if (Vec3.Dot(localDir, separating) >= -MathUtil.Epsilon)
                 {
                     distance = 0f;
                     return false;

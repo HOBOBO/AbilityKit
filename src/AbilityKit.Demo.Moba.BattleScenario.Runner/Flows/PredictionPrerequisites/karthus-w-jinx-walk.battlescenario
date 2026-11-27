@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 3, "caseId": "karthus-w-jinx-walk", "displayName": "Karthus W / Jinx walk",
+  "tags": ["state-sync", "local-replay"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 9000},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3006, "attributeTemplateId": 3006, "teamId": 1, "position": {"x": 12, "y": 0, "z": -10}, "playerId": "player_2"},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "runner", "heroId": 3002, "attributeTemplateId": 3002, "teamId": 2, "position": {"x": 9, "y": 0, "z": -8}, "playerId": "player_1"}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 2, "position": {"x": 9, "y": 0, "z": -6}, "direction": {"x": 0, "y": 0, "z": 1}}
+    ]
+  }
+}

@@ -4,6 +4,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Core.Logging;
 using AbilityKit.Effect;
 using AbilityKit.Core.Mathematics;
@@ -32,6 +33,7 @@ namespace AbilityKit.Demo.Moba.Services
             public readonly SkillCastStage Stage;
             public readonly int ElapsedMs;
             public readonly int NextEventIndex;
+            public readonly CastWindupTiming WindupTiming;
 
             public RunningSnapshot(
                 long instanceId,
@@ -46,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Services
                 Vec3 aimDir,
                 SkillCastStage stage,
                 int elapsedMs,
-                int nextEventIndex)
+                int nextEventIndex, CastWindupTiming windupTiming = default)
             {
                 InstanceId = instanceId;
                 OwnerActorId = ownerActorId;
@@ -61,6 +63,7 @@ namespace AbilityKit.Demo.Moba.Services
                 Stage = stage;
                 ElapsedMs = elapsedMs;
                 NextEventIndex = nextEventIndex;
+                WindupTiming = windupTiming;
             }
         }
 
@@ -457,16 +460,21 @@ namespace AbilityKit.Demo.Moba.Services
             LastStartReject = SkillPipelineStartReject.None;
             LastPipelineFailure = SkillPipelineFailure.None;
 
-            var serializeAttackSlot = request.WorldServices != null &&
+            var hasBasicAttackFlow = false;
+            var isNormalAttack = false;
+            if (request.WorldServices != null &&
                 request.WorldServices.TryResolve<MobaConfigDatabase>(out var configs) && configs != null &&
-                configs.TryGetSkill(request.SkillId, out var skill) &&
-                configs.TryGetSkillFlow(skill.CastFlowId, out var flow) && flow.BasicAttack != null;
+                configs.TryGetSkill(request.SkillId, out var skill))
+            {
+                isNormalAttack = skill.SkillType == SkillType.NormalAttack;
+                hasBasicAttackFlow = configs.TryGetSkillFlow(skill.CastFlowId, out var flow) && flow.BasicAttack != null;
+            }
             for (var i = 0; i < _running.Count; i++)
             {
                 var running = _running[i];
                 if (policy.IsAuxiliary && running.Request.SkillId == request.SkillId)
                     return RejectStart(in request, triggerContext, SkillFailureCodes.Start.AlreadyRunning, "Auxiliary skill is already running.");
-                if (serializeAttackSlot && running.Request.SkillSlot == request.SkillSlot && !IsNormalRecovery(in running))
+                if (hasBasicAttackFlow && running.Request.SkillSlot == request.SkillSlot && !IsNormalRecovery(in running))
                     return RejectStart(in request, triggerContext, SkillFailureCodes.Start.AlreadyRunning, "Basic attack is winding up.");
                 if (!Conflicts(in policy, in running.Policy)) continue;
                 if (IsNormalRecovery(in running)) continue;
@@ -540,10 +548,12 @@ namespace AbilityKit.Demo.Moba.Services
             for (var i = _running.Count - 1; i >= 0; i--)
             {
                 var running = _running[i];
-                if (Conflicts(in policy, in running.Policy) ||
-                    serializeAttackSlot && running.Request.SkillSlot == request.SkillSlot)
+                var isRecovery = IsNormalRecovery(in running);
+                var sameSlotHandoff = running.Request.SkillSlot == request.SkillSlot &&
+                    (hasBasicAttackFlow || (isNormalAttack && isRecovery));
+                if (Conflicts(in policy, in running.Policy) || sameSlotHandoff)
                 {
-                    if (IsNormalRecovery(in running)) recoveries.Add(running.Context);
+                    if (isRecovery) recoveries.Add(running.Context);
                     else CancelAt(i, in running, "InterruptRunning");
                 }
             }
@@ -1442,6 +1452,9 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var elapsedMs = e.Context != null ? (int)(e.Context.ElapsedTime * 1000f) : 0;
             var nextEventIndex = e.Context != null ? e.Context.TimelineNextEventIndex : 0;
+            var phaseIndex = e.Run?.CurrentPhaseIndex ?? -1;
+            var windupTiming = e.Run != null && (uint)phaseIndex < (uint)e.Run.Phases.Count &&
+                e.Run.Phases[phaseIndex] is SkillTimelinePhase timeline ? timeline.WindupTiming : default;
 
             return new RunningSnapshot(
                 instanceId: GetInstanceId(in e),
@@ -1456,7 +1469,7 @@ namespace AbilityKit.Demo.Moba.Services
                 aimDir: e.Context != null ? e.Context.AimDir : Vec3.Forward,
                 stage: stage,
                 elapsedMs: elapsedMs,
-                nextEventIndex: nextEventIndex);
+                nextEventIndex: nextEventIndex, windupTiming: windupTiming);
         }
 
         private enum EntryStage

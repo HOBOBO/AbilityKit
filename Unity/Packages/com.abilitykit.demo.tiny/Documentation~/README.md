@@ -1,5 +1,7 @@
-# Tiny 接入文档
+# Tiny 使用文档
 
-从 [IntegrationGuide.md](IntegrationGuide.md) 开始。它随 `com.abilitykit.demo.tiny` 包分发，说明依赖、项目入口、服务端前提、逐章练习和验收边界，不要求读者先取得 AbilityKit 源码仓库。
+- [项目接入指南](IntegrationGuide.md)：依赖、服务端前提、正式项目入口、同步模式和排错。
+- [`07 Project Entry`](../Samples~/07-ProjectEntry/README.md)：项目自己的大厅如何进入 Tiny 并返回。
+- [`02 Room`](../Samples~/02-Room/README.md)、[`03 State`](../Samples~/03-State/README.md)、[`04 Frame`](../Samples~/04-Frame/README.md)、[`05 Hybrid`](../Samples~/05-Hybrid/README.md)、[`06 Recovery`](../Samples~/06-Recovery/README.md)：逐步了解局部 API，不能替代完整会话实现。
 
-本包提供 Unity 客户端、场景和 02–06 可导入样例。纯规则与 01 样例在依赖包 `com.abilitykit.demo.tiny.logic` 中；Orleans 服务端的 Tiny 玩法模块属于仓库中的 .NET 宿主工程，不包含在 Unity UPM 包里。
+纯规则和 `01 Logic` 样例由依赖包 `com.abilitykit.demo.tiny.logic` 提供。Orleans Host、Gateway 和 Tiny 服务端玩法模块不随 Unity UPM 包分发。

@@ -47,21 +47,20 @@ ExecCtx<TCtx>
 
 | 层级 | 定位 | 推荐状态 |
 | --- | --- | --- |
-| `Runtime.ActionScheduler` | 扁平 `TriggerPlan` 的延迟、周期、连续动作 | 可选专项 |
+| `IFlatActionScheduler` | 扁平 `TriggerPlan` 的延迟、周期、连续动作；宿主自实现，或选装 `com.abilitykit.triggering.actionscheduling` | 可选专项，核心只依赖登记接口 |
 | `ITriggerExecutionScheduler` | 执行树的时间节点向宿主登记子树，可复用包内 `TriggerExecutionScheduler` | 可选专项 |
-| `Runtime.RuleScheduler` | 独立的业务时间规则，例如“延后/每隔/保持期间” | 可选专项 |
-| `Runtime.Schedule` | 早期通用调度与适配层 | 兼容层，不新增依赖 |
+| `Runtime.Schedule` | 早期通用调度与适配层 | 已移除，仅作历史定位 |
 | `Runtime.Scheduler` | 已删除的旧入口 | 仅作历史定位，不是现存调度层 |
 
-`RuleScheduler` 的 `WhileActive` 表示“调度条目未完成、未取消、未中断时持续按间隔执行”，不代表 Core Continuous 的 `ContinuousState.Active`，也不接管 Buff 生命周期。Buff 等持续行为仍应由 Core `IContinuousManager` 管理，Triggering 只负责规则触发与调度驱动适配。
+独立业务定时由宿主负责，可在定时任务到期时发布即时事件。Buff 等持续行为仍由宿主的领域系统管理；旧独立调度的退役与替代范围见[正式入口边界](FormalApiBoundary.md#旧独立业务调度已移除)。
 
 ## 五、最小接入示例
 
-从 Package Manager 导入 **Triggering Mainline**，运行 `FormalTriggeringMainlineExample.RunOnce()`。它只验证即时规则，不加载 JSON、不装配调度、不推进时间。独立业务定时规则另见 **Triggering Rule Scheduling**，排队事件的 `Flush` 另见 **Triggering Queued Events**（事件刷新不是时间调度）。详见[样例盘点](SampleInventory.md)。
+从 Package Manager 导入 **Triggering Mainline**，运行 `FormalTriggeringMainlineExample.RunOnce()` 验证即时规则，或单独运行 `RunNestedDispatchOnce()` 查看嵌套派发和退订。两者都不加载 JSON、不装配调度、不推进时间。排队事件的 `Flush` 另见 **Triggering Queued Events**（事件刷新不是时间调度）。详见[样例盘点](SampleInventory.md)。
 
 ## 六、稳定性约束
 
-- 数据化计划进入运行前应执行验证，至少覆盖引用、动作参数、调度语义和 UGC 限制。
-- `ExecPolicy.RequireDeterministic` 下，计划不得依赖随机数、系统时间、网络请求等非确定性能力。
+- 数据化计划进入运行前应显式校验结构与引用。UGC 等不受信内容的权限、准入与运行预算由宿主或包外扩展负责，见[通用校验与宿主扩展](FormalApiBoundary.md#通用校验与宿主扩展)。
+- `ExecPolicy.RequireDeterministic` 检查计划绑定使用的注册标记；宿主负责可重演的时间、输入和随机流，见[确定性边界](FormalApiBoundary.md#确定性边界)。
 - Runtime 包不应新增 Buff、Projectile、AOE 等项目词汇；这些应下沉到 Demo、Samples 或业务包。
 - 遗留目录保留是为了兼容现有 GUID 和旧项目引用，不代表正式主线入口。

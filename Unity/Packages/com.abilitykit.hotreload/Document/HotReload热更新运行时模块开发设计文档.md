@@ -33,7 +33,7 @@ HotReload 是一个面向 Entitas 世界的轻量替换内核。它把新程序�
 | 层次 | 入口 | 职责 |
 |------|------|------|
 | Unity package | `Unity/Packages/com.abilitykit.hotreload/Runtime/HotReload` | Entry、Proxy、Overlay、Static Registry 和日志接口 |
-| .NET 镜像 | `src/AbilityKit.HotReload/AbilityKit.HotReload.csproj` | 编译 package Runtime；排除 Unity Editor 配置监听器 |
+| .NET 镜像 | `src/AbilityKit.HotReload/AbilityKit.HotReload.csproj` | 直接编译 package `Runtime/`，不包含 `Editor/` |
 | Editor 宿主 | `Unity/Packages/com.abilitykit.demo.moba.editor/Editor/HotReload/HotReloadMenu.cs` | 编译 DLL、选择程序集、反射发现 Entry、定位当前世界并调用 Apply |
 | 热更项目 | `Unity/HotUpdateSrc/Hotfix.Ability.Moba/Hotfix.Ability.Moba.csproj` | 面向 `netstandard2.1`，引用 Unity 生成的 HotReload、World DI 和 Entitas 程序集 |
 | 示例 Entry | `Unity/HotUpdateSrc/Hotfix.Ability.Moba/MobaHotfixEntry.cs` | 安装每 60 Tick 记录一次日志的示例 System |
@@ -157,7 +157,7 @@ Overlay 先查 `_overrides`，未命中或值为 null 时回退原世界 resolve
 
 ### 5.5 配置 reload 监听器
 
-`ConfigReloadDebugListener` 仅在 Unity Editor 的 SubsystemRegistration 阶段订阅 `ConfigReloadBus.Reloaded`，把成功或失败写入日志。.NET 镜像工程明确排除该文件。它不触发 DLL Apply、不更新 feature，也不参与回滚；配置热重载与系统热替换应视为两条独立链路。
+`ConfigReloadDebugListener` 属于 `AbilityKit.HotReload.Editor`，在 Unity Editor 的 SubsystemRegistration 阶段订阅 `ConfigReloadBus.Reloaded`，启动时先移除同名订阅再绑定，把成功或失败写入日志。它不进入 Runtime、.NET 镜像或 Player，不触发 DLL Apply、不更新 feature，也不参与回滚；配置热重载与系统热替换是两条独立链路。
 
 ---
 

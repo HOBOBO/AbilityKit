@@ -8,6 +8,17 @@ using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
 
 namespace AbilityKit.Effect
 {
+    /// <summary>
+    /// 可选的效果应用观察端口。只读观察新实例与应用上下文，不参与应用判定和恢复。
+    /// </summary>
+    public interface IEffectApplicationObserver
+    {
+        /// <summary>
+        /// 在通过应用要求并分配实例后调用；不得修改效果或战斗状态。
+        /// </summary>
+        void OnApplication(AbilityKit.Ability.Share.Effect.EffectInstance instance, in EffectExecutionContext context);
+    }
+
     public readonly struct EffectExecutionContext
     {
         public readonly IServiceProvider Services;

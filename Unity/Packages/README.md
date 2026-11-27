@@ -17,11 +17,86 @@
 
 2026-11-25 已完成 D2 技能与流程包的入口及限定契约核校：[Continuous](com.abilitykit.continuous/README.md)、[Triggering](com.abilitykit.triggering/README.md)、[Pipeline](com.abilitykit.pipeline/README.md)、[Attributes](com.abilitykit.attributes/README.md)、[Flow](com.abilitykit.flow/README.md)、[HFSM](com.abilitykit.hfsm/README.md)。范围和验证限制见[批次记录](../../plans/2026-11-24-DocumentationSystemInventory.md#8-d2-技能与流程包核校记录2026-11-25)。
 
-2026-11-25 完成 D3 核心十包的入口和限定契约核校，见下方 D3 导航与[批次记录](../../plans/2026-11-24-DocumentationSystemInventory.md#9-d3-核心世界同步与网络包核校记录2026-11-25)。协议测试有一项既有文档断言失败；网络 SDK、Room/Battle、传输及 ECS 适配器仍待后续，不将 D3 整域标为完成。
+2026-11-25 完成 D3 核心十包与网络接入/ECS 适配的入口和限定契约核校，见下方 D3 导航与[核心批次记录](../../plans/2026-11-24-DocumentationSystemInventory.md#9-d3-核心世界同步与网络包核校记录2026-11-25)、[网络接入和适配记录](../../plans/2026-11-24-DocumentationSystemInventory.md#10-d3-网络接入与ecs-适配核校记录2026-11-25)。本批选定网络测试 307/308 通过，一项 SDK catalog diagnostic decoder 覆盖断言失败；不将 D3 整域标为完成。
+
+2026-11-25 继续完成 D3 支撑三包及[多人接入指南](../../Docs/design/07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md)：[Room Protocol](com.abilitykit.protocol.room/Documentation~/Usage.md)、[Game Battle Runtime](com.abilitykit.game.battle.runtime/Documentation~/Usage.md)、[GameFramework Network](com.abilitykit.gameframework.network/Documentation~/Usage.md)。本批测试 233/234、完整本地示例 3/3，仍有既有诊断 decoder 缺口，详细范围见[支撑批次记录](../../plans/2026-11-24-DocumentationSystemInventory.md#11-d3-支撑契约与多人接入指南核校记录2026-11-25)。
+
+2026-11-25 补齐 D3 [Protocol Editor](com.abilitykit.protocol.editor/Documentation~/Usage.md) 与 [Coordinator](com.abilitykit.coordinator/Documentation~/Usage.md) 的正式使用入口：区分协议窗口的源写入/编译/导出、旧资产冻结迁移，以及配置/驱动/DTO 的调用契约。限定验证和兼容基线失败见[本批记录](../../plans/2026-11-24-DocumentationSystemInventory.md#12-d3-协议工具与会话协调契约核校记录2026-11-25)；Unity、独立安装与完整会话不在本批验收范围。
+
+### D4 上下文、数据流与战斗查询导航
+
+2026-11-25 完成下列四包的入口和限定契约核校，旧文档路径保留，具体范围见 [D4 记录](../../plans/2026-11-24-DocumentationSystemInventory.md#13-d4-上下文数据流与战斗查询核校记录2026-11-25)。132/132 局部 .NET 测试与四个完整指南示例通过；Damage 已复现的行为限制单独记录，未改运行时。Unity、独立安装、完整结算与性能预算未验收。
+
+| 阅读任务 | 包内使用入口 |
+| --- | --- |
+| 流程归属、精确实时身份和受管快照 | [Context](com.abilitykit.context/README.md) → [使用指南](com.abilitykit.context/Documentation~/Usage.md) |
+| 同步处理阶段、异形传递、槽位与失败 | [Dataflow](com.abilitykit.dataflow/README.md) → [使用指南](com.abilitykit.dataflow/Documentation~/Usage.md) |
+| 默认伤害计算、Context 复用及未实现的 Flags | [Combat Damage](com.abilitykit.combat.damage/README.md) → [使用指南](com.abilitykit.combat.damage/Documentation~/Usage.md) |
+| 候选、规则、排序与查询租约 | [Combat Targeting](com.abilitykit.combat.targeting/README.md) → [使用指南](com.abilitykit.combat.targeting/Documentation~/Usage.md) |
+
+### D4 战斗索引、碰撞与投射物导航
+
+2026-11-25 核校下列四包的使用入口与限定契约。三个现有本地测试入口共 116/116 通过，另有四个完整指南示例通过；测试与限制的分项证据见[批次记录](../../plans/2026-11-24-DocumentationSystemInventory.md#14-d4-战斗索引碰撞与投射物核校记录2026-11-25)。
+
+| 阅读任务 | 包内使用入口 |
+| --- | --- |
+| 注册实体、显式换键、查询结果复制 | [EntityManager 使用指南](com.abilitykit.combat.entitymanager/Documentation~/Usage.md) |
+| 派生键、后加索引回填、数据替换 | [SkillLibrary 使用指南](com.abilitykit.combat.skilllibrary/Documentation~/Usage.md) |
+| 碰撞体生命周期、层过滤、Naive/Grid 选型 | [Collision Abstractions 使用指南](com.abilitykit.combat.collision.abstractions/Documentation~/Usage.md) |
+| 发射调度、单一时钟、通知和服务恢复 | [Projectile 使用指南](com.abilitykit.combat.projectile/Documentation~/Usage.md) |
+
+### D4 运动与导航
+
+| 阅读任务 | 包内使用入口 |
+| --- | --- |
+| 来源装配、固定步长、路径跟随与局部恢复 | [Motion 使用指南](com.abilitykit.combat.motion/Document/Usage.md#11-装配固定步长与局部恢复) |
+| 网格构建、查询状态、越界和半径限制 | [Navigation 使用指南](com.abilitykit.combat.navigation/Documentation~/Usage.md) |
+
+本地 .NET suite 85/85、完整指南示例 2/2；[批次记录](../../plans/2026-11-24-DocumentationSystemInventory.md#15-d4-运动与导航核校记录2026-11-25)区分包级证据与宿主恢复语义。
+
+### D4 时间线创作工具
+
+- 编辑源与 MOBA 双产物：[ActionEditorImpl 导出链路](com.abilitykit.actioneditor.impl/Document/ActionEditorImpl动作编辑器运行实现模块开发设计文档.md#四导出链路)。
+- DTO 分层、版本校验与可运行示例：[ActionSchema 使用指南](com.abilitykit.actionschema/Documentation~/README.md)。
+- 编译、发布与运行时消费：[仓库时间线设计](../../Docs/design/05-CommonModules/08-ActionTimelineDataAndPlayback.md)。
+
+### D4 Excel 配置编辑工具
+
+| 阅读任务 | 包内使用入口 |
+| --- | --- |
+| 环境、模板、首次生成和导入 | [Excel Sync 包入口](com.abilitykit.excel-sync/README.md)、[使用指南](com.abilitykit.excel-sync/Documentation~/Usage.md) |
+| 三方导出、baseline、冲突与项目发布交接 | [Excel / ScriptableObject 设计](../../Docs/design/05-CommonModules/09-ExcelScriptableObjectSync.md) |
+
+现行契约与局部验证见[本批记录](../../plans/2026-11-24-DocumentationSystemInventory.md#17-d4-excel-sync-核校记录2026-11-25)；旧包文档原路径保留为历史。主工程 `moba-config-sync` gate、GUI 与独立安装未重跑。
+
+### D4 配置数据库与代码生成
+
+| 阅读任务 | 权威入口 |
+| --- | --- |
+| 普通配置登记、加载、查询和 reload | [Ability 包入口](com.abilitykit.ability/README.md)、[ConfigDatabase 使用契约](com.abilitykit.ability/Documentation~/ConfigDatabase.md) |
+| MOBA 编译期清单、DLL 构建和诊断 | [CodeGen 包入口](com.abilitykit.demo.moba.codegen/README.md)、[构建与使用](com.abilitykit.demo.moba.codegen/Documentation~/Usage.md) |
+| Luban 二进制缓冲区与兼容层 | [Luban Runtime 包入口](com.abilitykit.thirdparty.luban.runtime/README.md)、[使用契约](com.abilitykit.thirdparty.luban.runtime/Documentation~/Usage.md) |
+| 跨包设计与内容发布操作 | [配置系统设计](../../Docs/design/05-CommonModules/04-ConfigurationSystem.md)、[生成与发布设计](../../Docs/design/05-CommonModules/07-CodeGenAndLubanProductionPipeline.md)、[生产管线操作](../../LubanConfig/Moba/README.md) |
+
+源码核校、17/19/187 项局部测试、两个完整示例、所有权 SingleStep 和当次只读发布检查见[本批记录](../../plans/2026-11-24-DocumentationSystemInventory.md#18-d4-配置数据库codegen-与-luban-核校记录2026-11-25)。完整 gate、Unity 和原包 CodeGen DLL 源码对应关系仍未验收。
+
+### D3 网络接入与 ECS 适配导航
+
+| 阅读任务 | 包内使用入口 |
+| --- | --- |
+| 基础连接、请求与共享 SDK | [Network SDK](com.abilitykit.network.sdk/Documentation~/Usage.md) |
+| 房间流程、数据面与双连接组合 | [Room](com.abilitykit.network.room/Documentation~/Usage.md)、[Battle](com.abilitykit.network.battle/Documentation~/Usage.md)、[Config](com.abilitykit.network.battle.config/Documentation~/Usage.md)、[Client](com.abilitykit.network.client/Documentation~/Usage.md) |
+| 服务端 session、路由与 Host 身份绑定 | [Network Host](com.abilitykit.network.host/Documentation~/Usage.md)、[Host Network](com.abilitykit.host.network/Documentation~/Usage.md)、[KCP listener](com.abilitykit.network.host.kcp/Documentation~/Usage.md) |
+| 可选传输与证据边界 | [InMemory](com.abilitykit.network.transport.inmemory/Documentation~/Usage.md)、[KCP](com.abilitykit.network.transport.kcp/Documentation~/Usage.md)、[LiteNet](com.abilitykit.network.transport.litenet/Documentation~/Usage.md)、[WebSocket](com.abilitykit.network.transport.websocket/Documentation~/Usage.md) |
+| 协议、战斗组合与外部通道桥接 | [Room Protocol](com.abilitykit.protocol.room/Documentation~/Usage.md)、[Game Battle Runtime](com.abilitykit.game.battle.runtime/Documentation~/Usage.md)、[GameFramework Network](com.abilitykit.gameframework.network/Documentation~/Usage.md) |
+| ECS 后端装配与释放 | [Entitas](com.abilitykit.world.entitas/Documentation~/Usage.md)、[Svelto](com.abilitykit.world.svelto/Documentation~/Usage.md) |
+| 协议创作、冻结迁移与会话共享契约 | [Protocol Editor](com.abilitykit.protocol.editor/Documentation~/Usage.md)、[Coordinator](com.abilitykit.coordinator/Documentation~/Usage.md) |
 
 ---
 
 ## 总览文档
+
+Tiny 示例按用途选择包：[纯规则与检查点](com.abilitykit.demo.tiny.logic/README.md)、[实时联机客户端](com.abilitykit.demo.tiny/README.md)、[可选回合制客户端](com.abilitykit.demo.tiny.turn/README.md)。仓库装配与运行门禁见 [Tiny 教程](../../Docs/tutorials/tiny/00-从这里开始.md)，职责和同步选择见 [Tiny 接入基线](../../Docs/design/09-ImplementationExamples/TinyStarterImplementation.md)。
 
 | 文档 | 定位 |
 |------|------|
@@ -37,7 +112,7 @@ AbilityKit 当前按“先基础包收口，再推进 Starter，再扩大到战�
 |------|------|------|------|
 | P0 基础底座 | `com.abilitykit.core`、`com.abilitykit.world.di` | 日志、稳定集合、所有权、时间、兼容中的事件/对象池、World 生命周期和服务装配 | 先补齐 README、样例、测试命令，作为所有 Starter 的第一层依赖 |
 | P1 技能核心 | `com.abilitykit.continuous`、`com.abilitykit.triggering`、`com.abilitykit.pipeline`、`com.abilitykit.attributes` | 持续过程生命周期、事件触发、技能阶段编排、属性/修饰器能力 | 作为 `SkillCore` 组合试点，不依赖 Demo 包运行 |
-| P2 流程与状态 | `com.abilitykit.flow`、`com.abilitykit.hfsm` | 跨帧流程、状态迁移、角色/玩法状态管理 | 作为增强层接入，避免把简单技能都强制接到状态机 |
+| P2 流程与状态 | `com.abilitykit.flow`、`com.abilitykit.hfsm.core`、`com.abilitykit.hfsm` | 跨帧流程、状态迁移、角色/玩法状态管理 | 只需状态机运行时时使用 HFSM Core；需要 Unity 适配和编辑时再安装 HFSM |
 | P3 战斗领域 | `com.abilitykit.combat.targeting`、`com.abilitykit.combat.projectile`、`com.abilitykit.combat.damage`、`com.abilitykit.combat.skilllibrary`、`com.abilitykit.combat.entitymanager` | 目标、投射物、伤害、技能索引、实体索引 | 在 `SkillCore` 跑通后按玩法需要接入 |
 | P4 同步与服务端 | `com.abilitykit.world.framesync`、`com.abilitykit.world.snapshot`、`com.abilitykit.world.statesync`、`com.abilitykit.record`、`com.abilitykit.protocol`、`com.abilitykit.host`、`com.abilitykit.host.extension` | 帧同步、快照、回放、协议、Host 和服务端组合 | 只对多人、回放、权威服项目推广 |
 | 示例/参考 | `com.abilitykit.demo.*`、`Server/Orleans` | MOBA、Shooter、Orleans 参考实现 | 作为最佳实践阅读，不作为默认业务依赖 |
@@ -124,11 +199,13 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 
 ---
 
-### 5. [实体管理模块](./com.abilitykit.combat.entitymanager/Document/)
+### 5. [实体管理模块](./com.abilitykit.combat.entitymanager/README.md)
 
 | 文档 | 定位 |
 |------|------|
-| [开发设计文档](./com.abilitykit.combat.entitymanager/Document/实体管理模块开发设计文档.md) | 设计理念、索引机制、查询优化 |
+| [包内使用契约](./com.abilitykit.combat.entitymanager/Documentation~/Usage.md) | 注册、显式改键、后加索引、结果视图与失败边界 |
+| [仓库索引设计](../../Docs/design/08-GameplayModules/09-EntityAndSkillIndexing.md) | 领域数据与派生索引的交接和验证范围 |
+| [历史开发说明](./com.abilitykit.combat.entitymanager/Document/实体管理模块开发设计文档.md) | 保留早期背景，自动更新示例不作现行承诺 |
 
 **核心内容**：用索引表实现高效实体查询，支持单键和多键索引
 
@@ -170,7 +247,8 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 | --- | --- | --- |
 | [Continuous](./com.abilitykit.continuous/README.md) | [使用契约](./com.abilitykit.continuous/Documentation~/Usage.md) | 管理器生命周期、准入、绑定器和失败补偿；未验证 Unity Player 或项目恢复链 |
 | [Triggering](./com.abilitykit.triggering/README.md) | [文档索引](./com.abilitykit.triggering/Documentation~/README.md) | 即时主线与可选调度分开；正式/兼容 API 以 FormalApiBoundary 为准 |
-| [HFSM](./com.abilitykit.hfsm/README.md) | [使用契约](./com.abilitykit.hfsm/Documentation~/Usage.md) | Definition → RuntimeBindings 主线；旧状态机 API 标为兼容材料 |
+| [Triggering Action Scheduling](./com.abilitykit.triggering.actionscheduling/README.md) | 可选扁平动作调度扩展 | 按需注入，宿主推进；不属于 `SkillCore` 的必装依赖 |
+| [HFSM Core](./com.abilitykit.hfsm.core/README.md) / [HFSM](./com.abilitykit.hfsm/README.md) | [使用契约](./com.abilitykit.hfsm/Documentation~/Usage.md) | Core 提供 Definition → RuntimeBindings 主线；HFSM 附加 Unity 适配、编辑和示例 |
 
 ---
 
@@ -333,6 +411,9 @@ Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、�
 | 2026-03-19 | All | 初始文档创建 |
 | 2026-11-24 | 文档入口 | 明确包使用文档与仓库设计分工，统一贡献入口，标明存量待核范围；不重验包行为或发布资格 |
 | 2026-11-25 | D3 核心包入口 | 接通世界、Host、同步、快照、记录、协议及网络运行时十包使用索引；核校范围与验证失败见批次记录，SDK 和适配包待后续 |
+| 2026-11-25 | D3 支撑契约 | 接通 Room Protocol、Game Battle Runtime、GameFramework Network 使用正文，修订多人接入指南；局部测试与未覆盖范围见批次记录 |
+| 2026-11-25 | D4 Excel Sync | 新增包入口与使用指南，核正导出后的 baseline 刷新与 SO 对齐风险；隔离 Unity 11 项局部检查通过，既有 gate 未重跑；旧说明保留为历史 |
+| 2026-11-25 | D4 Config / CodeGen / Luban | 补三包使用入口与契约，纠正双事件通道、旧生成器包与过期 Luban 发布模型；局部 E3、示例和只读产物一致性通过，完整 gate / Unity / 正式发布未覆盖 |
 
 ---
 

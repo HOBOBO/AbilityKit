@@ -3,7 +3,7 @@
 ## 源文件
 
 - `LubanConfig/Moba/Production/Datas/J-技能表.xlsx` 的 `技能` 页负责技能元数据及流程 ID。
-- `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/SkillFlowCO.asset` 负责全部 26 个主动技能管线，包括廉颇的三阶段大招。
+- `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/SkillFlowCO.asset` 是 MOBA 技能流程的权威编辑资产；选择该资产，在 Inspector 编辑流程和阶段。
 - `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/` 保存 P1/P2 技能流程展示的源文件和资产。
 - ActionEditor 的 `Resources/moba/action_timeline/skill_*.json` 负责编辑动作轨道。时间轴阶段只能引用其导出的 `*.moba.logic.json`；表现片段保留在 `*.moba.presentation.json`。
 - `Production/Archive/skill_flows.xlsx` 是迁移历史，不再登记于 `__tables__.xlsx`，也不用于发布。
@@ -48,6 +48,19 @@
 
 当前七英雄接入使用 [MobaHeroIdRegistry](../plans/MobaHeroIdRegistry.md) 作为唯一共享身份及资源映射预留清单。`规划` 行不是生产配置。仅在源资产存在且模型或特效用途已明确时添加生产 Model/Vfx 映射；仅在实际行为和引用已编辑时添加 Skill/SkillLevel/Flow/Trigger 行。不要为了占满预留槽位而创建空白或虚构行。规划、编辑、发布和游戏内验收应分别记录状态。
 
+## 编辑器入口与写入范围
+
+选中生产 `SkillFlowCO.asset`，在 Inspector 顶部使用「MOBA 生产技能流程」。这些命令只显示在固定的生产资产上；播放模式、正在进入播放或该资产有未保存修改时不可用。请先显式保存项目，工具不会替你保存。发布器使用 Unity 已发布的 Luban `skills.json` 检查前摇和施放流程 ID 引用。
+
+| 交互入口 | 同一实现的批处理方法 | 当前行为 |
+| --- | --- | --- |
+| 校验已发布流程 | `MobaSkillPipelineExporter.Check` | 按规范化后的 JSON 内容比对全量产物，不修改正式资产。第一处内容不一致时，保存预期 JSON 至 `local/Logs/moba-pipeline-preview/<运行ID>/<Unity或Console>/<产物相对路径>`，并报告实际产物位置；缺失文件直接报错。 |
+| 预检并发布全部流程 | `MobaSkillPipelineExporter.Apply` | 交互先校验并列出 Unity 与 Console 的新建和覆盖数量，有变更且确认后才写入；取消不写。批处理仍明确调用 `Apply` 直接发布，不弹窗。 |
+
+产物为 Unity `Resources/moba/skill_flows.json`、Console `Configs/moba/skill_flows.json` 和 Unity `Resources/moba/skill_flows/skill_flows_<id>.json`。发布不清理旧分片、不发布 Luban 或 Trigger。写入不是事务，失败后核对版本控制差异再重跑；发布期间不要并行编辑或发布同一资产。
+
+旧 `Validate Published Flows`、`Publish Flows` 和 `Sync XiaoQiao Skill 1 Flow` 菜单已退役。最后一项从来不是单技能同步；其历史 `Sync` 方法仅为未登记的直接调用保留，仍会发布全部 Flow。ActionEditor 的时间轴导出仍是独立步骤。
+
 ## 发布顺序
 
 1. 编辑 ActionEditor 源时间轴，在编辑器中保存，或以 Unity 批处理运行 `NBC.ActionEditor.LogicJsonExporter.ExportAllMobaTimelines`。不支持的权威片段在管线编译逻辑导出时失败。
@@ -64,8 +77,8 @@
 
 ```powershell
 python LubanConfig/Moba/export_pipeline.py --apply-prerequisites
-# In Unity, run the hero sync entry point or the equivalent ordered publishers:
-# Trigger Authoring ImportProductionSourcesBatch
+# In Unity, use the canonical publishers in order:
+# Trigger Authoring ImportProductionSourcesBatch (only if production Source files were edited)
 # MobaSkillPipelineExporter.Apply / Check
 # Trigger Authoring PublishRuntimeBatch / CheckRuntimeBatch
 python LubanConfig/Moba/export_pipeline.py --apply
@@ -74,7 +87,7 @@ python LubanConfig/Moba/export_pipeline.py --check-published
 
 `--apply-prerequisites` 仍执行 Luban 结构、表、业务规则和生成产物检查，仅跳过依赖尚未发布 Flow/Trigger 产物的跨资源检查，并且仅发布 Luban 前置表、二进制和代码。它不绕过最终 `--apply` 校验，也不能视为发布完成。生成的运行时 JSON 仍由发布器管理，不得手工编辑。
 
-安妮当前 ID 迁移的 Unity 入口为 **Tools > AbilityKit > Demos > Moba > Annie > Publish Passive Q W**，批处理方法为 `AbilityKit.Ability.Impl.BattleDemo.Moba.Editor.AnnieSkillSync.SyncAndPublish`。先运行前置命令，再运行此入口，最后运行上述两个完整 Luban 命令。入口依次导入安妮触发器编辑源、发布并检查安妮 Flow、发布并检查触发器运行时数据。
+安妮、金克丝、维迦的专属发布和检查菜单已退役。日常修改按各自权威源处理，使用生产 `SkillFlowCO.asset` Inspector 和[触发器正式发布与检查](MobaTriggerAuthoring.md)，按需另走 ActionEditor、HFSM 和 Luban 的正式入口。旧同步方法保留给已记录的迁移复现或内部资源派生；它们可能覆盖源资产、派生 Prefab 或重新发布全量产物，不是日常单英雄发布入口，也不应作为默认门禁。
 
 ## Pipeline/Trigger 引用契约
 
@@ -95,6 +108,12 @@ RulePlan、Window 打开/步进/关闭和 Timeline `EffectId` 引用必须指向
 Unity 批处理使用本地 Unity 2022.3 编辑器，参数为 `-batchmode -nographics -projectPath <repo>/Unity -executeMethod <method> -quit -logFile <log>`。使用 `-runTests` 时省略 `-quit`，让测试运行器完成并写出 NUnit XML；`tools/run-unity-editmode-tests.ps1` 已处理此要求。
 
 默认运行时配置从 Luban 二进制加载其他已注册表，从 `Resources/moba/skill_flows.json` 加载 `skill_flows`；Console 使用已发布的 `Configs/moba/skill_flows.json`。必须保留流程 DTO 注册：即使 Luban 不再生成 Flow 表，它仍是运行时契约。
+
+### 按属性缩放 Timeline 前摇
+
+金克丝 W 的线性曲线与起手冻结已由用户明确回复“确认采用”。Timeline 可声明 `Windup`：作者时间切点、零加成时长、最短时长和达到下限的攻速百分值。首个配置只接 W，读取有效 `ATTACK_SPEED_R`（含机枪攻速贡献），在进入 Timeline 时采样；0/125/250% 对应 600/500/400 ms。负值按零，超过上限维持最短时长，结果取最近整数毫秒。500 ms 是作者资源的发射标记，不是运行时固定前摇。只重映射切点前的时间，切点后仍按原速度推进；不改经济提交、受控取消、后摇交接或命中规则。
+
+时序只允许接在同步 RulePlan 之后的末尾 Timeline，不与单发普攻节奏组合。每次 Cast 的 Timeline phase 保存冻结时长、起始帧、累计原始时间及下个事件游标；属原 SkillRunner phase 快照，恢复原 Cast 时校验并静默导入，不重新评估属性，也不放宽结构重建范围。状态同步通过角色动作快照投影冻结时序，Animator 和表现时间线消费该值，不从面板属性重算。未配置技能保留原行为和原角色动作快照布局。
 
 ## 运行时回滚契约
 
@@ -163,6 +182,10 @@ MOBA 权威恢复协调器将 `ReliableEventResyncRequired` 关联到该窗口 I
 恢复段资格来自当前终端阶段、确定性已过时间、已提交事件游标及执行和控制有效性。既有 Pipeline 快照已保存这些事实；恢复不重放效果，也不需要第二张生命周期表。新施法（包括普攻槽）成功时，通过正常完成路径结束冲突的恢复段运行；拒绝输入则保留旧运行。合法非零移动输入仅在战斗规则允许移动时结束恢复段。无新输入则继续完整编辑动作。交接不取消原 Cast：`MarkPipelineEnded(PipelineCompleted)` 保留已提交子对象，按来源限定的清理不能退还已提交消耗。普通死亡、中断及未配置流程保持原契约。
 
 首批内容：拉克丝 W 入口 250 ms，对应既有投射物提交；安妮 E 入口 0 ms，对应即时护盾提交。完整时长仍为 5042 ms/4167 ms。Meraki 补充说明分别为 0.25 秒/无，但属于最新资料，不能独立证明全部 16.22.1 时序。其他技能需逐项审阅时长。
+
+2026-11-26 确认的提伯斯连续攻击修复：技能管线同步 HFSM 时沿用当前 Cast 选择规则，较早的并行 Cast 不覆盖已选中的 Cast。同槽位普通攻击成功后，已声明且满足正常恢复条件的旧 Cast 走完成交接，不因新攻击结束而重新占用动作。普通和狂暴攻击的恢复入口均在 0 ms 的既有命中提交后，保留完整流程时长和原冷却。
+
+狂暴攻击的基础层模型动作由 HFSM 的技能变体独占；Timeline 不再向同一层发送动画请求。仲裁复用现有 Runner 运行记录、阶段游标和 HFSM 投影，不增加权威状态、同步字段或回滚载荷。
 
 [拉克丝接入准备](../plans/LuxImplementationReadiness.2026-11-13.md) 批准的有界扩展均为显式 Flow 字段，默认 false：
 

@@ -1,17 +1,29 @@
 # MOBA Luban 配置管线
 
+> 文档类型：项目操作指南
+> 事实基线：2026-11-25 本批复核导出命令、输入/产物归属、参数副作用与发布一致性；各领域规则细节按对应源码和领域规范维护。
+> 核校状态：部分核校；本批 Python 187 项测试、只读发布一致性及最小 Runtime 示例通过，未重新执行 Unity authoring 发布、业务 Smoke 或正式 Apply。
+>
+> 跨包所有权和失败边界见 [CodeGen 与 Luban 生产链](../../Docs/design/05-CommonModules/07-CodeGenAndLubanProductionPipeline.md)；单包 API 见 [ConfigDatabase](../../Unity/Packages/com.abilitykit.ability/Documentation~/ConfigDatabase.md)、[CodeGen](../../Unity/Packages/com.abilitykit.demo.moba.codegen/Documentation~/Usage.md)、[Luban Runtime](../../Unity/Packages/com.abilitykit.thirdparty.luban.runtime/Documentation~/Usage.md)。本文保留为生产操作唯一入口，不另建第二套导表指南。
+
 ## 目录约定
 
 `Production/` 保存权威 Excel、Luban 定义和导出规则清单；顶层 `export_pipeline.py` 与 `export_moba_configs.ps1` 是生产入口，其他顶层 Python 模块由导出器调用。`business/` 按业务领域放投影与校验规则，`tests/` 放管线测试，`tools/` 放可重复使用的工作簿维护与影响分析工具。`migrations/` 只归档一次性改表脚本；它们会修改工作簿，不属于日常导出流程。`MiniTemplate/` 是历史模板。
 
-从仓库根目录运行测试、维护工具和生产导出：
+从仓库根目录运行只读核对，先显式创建本次日志目录：
 
 ```powershell
-python -m unittest discover -s LubanConfig/Moba -p "test_*.py"
-python LubanConfig/Moba/tools/annotate_workbooks.py
-python LubanConfig/Moba/tools/modifier_impact_report.py --help
-python LubanConfig/Moba/export_pipeline.py --check-published
+$run = Join-Path (Get-Location) ('local/Logs/moba-config/' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+New-Item -ItemType Directory -Force $run | Out-Null
+python -X utf8 -B -m unittest discover -s LubanConfig/Moba -p 'test_*.py' *> (Join-Path $run 'python-tests.log')
+if ($LASTEXITCODE -ne 0) { throw 'Python tests failed; see python-tests.log' }
+python -X utf8 -B LubanConfig/Moba/export_pipeline.py --check-published *> (Join-Path $run 'published-check.log')
+if ($LASTEXITCODE -ne 0) { throw 'Published artifacts differ or generation failed; see published-check.log' }
 ```
+
+`--check-published` 仍会重新导表并清理/写入本地 staging，只有正式产物不写入。原生默认 staging 与其中的引用/发布报告固定在 `local/luban-export`，没有命令行自定义 STAGE 参数；本批为隔离报告，在忽略的临时调用器内只将 STAGE 指到 `local/Logs/` 的本次目录，其余执行原管线。这个核校方式不成为第二个正式入口，也未改生产工具默认路径。
+
+`tools/annotate_workbooks.py` 会维护工作簿注释，不属于只读预检；影响分析工具先看 `tools/modifier_impact_report.py --help`，按实际输出参数把运行报告放在 `local/Logs/`。不要把写入型维护工具与测试一起无差别执行。
 
 ## 导出规则扩展
 
@@ -74,27 +86,40 @@ python LubanConfig/Moba/export_pipeline.py --check-published
 
 bean 的 `*字段名` 是列表：第一、二行的字段名与类型横跨成员列并合并，第三行填写成员名，一项占一行，同一主表记录的 ID 只在第一行填写。例如技能等级的 `CooldownMs`、`Cost`、`Params` 各有独立列。目标查询规则与评分器的可选成员留空即可，导出时不会生成该键。地图向量采用 `X,Y,Z` 的 Luban `MapVector3` 值。地图碰撞形状、投射物响应及战斗开局模式在 Excel 中用 enum 名称填写；发布边界会转换回现有 JSON 字符串。地图 `ObjectType` 是可扩展分类，仍使用字符串。
 
+伤害与击退共用的目标查询可以在 `Rules.Kind` 配置 `RequireCombatHealth`，在排序及数量限制前排除投射物等不承载战斗血量的对象。它不改变阵营、存活、无敌或控制免疫规则；应有血量的单位或召唤物缺少必要组件时仍会报错。
+
 `migrations/migrate_strong_types.py` 记录这次一次性迁移步骤，日常改表无需运行。调整 bean/enum 定义时，先用 `python LubanConfig/Moba/export_pipeline.py --check-baseline` 对照运行时 JSON，再发布并检查二进制加载；不要编辑生成的 C# 或发布副本。
 
 ## 日常流程
 
 ### Projectile hit subtype filter
 
-`J-投射物表.xlsx` 的「投射物」子表可选字段 `HitUnitSubType` 控制投射物对单位子类型的命中筛选。缺省值 `0` 表示不限制，正数按 `UnitSubType` 精确匹配；未匹配单位由既有碰撞响应返回 `Ignore` 并继续飞行，未注册为单位的静态世界碰撞仍然 `Block`。该字段属于投射物配置与其运行时快照，不在英雄代码或 Trigger 中做身份判断。新增列的结构迁移记录在 `migrations/add_projectile_hit_unit_subtype.py`；Riot 未给出配置数值时，可先用可编辑占位值，后续只改生产表。
+`J-投射物表.xlsx` 的「投射物」子表可选字段 `HitUnitSubType` 控制投射物对单位子类型的命中筛选。缺省值 `0` 表示不限制，正数按 `UnitSubType` 精确匹配；未匹配单位由既有碰撞响应返回 `Ignore` 并继续飞行，未注册为单位的静态世界碰撞仍然 `Block`。该字段属于投射物配置与其运行时快照，不在英雄代码或 Trigger 中做身份判断。日常调整直接修改已有生产表字段，不复跑历史加列脚本；Riot 未给出配置数值时，可先用可编辑占位值。
 
 1. 编辑 `Production/Datas/` 中对应的 `J-`、`M-` 或 `T-` 工作簿及其中文子 sheet。前两行是 Luban 字段名和类型，数据从第四行开始；不要改动字段名、类型和 `__tables__.xlsx` 中的英文输出名。
 2. 先发布 ActionEditor、Pipeline、Trigger Authoring；状态机有改动时先发布状态机。运行各编辑器的 `Check`，其中触发器使用 `TriggerAuthoringMobaMigration.CheckRuntimeBatch`。
 3. 运行 `python LubanConfig/Moba/export_pipeline.py` 验证表、ID、跨表引用和 Ability JSON 节点，并审阅 `local/luban-export/` 下的引用与发布报告。
 4. 运行 `python LubanConfig/Moba/export_pipeline.py --apply` 发布 JSON、`.bytes` 和 C# 类型到 Unity 与 Console。
 5. 运行 `python LubanConfig/Moba/export_pipeline.py --check-published` 检查发布结果。
-6. 运行六英雄 .NET 冒烟测试；正式发布前再运行 Unity EditMode 测试。
+6. 运行相关 .NET 配置/冒烟测试；正式发布前再运行已有完整内容与 Unity gate。下面是局部过滤复验，不代替完整 gate。
 
 ```powershell
-dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj --filter "FullyQualifiedName~BattleScenarioRealSkillTests.Luban_six_heroes_spawn_and_cast_first_skill|FullyQualifiedName~MobaLubanConfigPipelineTests"
-powershell -ExecutionPolicy Bypass -File tools/run-unity-editmode-tests.ps1 -TestAssembly AbilityKit.Game.UnitTests -TestFilter MobaProductionConfigReferenceValidationTests
+# 沿用上文已创建的 $run；失败后先检查日志，不继续下一步发布。
+dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj --filter 'FullyQualifiedName~BattleScenarioRealSkillTests.Luban_six_heroes_spawn_and_cast_first_skill|FullyQualifiedName~MobaLubanConfigPipelineTests' --logger 'trx;LogFileName=moba-config.trx' --results-directory (Join-Path $run 'test-results') *> (Join-Path $run 'dotnet-config.log')
+if ($LASTEXITCODE -ne 0) { throw 'MOBA config tests failed; see dotnet-config.log' }
+powershell -ExecutionPolicy Bypass -File tools/run-unity-editmode-tests.ps1 -TestAssembly AbilityKit.Game.UnitTests -TestFilter MobaProductionConfigReferenceValidationTests -ResultsPath (Join-Path $run 'unity-config.xml') *> (Join-Path $run 'unity-runner.log')
+if ($LASTEXITCODE -ne 0) { throw 'Unity config tests failed; see unity-runner.log' }
 ```
 
-`--check-baseline` 只用于一次性迁移验收。它逐项比较 Excel 重建的非触发器资源与原始 JSON。`ability_trigger_plans.json` 由 Trigger Authoring 发布，Luban 不再覆盖它。PR 和 push 的 `moba-luban-config` CI job 会运行 `--check-published`。
+Unity 包装脚本的 Editor 日志仍固定为 `local/Logs/unity-editmode-run.log`，运行后应随本次结果保留，不并行调用同一固定日志入口；上例显式指定了结果 XML 和 runner 输出。本批未运行上面的 MOBA/Unity 命令，不能把它们的存在记为通过。
+
+`--check-baseline` 只用于一次性迁移验收。它逐项比较 Excel 重建的非触发器资源与原始 JSON。`ability_trigger_plans.json` 由 Trigger Authoring 发布，Luban 不再覆盖它。当前检出未发现 `.github/workflows`，本批只确认 gate 配置和实际本地结果，不沿用旧文对 `moba-luban-config` PR/push job 的持续执行声明；其他 CI 接线需以对应配置与 artifact 另验。
+
+### 发布模式与失败责任
+
+无参数验证不会写正式产物，也不执行 `--check-published` / `--apply` 才进入的全部编辑器副本检查。`--check-published` 会重新生成并校验现有发布，**不会帮助修复差异**。`--apply` 验证后写入两端资源与生成代码；`--apply-prerequisites` 即使不带 `--apply` 也会写入前置表和代码，并跳过部分完整跨来源检查，只适用于解决编辑器作者化依赖顺序，不能作为完整发布验收。
+
+PowerShell 包装器的 `-Apply` 与 `-CheckPublished` 互斥；Python 本身未为所有组合建互斥组，不应依赖不明组合的执行顺序。两者遇到原生失败会阻断；PublicationPlan 检查目标范围和重复 owner，并在写入异常时尝试恢复已变更文件。恢复可能失败，且多个目标文件并非同时可见；没有并发运行锁，也不自动清除计划外的历史产物。停在首个失败处查日志，不通过直接改 Resources/Console 或再次 Apply 掩盖原因。
 
 ## 表与加载
 
@@ -122,7 +147,7 @@ powershell -ExecutionPolicy Bypass -File tools/run-unity-editmode-tests.ps1 -Tes
 
 `J-战斗场景表.xlsx` 的「副本」子表是战斗副本的权威定义：把玩法、战斗流程 Profile、场景装配、玩法处理器、胜负规则和所需 Feature 端口组收成单条配置，新增副本不需要改 C# 代码。地图属于玩法资源，由「玩法」子表的 `MapId` 绑定并引用 `battle_maps`；副本通过 `GameplayId` 间接选择地图。导表器检查这些表引用，启动阶段还会验证 create-world 请求的 `MapId` 与 Gameplay 绑定一致。`FlowProfileId` 引用的 `battle_flow_profiles.json` 归 Flow 编辑流程管有，不在 Excel 层校验，改由运行时的副本入场校验负责。规则见 `business/gameplays.py` 和 `business/dungeons.py`，设计背景见 `Docs/MobaViewRuntime副本机制与扩展优先级.md`。
 
-`T-特效表.xlsx` 的 `特效资源` 子 sheet 是 `vfx` 的主源，发布时生成两端的 Luban JSON、`.bytes` 和 Unity 使用的 `Resources/vfx/vfx.json`。`特效表现模板` 子 sheet 保存复用特效的挂点、跟随与外观参数；其 `AssetId` 引用特效资源 ID。旧 `VfxTable.asset` 和 `VfxJsonExporter` 不再发布生产特效配置。
+`T-特效表.xlsx` 的 `特效资源` 子 sheet 是 `vfx` 的主源，发布时生成两端的 Luban JSON、`.bytes` 和 Unity 使用的 `Resources/vfx/vfx.json`。`特效表现模板` 子 sheet 保存复用特效的挂点、跟随与外观参数；其 `AssetId` 引用特效资源 ID。特效配置随上文的 MOBA 生产管线发布；旧 `VfxTable.asset` 不是生产发布输入，旧 Unity 特效导出菜单已退役。发布后可用 `Tools/AbilityKit/Demos/Moba/Vfx/Inspect Published Templates` 只读检查，不通过该窗口回写或发布。
 
 `MobaLubanConfigGroups.Create(loader, new[] { "characters" })` 可以只将 `characters` 切换到二进制，其余表默认读取同次导出的 Luban JSON；完整生产加载让其他运行时表（包括持续标签模板）走 Luban `.bytes`，`skill_flows` 固定读取 Pipeline 发布的 `moba/skill_flows.json`。显式传入 `useLubanJsonForRemaining: false` 才使用旧 JSON 路径，该路径保留迁移基线，不能作为当前 Excel 修改后的生产数据来源。标签规则和结果映射从二进制编译，标签变化后重算缓存结果位；不会为普通标记标签生成代码枚举。脑配置优先读取二进制，在没有二进制的自定义资源环境下保留 JSON 兼容。
 

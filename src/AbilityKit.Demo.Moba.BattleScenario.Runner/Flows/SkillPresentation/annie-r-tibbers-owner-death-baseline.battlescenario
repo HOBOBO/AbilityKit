@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3, "caseId": "annie-r-tibbers-owner-death-baseline", "displayName": "Annie R - Tibbers despawns on owner death (baseline)",
+  "schemaVersion": 3, "caseId": "annie-r-tibbers-owner-death-baseline", "displayName": "Annie R - Tibbers survives owner death",
   "tags": ["skill-presentation", "annie", "mechanism-baseline"],
   "sections": {
     "settings": [
@@ -17,7 +17,7 @@
     ],
     "assertions": [
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SummonSpawn", "configId": 30030502, "minCount": 1, "maxCount": 1},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "caster", "property": "summoncount:30030502", "comparator": "eq", "expectedValue": "0"},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "caster", "property": "summoncount:30030502", "comparator": "eq", "expectedValue": "1"},
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "caster", "property": "hp", "comparator": "eq", "expectedValue": "0"}
     ]
   }

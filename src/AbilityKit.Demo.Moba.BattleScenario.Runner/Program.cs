@@ -20,13 +20,13 @@ public static class Program
             System.Console.Error.WriteLine(
                 "Usage: <scenario.json|case.battlescenario> [result.txt] | " +
                 "--determinism <scenario.json|case.battlescenario> [result.txt] | " +
-                "--batch <battlescenario-directory> [result.txt] | " +
-                "--statesync-gragas <output-directory> | --statesync-movement <output-directory> | " +
-                "--statesync-jinx-presentation <output-directory>");
+                "--batch <battlescenario-directory> [result.txt] [--output-dir <directory> " +
+                "[--evidence none|failed|all] [--case <filename-without-extension>]... [--receipt <file>]] | " +
+                "--statesync-jinx-presentation <output-directory> | --statesync-annie-skill <output-directory>");
             return 1;
         }
 
-        if (args[0] is "--statesync-gragas" or "--statesync-movement" or "--statesync-jinx-presentation")
+        if (args[0] is "--statesync-jinx-presentation" or "--statesync-annie-skill")
         {
             if (args.Length != 2)
             {
@@ -36,20 +36,15 @@ public static class Program
 
             try
             {
-                if (args[0] == "--statesync-movement")
-                {
-                    LocalStateSyncMovementReplay.Export(args[1]);
-                    System.Console.WriteLine("PASS: live movement correction, proof recovery, continuation and repeatability.");
-                }
-                else if (args[0] == "--statesync-jinx-presentation")
+                if (args[0] == "--statesync-jinx-presentation")
                 {
                     JinxProjectilePresentationReplay.Export(args[1]);
                     System.Console.WriteLine("PASS: two local projectile presentation variants and repeatability.");
                 }
                 else
                 {
-                    GragasStateSyncReplay.Export(args[1]);
-                    System.Console.WriteLine("PASS: four local state-sync variants and repeatability.");
+                    AnnieSkillStateReplay.Export(args[1]);
+                    System.Console.WriteLine("PASS: local Annie W/E skill confirmation and baseline replay.");
                 }
                 return 0;
             }
@@ -70,13 +65,19 @@ public static class Program
 
             try
             {
-                var batch = BattleScenarioBatchRunner.RunDirectory(args[1]);
+                if (!TryParseBatchOptions(args, out var resultPath, out var outputRoot, out var evidence, out var cases, out var receipt))
+                {
+                    System.Console.Error.WriteLine("批跑参数无效；--evidence、--case 和 --receipt 需要 --output-dir。");
+                    return 1;
+                }
+                var batch = outputRoot == null ? BattleScenarioBatchRunner.RunDirectory(args[1])
+                    : RunArchivedBatch(args[1], outputRoot, evidence, cases, receipt);
                 var output = $"total={batch.Total} passed={batch.Passed} failed={batch.Failed}";
                 foreach (var c in batch.Cases)
                     output += $"\n  [{(c.Passed ? "PASS" : "FAIL")}] {c.CaseId}: " +
                               $"networkTrace={c.NetworkTraceCount}, {c.Summary}";
                 System.Console.WriteLine(output);
-                if (args.Length > 2) File.WriteAllText(args[2], output);
+                if (resultPath != null) File.WriteAllText(resultPath, output);
                 return batch.Failed == 0 ? 0 : 2;
             }
             catch (Exception ex)
@@ -141,6 +142,47 @@ public static class Program
             System.Console.Error.WriteLine("运行失败: " + ex);
             return 2;
         }
+    }
+
+    private static BattleScenarioBatchResult RunArchivedBatch(string input, string output, string mode, List<string> cases, string? receipt)
+    {
+        var result = BattleScenarioRunArchive.Run(input, output, cases.Count == 0 ? null : cases, mode, out var path);
+        System.Console.WriteLine("Batch archive: " + path);
+        if (receipt != null)
+        {
+            using var writer = new StreamWriter(new FileStream(receipt, FileMode.CreateNew));
+            writer.WriteLine(Path.GetFileName(path));
+        }
+        return result;
+    }
+
+    private static bool TryParseBatchOptions(string[] args, out string? resultPath, out string? outputRoot,
+        out string evidence, out List<string> cases, out string? receipt)
+    {
+        resultPath = null;
+        outputRoot = null;
+        evidence = "failed";
+        cases = new List<string>();
+        receipt = null;
+        var hasEvidenceOption = false;
+        var index = 2;
+        if (index < args.Length && !args[index].StartsWith("--", StringComparison.Ordinal)) resultPath = args[index++];
+        while (index < args.Length)
+        {
+            var option = args[index++];
+            if (index == args.Length || string.IsNullOrWhiteSpace(args[index]) || args[index].StartsWith("--", StringComparison.Ordinal)) return false;
+            var value = args[index++];
+            switch (option)
+            {
+                case "--output-dir" when outputRoot == null: outputRoot = value; break;
+                case "--evidence" when !hasEvidenceOption && value is "none" or "failed" or "all":
+                    evidence = value; hasEvidenceOption = true; break;
+                case "--case": cases.Add(value); break;
+                case "--receipt" when receipt == null: receipt = value; break;
+                default: return false;
+            }
+        }
+        return outputRoot != null || (!hasEvidenceOption && cases.Count == 0 && receipt == null);
     }
 
     private static void WriteArtifacts(string resultPath, MobaBattleScenarioRunOutcome outcome)

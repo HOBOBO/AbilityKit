@@ -455,7 +455,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             File.WriteAllText(Path.Combine(ReportDirectory, "scan-" + (scan.ModelId > 0 ? "model-" + scan.ModelId : scan.EntityCode.ToString()) + ".json"), report.ToString(Formatting.Indented));
         }
 
-        [MenuItem("Tools/AbilityKit/MOBA/Check Bound Character Animations")]
+        /// <summary>
+        /// 检查已登记动作的资源身份与元数据漂移；只写本地扫描报告，不更新配置或发布物。
+        /// </summary>
         public static void Check()
         {
             var snapshot = RunPython("snapshot");

@@ -6,7 +6,6 @@ using System.Linq;
 using System.Reflection;
 using AbilityKit.Triggering.CodeGen;
 using AbilityKit.Triggering.Eventing;
-using AbilityKit.Triggering.Runtime.Registry;
 using UnityEditor;
 using UnityEngine;
 

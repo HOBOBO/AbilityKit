@@ -24,10 +24,11 @@ namespace AbilityKit.Triggering.Editor.Diagnostics
             return "# AbilityKit Triggering Diagnostics\n\n" +
                    "## Runtime Compatibility\n\n" +
                    $"- Root compatibility entries: {RootRuntimeCompatibilityCatalog.Entries.Count}\n" +
-                   "- Expected new entry path: TriggerRunner / TriggerPlan / ActionScheduler / RuleScheduler\n" +
+                   "- Expected new entry path: TriggerRunner / TriggerPlan; explicit ActionScheduler or TriggerExecutionScheduler when needed.\n" +
                    "- Legacy caller regression is covered by RuntimeCompatibilityCatalogTests.PackageExternalSources_DoNotCallLegacyRuntimeEntries\n\n" +
                    "## Runtime Statistics\n\n" +
-                   "- Use TriggeringDiagnosticCollector to aggregate validation, JSON load, execution, schedule, and legacy-hit records.\n" +
+                   "- Use TriggeringDiagnosticCollector to aggregate validation, plan load, execution, schedule, and legacy-hit records.\n" +
+                   "- Use TriggerPlanJsonDiagnosticAdapter to forward JSON loader diagnostics explicitly.\n" +
                    "- Export TriggeringDiagnosticCollector.Snapshot in project-specific diagnostic windows or release logs.\n";
         }
     }

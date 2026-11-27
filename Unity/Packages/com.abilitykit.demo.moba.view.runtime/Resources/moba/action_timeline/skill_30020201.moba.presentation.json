@@ -2,6 +2,35 @@
     "schemaVersion": 1,
     "runtimeType": "presentation",
     "length": 1.55,
-    "groups": [],
+    "groups": [
+        {
+            "name": "Logic_30020201",
+            "actorId": 0,
+            "active": true,
+            "locked": false,
+            "collapsed": false,
+            "tracks": [
+                {
+                    "type": "AbilityKit.ActionEditorImpl.EffectTrack",
+                    "name": "ZapRangeWindup",
+                    "active": true,
+                    "locked": false,
+                    "clips": [
+                        {
+                            "type": "AbilityKit.ActionEditorImpl.PlayParticle",
+                            "runtimeType": "presentation",
+                            "start": 0.0,
+                            "length": 0.5,
+                            "blendIn": 0.0,
+                            "blendOut": 0.0,
+                            "args": {
+                                "presentationTemplateId": "90032030"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
     "$type": "AbilityKit.ActionSchema.SkillAssetDto"
 }

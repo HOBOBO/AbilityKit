@@ -3,7 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using AbilityKit.BattleScenario;
 using AbilityKit.Demo.Moba.BattleScenario;
+using AbilityKit.Demo.Moba.BattleScenario.Runner;
 using AbilityKit.Demo.Moba.EnvironmentModel;
+using AbilityKit.Demo.Moba.Services;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -179,6 +183,97 @@ public sealed class BattleScenarioBatchRunnerTests
             case MobaSkillOutcomeKind.State:
                 Assert.Single(assertions.State);
                 break;
+        }
+    }
+
+    [Fact]
+    public void ArchivedBatch_DistinguishesFailedAssertionsFromExecutionErrorsAndNoAssertions()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "bf-archive-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            BattleScenarioCodec.Save(Path.Combine(directory, "smoke.battlescenario"),
+                new BattleScenarioDocument { CaseId = "smoke" });
+            BattleScenarioCodec.Save(Path.Combine(directory, "failed.battlescenario"), new BattleScenarioDocument
+            {
+                CaseId = "failed",
+                Sections = new BattleScenarioSections
+                {
+                    Assertions = new List<BattleBlock>
+                    {
+                        new AssertTraceBlock { Kind = "DamageApply", ConfigId = 999999, MinCount = 1 },
+                    },
+                },
+            });
+            File.WriteAllText(Path.Combine(directory, "invalid.battlescenario"), "{");
+
+            var resultRoot = Path.Combine(directory, "results");
+            var result = BattleScenarioRunArchive.Run(directory, resultRoot, null, "failed", out var published);
+            Assert.Equal(2, result.Failed);
+            var index = JsonConvert.DeserializeObject<MobaScenarioRunIndex>(
+                File.ReadAllText(Path.Combine(published, MobaScenarioRunIndex.FileName)))!;
+            Assert.Equal(1, index.counts.failed);
+            Assert.Equal(1, index.counts.errors);
+            Assert.Equal(1, index.counts.noAssertions);
+            Assert.Equal("dotnet-console", index.host);
+            Assert.Equal("failed", index.evidenceMode);
+            Assert.Equal(new[] { "failed", "error", "no-assertions" }, index.cases.Select(entry => entry.status));
+            Assert.Equal(new[] { "available", "not-captured", "not-retained" }, index.cases.Select(entry => entry.evidenceStatus));
+            var evidence = File.ReadAllText(Path.Combine(published, index.cases[0].diagnosticUri));
+            Assert.NotNull(MobaBattleDiagnosticArtifactCodec.ImportSnapshot(evidence));
+            Assert.All(index.cases, entry => Assert.True(File.Exists(Path.Combine(published, entry.summaryUri))));
+
+            BattleScenarioRunArchive.Run(directory, resultRoot, new[] { "smoke" }, "none", out var second);
+            Assert.NotEqual(published, second);
+            Assert.Equal(2, Directory.GetDirectories(resultRoot).Length);
+
+            var failedPath = Path.Combine(directory, "failed.battlescenario");
+            var changed = BattleScenarioCodec.Load(failedPath);
+            Assert.IsType<AssertTraceBlock>(Assert.Single(changed.Sections.Assertions)).MinCount = 2;
+            BattleScenarioCodec.Save(failedPath, changed);
+            BattleScenarioRunArchive.Run(directory, resultRoot, new[] { "failed" }, "none", out var changedRun);
+            var originalDetail = JObject.Parse(File.ReadAllText(Path.Combine(published, index.cases[0].summaryUri)));
+            var changedDetail = JObject.Parse(File.ReadAllText(Path.Combine(changedRun, index.cases[0].summaryUri)));
+            Assert.Equal((string?)originalDetail["inputFingerprint"], (string?)changedDetail["inputFingerprint"]);
+            Assert.NotEqual((string?)originalDetail["expectationsFingerprint"], (string?)changedDetail["expectationsFingerprint"]);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public void BatchCli_ReceiptIdentifiesPublishedBatchEvenWhenCaseFails()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "bf-receipt-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            File.WriteAllText(Path.Combine(directory, "invalid.battlescenario"), "{");
+            var resultRoot = Path.Combine(directory, "analysis library");
+            var receipt = Path.Combine(directory, "run-id.txt");
+            var exit = Program.Main(new[] { "--batch", directory, "--output-dir", resultRoot,
+                "--evidence", "none", "--case", "invalid", "--receipt", receipt });
+
+            Assert.Equal(2, exit);
+            var runId = File.ReadAllText(receipt).Trim();
+            var index = JsonConvert.DeserializeObject<MobaScenarioRunIndex>(
+                File.ReadAllText(Path.Combine(resultRoot, runId, MobaScenarioRunIndex.FileName)))!;
+            Assert.Equal(index.runId, runId);
+            Assert.Equal("error", Assert.Single(index.cases).status);
+            Assert.Equal(Path.Combine(resultRoot, runId), Assert.Single(Directory.GetDirectories(resultRoot)));
+
+            var missingReceipt = Path.Combine(directory, "missing.txt");
+            Assert.Equal(2, Program.Main(new[] { "--batch", directory, "--output-dir", resultRoot,
+                "--case", "does-not-exist", "--receipt", missingReceipt }));
+            Assert.False(File.Exists(missingReceipt));
+            Assert.Single(Directory.GetDirectories(resultRoot));
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
         }
     }
 

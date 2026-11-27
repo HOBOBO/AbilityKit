@@ -61,23 +61,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
     }
 
-    public sealed class NullScheduleController : IScheduleController
-    {
-        public static readonly NullScheduleController Instance = new();
-
-        public bool IsCompleted => true;
-        public bool IsInterrupted => false;
-        public string InterruptionReason => null;
-
-        public void Update(float deltaTimeMs)
-        {
-        }
-
-        public void RequestInterrupt(string reason)
-        {
-        }
-    }
-
     public static class ScheduledExecutableFactory
     {
         public static IScheduledExecutable WrapTimed(ISimpleExecutable inner, float durationMs)
@@ -93,11 +76,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public static IScheduledExecutable WrapExternal(ISimpleExecutable inner)
         {
             return new ExternalControlledExecutable { Inner = inner };
-        }
-
-        public static IScheduleController CreateController(IScheduledExecutable scheduled, ActionContext ctx)
-        {
-            return NullScheduleController.Instance;
         }
     }
 }

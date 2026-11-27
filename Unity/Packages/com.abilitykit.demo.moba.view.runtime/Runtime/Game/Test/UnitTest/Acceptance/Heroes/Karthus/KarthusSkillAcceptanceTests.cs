@@ -25,7 +25,11 @@ namespace AbilityKit.Game.Test.UnitTest
     {
         [UnityTest]
         public IEnumerator PlayMode_real_HUD_releases_QWER_and_death_Q_with_owned_warning()
-            => KarthusHudAcceptanceTests.Run();
+        {
+            DemoGameplayTestLauncher.OpenMobaLocalForPlay();
+            yield return new EnterPlayMode();
+            yield return KarthusHudAcceptanceTests.Run();
+        }
 
         [UnityTearDown]
         public IEnumerator CleanupHudReview() => KarthusHudAcceptanceTests.Cleanup();

@@ -1,5 +1,6 @@
+#nullable enable
+
 using System;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace AbilityKit.Diagnostics
@@ -9,50 +10,34 @@ namespace AbilityKit.Diagnostics
     /// </summary>
     public readonly struct ProbeToken
     {
-        private readonly IProfiler _profiler;
-        private readonly string _name;
-        private readonly long _startTimestamp;
-        private readonly long _contextId;
-        private readonly bool _hasDetailedState;
-        private readonly long _generation;
+        private readonly EditorProfiler? _profiler;
+        private readonly ProfilerScopeTracker.Capture? _capture;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ProbeToken(IProfiler profiler, string name, long startTimestamp, long contextId = 0L, bool hasDetailedState = false, long generation = 0L)
+        internal ProbeToken(EditorProfiler profiler, ProfilerScopeTracker.Capture capture)
         {
             _profiler = profiler;
-            _name = name;
-            _startTimestamp = startTimestamp;
-            _contextId = contextId;
-            _hasDetailedState = hasDetailedState;
-            _generation = generation;
+            _capture = capture;
         }
 
-        internal IProfiler Profiler => _profiler;
-        internal string Name => _name;
-        internal long StartTimestamp => _startTimestamp;
-        internal long ContextId => _contextId;
-        internal bool HasDetailedState => _hasDetailedState;
-        internal long Generation => _generation;
+        internal ProfilerScopeTracker.Capture? GetCapture(EditorProfiler owner) =>
+            ReferenceEquals(_profiler, owner) ? _capture : null;
 
         /// <summary>
         /// 完成本次探针采样。
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void Complete()
-        {
-            if (_profiler != null && _profiler.IsEnabled && _startTimestamp != 0)
-            {
-                _profiler.Complete(this);
-            }
-        }
+        internal void Complete() => _profiler?.Complete(this);
 
         /// <summary>
-        /// 获取令牌是否处于活动状态且可以完成。
+        /// 获取采样是否尚未结束，且所属会话当前允许完成采样。
+        /// 这是瞬时检查，不会预留完成权。
         /// </summary>
-        public bool IsValid => _profiler != null && _profiler.IsEnabled && _startTimestamp != 0;
+        public bool IsValid => _profiler != null && _capture != null && _capture.IsPending
+            && _profiler.CanCompleteProbe(_capture.Generation);
 
         /// <summary>
-        /// 将令牌转换为可释放的作用域。
+        /// 将令牌转换为可释放的作用域；释放任一副本都会结束同一次采样。
         /// </summary>
         public ProbeScope ToScope() => new ProbeScope(this);
     }
@@ -82,7 +67,7 @@ namespace AbilityKit.Diagnostics
         ProbeToken Begin(string name, long contextId);
 
         /// <summary>
-        /// 完成由 <see cref="Begin"/> 返回的作用域探针采样。
+        /// 完成由本实例开始的探针采样；默认、已完成或过期的令牌不产生数据。
         /// </summary>
         void Complete(ProbeToken token);
 
@@ -133,11 +118,17 @@ namespace AbilityKit.Diagnostics
     {
         private readonly ProbeToken _token;
 
+        /// <summary>
+        /// 包装现有令牌，不创建新的采样。
+        /// </summary>
         public ProbeScope(ProbeToken token)
         {
             _token = token;
         }
 
+        /// <summary>
+        /// 结束采样。重复释放同一令牌或其副本不会产生额外采样。
+        /// </summary>
         public void Dispose()
         {
             _token.Complete();

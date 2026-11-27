@@ -740,6 +740,13 @@ namespace AbilityKit.Game.Editor
         }
     }
 
+    internal enum BattleDebugWaterfallTrack
+    {
+        Trace,
+        Event,
+        RuntimeObject
+    }
+
     internal readonly struct BattleDebugWaterfallItem
     {
         public BattleDebugWaterfallItem(
@@ -750,7 +757,9 @@ namespace AbilityKit.Game.Editor
             int endFrame,
             int depth,
             bool selected,
-            Color color)
+            Color color,
+            BattleDebugWaterfallTrack track = BattleDebugWaterfallTrack.Trace,
+            bool point = false)
         {
             Id = id;
             Label = label ?? string.Empty;
@@ -760,6 +769,8 @@ namespace AbilityKit.Game.Editor
             Depth = Math.Max(0, depth);
             Selected = selected;
             Color = color;
+            Track = track;
+            Point = point;
         }
 
         public long Id { get; }
@@ -770,6 +781,8 @@ namespace AbilityKit.Game.Editor
         public int Depth { get; }
         public bool Selected { get; }
         public Color Color { get; }
+        public BattleDebugWaterfallTrack Track { get; }
+        public bool Point { get; }
     }
 
     internal static class BattleDebugWaterfall
@@ -788,16 +801,17 @@ namespace AbilityKit.Game.Editor
             if (!visibleRange.IsValid || items == null || items.Count == 0)
             {
                 EditorGUILayout.HelpBox(
-                    "没有 Trace 跨度与当前帧范围相交。",
+                    "没有可显示的时间轴证据。",
                     MessageType.Info);
                 return default;
             }
 
+            scroll = EditorGUILayout.BeginScrollView(scroll, GUILayout.MinHeight(180f), GUILayout.MaxHeight(380f));
             var rulerRect = EditorGUILayout.GetControlRect(false, 20f);
             EditorGUI.DrawRect(rulerRect, new Color(0f, 0f, 0f, 0.12f));
             GUI.Label(
                 new Rect(rulerRect.x, rulerRect.y, labelWidth - 2f, rulerRect.height),
-                "节点",
+                "逻辑帧",
                 EditorStyles.miniBoldLabel);
             var rulerTimelineRect = new Rect(
                 rulerRect.x + labelWidth,
@@ -823,15 +837,14 @@ namespace AbilityKit.Game.Editor
                 visibleRange);
 
             var clickedId = 0L;
+            var clickedTrack = BattleDebugWaterfallTrack.Trace;
             var visibleItemCount = CountVisibleItems(items, visibleRange);
+            var totalDrawn = 0;
             var drawnCount = 0;
-            scroll = EditorGUILayout.BeginScrollView(
-                scroll,
-                GUILayout.MinHeight(180f),
-                GUILayout.MaxHeight(380f));
-            for (var i = 0; i < items.Count && drawnCount < rowLimit; i++)
+            BattleDebugWaterfallTrack? currentTrack = null;
+            for (var index = 0; index < items.Count; index++)
             {
-                var item = items[i];
+                var item = items[index];
                 if (!TryClipSpan(
                         item.StartFrame,
                         item.EndFrame,
@@ -841,7 +854,17 @@ namespace AbilityKit.Game.Editor
                     continue;
                 }
 
+                if (currentTrack != item.Track)
+                {
+                    currentTrack = item.Track;
+                    drawnCount = 0;
+                    EditorGUILayout.LabelField(item.Track == BattleDebugWaterfallTrack.Trace ? "Trace 节点"
+                        : item.Track == BattleDebugWaterfallTrack.Event ? "同根事件" : "同根运行时对象",
+                        EditorStyles.miniBoldLabel);
+                }
+                if (drawnCount >= rowLimit) continue;
                 drawnCount++;
+                totalDrawn++;
                 var rowRect = EditorGUILayout.GetControlRect(false, RowHeight);
                 if (item.Selected)
                 {
@@ -860,7 +883,7 @@ namespace AbilityKit.Game.Editor
                 var timelineRect = new Rect(
                     rowRect.x + labelWidth,
                     rowRect.y + 2f,
-                    Mathf.Max(1f, rowRect.width - labelWidth - 2f),
+                    Mathf.Max(1f, rowRect.width - labelWidth),
                     rowRect.height - 4f);
                 EditorGUI.DrawRect(timelineRect, new Color(0f, 0f, 0f, 0.12f));
                 var frameCount = (long)visibleRange.LastFrame - visibleRange.FirstFrame + 1L;
@@ -871,13 +894,19 @@ namespace AbilityKit.Game.Editor
                     timelineRect.y + 2f,
                     Mathf.Max(3f, timelineRect.width * Mathf.Max(0f, endT - startT)),
                     timelineRect.height - 4f);
+                if (item.Point)
+                {
+                    var markerX = timelineRect.x + timelineRect.width * (startT + endT) * 0.5f;
+                    barRect = new Rect(markerX - 4f, timelineRect.center.y - 4f, 8f, 8f);
+                    barRect.xMin = Mathf.Max(barRect.xMin, timelineRect.xMin);
+                }
                 barRect.xMax = Mathf.Min(barRect.xMax, timelineRect.xMax);
                 EditorGUI.DrawRect(barRect, item.Color);
                 GUI.Label(
                     barRect,
                     new GUIContent(
                         string.Empty,
-                        $"F{item.StartFrame} -> F{item.EndFrame}"));
+                        item.Tooltip));
                 DrawCursor(timelineRect, visibleRange, cursorFrame);
 
                 var currentEvent = Event.current;
@@ -886,6 +915,7 @@ namespace AbilityKit.Game.Editor
                     rowRect.Contains(currentEvent.mousePosition))
                 {
                     clickedId = item.Id;
+                    clickedTrack = item.Track;
                     currentEvent.Use();
                 }
             }
@@ -894,17 +924,17 @@ namespace AbilityKit.Game.Editor
             if (visibleItemCount == 0)
             {
                 EditorGUILayout.HelpBox(
-                    "没有 Trace 跨度与当前共享帧范围相交。" +
+                    "没有证据与当前共享帧范围相交。" +
                     "请在概览中选择已加载的范围。",
                     MessageType.Info);
             }
-            else if (visibleItemCount > rowLimit)
+            else if (visibleItemCount > totalDrawn)
             {
                 EditorGUILayout.HelpBox(
-                    $"瀑布图仅显示 {visibleItemCount} 个可见节点中的前 {rowLimit} 个。",
+                    $"仅显示 {visibleItemCount} 条可见证据中的 {totalDrawn} 条；可缩小帧范围查看。",
                     MessageType.Info);
             }
-            return new BattleDebugWaterfallDrawResult(clickedId, timelineInteraction);
+            return new BattleDebugWaterfallDrawResult(clickedId, clickedTrack, timelineInteraction);
         }
 
         internal static bool TryClipSpan(
@@ -959,13 +989,16 @@ namespace AbilityKit.Game.Editor
     {
         public BattleDebugWaterfallDrawResult(
             long selectedId,
+            BattleDebugWaterfallTrack selectedTrack,
             BattleDebugTimelineInteractionResult timelineInteraction)
         {
             SelectedId = selectedId;
+            SelectedTrack = selectedTrack;
             TimelineInteraction = timelineInteraction;
         }
 
         public long SelectedId { get; }
+        public BattleDebugWaterfallTrack SelectedTrack { get; }
         public BattleDebugTimelineInteractionResult TimelineInteraction { get; }
     }
 

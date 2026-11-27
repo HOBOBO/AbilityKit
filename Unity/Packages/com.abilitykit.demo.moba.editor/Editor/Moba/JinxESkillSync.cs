@@ -16,7 +16,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         private const string FlowAssetPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/SkillFlowCO.asset";
         private const string FlowSourcePath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/jinx-e-flow.json";
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Jinx/Publish E")]
         public static void SyncAndPublish()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
@@ -32,7 +31,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Debug.Log("[JinxESkillSync] Published and checked Jinx E placeholder configuration.");
         }
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Jinx/Check E")]
         public static void CheckPublished()
         {
             MobaSkillPipelineExporter.Check();

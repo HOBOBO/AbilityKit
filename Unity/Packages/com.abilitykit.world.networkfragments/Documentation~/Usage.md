@@ -26,6 +26,8 @@
 
 `SnapshotProviderDrain.DrainSnapshots` 优先调用批量 provider，一轮收集后逐条生成仅含快照的 `FramePacket`；否则最多调用单条 provider 指定次数。provider、回调为空或预算非正时返回零。单条 provider 必须自行消费或前移，否则会重复返回同一条；本工具不去重。provider 或 feed 抛错向外传播，已经交付的包不撤销，也不自动推进世界或提交同步游标。
 
+`Runtime/Frames/` 存放数据类型与缓冲，`Runtime/Adapters/` 存放提供者适配。两者仍在 `AbilityKit.World.NetworkFragments` 程序集；即使不使用该适配器，快照信封也依赖 `host` 定义的 `WorldStateSnapshot`。
+
 ## 核校依据
 
-已对照 [FramePacket 与 drain](../Runtime/Frames/FramePacket.cs)、[缓冲](../Runtime/Frames/RemoteFrameBuffer.cs)、[聚合器](../Runtime/Frames/RemoteFrameAggregator.cs)。本包只提供基础数据结构，完整恢复和传输适配由上层声明及验证。
+已对照 [FramePacket](../Runtime/Frames/FramePacket.cs)、[提供者适配](../Runtime/Adapters/SnapshotProviderDrain.cs)、[缓冲](../Runtime/Frames/RemoteFrameBuffer.cs)、[聚合器](../Runtime/Frames/RemoteFrameAggregator.cs)。完整恢复和传输适配由上层声明及验证。

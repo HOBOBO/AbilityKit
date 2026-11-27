@@ -15,12 +15,14 @@
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 1600, "action": "release", "actorAlias": "caster", "slot": 5, "position": {"x": 7, "y": 0, "z": 8}, "direction": {"x": 0, "y": 0, "z": 1}},
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 3800, "action": "release", "actorAlias": "caster", "slot": 5, "position": {"x": 7, "y": 0, "z": 8}, "direction": {"x": 0, "y": 0, "z": 1}},
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 6000, "action": "release", "actorAlias": "caster", "slot": 5, "position": {"x": 7, "y": 0, "z": 8}, "direction": {"x": 0, "y": 0, "z": 1}},
-      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 8200, "action": "release", "actorAlias": "caster", "slot": 5, "position": {"x": 7, "y": 0, "z": 8}, "direction": {"x": 0, "y": 0, "z": 1}}
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 12800, "action": "release", "actorAlias": "caster", "slot": 5, "position": {"x": 7, "y": 0, "z": 8}, "direction": {"x": 0, "y": 0, "z": 1}}
     ],
     "assertions": [
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30010401},
       {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30010501, "minCount": 3, "maxCount": 3},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30010502}
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30010502, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "ProjectileLaunch", "configId": 32010401, "minCount": 3},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "ProjectileLaunch", "configId": 32010402}
     ]
   }
 }

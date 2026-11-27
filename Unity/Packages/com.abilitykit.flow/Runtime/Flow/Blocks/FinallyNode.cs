@@ -2,6 +2,9 @@ using System;
 
 namespace AbilityKit.Ability.Flow.Blocks
 {
+    /// <summary>
+    /// 主阶段返回终态后推进后续阶段，整体结果取自主阶段；中断不会启动后续阶段。
+    /// </summary>
     public sealed class FinallyNode : IFlowNode
     {
         private readonly IFlowNode _try;
@@ -11,12 +14,18 @@ namespace AbilityKit.Ability.Flow.Blocks
         private bool _finallyEntered;
         private FlowStatus _tryStatus;
 
+        /// <summary>
+        /// 指定主阶段和主阶段正常返回终态后执行的后续阶段。
+        /// </summary>
         public FinallyNode(IFlowNode tryNode, IFlowNode finallyNode)
         {
             _try = tryNode ?? throw new ArgumentNullException(nameof(tryNode));
             _finally = finallyNode ?? throw new ArgumentNullException(nameof(finallyNode));
         }
 
+        /// <summary>
+        /// 重置阶段状态，在首次推进时进入主阶段。
+        /// </summary>
         public void Enter(FlowContext ctx)
         {
             _tryEntered = false;
@@ -24,61 +33,48 @@ namespace AbilityKit.Ability.Flow.Blocks
             _tryStatus = FlowStatus.Running;
         }
 
+        /// <summary>
+        /// 主阶段退出后进入后续阶段；后续阶段结束时返回主阶段结果。
+        /// </summary>
         public FlowStatus Tick(FlowContext ctx, float deltaTime)
         {
             if (!_finallyEntered)
             {
                 if (!_tryEntered)
                 {
-                    FlowDiagnostics.Enter(ctx, _try);
-                    _tryEntered = true;
+                    FlowDiagnostics.EnterTracked(ctx, _try, ref _tryEntered);
                 }
 
-                var s = FlowDiagnostics.Tick(ctx, _try, deltaTime);
-                if (s == FlowStatus.Running) return FlowStatus.Running;
+                var status = FlowDiagnostics.Tick(ctx, _try, deltaTime);
+                if (status == FlowStatus.Running) return FlowStatus.Running;
 
-                _tryStatus = s;
-                FlowDiagnostics.Exit(ctx, _try, s);
-                _tryEntered = false;
+                _tryStatus = status;
+                FlowDiagnostics.CloseTracked(ctx, _try, ref _tryEntered, interrupt: false, status: status);
 
-                FlowDiagnostics.Enter(ctx, _finally);
-                _finallyEntered = true;
+                FlowDiagnostics.EnterTracked(ctx, _finally, ref _finallyEntered);
             }
 
-            var fs = FlowDiagnostics.Tick(ctx, _finally, deltaTime);
-            if (fs == FlowStatus.Running) return FlowStatus.Running;
+            var finallyStatus = FlowDiagnostics.Tick(ctx, _finally, deltaTime);
+            if (finallyStatus == FlowStatus.Running) return FlowStatus.Running;
 
-            FlowDiagnostics.Exit(ctx, _finally, fs);
-            _finallyEntered = false;
+            FlowDiagnostics.CloseTracked(ctx, _finally, ref _finallyEntered, interrupt: false, status: finallyStatus);
             return _tryStatus;
         }
 
-        public void Exit(FlowContext ctx)
-        {
-            if (_tryEntered)
-            {
-                FlowDiagnostics.Exit(ctx, _try);
-                _tryEntered = false;
-            }
-            if (_finallyEntered)
-            {
-                FlowDiagnostics.Exit(ctx, _finally);
-                _finallyEntered = false;
-            }
-        }
+        /// <summary>
+        /// 退出当前活动阶段，不启动其他阶段。
+        /// </summary>
+        public void Exit(FlowContext ctx) => Close(ctx, interrupt: false, status: FlowStatus.Succeeded);
 
-        public void Interrupt(FlowContext ctx)
+        /// <summary>
+        /// 中断当前活动阶段，不启动其他阶段。
+        /// </summary>
+        public void Interrupt(FlowContext ctx) => Close(ctx, interrupt: true, status: FlowStatus.Canceled);
+
+        private void Close(FlowContext ctx, bool interrupt, FlowStatus status)
         {
-            if (_tryEntered)
-            {
-                FlowDiagnostics.Interrupt(ctx, _try);
-                _tryEntered = false;
-            }
-            if (_finallyEntered)
-            {
-                FlowDiagnostics.Interrupt(ctx, _finally);
-                _finallyEntered = false;
-            }
+            FlowDiagnostics.CloseTracked(ctx, _try, ref _tryEntered, interrupt, status);
+            FlowDiagnostics.CloseTracked(ctx, _finally, ref _finallyEntered, interrupt, status);
         }
     }
 }

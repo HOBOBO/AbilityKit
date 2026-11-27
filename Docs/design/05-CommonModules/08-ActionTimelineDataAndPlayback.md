@@ -59,13 +59,12 @@ dotnet build src/AbilityKit.ActionSchema/AbilityKit.ActionSchema.csproj -c Relea
 ```mermaid
 flowchart LR
     Editor[ActionEditor Asset] --> Exporter[LogicJsonExporter]
-    Exporter --> Json[logic JSON]
-    Json --> Loader[ActionTimelineJson]
-    Loader --> Dto[SkillAssetDto]
-    Dto --> Public[TimelinePlayer]
-    Dto --> Moba[MobaTimelinePlayer]
-    Moba --> Handler[Clip Handler]
-    Handler --> Sink[Domain Event Sink]
+    Exporter --> Legacy[兼容 .logic.json]
+    Legacy --> Public[公共播放器或旧接入]
+    Exporter --> Logic[.moba.logic.json]
+    Exporter --> Presentation[.moba.presentation.json]
+    Logic --> Compiler[SkillFlow 编译为时间线事件]
+    Presentation --> View[View 表现时间线]
 ```
 
 DTO 层级为 Asset、Group、Track、Clip。核心字段包括：
@@ -79,17 +78,20 @@ DTO 层级为 Asset、Group、Track、Clip。核心字段包括：
 
 DTO 使用可变 public 字段和可变集合。加载器和播放器不复制数据；调用方持有并共享同一对象图。播放期间修改 group、track、clip 或 args 会立即影响后续扫描，没有冻结、并发保护或版本戳。播放器因此借用 asset，不拥有 asset；发布方负责在播放期间保持对象图稳定。
 
-协议没有显式 `schemaVersion`。Newtonsoft.Json 默认可容忍额外字段，但缺字段、null 集合、负时间、重复 clip 和未知类型不会在加载阶段被业务校验。
+普通 `LoadFromJson` / `LoadFromFile` 保留兼容反序列化语义，不做业务校验。分层产物由 `LoadForRuntime` 检查 `schemaVersion=1`、顶层运行类型、活动 Clip 的归属及时间字段；它不验证 Clip 业务支持、资源、重复身份或 `start + length` 上界。
 
 ## 4. 编辑器导出契约
 
-`LogicJsonExporter` 将 ActionEditor Asset 映射为共享 DTO，并输出同名 `.logic.json`：
+`SkillAsset` 源 JSON 是编辑输入。`LogicJsonExporter` 映射层级，将 Track/Clip 的 CLR `FullName` 写入 `type`，仅从实现 `ILogicJsonExportable` 的 Clip 填充 `args`。
 
-1. 复制 asset length 和 group/track/clip 层级。
-2. 将 track 与 clip 的 CLR `FullName` 写入 `type`。
-3. 仅当 clip 实现 `ILogicJsonExportable` 时写入 args。
-4. 使用 Newtonsoft.Json 格式化序列化。
-5. 直接 `File.WriteAllText` 到目标文件。
+| 场景 | 导出和消费 |
+| --- | --- |
+| 未启用 MOBA 分层的兼容导出 | 普通导出写 `<name>.logic.json`；MOBA 专用菜单不接收未启用分层的源资产。 |
+| 启用 `exportMobaRuntime` | 先按运行侧验证和划分活动 Clip，再写 `<name>.moba.logic.json` 和 `<name>.moba.presentation.json`；该分支不新写也不清理旧 `.logic.json`。 |
+| MOBA 逻辑消费 | `SkillTimelinePhaseDef.MobaLogicTimeline` 在 SkillFlow 发布中交给 `MobaActionTimelineCompiler`；`ExecuteEffect` 编译为时间线事件，`TriggerLog` 不形成正式效果事件，其他不支持的逻辑 Clip 被拒绝。 |
+| MOBA 表现消费 | `MobaSkillPresentationCastDriver` 严格加载表现侧 JSON，针对施法实例管理表现；不执行权威效果。 |
+
+重新导出、SkillFlow 发布、运行时资源加载是不同步骤。不能按 JSON 是否存在或按后缀相似来替代消费验证；编辑输入、导出物、发布物不互相手改覆盖。
 
 CLR 全名因此成为持久化协议。重命名命名空间、类型或程序集映射可能让旧 JSON 无法匹配 handler，必须作为数据迁移处理，而不能视为普通重构。
 
@@ -156,7 +158,7 @@ asset length 的完成语义属于 Ability phase，不属于公共播放器。�
 
 ## 8. 时间、顺序与确定性边界
 
-当前结果依赖 DTO 中 group、track、clip 的存储顺序。播放器不会按 start 排序；同一 tick 到期的 clip 按对象图顺序执行，而且 out-of-order 的未来事件可能挡住数组中更晚出现但时间更早的 clip。JSON 数组顺序通常可保留，但编辑器导出、人工修改和数据迁移都必须把顺序视为协议的一部分。
+公共播放器不按 start 排序，同 Tick 到期的 Clip 按对象图顺序扫描；未来 Clip 不会截断后续扫描。MOBA 正式逻辑编译器另行量化并排序时间线事件，保留同时间事件顺序。导出与迁移应保留原有顺序。
 
 浮点时间使用累计加法和固定 epsilon，没有 tick index、定点数或量化。若用于帧同步、预测或回放：
 
@@ -173,14 +175,16 @@ asset length 的完成语义属于 Ability phase，不属于公共播放器。�
 |------|--------------|
 | 文件读取 | IO 异常直接传播 |
 | JSON 解析 | 空字符串返回 null；格式异常直接传播 |
-| DTO 业务校验 | 不存在 |
+| 分层校验 | `LoadForRuntime` 拒绝错误版本、运行侧或不合法的活动 Clip；逻辑编译和表现资源解析另有失败边界 |
 | 公共 sink | 回调异常直接传播 |
 | MOBA handler/sink | 异常直接传播 |
 | 未知/不支持 clip | 静默跳过并标记 fired |
 | handler 返回 false | MOBA 播放器仍标记 fired，不会自动重试 |
 | phase error | Pipeline error 路径处理，但已产生副作用不回滚 |
 
-截至 2026-08-17，ActionSchema package 内没有 Tests 目录或 NUnit `[Test]`、`[UnityTest]`，仓库也没有引用 `AbilityKit.ActionSchema` 的独立测试工程。`MobaMagicStringContractTests` 仅引用 MOBA ActionTimeline 命名空间，不构成公共播放器契约测试。已有证据是 `.NET` 镜像工程、ActionEditor 导出器、两个 View Runner 和 MOBA Ability Pipeline 的真实调用。构建证明协议可编译，调用点证明模块已被接入；两者都不等同于边界行为已有自动回归保护。
+2026-11-25 本地 `.NET` 的 `MobaActionTimelineCompilerTests` 12/12 通过，覆盖分层与错侧拒载、逻辑编译、表现恢复等；[ActionSchema 完整示例](../../../Unity/Packages/com.abilitykit.actionschema/Documentation~/README.md#完整示例)原样通过分层、序列化与严格加载。它们不执行 Unity 导出菜单、双文件写入或正式发布，也不是公共播放器专项 suite。
+
+同日用 Unity 2022.3.62f1 在隔离工程导入临时时间线，直接调用 `ExportSelectedTimeline`。只生成两份 MOBA 分层文件，旧 `.logic.json` 不变；从磁盘读取实际导出文件后，逻辑侧编译出单个 `125 ms` 效果事件，表现侧验证了按施法实例派发粒子请求、携带追平偏移、向后定位后重播及停止。两侧都拒绝对侧文件，不支持的活动 Clip 在写入前被拒绝。报告在 `local/Logs/documentation/D4-TimelineUnity-20261125-145443/`；未运行实际效果、资源渲染、正式发布或战斗预测回滚。
 
 优先补充：
 
@@ -193,7 +197,7 @@ asset length 的完成语义属于 Ability phase，不属于公共播放器。�
 
 ## 10. 采用结论
 
-ActionTimeline 已形成编辑器导出、共享 DTO、Unity/.NET 加载、MOBA handler 和 Ability phase 的最小闭环。生产采用可以复用其数据协议和简单一次性触发模型，但应补齐 schema version、稳定 clip ID、原子导出、加载校验、异常策略和契约测试。
+ActionTimeline 的生产分层路径可复用版本 1 和严格加载；临时样例已验证实际 Editor 导出到两侧消费，稳定 EditMode 回归、稳定 Clip ID 和原子双文件发布仍是缺口。旧 DTO 和公共播放器不能替代正式 SkillFlow 编译或施法表现适配。
 
 它不能被描述为通用 Timeline 引擎，也不能与 Triggering Action 参数 Schema 混为一谈。需要持续区间、blend、seek、倒放、动画同步或大规模调度时，应由独立执行层实现，并把 ActionTimeline DTO 仅作为输入格式或先升级协议。
 
@@ -206,6 +210,6 @@ ActionTimeline 已形成编辑器导出、共享 DTO、Unity/.NET 加载、MOBA 
 
 ---
 
-文档类型：Canonical 设计 | 事实基线：2026-08-17 | 证据等级：E0 公共实现、E1 .NET 构建/Editor 导出、E2 MOBA/View 消费；未达到实质 E3–E5
+文档类型：Canonical 设计 | 事实基线：旧播放器章节 2026-08-17；分层导出和消费章节 2026-11-25 | 证据等级：E0 源码、局部 E3（.NET 与隔离 Unity 导出）；未新增 E4/E5。
 
 *文档版本：v3.1 | 最后更新：2026-08-17*

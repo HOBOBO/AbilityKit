@@ -149,6 +149,8 @@ Starter Controller 的职责：
 
 生成器保留旧路径常量仅用于幂等迁移和清理。运行时、构建和测试代码不再依赖旧路径。
 
+交互生成统一使用 `Tools/AbilityKit/Demos/Build Package-Owned Gameplay Composition`：先校验地图和兵线、检查 Starter 场景，再显示两套装配及旧资产清理范围，确认后才执行写入。此操作会切换场景、保存待保存资产并替换 Build Settings 的场景列表；失败不回滚，可从版本控制核对变更。MOBA 的 `Open Demo Scene` 与 `Play Existing Demo Scene` 只打开已有场景，不调用生成器。批处理 `DemoGameplayCompositionBuilder.GenerateAll`、`MobaDemoSceneMenu.CreateOrRefreshDemoSceneBatch` 保留原写入契约，不弹确认。
+
 ## 6. Build Settings 与构建输入
 
 Build Settings 精确启用：

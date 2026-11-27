@@ -113,7 +113,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         private bool ExecuteInternal(int triggerId, object args, bool predicateMissIsSuccess)
         {
-            if (!TryGetPlan(triggerId, out var plan))
+            if (triggerId <= 0 || _planDb == null || !_planDb.TryGetRecordByTriggerId(triggerId, out var record))
             {
                 Log.Warning($"[MobaTriggerPlanExecutor] Rule plan not found. triggerId={triggerId}, hasPlanDb={_planDb != null}");
                 return false;
@@ -136,8 +136,8 @@ namespace AbilityKit.Demo.Moba.Services
             try
             {
                 var execCtx = _contextFactory.Create(ctrl, collections);
-                var hasExecutionRoot = _planDb.TryGetExecutionRootByTriggerId(triggerId, out var executionRoot);
-                return _runner.Execute(plan, executionRoot, hasExecutionRoot, args, in execCtx, ctrl, predicateMissIsSuccess);
+                var executionRoot = record.ExecutionRoot;
+                return _runner.Execute(record.Plan, executionRoot, executionRoot != null, args, in execCtx, ctrl, predicateMissIsSuccess);
             }
             catch (Exception ex)
             {

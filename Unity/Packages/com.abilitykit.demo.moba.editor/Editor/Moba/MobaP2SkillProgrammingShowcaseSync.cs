@@ -27,7 +27,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         public const string FlowAssetPath =
             "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/MobaP2DerivedCaptureShowcase.asset";
 
-        [MenuItem("AbilityKit/Moba/Skill Flow/Sync P2 Skill Programming Showcase")]
         public static void Sync()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);

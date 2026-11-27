@@ -29,7 +29,7 @@ namespace AbilityKit.Triggering.Editor.Diagnostics
                    "- 5. Editor diagnostics and acceptance reports: completed.\n\n" +
                    "## Mainline API\n\n" +
                    "- Formal entry points: TriggerRunner<TCtx>, TriggerPlan<TArgs>, PlannedTrigger<TArgs, TCtx>, ExecCtx<TCtx>, ActionRegistry, FunctionRegistry.\n" +
-                   "- Formal scheduling: ActionScheduler for TriggerPlan actions, RuleScheduler for rule-level timing intent.\n" +
+                   "- Formal scheduling: ActionScheduler for flat actions; TriggerExecutionScheduler for execution-tree time nodes. Business timers are host-owned.\n" +
                    "- Formal validation: Runtime/Validation before data-driven plans enter runtime.\n\n" +
                    "## Diagnostics\n\n" +
                    "- Runtime collector: TriggeringDiagnosticCollector.\n" +

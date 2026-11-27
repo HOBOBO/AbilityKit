@@ -1,10 +1,15 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Triggering.Cue;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -17,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaProjectileLinkService _links;
         private readonly IProjectileService _projectiles;
         [WorldInject(required: false)] private MobaActorRegistry _actors = null;
+        [WorldInject(required: false)] private MobaConfigDatabase _configs = null;
  
         private FrameIndex _lastFrame;
  
@@ -179,6 +185,49 @@ namespace AbilityKit.Demo.Moba.Services
                     ProfileId = runtime.ProfileId, StatePath = state.ActiveStatePath,
                     PhaseInstance = state.EnteredFrame, EnteredFrame = state.EnteredFrame,
                     SnapshotFrame = frame.Value, LocalSeconds = state.DurationSeconds
+                });
+            }
+        }
+
+        /// <summary>
+        /// 从仍存活的投射物生成表现请求，不写入权威弹道状态。
+        /// </summary>
+        internal void CollectFlightArcCues(List<MobaPresentationCueSnapshotEntry> entries)
+        {
+            if (_actors == null || _links == null || _projectiles == null || _configs == null) return;
+            var templates = _configs.GetTable<ProjectileMO>();
+            foreach (var actorId in _actors.CopyActorIdsInOrder())
+            {
+                if (!_links.TryGetProjectileId(actorId, out var id) || !_links.TryGetSource(id, out var source) ||
+                    !templates.TryGet(source.ProjectileConfigId, out var template) || !template.UsesFlightArcCue ||
+                    !_projectiles.TryGetRuntimeState(id, out var state)) continue;
+
+                var direction = state.Direction;
+                var planarDistance = state.LinearTravelDistance *
+                    (float)Math.Sqrt(direction.X * direction.X + direction.Z * direction.Z);
+
+                entries.Add(new MobaPresentationCueSnapshotEntry
+                {
+                    CueKind = "projectile.flight_arc",
+                    OwnerKind = "Projectile",
+                    RequestKey = $"projectile-flight:{actorId}:{_actors.GetEntityVersion(actorId)}:{state.SpawnFrame}",
+                    ParameterSchemaVersion = 1,
+                    Domain = (int)PresentationCueDomain.Projectile,
+                    Lifetime = (int)PresentationCueLifetime.PersistentState,
+                    Stage = (int)AbilityKit.Protocol.Moba.StateSync.PresentationCueStage.Started,
+                    ReplicationMode = (int)MobaPresentationCueReplicationMode.ReliableForLifecycle,
+                    InstanceId = id.Value,
+                    TemplateId = template.VfxId,
+                    VfxId = template.VfxId,
+                    SourceActorId = source.SourceActorId,
+                    TargetActorId = actorId,
+                    DurationMsOverride = template.LifetimeMs,
+                    Positions = new[] { state.SpawnPosition.X, state.SpawnPosition.Y, state.SpawnPosition.Z },
+                    Parameters = new[]
+                    {
+                        CueParameterBag.Float(PresentationCueParameterKeys.ProjectileFlightDistance, planarDistance),
+                        CueParameterBag.Float(PresentationCueParameterKeys.ProjectileFlightArcHeight, template.PresentationArcHeight)
+                    }
                 });
             }
         }

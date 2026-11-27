@@ -15,6 +15,8 @@ Give a behavior tree a small, reusable way to select a configured normal-attack 
 
 The skill type is the published skill configuration field, represented by the generated `moba_luban.SkillType` enum. A pet tree can set `requiredSkillType` to `NormalAttack` (currently value `1`) and leave skill ID/tag unrestricted. A specific pet can still use `skillId` and `requiredTag` to narrow that set further. If no ready skill of the requested type exists, the selector leaves `candidateSkill.valid` false, as it does for any empty candidate set.
 
+用于对敌施法的候选必须有正射程：技能表的 `Range` 同时用于进入射程判断和追击停距，普通攻击也走同一条技能槽路径。没有对敌射程的技能不能抢占这些候选；当有正射程配置但全部冷却时，保留该集合的最远配置停距，不回退到贴身距离。
+
 ```mermaid
 flowchart LR
   Loadout[Actor skill slots] --> Resolve[Resolve effective slot skill]

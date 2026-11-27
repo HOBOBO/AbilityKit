@@ -87,6 +87,44 @@ public sealed class DataflowPipelineTests
     }
 
     [Fact]
+    public void Execute_does_not_report_the_previous_name_when_the_current_name_throws()
+    {
+        var error = new InvalidOperationException("name unavailable");
+        var broken = new BrokenNameProcessor(error);
+        var pipeline = new DataflowPipeline<int, int>()
+            .AddProcessor(new DelegateProcessor<int, int>("Increment", (value, _) => value + 1))
+            .AddProcessor(broken);
+
+        var result = pipeline.Execute(1, new DataflowContext());
+
+        Assert.Same(error, result.Error);
+        Assert.Equal(2, result.Output);
+        Assert.Equal(1, result.ProcessedCount);
+        Assert.Equal(1, result.FailedProcessorIndex);
+        Assert.Null(result.FailedProcessorName);
+        Assert.False(broken.Processed);
+    }
+
+    private sealed class BrokenNameProcessor : IDataflowProcessor<int, int>
+    {
+        private readonly Exception _error;
+
+        public BrokenNameProcessor(Exception error)
+        {
+            _error = error;
+        }
+
+        public string Name => throw _error;
+        public bool Processed { get; private set; }
+
+        public int Process(int input, IDataflowContext context)
+        {
+            Processed = true;
+            return input;
+        }
+    }
+
+    [Fact]
     public void Execute_uses_a_processor_snapshot()
     {
         var pipeline = new DataflowPipeline<int, int>();

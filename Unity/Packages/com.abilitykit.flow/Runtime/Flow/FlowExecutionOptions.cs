@@ -247,13 +247,42 @@ namespace AbilityKit.Ability.Flow
             return null;
         }
 
+        /// <summary>
+        /// 先记录进入诊断，再调用节点的进入回调。
+        /// </summary>
         public static void Enter(FlowContext context, IFlowNode node)
+        {
+            RecordEnter(context, node);
+            node.Enter(context);
+        }
+
+        internal static void RecordEnter(FlowContext context, IFlowNode node)
         {
             var diagnostics = Get(context);
             diagnostics?.Observer.OnNodeEnter(diagnostics.RunId, node, context);
             diagnostics?.Record(FlowTraceEventType.NodeEnter, node, FlowStatus.Running, 0f, 0L);
             if (diagnostics != null) diagnostics.Statistics.NodesEntered++;
+        }
+
+        /// <summary>
+        /// 仅在实际调用进入回调前登记活动状态，以便清理部分进入的节点。
+        /// </summary>
+        internal static void EnterTracked(FlowContext context, IFlowNode node, ref bool active)
+        {
+            RecordEnter(context, node);
+            active = true;
             node.Enter(context);
+        }
+
+        /// <summary>
+        /// 先清除活动状态，再收尾；收尾抛错后不再尝试清理同一节点。
+        /// </summary>
+        internal static void CloseTracked(FlowContext context, IFlowNode node, ref bool active, bool interrupt, FlowStatus status)
+        {
+            if (!active) return;
+            active = false;
+            if (interrupt) Interrupt(context, node, status);
+            else Exit(context, node, status);
         }
 
         public static FlowStatus Tick(FlowContext context, IFlowNode node, float deltaTime)
@@ -273,22 +302,40 @@ namespace AbilityKit.Ability.Flow
             return result;
         }
 
+        /// <summary>
+        /// 记录退出并调用节点清理；诊断失败也不跳过清理。
+        /// </summary>
         public static void Exit(FlowContext context, IFlowNode node, FlowStatus status = FlowStatus.Succeeded)
         {
-            var diagnostics = Get(context);
-            diagnostics?.Observer.OnNodeExit(diagnostics.RunId, node, context, status);
-            diagnostics?.Record(FlowTraceEventType.NodeExit, node, status, 0f, 0L);
-            if (diagnostics != null) diagnostics.Statistics.NodesExited++;
-            node.Exit(context);
+            try
+            {
+                var diagnostics = Get(context);
+                diagnostics?.Observer.OnNodeExit(diagnostics.RunId, node, context, status);
+                diagnostics?.Record(FlowTraceEventType.NodeExit, node, status, 0f, 0L);
+                if (diagnostics != null) diagnostics.Statistics.NodesExited++;
+            }
+            finally
+            {
+                node.Exit(context);
+            }
         }
 
+        /// <summary>
+        /// 记录中断并调用节点清理；诊断失败也不跳过清理。
+        /// </summary>
         public static void Interrupt(FlowContext context, IFlowNode node, FlowStatus status = FlowStatus.Canceled)
         {
-            var diagnostics = Get(context);
-            diagnostics?.Observer.OnNodeInterrupt(diagnostics.RunId, node, context, status);
-            diagnostics?.Record(FlowTraceEventType.NodeInterrupt, node, status, 0f, 0L);
-            if (diagnostics != null) diagnostics.Statistics.NodesInterrupted++;
-            node.Interrupt(context);
+            try
+            {
+                var diagnostics = Get(context);
+                diagnostics?.Observer.OnNodeInterrupt(diagnostics.RunId, node, context, status);
+                diagnostics?.Record(FlowTraceEventType.NodeInterrupt, node, status, 0f, 0L);
+                if (diagnostics != null) diagnostics.Statistics.NodesInterrupted++;
+            }
+            finally
+            {
+                node.Interrupt(context);
+            }
         }
     }
 }

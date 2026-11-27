@@ -8,19 +8,22 @@ using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 {
-    /// <summary>Offline visual measurement of the actual mounted and published resources.</summary>
+    /// <summary>
+    /// 在隔离工程中离线采样拉克丝的已发布表现资源，用于复现历史空间对齐验收。
+    /// </summary>
     public static class LuxPresentationAudit
     {
+        /// <summary>
+        /// 只允许批处理；输出到显式指定的空目录，仅在传入 -luxRebuild 时重建派生资源。
+        /// </summary>
         public static void Capture()
         {
             if(!Application.isBatchMode) throw new System.InvalidOperationException("Run this offline review in an isolated batch project.");
+            var args = System.Environment.GetCommandLineArgs();
+            var dir = PrepareOutputDirectory(args);
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            if (System.Environment.GetCommandLineArgs().Contains("-luxRebuild")) LuxSkillSync.BuildPresentation();
-            var args = System.Environment.GetCommandLineArgs();
-            var option = System.Array.IndexOf(args,"-luxReviewOutput");
-            var dir = option>=0 ? args[option+1] : Path.GetFullPath("../local/Logs/lux-spatial-review");
-            Directory.CreateDirectory(dir);
+            if (args.Contains("-luxRebuild")) LuxSkillSync.BuildPresentation();
             var camera = new GameObject("Review camera").AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(.12f,.14f,.18f);
@@ -110,6 +113,22 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             }
             File.WriteAllText(Path.Combine(dir,"bounds.json"),records.ToString());
             Debug.Log("[LuxPresentationAudit] "+dir);
+        }
+
+        private static string PrepareOutputDirectory(string[] args)
+        {
+            const string outputOption = "-luxReviewOutput";
+            var option = System.Array.IndexOf(args, outputOption);
+            if (option < 0 || option == args.Length - 1 ||
+                option != System.Array.LastIndexOf(args, outputOption) ||
+                string.IsNullOrWhiteSpace(args[option + 1]) || !Path.IsPathFullyQualified(args[option + 1]))
+                throw new System.ArgumentException("Specify -luxReviewOutput once with an absolute path under local/Logs/.");
+
+            var directory = Path.GetFullPath(args[option + 1]);
+            if (Directory.Exists(directory) && Directory.EnumerateFileSystemEntries(directory).Any())
+                throw new IOException("Use a new or empty output directory: " + directory);
+
+            return Directory.CreateDirectory(directory).FullName;
         }
 
         private static void Mark(Vector3 position,Vector3 size,Material material)

@@ -39,11 +39,13 @@ internal sealed class LocalStateSyncMovementHost : IDisposable
     private State _imported;
     private long _lastInput;
 
-    internal LocalStateSyncMovementHost(float deltaTime, int historyCapacity = 64)
+    internal LocalStateSyncMovementHost(float deltaTime, int historyCapacity = 64,
+        State? initial = null, float moveSpeed = 7.5f)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(historyCapacity);
-        _live = new MovementWorld("local-statesync-live", deltaTime);
-        _replay = new MovementWorld("local-statesync-replay", deltaTime);
+        _live = new MovementWorld("local-statesync-live", deltaTime, moveSpeed);
+        _replay = new MovementWorld("local-statesync-replay", deltaTime, moveSpeed);
+        if (initial is { } state) _live.Import(state);
         _history = new (int, State)?[historyCapacity];
         _reconciler = new LocalMovementReconciler<State, Input>(_scope, ReplayTick);
         _snapshots = new ClientSnapshotSyncPipeline<Snapshot>(new ClientSnapshotSyncOptions<Snapshot>(1, 1,
@@ -150,9 +152,10 @@ internal sealed class LocalStateSyncMovementHost : IDisposable
         private readonly MotionPipeline _pipeline = new();
         private readonly float _deltaTime;
 
-        internal MovementWorld(string id, float deltaTime)
+        internal MovementWorld(string id, float deltaTime, float moveSpeed = 7.5f)
         {
             if (!float.IsFinite(deltaTime) || deltaTime <= 0f) throw new ArgumentOutOfRangeException(nameof(deltaTime));
+            if (!float.IsFinite(moveSpeed) || moveSpeed <= 0f) throw new ArgumentOutOfRangeException(nameof(moveSpeed));
             _deltaTime = deltaTime;
             var options = new WorldCreateOptions(new WorldId(id), "local-statesync-movement")
                 .SetEntitasContextsFactory(new MobaEntitasContextsFactory());
@@ -163,7 +166,7 @@ internal sealed class LocalStateSyncMovementHost : IDisposable
             _actor.AddActorId(ActorId);
             _world.Services.Resolve<MobaActorRegistry>().Register(ActorId, _actor);
             var attributes = new AttributeContext();
-            attributes.SetBase(MobaAttributeIds.MOVE_SPEED, 7.5f);
+            attributes.SetBase(MobaAttributeIds.MOVE_SPEED, moveSpeed);
             _actor.AddAttributeGroup(attributes.GetGroupFor(MobaAttributeIds.MOVE_SPEED), attributes);
             Import(new State(new Transform3(new Vec3(3, 0, 8), Quat.Identity, Vec3.One), 0f, 0f));
         }

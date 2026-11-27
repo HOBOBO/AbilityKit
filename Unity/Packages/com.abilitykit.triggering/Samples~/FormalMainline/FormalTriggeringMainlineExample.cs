@@ -91,13 +91,47 @@ namespace AbilityKit.Triggering.Runtime.Example
 
                 var plan = TriggerPlanFactory.When<DamageEvent>(
                     phase, priority, functionId, actions: new[] { new ActionCallPlan(actionId) });
-                var validationContext = ValidationContext<DamageEvent>.CreateForDevelopment(
+                var validationContext = new ValidationContext<DamageEvent>(
                     definedFunctionIds: new HashSet<string> { functionId.Value.ToString() },
-                    definedActionIds: new HashSet<string> { actionId.Value.ToString() },
-                    definedEventKeys: new HashSet<string> { triggerKey.StringId });
+                    definedActionIds: new HashSet<string> { actionId.Value.ToString() });
                 TriggerPlanValidation.ThrowIfInvalidRuntimeBoundary(triggerKey, in plan, id: id, context: in validationContext);
                 return runner.RegisterPlan(triggerKey, in plan);
             }
+        }
+
+        /// <summary>
+        /// 演示在即时动作中发布另一事件，内层规则完成后再继续外层派发。
+        /// 两个事件的注册均由宿主持有，释放后各自退订。
+        /// </summary>
+        public static void RunNestedDispatchOnce()
+        {
+            var bus = new EventBus();
+            var runner = new TriggerRunner<object>(bus, new FunctionRegistry(), new ActionRegistry());
+            var outer = new EventKey<int>(Eventing.StableStringId.Get("sample:formal:nested:outer"));
+            var inner = new EventKey<int>(Eventing.StableStringId.Get("sample:formal:nested:inner"));
+            var order = new List<string>();
+
+            {
+                using var innerRule = runner.Register(inner,
+                    new DelegateTrigger<int, object>((amount, context) => true, (amount, context) => order.Add($"inner:{amount}")));
+                using var publishInner = runner.Register(outer,
+                    new DelegateTrigger<int, object>((amount, context) => true, (amount, context) =>
+                    {
+                        order.Add($"outer:start:{amount}");
+                        bus.Publish(inner, amount);
+                        order.Add($"outer:resume:{amount}");
+                    }), priority: 10);
+                using var outerTail = runner.Register(outer,
+                    new DelegateTrigger<int, object>((amount, context) => true, (amount, context) => order.Add($"outer:tail:{amount}")));
+
+                bus.Publish(outer, 12);
+                var actual = string.Join(",", order);
+                if (actual != "outer:start:12,inner:12,outer:resume:12,outer:tail:12")
+                    throw new InvalidOperationException($"嵌套派发顺序不符合预期：{actual}");
+            }
+
+            if (bus.HasSubscribers(outer) || bus.HasSubscribers(inner))
+                throw new InvalidOperationException("释放注册后，内外层事件均应退订。");
         }
     }
 }

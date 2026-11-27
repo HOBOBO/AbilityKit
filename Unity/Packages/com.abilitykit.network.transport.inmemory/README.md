@@ -1,41 +1,14 @@
-# com.abilitykit.network.transport.inmemory
+# InMemory Transport
 
-> AbilityKit 的**进程内 ITransport**（测试用）。一对 linked 传输中，一端 `Send` 会同步触发另一端 `BytesReceived`，全程没有真实 socket。它适合快速验证客户端 SDK 与进程内协议处理器的装配，不替代真实服务端 smoke 或网络环境测试。
+`com.abilitykit.network.transport.inmemory` 提供同步投递字节的进程内成对 ITransport，适合本地测试。
 
-- **版本**：0.1.0
-- **命名空间**：`AbilityKit.Network.Transport.InMemory`
-- **依赖**：`com.abilitykit.network.runtime` 0.1.0
-- **类型**：1 个 —— `InMemoryTransport : ITransport`（linked pair）
+## 安装与首次使用
 
-## 用法
+从项目配置的包来源安装；版本、Unity 最低版本和直接依赖以 [package.json](package.json) 为准，同时满足传递依赖与所需第三方程序集的条件。本轮核校基于仓库源码与 .NET 镜像，不等于隔离安装或 Unity 发布验收。
 
-```csharp
-// 一对互相 linked 的 in-memory 传输
-var (clientTransport, serverTransport) = InMemoryTransport.CreateConnectedPair();
+先运行使用指南的完整字节往返例子。SDK/ConnectionManager 仍要求有效端口，可用 1；原始 transport 不验证端点、不模拟真实断网。
 
-// 客户端：用 clientTransport 组装真实 NetworkSdkClient 栈
-var clientSdk = new NetworkSdkBuilder()
-    .UseTransportFactory(() => clientTransport)   // ConnectionManager 会调 Connect（no-op，已配对）
-    .Build();
-clientSdk.Open("inmemory", 0);
+## 文档
 
-// 服务端：用 serverTransport 写 in-process 服务端（处理 room/battle 协议）
-serverTransport.BytesReceived += bytes => { /* 解析请求、响应 */ };
-serverTransport.Connect("inmemory", 0);
-```
-
-- `CreateConnectedPair()` 创建一对（A↔B linked）。
-- `Connect` 触发 `Connected`，但不解析或验证 host/port。
-- `Send` **同步**路由到对端 `BytesReceived`；不跨线程，`Send` 返回前对端已处理回调。
-- `Close`/`Dispose` 触发本端 `Disconnected`。
-
-## 测试边界
-
-`AbilityKit.Network.Transport.InMemory.Tests` 有 linked-pair 同步回环测试。仓库另有一条 SDK + InMemory 集成测试，但它没有完成真实 request-response 断言，因此当前证据只支持“transport 回环和基础装配可工作”。
-
-本实现不模拟 socket 建连、带宽、时延、抖动、丢包、重复、乱序、半开连接、异步回调或真实断网。需要验证这些行为时，应使用对应真实 transport、服务端和可控网络环境。
-
-## 相关
-- 默认/可选传输 → `network.runtime`（TCP）、`network.transport.websocket`、`network.transport.litenet`
-- 组装根 → `com.abilitykit.network.sdk`
-- 接入清单 → `Docs/design/07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md`
+- [文档索引](Documentation~/README.md)：阅读顺序、当前契约与验证边界。
+- [使用指南](Documentation~/Usage.md)：接入前提、调用顺序、所有权与失败行为。

@@ -15,6 +15,83 @@ namespace AbilityKit.Combat.Projectile
         private IProjectileSchedulePatternResolver _schedulePatternResolver;
 
         /// <summary>
+        /// 无发射任务的零枚或单枚直线弹体截面；保留精确的弹体与过滤器分配进度。
+        /// </summary>
+        public sealed class LocalFlightCut
+        {
+            internal readonly ProjectileWorldSnapshotPayload State;
+
+            internal LocalFlightCut(in ProjectileWorldSnapshotPayload state) => State = state;
+
+            /// <summary>
+            /// 空截面没有弹体 ID；该事实独立于发射输入是否终结。
+            /// </summary>
+            public ProjectileId? ActiveId => State.Items.Length == 0 ? (ProjectileId?)null : new ProjectileId(State.Items[0].Id);
+            public int OwnerId => ActiveId.HasValue ? State.Items[0].OwnerId : 0;
+            public int TemplateId => ActiveId.HasValue ? State.Items[0].TemplateId : 0;
+            public int LifetimeFramesLeft => ActiveId.HasValue ? State.Items[0].LifetimeFramesLeft : 0;
+            public long DistanceLeftRaw => ActiveId.HasValue ? State.Items[0].DistanceLeftRaw : 0;
+            public bool RequiresFilter => ActiveId.HasValue && State.Items[0].HitFilterKey != 0;
+        }
+
+        /// <summary>
+        /// 在通知已消费的帧末采集弹体物理状态。调用者负责保证指定碰撞层在两个世界均无碰撞体，
+        /// 并独立覆盖玩法对象名单、发射来源、世界时钟及其它领域状态。零掩码不表示禁用碰撞。
+        /// </summary>
+        public LocalFlightCut CaptureLocalFlightCut(FrameIndex frame, int isolatedCollisionMask,
+            Predicate<IProjectileHitFilter>? validateFilter = null, int ownerColliderId = 0)
+        {
+            ValidateLocalFlightBoundary();
+            var state = _world.CaptureState(frame, validateFilter ?? RejectCustomLocalFilter);
+            ValidateLocalFlightState(in state, frame, isolatedCollisionMask, ownerColliderId);
+            return new LocalFlightCut(in state);
+        }
+
+        /// <summary>
+        /// 将匹配帧的截面静默导入空候选服务；不调用发射入口，不产生出生或退出通知。
+        /// </summary>
+        public void RestoreLocalFlightCut(FrameIndex frame, LocalFlightCut cut, int isolatedCollisionMask,
+            IProjectileHitFilter? reboundFilter = null, int ownerColliderId = 0)
+        {
+            if (cut == null) throw new ArgumentNullException(nameof(cut));
+            ValidateLocalFlightBoundary();
+            if (ActiveCount != 0) throw new InvalidOperationException("只允许将弹体截面导入空候选服务。");
+            ValidateLocalFlightState(in cut.State, frame, isolatedCollisionMask, ownerColliderId);
+            if (cut.RequiresFilter != (reboundFilter != null))
+                throw new InvalidOperationException("Local flight requires its world-local filter binding.");
+            _world.ImportState(in cut.State, reboundFilter, exactLocalLifetime: true);
+        }
+
+        private static bool RejectCustomLocalFilter(IProjectileHitFilter filter) => false;
+
+        private void ValidateLocalFlightBoundary()
+        {
+            if (_schedules.Count != 0 || _nextScheduleId != 1 || !_areas.IsUnused || PendingNotificationCount != 0 || ActiveCount > 1)
+                throw new InvalidOperationException("无命中弹体截面不覆盖调度、区域、待消费通知或多枚弹体。");
+        }
+
+        private static void ValidateLocalFlightState(in ProjectileWorldSnapshotPayload state, FrameIndex frame, int isolatedCollisionMask,
+            int ownerColliderId)
+        {
+            if (frame.Value < 0 || isolatedCollisionMask == 0 || (isolatedCollisionMask & (isolatedCollisionMask - 1)) != 0)
+                throw new InvalidOperationException("弹体截面需要明确指定一个不参与碰撞的层。");
+            ProjectileWorld.ValidateState(in state, frame);
+            if (state.Items.Length == 0) return;
+            var flight = state.Items[0];
+            if (state.Items.Length != 1 || flight.OwnerId <= 0 || flight.LauncherActorId != 0 ||
+                flight.SpawnFrame < 0 || flight.SpawnFrame > frame.Value || flight.CollisionLayerMask != isolatedCollisionMask ||
+                flight.RootActorId != flight.OwnerId || flight.IgnoreCollider != ownerColliderId ||
+                flight.HitPolicyKind != ProjectileHitPolicyKind.ExitOnHit ||
+                flight.TotalHitCount != 0 || flight.HitActorIds.Length != 0 || flight.ReturnHitActorIds.Length != 0 ||
+                flight.TrackingTargetActorId != 0 || flight.TrackingArcHeightRaw != 0 || flight.TrackingArcBaseHeightRaw != 0 ||
+                flight.TrackingArcHeightPerUnitRaw != 0 || flight.BounceSearchRadiusRaw != 0 || flight.ReturnAfterFrames > 0 ||
+                flight.IsReturning != 0 || flight.IsSuspended != 0 || flight.MaxDistanceResponse != ProjectileMaxDistanceResponse.Exit ||
+                flight.LifetimeFramesLeft < 0 || flight.LifetimeFramesLeft == int.MaxValue || flight.DistanceLeftRaw <= 0 ||
+                flight.SpeedRaw <= 0)
+                throw new InvalidOperationException("弹体不符合无碰撞、有限寿命、无派生直线飞行的截面范围。");
+        }
+
+        /// <summary>
         /// 导出完整物理及未来发射状态；不执行策略取样，不复制世界随机流。
         /// 活动自定义策略缺少数据描述或解析依赖时明确拒绝捕获。
         /// </summary>

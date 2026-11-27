@@ -42,6 +42,7 @@ namespace AbilityKit.Combat.MotionSystem.Collision
         /// 共享解析核：供管线 <see cref="Solve"/> 与瞬移类技能（blink）直接调用。
         /// AllowPassThrough=true 时跳过行进 sweep（穿墙），但仍执行终点 <see cref="ResolveEndOverlap"/>
         /// （终点落障碍物内则按 <see cref="MotionEndOverlapPolicy"/> 处理，如 ProjectAlongDirection）。
+        /// 沿墙滑动按配置恢复剩余水平速度；切向方向由接触法向的水平垂线重建。
         /// </summary>
         public MotionSolveResult Resolve(int moverId, in Vec3 start, in Vec3 desiredDelta, in MotionCollisionConstraints constraints)
         {
@@ -120,7 +121,9 @@ namespace AbilityKit.Combat.MotionSystem.Collision
 
                 remaining -= stepApplied;
 
-                // 切向滑动：消除剩余位移里指向墙法向（XZ）的分量，保留沿墙分量。
+                /*
+                 * 切向滑动只保留水平接触面的切向分量。
+                 */
                 var horizontalLengthBeforeProjection =
                     DeterministicMathBridge.Sqrt(remaining.X * remaining.X + remaining.Z * remaining.Z);
                 var normal = stepHit.Normal;
@@ -132,7 +135,13 @@ namespace AbilityKit.Combat.MotionSystem.Collision
                 var intoWall = remaining.X * nx + remaining.Z * nz;
                 if (intoWall < 0f)
                 {
-                    remaining = new Vec3(remaining.X - nx * intoWall, remaining.Y, remaining.Z - nz * intoWall);
+                    /*
+                     * 用法向的水平垂线重建投影，避免相近向量相减残留朝内尾差。
+                     * 输入接近正对墙面时，速度恢复的放大倍率较高，原减法投影的
+                     * 尾差会一并放大，使后续扫掠再次阻挡，吞掉本应恢复的沿墙位移。
+                     */
+                    var tangentDistance = -nz * remaining.X + nx * remaining.Z;
+                    remaining = new Vec3(-nz * tangentDistance, remaining.Y, nx * tangentDistance);
 
                     var projectedHorizontalLength =
                         DeterministicMathBridge.Sqrt(remaining.X * remaining.X + remaining.Z * remaining.Z);

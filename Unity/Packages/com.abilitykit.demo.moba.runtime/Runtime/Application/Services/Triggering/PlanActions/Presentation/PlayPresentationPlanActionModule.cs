@@ -10,6 +10,8 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Pipeline;
 using PresentationEventArgs = AbilityKit.Demo.Moba.Triggering.PresentationEventArgs;
+using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Services.Triggering.Cue;
 
@@ -42,6 +44,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             int[] targets = null;
             Vec3[] positions = null;
+            Vec3? launchForward = null;
             long sourceContextId = input.ExecutionScope.EffectContextId;
 
             switch (mode)
@@ -65,6 +68,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     positions = new[] { new Vec3(args.X, args.Y, args.Z) };
                     break;
 
+                case PresentationTargetMode.ProjectileLaunchPose:
+                    if (args.Stop || triggerArgs is not ProjectileEventArgs { Raw: ProjectileSpawnEvent spawn } ||
+                        !(spawn.Direction.SqrMagnitude > 0.000001f) || float.IsInfinity(spawn.Direction.SqrMagnitude))
+                    {
+                        LogRejected(ctx, "projectile launch pose requires a spawn event with a valid direction and supports play only");
+                        return;
+                    }
+                    positions = new[] { spawn.Position };
+                    launchForward = spawn.Direction;
+                    break;
+
                 case PresentationTargetMode.PayloadTarget:
                     if (targetActorId > 0)
                         targets = new[] { targetActorId };
@@ -82,6 +96,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 DurationMsOverride = args.DurationMs,
                 Targets = targets,
                 Positions = positions,
+                LaunchForward = launchForward,
                 SourceActorId = casterActorId,
                 TargetActorId = targetActorId,
                 SourceContextId = sourceContextId,

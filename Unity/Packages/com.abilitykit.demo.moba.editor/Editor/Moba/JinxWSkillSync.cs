@@ -16,7 +16,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         private const string FlowDirectory = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases";
         private const string FlowAssetPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/SkillFlowCO.asset";
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Jinx/Publish W")]
         public static void SyncAndPublish()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
@@ -32,7 +31,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Debug.Log("[JinxWSkillSync] Published and checked Jinx W first-slice configuration.");
         }
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Jinx/Check W")]
         public static void CheckPublished()
         {
             MobaSkillPipelineExporter.Check();

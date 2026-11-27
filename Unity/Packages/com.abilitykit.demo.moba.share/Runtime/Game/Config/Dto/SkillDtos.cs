@@ -364,7 +364,31 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int RecoveryStartMs = -1;
         public int CastGateTagTemplateId;
         public int CastGateEndMs;
+#if UNITY_5_3_OR_NEWER
+        [UnityEngine.SerializeReference]
+#endif
+        public SkillTimelineWindupDTO Windup;
         public SkillTimelineEventDTO[] Events;
+    }
+
+    /// <summary>
+    /// 以有效额外攻速百分值线性压缩指定的 Timeline 起始区间。
+    /// </summary>
+    [Serializable]
+    public sealed class SkillTimelineWindupDTO
+    {
+        public int AuthoredMs;
+        public int BaseMs;
+        public int MinimumMs;
+        public int AttackSpeedPercentAtMinimum;
+
+        public void Validate(int durationMs)
+        {
+            if (AuthoredMs <= 0 || AuthoredMs >= durationMs || MinimumMs <= 0 ||
+                BaseMs < MinimumMs || BaseMs > int.MaxValue - (durationMs - AuthoredMs) ||
+                AttackSpeedPercentAtMinimum <= 0)
+                throw new ArgumentException("Invalid Timeline windup range or authored boundary.");
+        }
     }
 
     [Serializable]
@@ -386,7 +410,14 @@ namespace AbilityKit.Demo.Moba.Share.Config
             var phases = flow?.Phases;
             if (phases == null) return;
             for (var i = 0; i < phases.Length; i++)
+            {
                 ValidatePhase(phases[i], i == phases.Length - 1);
+                if (phases[i]?.Timeline?.Windup == null) continue;
+                if (flow.BasicAttack != null) throw new ArgumentException("Timeline windup cannot replace basic attack timing.");
+                for (var prior = 0; prior < i; prior++)
+                    if (phases[prior]?.Type != (int)SkillPhaseType.RulePlan)
+                        throw new ArgumentException("Timeline windup requires immediate entry after synchronous rules.");
+            }
         }
 
         private static void ValidatePhase(SkillPhaseDTO phase, bool terminal)
@@ -395,6 +426,12 @@ namespace AbilityKit.Demo.Moba.Share.Config
             var timeline = phase.Timeline;
             if (timeline != null)
             {
+                if (timeline.Windup != null)
+                {
+                    if (!terminal || phase.Type != (int)SkillPhaseType.Timeline)
+                        throw new ArgumentException("Windup requires a terminal top-level Timeline.");
+                    timeline.Windup.Validate(timeline.DurationMs);
+                }
                 ValidateTimelineGate(timeline.DurationMs, timeline.RecoveryStartMs,
                     timeline.CastGateTagTemplateId, timeline.CastGateEndMs);
                 if (timeline.RecoveryStartMs < -1 || timeline.RecoveryStartMs >= 0 &&

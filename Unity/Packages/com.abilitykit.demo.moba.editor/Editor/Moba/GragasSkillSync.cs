@@ -39,8 +39,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 output.Add(new JObject { ["controller"] = AssetDatabase.GetAssetPath(controller), ["states"] = states,
                     ["parameters"] = JArray.FromObject(controller.parameters.Select(p => new { p.name, type = p.type.ToString() })) });
             }
-            var path = Path.GetFullPath(Path.Combine(Application.dataPath, "../../local/gragas-animation-facts.json"));
-            File.WriteAllText(path, output.ToString(Formatting.Indented));
+            var path = MobaHeroInspectionReport.Write("gragas-animation-facts.json",
+                output.ToString(Formatting.Indented));
             Debug.Log("[GragasSkillSync] Inspected animation facts: " + path);
         }
 
@@ -63,8 +63,8 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             var result = new JObject { ["clip"] = AssetDatabase.GetAssetPath(clip), ["length"] = clip.length,
                 ["startTime"] = settings.startTime, ["stopTime"] = settings.stopTime,
                 ["loopTime"] = settings.loopTime, ["curves"] = curves };
-            var path = Path.GetFullPath(Path.Combine(Application.dataPath, "../../local/gragas-q-animation-segments.json"));
-            File.WriteAllText(path, result.ToString(Formatting.Indented));
+            var path = MobaHeroInspectionReport.Write("gragas-q-animation-segments.json",
+                result.ToString(Formatting.Indented));
             Debug.Log("[GragasSkillSync] Read-only Q curve inspection: " + path);
         }
 

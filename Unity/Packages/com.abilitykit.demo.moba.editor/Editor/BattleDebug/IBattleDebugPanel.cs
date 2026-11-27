@@ -38,7 +38,7 @@ namespace AbilityKit.Game.Editor
 
     internal interface IBattleDebugEventsTarget
     {
-        void OpenForActor(long actorId);
+        void OpenForActor(long actorId, bool allCategories = false);
         void OpenEvent(
             in BattleDiagnosticEvent diagnosticEvent,
             BattleDiagnosticWorkspaceState workspaceState);

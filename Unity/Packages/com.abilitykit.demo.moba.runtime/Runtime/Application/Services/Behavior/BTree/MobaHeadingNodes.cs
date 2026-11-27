@@ -27,6 +27,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.MoveRequestY, Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestZ, bb.GetFixed64(MobaBTreeKeys.LaunchHeadingZ));
             bb.SetFixed64(MobaBTreeKeys.MoveRequestStopRange, Fixed64.Zero);
+            bb.SetBool(MobaBTreeKeys.MoveRequestFollowsOwner, false);
             bb.SetInt64(MobaBTreeKeys.MoveRequestPriority, _priority);
             bb.SetBool(MobaBTreeKeys.MoveRequestValid, true);
             return NodeState.Success;

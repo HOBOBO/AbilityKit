@@ -11,7 +11,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         private const string Source = ResourcesRoot + "ChampionVfx/08.Jinx_Arcanist/Jinx_Arcanist_";
         private const string Destination = ResourcesRoot + "MobaVfx/Jinx/";
 
-        [MenuItem("Tools/AbilityKit/Demos/Moba/Jinx/Publish Live Repair %&j")]
         public static void Publish()
         {
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);

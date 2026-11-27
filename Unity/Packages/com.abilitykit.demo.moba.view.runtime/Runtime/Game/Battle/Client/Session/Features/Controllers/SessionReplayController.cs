@@ -1,6 +1,6 @@
 using System;
-using System.IO;
 using AbilityKit.Ability.Host;
+using AbilityKit.Core.Logging;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Flow.Battle.Replay;
@@ -16,10 +16,9 @@ namespace AbilityKit.Game.Flow
             BattleContext ctx,
             BattleReplayRuntime replayResources)
         {
-            if (plan.RunModeOptions.RunMode != BattleRunMode.Record) return;
+            if (plan.RunModeOptions.RunMode != BattleRunMode.Record || !plan.RunModeOptions.EnableInputRecording) return;
             if (replayResources == null) throw new ArgumentNullException(nameof(replayResources));
 
-            BattleRecordCodecBootstrap.TryInstallMemoryPack();
             SetupRecordWriter(plan, ctx, replayResources);
         }
 
@@ -37,18 +36,11 @@ namespace AbilityKit.Game.Flow
         {
             if (ctx == null) return;
 
-            var outPath = plan.RunModeOptions.InputRecordOutputPath;
-            EnsureOutputDirectory(outPath);
-
+            var options = plan.RunModeOptions;
             var meta = CreateRecordMeta(plan);
-            var writer = FrameRecordCodecs.Current.CreateWriter(outPath, meta);
+            var writer = BattleRecordFiles.OpenWriter(options.InputRecordOutputPath, options.RecordCoverage, meta,
+                message => Log.Info(message));
             replayResources.BindRecordWriter(ctx, writer);
-        }
-
-        private static void EnsureOutputDirectory(string outPath)
-        {
-            var outDir = Path.GetDirectoryName(outPath);
-            if (!string.IsNullOrEmpty(outDir)) Directory.CreateDirectory(outDir);
         }
 
         private static FrameRecordMeta CreateRecordMeta(BattleStartPlan plan)

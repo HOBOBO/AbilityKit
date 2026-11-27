@@ -353,13 +353,4 @@ namespace AbilityKit.Triggering.Runtime.Executable
         float PeriodMs { get; }
         float DurationMs { get; }
     }
-
-    public interface IScheduleController
-    {
-        bool IsCompleted { get; }
-        bool IsInterrupted { get; }
-        string InterruptionReason { get; }
-        void Update(float deltaTimeMs);
-        void RequestInterrupt(string reason);
-    }
 }

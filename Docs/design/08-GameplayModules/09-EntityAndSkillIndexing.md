@@ -1,8 +1,9 @@
 # EntityManager 与 SkillLibrary 索引基础设施
 
 > 文档类型：Canonical 设计（战斗索引基础设施）
-> 事实基线：2026-08-16
-> 文档版本：v3.2
+> 事实基线：2026-11-25，当前工作区 Runtime 与 .NET 镜像
+> 核校状态：限定核校注册/派生索引、失败边界与当前消费者；未执行完整业务或 Unity 验收
+> 文档版本：v3.3
 >
 > 本文说明 `com.abilitykit.combat.entitymanager` 与 `com.abilitykit.combat.skilllibrary` 的公共索引模型、写入顺序、一致性边界和验证现状。两者都用“主存储 + 派生查询结构”降低按分类查找成本，但键的来源、更新责任和成熟度不同。
 
@@ -23,8 +24,8 @@
 | 索引键来源 | 调用方显式设置 | selector 从 `TData` 派生 |
 | 内建更新行为 | `OnEntityUpdated` 为空，不自动改键 | `Update` 用 old/new data 重算派生键 |
 | 删除清理 | Registry 删除时通知索引清理 ID | Library 删除时通知索引清理技能键 |
-| 生产调用证据 | MOBA `MobaEntityManager` | 当前仅包内示例 |
-| 直接测试证据 | `KeyedIndexUpdateTests.cs` 仅覆盖 3 个 update DTO 的构造和字段 | 未发现 SkillLibrary 专门测试 |
+| 消费者证据 | MOBA `MobaEntityManager` 与 Samples | 包内示例与 Samples；未发现正式业务 runtime 使用 |
+| 直接测试证据 | suite 3/3 仅覆盖 update DTO；另有本轮完整指南示例和限制探针 | 无专属 suite；本轮完整指南示例及原地修改限制探针通过 |
 
 框架只拥有注册表、bucket 和增量索引维护契约；项目拥有权威实体/技能主数据、索引键目录、聚合写入口和异常后的重建策略。MOBA 的 Team/MainType 等索引是项目选择，不应成为通用 EntityManager 的内建维度。
 
@@ -38,6 +39,8 @@
 | SkillLibrary .NET 镜像 | `src/AbilityKit.Combat.SkillLibrary/AbilityKit.Combat.SkillLibrary.csproj` |
 | MOBA 实体索引接入 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityManager/MobaEntityManager.cs` |
 | MOBA 生成与索引深潜 | `../09-ImplementationExamples/MOBA/06-ConfigEntitySpawnDeepDive.md` |
+
+当前使用入口为 [EntityManager 指南](../../../Unity/Packages/com.abilitykit.combat.entitymanager/Documentation~/Usage.md)和 [SkillLibrary 指南](../../../Unity/Packages/com.abilitykit.combat.skilllibrary/Documentation~/Usage.md)。操作步骤由包内维护，本文维护领域权威数据、派生状态和异常重建之间的交接。
 
 两个 `.NET` 工程通过 `Compile Include` 链接 Unity package 的 Runtime 源码。Unity asmdef 和 `.NET` 镜像是同一份实现的两个构建入口，不应维护源码副本。
 
@@ -180,7 +183,7 @@ sequenceDiagram
 - `Add` 在主字典插入成功后通知全部索引。
 - `Remove` 先从主字典删除，再用旧数据通知全部索引。
 - `Update` 先替换主数据，再把 old/new data 交给全部索引。
-- `NotifyUpdated` 不替换主数据，只把当前数据同时作为 old/new data 发送。
+- `NotifyUpdated` 不替换主数据，只把当前数据同时作为 old/new data 发送。原地修改分类后，两者读取同一个新分类，无法清除旧 bucket；之后 Remove 也可能保留旧分类关系。该方法不是内建索引的变更追踪或补救入口。
 - 新增索引时会回放当前全部技能，因此内建派生索引可以完成 backfill。
 - 但 `AddIndex` 同样先挂入列表再回填；selector 或索引回调中途失败会留下已挂载、部分回填的索引。
 - `RemoveIndex` 只停止后续通知，不清空派生 bucket；继续持有被移除索引会读到冻结旧数据。
@@ -288,25 +291,20 @@ public void UnregisterActor(int id)
 
 ## 7. 验证现状与门禁
 
-截至 2026-08-16：
+2026-11-25，Windows / .NET 10 Release，当前工作区核校：
 
-- `AbilityKit.Combat.EntityManager.csproj` Release 构建成功，0 error。
-- `AbilityKit.Combat.SkillLibrary.csproj` Release 构建成功，0 error。
-- 两个工程存在仓库既有 nullable 和公共 API XML 注释警告。
-- EntityManager 在 MOBA 中建立 Team、MainType、UnitSubType、OwnerPlayer 索引，属于真实运行接入。
-- SkillLibrary 全仓仅发现 `SkillLibraryExample`，尚无生产 runtime 调用证据。
-- 当次 `AbilityKit.Combat.EntityManager.Tests` 为 `3/3`，但三项只验证 `SetKeyUpdate`、`AddKeyUpdate`、`RemoveKeyUpdate` 的构造与字段，不执行 Registry、KeyedIndex、MultiKeyIndex、backfill 或失败一致性；SkillLibrary 仍未发现专门测试。
+| 对象 | 实际证据 | 结论边界 |
+| --- | --- | --- |
+| EntityManager | `dotnet test src/AbilityKit.Combat.EntityManager.Tests/AbilityKit.Combat.EntityManager.Tests.csproj -c Release --no-restore`，显式 TRX/结果目录，3/3 | 手工 suite，仅覆盖三个更新 DTO，不代表 Registry 行为矩阵 |
+| EntityManager 指南 | 从完整指南原样提取、引用 .NET 镜像编译运行；注册、换键、复制和删除通过 | 局部 E3，不覆盖业务生命周期或异常重建 |
+| EntityManager 限制 | 本地探针复现未注册 ID 写键后 Registry.Remove 不清理、后加内建索引不从通知派生键 | 现状证据，不表示缺陷已修 |
+| SkillLibrary 指南 | 完整示例通过后加索引回填、替换更新、主数据读取和删除 | 局部 E3，无专属测试工程 |
+| SkillLibrary 限制 | 原地修改对象后 NotifyUpdated 不清旧分类，随后 Remove 仍残留旧 bucket | 应使用新对象 Update；已失配时重建 |
+| 真实消费者 | [MobaEntityManager](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EntityManager/MobaEntityManager.cs) 和 [CombatFirstWaveSamples](../../../Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs) 只读核对 | EntityManager 进入 MOBA 主链；SkillLibrary 增补 Samples 证据，未发现正式业务运行接入 |
 
-建议补充的最低测试集合：
+日志、TRX、示例与探针在 `local/Logs/documentation/D4-Combat-20261125-134952/`；完整范围和复验记录见[本轮批次记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#14-d4-战斗索引碰撞与投射物核校记录2026-11-25)。历史 2026-08-16 的两个 Release 构建及 DTO 3/3 不作为本次业务验收依据。现有可空性/XML 注释警告未借文档整理修复。
 
-1. Add、Remove、后加索引 backfill 和重复写入。
-2. 单键换键、多键集合差和空 selector 结果。
-3. `NotifyUpdated` 的自定义 update-aware 索引过滤。
-4. selector 或回调抛异常后的部分提交状态。
-5. 自定义 comparer 在字典、换键判断和 multi-key 差分中的一致性。
-6. 可变 `TData` 原地修改造成的旧值丢失回归。
-7. AddIndex 回填失败后是否挂载、RemoveIndex 后旧视图是否继续变化。
-8. 主键 comparer 与派生 bucket comparer 不一致时的重复技能键。
+仍待补足的是自定义 comparer 全链一致性、索引挂载失败和部分提交矩阵、可变数据保护、重建切换、规模与分配预算。没有运行 Unity、干净 UPM 安装、完整业务、并发、热重载、完整 gate 或 CI，不新增 E4/E5。
 
 ## 8. 采用结论
 
@@ -314,8 +312,10 @@ public void UnregisterActor(int id)
 - SkillLibrary 的派生索引模型可用于原型和受控配置集；在生产采用前应补直接测试、真实 runtime 接入和热重载一致性验证。
 - 两者都不应被描述为自动同步数据库。权威数据始终在领域实体或技能主数据中，索引是可重建的派生状态。
 
-证据分层需要按包分别声明：EntityManager 为 E0 实现、E2 MOBA 消费，现有 E3 入口只固定 update 信封结构，不能称为索引行为 E3；SkillLibrary 为 E0 实现、E1 示例，尚无真实 runtime 消费和直接契约测试。两者均无配置热切换、异常重建、comparer 全链一致、并发访问或规模预算的 E4/E5 证据。
+证据分层按包和入口分别声明：EntityManager 为 E0 实现、E2 MOBA 消费，suite 的 E3 仍只固定 update 信封；本轮完整示例另提供有限的索引行为 E3。SkillLibrary 为 E0、E1 包内/Samples 消费，加本轮完整示例及限制探针的局部 E3，尚无专属 suite 或正式业务接入。两者均无热切换、异常重建、comparer 全链、并发及规模预算的 E4/E5 证据。
 
 ---
 
-*文档类型：Canonical 设计（战斗索引基础设施） | 事实基线：2026-08-16 | 证据等级：EntityManager E0-E2 + 局部结构 E3，SkillLibrary E0-E1 | 文档版本：v3.2*
+文档类型：Canonical 设计（战斗索引基础设施） | 事实基线：2026-11-25 | 证据等级：EntityManager E0/E2 + 局部 E3，SkillLibrary E0/E1 + 局部 E3
+
+*文档版本：v3.3 | 最后更新：2026-11-25*

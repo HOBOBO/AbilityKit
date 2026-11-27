@@ -33,7 +33,8 @@ namespace AbilityKit.Game.Editor
         IBattleDebugPanel,
         IBattleDebugPanelLayout,
         IBattleDebugEventsTarget,
-        IBattleDebugWidgetProvider
+        IBattleDebugWidgetProvider,
+        IBattleDebugPanelSessionCleanup
     {
         private static readonly string[] EventScopeLabels =
         {
@@ -107,8 +108,10 @@ namespace AbilityKit.Game.Editor
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
 
-        public void OpenForActor(long actorId)
+        public void OpenForActor(long actorId, bool allCategories = false)
         {
+            if (allCategories)
+                _viewModel.ClearLocalFilters();
             _viewModel.ClearCorrelationFocus();
             _viewModel.FilterBySelectedActor = actorId > 0;
             _viewModel.ActorRelation = BattleDiagnosticActorRelation.Either;
@@ -116,6 +119,21 @@ namespace AbilityKit.Game.Editor
             _viewModel.SearchText = string.Empty;
             _viewModel.InvalidateCache();
             _presentation = BattleDebugDiagnosticEventsPresentation.Overview;
+            ClearSelection();
+        }
+
+        /// <summary>
+        /// 清除旧诊断文件的事件选择、定位和查询缓存。
+        /// </summary>
+        public void ClearSessionState()
+        {
+            _viewModel.ClearLocalFilters();
+            _viewModel.ClearCorrelationFocus();
+            _viewModel.EventScope = BattleDebugDiagnosticEventScope.DamageAndEffects;
+            _expandedSkillCastKey = string.Empty;
+            _flowScroll = Vector2.zero;
+            _castScroll = Vector2.zero;
+            _triggerFlowWidgetInitialized = false;
             ClearSelection();
         }
 
@@ -1899,6 +1917,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("根节点 / 上下文", $"{evt.RootContextId} / {evt.ContextId}");
             EditorGUILayout.LabelField("配置 / 攻击", $"{evt.ConfigId} / {evt.AttackId}");
             EditorGUILayout.LabelField("技能运行时", evt.SkillRuntime.ToString());
+            var offlineRelations = BattleDebugOfflineRelations.DrawEvent(in ctx, in evt);
             if (evt.Kind == BattleDiagnosticEventKind.TargetSearch)
             {
                 EditorGUILayout.LabelField("目标搜索", EditorStyles.boldLabel);
@@ -1967,19 +1986,22 @@ namespace AbilityKit.Game.Editor
                 in evt,
                 out var configReference);
             EditorGUILayout.BeginHorizontal();
-            EditorGUI.BeginDisabledGroup(evt.SourceActorId == 0 || ctx.SelectActor == null);
-            if (GUILayout.Button("选择来源 Actor", GUILayout.Width(110)))
+            if (!offlineRelations)
             {
-                ctx.SelectActor?.Invoke(evt.SourceActorId);
-            }
-            EditorGUI.EndDisabledGroup();
+                EditorGUI.BeginDisabledGroup(evt.SourceActorId == 0 || ctx.SelectActor == null);
+                if (GUILayout.Button("选择来源 Actor", GUILayout.Width(110)))
+                {
+                    ctx.SelectActor?.Invoke(evt.SourceActorId);
+                }
+                EditorGUI.EndDisabledGroup();
 
-            EditorGUI.BeginDisabledGroup(evt.TargetActorId == 0 || ctx.SelectActor == null);
-            if (GUILayout.Button("选择目标 Actor", GUILayout.Width(110)))
-            {
-                ctx.SelectActor?.Invoke(evt.TargetActorId);
+                EditorGUI.BeginDisabledGroup(evt.TargetActorId == 0 || ctx.SelectActor == null);
+                if (GUILayout.Button("选择目标 Actor", GUILayout.Width(110)))
+                {
+                    ctx.SelectActor?.Invoke(evt.TargetActorId);
+                }
+                EditorGUI.EndDisabledGroup();
             }
-            EditorGUI.EndDisabledGroup();
 
             GUILayout.FlexibleSpace();
             EditorGUI.BeginDisabledGroup(!hasConfigReference || ctx.OpenConfig == null);

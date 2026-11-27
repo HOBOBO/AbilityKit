@@ -62,6 +62,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (targetActorId <= 0 || value <= Fixed64.Zero) return default;
             if (_rules != null && !_rules.CanReceiveDamage(attackerActorId, targetActorId).Passed) return default;
             if (!_actors.TryGetActorEntity(targetActorId, out var target) || target == null) return default;
+            if (_rules == null && !MobaCombatRulesService.HasCombatHealth(target)) return default;
 
             var attrs = target.GetMobaAttrs();
             var oldHp = attrs.FixedHp;

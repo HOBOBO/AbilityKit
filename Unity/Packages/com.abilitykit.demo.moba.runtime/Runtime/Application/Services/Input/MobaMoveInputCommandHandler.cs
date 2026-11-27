@@ -54,7 +54,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var intent = MobaActorIntent.MoveDirection(dx, dz);
-            if (!intent.IsValid())
+            if (!TryApplyDirection(entity, actorId, context.Skills, in intent))
             {
                 result = MobaInputCommandResult.Rejected(
                     command,
@@ -64,12 +64,20 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            if (intent.MoveX != 0f || intent.MoveZ != 0f)
-                context.Skills?.TryFinishRecoveryForMovement(actorId);
+            result = MobaInputCommandResult.Accepted(command, actorId);
+            return true;
+        }
+
+        /// <summary>
+        /// 正常移动输入的类型化执行入口，恢复截面不得通过它触发后摇交接。
+        /// </summary>
+        internal static bool TryApplyDirection(ActorEntity entity, int actorId, SkillCastCoordinator skills,
+            in MobaActorIntent intent)
+        {
+            if (intent.MovementKind != MobaActorMovementIntentKind.Direction || !intent.IsValid()) return false;
+            if (intent.MoveX != 0f || intent.MoveZ != 0f) skills?.TryFinishRecoveryForMovement(actorId);
             if (!entity.hasMoveInput) entity.AddMoveInput(intent.MoveX, intent.MoveZ);
             else entity.ReplaceMoveInput(intent.MoveX, intent.MoveZ);
-
-            result = MobaInputCommandResult.Accepted(command, actorId);
             return true;
         }
     }

@@ -75,7 +75,8 @@ flowchart TB
 
 | 测试域 | 入口 | 关注点 |
 |--------|------|--------|
-| Triggering 包内测试 | `Unity/Packages/com.abilitykit.triggering/Tests`、`Unity/AbilityKit.Triggering.Tests.csproj` | TriggerPlan、Runner、Validator、Pooling hotspot、Unity 包内兼容性 |
+| Triggering 包内测试 | `Unity/Packages/com.abilitykit.triggering/Tests` | TriggerPlan、Runner、Validator、Unity 包内兼容性 |
+| Triggering 调度扩展测试 | `Unity/Packages/com.abilitykit.triggering.actionscheduling/Tests`、`src/AbilityKit.Triggering.ActionScheduling.Tests` | 默认调度装配、实例生命周期和池化分配点 |
 | Unity 游戏测试工程 | `Unity/AbilityKit.Game.UnitTests.csproj`、`Unity/AbilityKit.HFSM.Tests.csproj`、`Unity/AbilityKit.Combat.Motion.Tests.csproj` | Unity 生成工程、Editor/PlayMode 外壳、HFSM、Motion 等包内回归入口 |
 | World DI 测试 | `src/AbilityKit.World.DI.Tests` | `WorldInject`、Scope seeding、测试注入器 |
 | Network Runtime 测试 | `src/AbilityKit.Network.Runtime.Tests` | DemoHarness、SyncClock、TimeSync、Lag Compensation、SyncHealthEvent、Profile Registry |

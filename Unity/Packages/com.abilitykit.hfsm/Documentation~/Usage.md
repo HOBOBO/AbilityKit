@@ -29,7 +29,7 @@ Definition 在构造时被复制并编译。修改原始 authoring 对象不会�
 
 ## 源码和验证范围
 
-- Definition、Bindings、快照参与接口位于 `Runtime/HFSM/Core/`。
+- Definition、Bindings、快照参与接口位于 `com.abilitykit.hfsm.core` 的 `Runtime/Core/`；Unity 适配和 Editor 仍在本包。
 - [Runtime Sample](../Samples~/HfsmRuntimeSample/README.md) 展示导入、定义文件替换、触发与 Monitor。
 - [Complete Showcase](../Samples~/CompleteHfsmShowcase/README.md) 展示编辑器资产导出和项目侧复杂动作策略。
 

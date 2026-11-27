@@ -74,6 +74,33 @@ namespace AbilityKit.Game.Editor
         public static string[] DisplayNames => GroupNames;
         public static bool UseCompactNavigation(float windowWidth) => windowWidth < 620f;
 
+        /// <summary>
+        /// 使用节点原始帧定位，不把浏览游标当作节点发生帧。
+        /// </summary>
+        internal static BattleDiagnosticSelection CreateTraceSelection(in BattleDiagnosticTraceNodeSummary node)
+        {
+            var kind = node.ContextId == node.RootContextId
+                ? BattleDiagnosticSelectionKind.TraceRoot : BattleDiagnosticSelectionKind.TraceNode;
+            return new BattleDiagnosticSelection(node.Scope, kind, node.ContextId, node.StartFrame, node.RootContextId);
+        }
+
+        internal static bool TryCreateTraceAttributeRoute(
+            BattleDiagnosticSessionScope activeScope, in BattleDiagnosticTraceNodeSummary node, long actorId,
+            out BattleDiagnosticSelection origin, out BattleDiagnosticSelection destination)
+        {
+            origin = default;
+            destination = default;
+            if (!activeScope.IsValid || node.Scope != activeScope || node.ContextId <= 0 || node.RootContextId <= 0 ||
+                !BattleDiagnosticFrames.IsValid(node.StartFrame) || actorId <= 0 || actorId > int.MaxValue ||
+                (actorId != node.SourceActorId && actorId != node.TargetActorId))
+                return false;
+
+            origin = CreateTraceSelection(in node);
+            destination = new BattleDiagnosticSelection(node.Scope, BattleDiagnosticSelectionKind.ActorAttributeEvidence,
+                actorId, node.StartFrame, node.ContextId);
+            return true;
+        }
+
         public static int IndexOf(BattleDebugNavigationGroup group)
         {
             for (var i = 0; i < Groups.Length; i++)
@@ -96,6 +123,8 @@ namespace AbilityKit.Game.Editor
 
         public static BattleDebugNavigationGroup GroupOfModuleId(string moduleId)
         {
+            if (moduleId == BattleDebugModuleIds.ActorAttributes)
+                return BattleDebugNavigationGroup.Actor;
             if (moduleId != null && moduleId.StartsWith("diagnostics.framesync.", StringComparison.Ordinal))
                 return BattleDebugNavigationGroup.FrameSync;
             if (moduleId == BattleDebugModuleIds.RuntimeObjects ||
@@ -127,6 +156,7 @@ namespace AbilityKit.Game.Editor
 
     internal static class BattleDebugModuleIds
     {
+        public const string ActorAttributes = "actor.attributes";
         public const string DiagnosticEvents = "diagnostics.events";
         public const string DiagnosticHealth = "diagnostics.health";
         public const string DiagnosticState = "diagnostics.state";
@@ -259,6 +289,18 @@ namespace AbilityKit.Game.Editor
 
     internal static class BattleDebugModuleCatalog
     {
+        internal static string GetUnavailableReason(IBattleDebugPanel panel, in BattleDebugContext context)
+        {
+            var descriptor = Describe(panel);
+            if (!descriptor.SupportsSource(context.IsOffline))
+                return context.IsOffline ? "不支持离线来源" : "不支持实时来源";
+            if (descriptor.RequiredCapabilities != BattleDiagnosticCapabilities.None &&
+                (context.DiagnosticSession == null ||
+                 !context.DiagnosticSession.SessionInfo.Supports(descriptor.RequiredCapabilities)))
+                return "当前来源未提供所需诊断数据";
+            return panel.IsVisible(in context) ? null : "当前会话条件未满足";
+        }
+
         private static readonly Dictionary<Type, BattleDebugModuleDescriptor> DescriptorCache =
             new Dictionary<Type, BattleDebugModuleDescriptor>();
 

@@ -30,6 +30,11 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public float TrackingArcHeight { get; }
         public float TrackingArcHeightPerUnit { get; }
         public float TrackingArcDurationSeconds { get; }
+        /// <summary>
+        /// 仅控制飞行特效的世界 Y 弧高，不影响投射物碰撞。
+        /// </summary>
+        public float PresentationArcHeight { get; }
+        public bool UsesFlightArcCue => PresentationArcHeight > 0f && VfxId > 0;
         public int HitCooldownMs { get; }
         public ProjectileHitIdentityPolicy HitIdentityPolicy { get; }
         public IReadOnlyList<ProjectileCollisionRule> CollisionRules { get; }
@@ -202,6 +207,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             BounceSearchRadius = dto.BounceSearchRadius;
             TrackingArcHeight = dto.TrackingArcHeight;
             TrackingArcHeightPerUnit = dto.TrackingArcHeightPerUnit;
+            PresentationArcHeight = IsFiniteNonNegative(dto.PresentationArcHeight) ? dto.PresentationArcHeight : 0f;
             TrackingArcDurationSeconds = dto.TrackingArcDurationSeconds;
             HitCooldownMs = dto.HitCooldownMs;
             HitIdentityPolicy = (ProjectileHitIdentityPolicy)dto.HitIdentityPolicy;

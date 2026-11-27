@@ -470,6 +470,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 BounceSearchRadius = obj["BounceSearchRadius"]?.Value<float>() ?? 0,
                 TrackingArcHeight = obj["TrackingArcHeight"]?.Value<float>() ?? 0,
                 TrackingArcHeightPerUnit = obj["TrackingArcHeightPerUnit"]?.Value<float>() ?? 0,
+                PresentationArcHeight = obj["PresentationArcHeight"]?.Value<float>() ?? 0,
                 TrackingArcDurationSeconds = obj["TrackingArcDurationSeconds"]?.Value<float>() ?? 0,
                 HitCooldownMs = obj["HitCooldownMs"]?.Value<int>() ?? 0,
                 HitIdentityPolicy = obj["HitIdentityPolicy"]?.Value<int>() ?? 0,
@@ -1070,6 +1071,13 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 RecoveryStartMs = obj["RecoveryStartMs"]?.Value<int>() ?? -1,
                 CastGateTagTemplateId = obj["CastGateTagTemplateId"]?.Value<int>() ?? 0,
                 CastGateEndMs = obj["CastGateEndMs"]?.Value<int>() ?? 0,
+                Windup = obj["Windup"] is JObject windup ? new SkillTimelineWindupDTO
+                {
+                    AuthoredMs = windup["AuthoredMs"]?.Value<int>() ?? 0,
+                    BaseMs = windup["BaseMs"]?.Value<int>() ?? 0,
+                    MinimumMs = windup["MinimumMs"]?.Value<int>() ?? 0,
+                    AttackSpeedPercentAtMinimum = windup["AttackSpeedPercentAtMinimum"]?.Value<int>() ?? 0
+                } : null,
                 Events = DeserializeSkillTimelineEvents(obj["Events"])
             };
         }

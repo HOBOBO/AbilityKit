@@ -36,7 +36,7 @@ namespace AbilityKit.Core.Recording.FrameRecord
 
         public FrameRecordBinaryWriter(string outputPath, FrameRecordMeta meta)
         {
-            _outputPath = ResolvePath(outputPath);
+            _outputPath = RecordPathResolver.Resolve(string.IsNullOrEmpty(outputPath) ? "battle_record.bin" : outputPath);
             _meta = meta;
         }
 
@@ -153,19 +153,5 @@ namespace AbilityKit.Core.Recording.FrameRecord
             bw.Write(bytes);
         }
 
-        private static string ResolvePath(string path)
-        {
-            if (string.IsNullOrEmpty(path)) path = "battle_record.bin";
-
-            if (Path.IsPathRooted(path)) return path;
-
-#if UNITY_2020_3_OR_NEWER
-            var baseDir = UnityEngine.Application.persistentDataPath;
-            if (string.IsNullOrEmpty(baseDir)) baseDir = UnityEngine.Application.dataPath;
-#else
-            var baseDir = Environment.CurrentDirectory;
-#endif
-            return Path.Combine(baseDir, path);
-        }
     }
 }

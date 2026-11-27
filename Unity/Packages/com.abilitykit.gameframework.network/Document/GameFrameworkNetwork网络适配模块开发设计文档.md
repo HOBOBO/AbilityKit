@@ -1,3 +1,7 @@
+> 文档类型：设计背景；当前接入契约由包内使用指南持有。
+> 局部核校：2026-11-25，仅补充入口与边界说明；下方历史正文未逐句重核，不提升其原有证据等级。
+> 当前入口：[包首页](../README.md)、[文档索引](../Documentation~/README.md)、[使用指南](../Documentation~/Usage.md)。安装还须满足 Network Runtime；wrapper Tick 不驱动 GameFramework Update，Error/Kicked 未自动桥接，channel 必须有唯一 owner。
+
 # Ability-Kit GameFramework Network 网络适配模块开发设计文档
 
 > **阅读对象**：需要把 GameFramework 网络通道接入 AbilityKit Gateway/Network Runtime 的开发者。
@@ -69,5 +73,5 @@ sequenceDiagram
 
 ---
 
-*文档版本：1.0*  
+*文档版本：1.0*
 *最后更新：2026-06-05*

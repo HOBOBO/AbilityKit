@@ -277,6 +277,10 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillCastRuntimeHandle RuntimeHandle { get; }
         public string Code => Failure.Code;
 
+        internal bool IsDefinitiveInputRejection => !Success && Failure.Source == "Input" && Code is
+            SkillFailureCodes.Input.InvalidSlot or SkillFailureCodes.Input.UnsupportedPhase or
+            SkillFailureCodes.Input.NoRunningForHold or SkillFailureCodes.Input.NoRunningForCancel;
+
         public static MobaSkillInputHandleResult Accepted(string message = null)
         {
             return new MobaSkillInputHandleResult(true, message, in MobaSkillCastFailure.None);

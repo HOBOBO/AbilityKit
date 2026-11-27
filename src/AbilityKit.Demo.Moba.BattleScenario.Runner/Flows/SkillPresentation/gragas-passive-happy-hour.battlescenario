@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 3, "caseId": "gragas-passive-happy-hour", "displayName": "Gragas Passive - heal and start one cooldown across two spell casts",
+  "tags": ["skill-presentation", "gragas", "passive"],
+  "sections": {
+    "settings": [
+      {"$type": "AbilityKit.BattleScenario.ExecutionSettingsBlock, AbilityKit.BattleScenario", "settleDurationMs": 1900},
+      {"$type": "AbilityKit.BattleScenario.SetScenarioSeedBlock, AbilityKit.BattleScenario", "seed": 12345}
+    ],
+    "setup": [
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3005, "attributeTemplateId": 3005, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.SetMobaActorAttributeBlock, AbilityKit.Demo.Moba.Environment", "actorAlias": "caster", "property": "hp", "value": 300}
+    ],
+    "timeline": [
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 2},
+      {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 2500, "action": "cast_skill", "actorAlias": "caster", "slot": 1, "position": {"x": 7, "y": 0, "z": 0}, "direction": {"x": 0, "y": 0, "z": 1}}
+    ],
+    "assertions": [
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050301, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30050201, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "BuffApply", "configId": 30050090, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "caster", "property": "hp", "comparator": "gt", "expectedValue": "330"}
+    ]
+  }
+}

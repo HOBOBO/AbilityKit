@@ -16,11 +16,11 @@ namespace AbilityKit.Triggering.Runtime
         /// 按计划的阶段和优先级注册类型化事件；只核对调度装配，不执行计划校验。
         /// </summary>
         /// <returns>由调用方持有并释放的当前注册句柄。</returns>
-        /// <exception cref="InvalidOperationException">计划含非即时动作而运行器没有调度管理器；不会新增订阅。</exception>
+        /// <exception cref="InvalidOperationException">计划含非即时动作而运行器没有扁平动作登记实现；不会新增订阅。</exception>
         public static IDisposable RegisterPlan<TArgs, TCtx>(this TriggerRunner<TCtx> runner, EventKey<TArgs> key, in TriggerPlan<TArgs> plan)
         {
             if (runner == null) throw new ArgumentNullException(nameof(runner));
-            if (!runner.HasActionSchedulerManager)
+            if (!runner.HasFlatActionScheduler)
             {
                 var actionIndex = PlannedTrigger<TArgs, TCtx>.FindFirstScheduledAction(plan.Actions);
                 if (actionIndex >= 0)

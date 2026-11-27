@@ -1,12 +1,17 @@
 #if UNITY_EDITOR
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.BattleScenario;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.EnvironmentModel;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Triggering;
@@ -27,12 +32,13 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
     public sealed class MobaSkillScenarioPlaybackTests
     {
         private const int TibbersBasicAttackSkillId = 30030102;
+        private const int TibbersEnragedAttackSkillId = 30030103;
         private const int TibbersHitVfxId = 90033007;
 
-        [Test]
-        public void ActorReplay_UsesFormalModelWithIndependentMaterialsAndObservedPoses()
+        [TestCase(3005)]
+        [TestCase(3003)]
+        public void ActorReplay_UsesFormalModelWithIndependentMaterialsAndObservedPoses(int modelId)
         {
-            const int modelId = 3005;
             var prefab = new BattleViewModelPrefabResolver().Resolve(MobaConfigLoader.LoadDefault(), modelId).Prefab;
             using var preview = BattleActorReplayPreview.Create(modelId);
             Assert.IsNotNull(preview, "The recorded hero must resolve to its formal model.");
@@ -80,11 +86,103 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
         }
 
         [UnityTest]
+        public IEnumerator VeigarQ_Local1v1Parity_ConsumesCooldownAndHitsOnce()
+        {
+            const string caseId = "veigar-q-1v1-parity";
+            Prepare(caseId);
+            yield return new EnterPlayMode();
+            yield return VerifyVeigarQParity(caseId);
+        }
+
+        private static IEnumerator VerifyVeigarQParity(string caseId)
+        {
+            const int skillId = 30040201;
+            var scenario = BattleScenarioCompiler.CompileFile(GetSkillScenarioFile(caseId));
+            var expectations = (MobaBattleScenarioAssertions)scenario.Expectations;
+            var expectedHp = float.Parse(expectations.State.Single(item => item.Alias == "target" && item.Property == "hp")
+                .ExpectedValue, CultureInfo.InvariantCulture);
+
+            long cooldownDuration = 0, remainingCooldown = 0;
+            Vector3 casterPosition = default, targetPosition = default;
+            Vector3? initialTargetPosition = null;
+            float targetHp = 0;
+            MobaTraceRegistry trace = null;
+            yield return WaitForPlayback(caseId, ObserveWorld);
+            ObserveWorld();
+
+            Assert.That(cooldownDuration, Is.EqualTo(6000L));
+            Assert.That(remainingCooldown, Is.InRange(1L, cooldownDuration));
+            Assert.That(casterPosition, Is.EqualTo(new Vector3(7, 0, -4)));
+            Assert.That(initialTargetPosition, Is.EqualTo(new Vector3(9, 0, 1)));
+            Assert.That(targetPosition, Is.EqualTo(new Vector3(7, 0, 1)));
+            Assert.That(targetHp, Is.EqualTo(expectedHp).Within(0.01f));
+            Assert.IsNotNull(trace);
+            Assert.That(trace.GetNodesByKind((int)MobaExecutionKind.DamageApply)
+                .Count(node => node.Metadata?.ConfigId == skillId), Is.EqualTo(1));
+
+            void ObserveWorld()
+            {
+                if (GameEntry.Instance == null || !GameEntry.Instance.TryGet(out BattleContext context) ||
+                    context.Session == null || !context.CanSubmitGameplayInput || !context.Session.TryGetWorld(out var world)) return;
+                var players = world.Services.Resolve<MobaPlayerActorMapService>();
+                var registry = world.Services.Resolve<MobaActorRegistry>();
+                if (!players.TryGetActorId(new PlayerId("preview_target"), out var targetId) ||
+                    !registry.TryGet(targetId, out var target) || !registry.TryGet(context.LocalActorId, out var caster)) return;
+                var skill = caster.skillLoadout.ActiveSkills.Single(skill => skill?.SkillId == skillId);
+                cooldownDuration = skill.CooldownDurationMs;
+                remainingCooldown = skill.CooldownEndTimeMs -
+                    MobaSkillRuntimeAccess.GetCurrentTimeMs(world.Services.Resolve<IFrameTime>());
+                var casterPose = caster.transform.Value.Position;
+                var targetPose = target.transform.Value.Position;
+                casterPosition = new Vector3(casterPose.X, casterPose.Y, casterPose.Z);
+                targetPosition = new Vector3(targetPose.X, targetPose.Y, targetPose.Z);
+                initialTargetPosition ??= targetPosition;
+                targetHp = new MobaAttrs(target).Hp;
+                trace ??= world.Services.Resolve<MobaTraceRegistry>();
+            }
+        }
+
+        [UnityTest]
         public IEnumerator PureSkillPreview_PlaysInFreshMatchWithoutHudAndPausesAtEnd()
         {
             Prepare("jinx-w", previewOnly: true);
             yield return new EnterPlayMode();
             yield return VerifyPurePreview();
+        }
+
+        [UnityTest]
+        public IEnumerator PassivePreview_WithSetupAndScriptedEnemy_CastsFromBothActors()
+        {
+            const string caseId = "karthus-passive-respawn";
+            Prepare(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return WaitForPlayback(caseId, previewOnly: true);
+        }
+
+        [UnityTest]
+        public IEnumerator MultiAllyPreview_ShieldsBothAlliesButNotControls()
+        {
+            const string caseId = "lux-w-two-allies";
+            Prepare(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return VerifyMultiAllyPreview(caseId);
+        }
+
+        private static IEnumerator VerifyMultiAllyPreview(string caseId)
+        {
+            var shielded = new HashSet<string>();
+            var aliases = new[] { "target", "second", "outside", "enemy" };
+            yield return WaitForPlayback(caseId, () =>
+            {
+                if (!GameEntry.IsInitialized || !GameEntry.Instance.TryGet(out BattleContext context) ||
+                    context.Session == null || !context.Session.TryGetWorld(out var world)) return;
+                var actors = world.Services.Resolve<MobaPlayerActorMapService>();
+                var shields = world.Services.Resolve<MobaShieldService>();
+                foreach (var alias in aliases)
+                    if (actors.TryGetActorId(new PlayerId("preview_" + alias), out var id) && shields.GetTotalRemaining(id) > 0f)
+                        shielded.Add(alias);
+            }, previewOnly: true);
+            CollectionAssert.AreEquivalent(new[] { "target", "second" }, shielded);
         }
 
         private static IEnumerator VerifyPurePreview()
@@ -151,7 +249,18 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             yield return CaptureWeaponStages(caseId, new[] { 90013004, 90031010 },
                 new[] { 90013005, 90013006 }, new[] { 90013007, 90013008 },
                 new[] { 32010401, 32010402 }, new[] { 3, 1 },
-                new[] { "Jhin_R_Cast", "Jhin_R_Last_Cast" });
+                new[] { "Jhin_R_Cast", "Jhin_R_Last_Cast" }, new Vector3(7f, 0f, -4f), Vector3.forward);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator JhinR_AngledShots_RenderMuzzleOnCaster()
+        {
+            const string caseId = "jhin-r-angled-shots";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureWeaponStages(caseId, new[] { 90013004 },
+                new[] { 90013005 }, new[] { 90013007 }, new[] { 32010401 }, new[] { 2 },
+                new[] { "Jhin_R_Cast" }, new Vector3(7f, 0f, -4f), new Vector3(8f, 0f, 16f).normalized);
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
@@ -167,7 +276,8 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
         }
 
         private static IEnumerator CaptureWeaponStages(string caseId, int[] muzzleIds, int[] flightIds,
-            int[] impactIds, int[] projectileIds, int[] expectedShots, string[] muzzlePrefabs)
+            int[] impactIds, int[] projectileIds, int[] expectedShots, string[] muzzlePrefabs,
+            Vector3? muzzleAnchor = null, Vector3? muzzleFacing = null)
         {
             var directory = CreatePreviewEvidenceDirectory(caseId);
             var ids = muzzleIds.Concat(flightIds).Concat(impactIds).ToArray();
@@ -187,10 +297,18 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 for (var index = 0; index < ids.Length; index++)
                 {
                     var id = ids[index];
-                    var count = active.Count(effects[index].Matches);
+                    var matching = active.Where(effects[index].Matches).ToArray();
+                    var count = matching.Length;
                     Assert.That(count, Is.LessThanOrEqualTo(1), $"Duplicate VFX {id} at {lastFrame}. {directory}");
                     if (count == 0) previouslyActive.Remove(id);
                     else if (previouslyActive.Add(id)) starts[id].Add(lastFrame);
+                    if (count == 1 && index < muzzleIds.Length && muzzleAnchor.HasValue)
+                    {
+                        Assert.That(DistanceOnGround(matching[0].position, muzzleAnchor.Value), Is.LessThan(.3f),
+                            $"Muzzle {id} must be based on the caster, not the combat target. {directory}");
+                        if (muzzleFacing.HasValue)
+                            Assert.That(Vector3.Dot(matching[0].forward, muzzleFacing.Value), Is.GreaterThan(.95f), directory);
+                    }
                     effects[index].Observe(active, lastFrame, directory, samples);
                 }
             }, previewOnly: true);
@@ -253,11 +371,18 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
 
         private static IEnumerator CaptureJhinQImpacts(string caseId, int expectedHits)
         {
+            const int flightVfxId = 90013001;
             var ids = new[] { 90013016, 90013022, 90013023, 90013024 };
             var impacts = new List<PresentationCueData>();
             var matched = new HashSet<int>();
-            yield return CaptureScenarioVfx(caseId, ids.Take(expectedHits).ToArray(), (_, effects) =>
+            var peakBounceY = float.NegativeInfinity;
+            yield return CaptureScenarioVfx(caseId, ids.Take(expectedHits).Append(flightVfxId).ToArray(), (_, effects) =>
             {
+                if (impacts.Count > 0)
+                {
+                    foreach (var flight in effects.Where(effect => effect.VfxId == flightVfxId))
+                        peakBounceY = Mathf.Max(peakBounceY, flight.transform.position.y);
+                }
                 for (var index = 0; index < ids.Length; index++)
                 {
                     var instances = effects.Where(effect => effect.VfxId == ids[index]).ToArray();
@@ -282,6 +407,8 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             Assert.AreEqual(1, impacts.Select(cue => cue.InstanceId).Distinct().Count());
             Assert.AreEqual(expectedHits, impacts.Select(cue => cue.TargetActorId).Distinct().Count());
             CollectionAssert.AreEquivalent(ids.Take(expectedHits), matched);
+            if (expectedHits > 1)
+                Assert.Greater(peakBounceY, 1.5f, "The moving grenade must rise again after the first impact.");
         }
 
         [UnityTest]
@@ -521,18 +648,40 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             yield return CapturePlayback("jhin-w", 30010201, 32010201, 90013017, 0, 5, 8, 9, 10, 11, 12, 13, 15, 19, 27, 45, 90);
         }
 
-        [UnityTest]
+        [UnityTest, Category("SkillPresentationCapture")]
         public IEnumerator JhinW_FromScenario_RootsHeroMarkedByQ()
         {
             const string caseId = "jhin-w-marked-hero";
-            Prepare(caseId);
+            PrepareCapture(caseId, previewOnly: true);
             yield return new EnterPlayMode();
-            yield return WaitForPlayback(caseId);
-            Assert.IsTrue(GameEntry.Instance.TryGet(out BattleContext context));
-            Assert.IsTrue(context.Session.TryGetWorld(out var world));
-            var trace = world.Services.Resolve<MobaTraceRegistry>();
-            Assert.AreEqual(1, trace.GetNodesByKind((int)MobaExecutionKind.BuffApply)
-                .Count(node => node.Metadata?.ConfigId == 30010222));
+            yield return CaptureJhinWMark(caseId);
+        }
+
+        private static IEnumerator CaptureJhinWMark(string caseId)
+        {
+            var directory = CreatePreviewEvidenceDirectory(caseId);
+            var samples = new List<string>();
+            var mark = new PreviewEffectSample("mark", "Jhin_Mark_Buff", 90031002);
+            var lastFrame = -1;
+            MobaTraceRegistry trace = null;
+            yield return WaitForPlayback(caseId, () =>
+            {
+                if (!TryGetPreviewContext(lastFrame, out var context) || !context.Session.TryGetWorld(out var world)) return;
+                lastFrame = context.LastFrame;
+                trace ??= world.Services.Resolve<MobaTraceRegistry>();
+                var active = Object.FindObjectsOfType<Transform>();
+                foreach (var instance in active.Where(mark.Matches))
+                    Assert.That(DistanceOnGround(instance.position, new Vector3(7f, 0f, 0f)), Is.LessThan(.3f), directory);
+                mark.Observe(active, lastFrame, directory, samples);
+            }, previewOnly: true);
+            samples.Add(mark.Summary);
+            File.WriteAllLines(Path.Combine(directory, "samples.txt"), samples);
+            Assert.IsNotNull(trace, directory);
+            var roots = TraceFrames(trace, MobaExecutionKind.BuffApply, 30010222);
+            Assert.That(roots, Has.Length.EqualTo(1), directory);
+            mark.AssertPlayed(directory);
+            Assert.That(mark.FirstFrame, Is.LessThan(roots[0]), directory);
+            Assert.That(mark.LastFrame, Is.GreaterThan(roots[0] + 90), directory);
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
@@ -551,10 +700,19 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             const string caseId = "jhin-e-charges";
             PrepareCapture(caseId, previewOnly: true);
             yield return new EnterPlayMode();
-            yield return CaptureJhinTrapCharges(caseId);
+            yield return CaptureJhinTrapThrows(caseId, expectedThrows: 4);
         }
 
-        private static IEnumerator CaptureJhinTrapCharges(string caseId)
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator JhinE_DelayedDetonationScenario_RendersAtTrapCenterAndResamplesTargets()
+        {
+            const string caseId = "jhin-e-delayed-detonation";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureJhinTrapThrows(caseId, expectedThrows: 1, verifyResample: true);
+        }
+
+        private static IEnumerator CaptureJhinTrapThrows(string caseId, int expectedThrows, bool verifyResample = false)
         {
             const int skillId = 30010301;
             var position = new Vector2(0f, -6f);
@@ -610,7 +768,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             Assert.IsNotNull(trace, directory);
             var launches = trace.GetNodesByKind((int)MobaExecutionKind.EffectExecution)
                 .Where(node => node.Metadata?.ConfigId == skillId).Select(node => node.CreatedFrame).OrderBy(frame => frame).ToArray();
-            Assert.That(launches, Has.Length.EqualTo(4), directory);
+            Assert.That(launches, Has.Length.EqualTo(expectedThrows), directory);
             Assert.That(castFrames, Has.Count.EqualTo(launches.Length), directory);
             Assert.That(active, Is.Empty, $"Trap VFX did not return before preview ended. {directory}");
             Assert.That(EditorApplication.isPaused, Is.True, "Pure preview must pause at completion.");
@@ -634,6 +792,20 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 foreach (var sample in chain.Skip(1))
                     Assert.That(Vector2.Distance(position, new Vector2(sample.Position.x, sample.Position.z)),
                         Is.LessThan(0.15f), $"{sample.Name} did not render at the trap center. {directory}");
+            }
+            if (verifyResample)
+            {
+                var entry = trace.GetNodesByKind((int)MobaExecutionKind.AreaEnter)
+                    .Single(node => node.Metadata?.ConfigId == 42010301);
+                var detonation = trace.GetNodesByKind((int)MobaExecutionKind.EffectExecution)
+                    .Single(node => node.Metadata?.ConfigId == 30010313);
+                var hit = trace.GetNodesByKind((int)MobaExecutionKind.DamageApply)
+                    .Single(node => node.Metadata?.ConfigId == skillId);
+                Assert.That(entry.Metadata.TargetActorId, Is.Positive, directory);
+                Assert.That(hit.Metadata.TargetActorId, Is.Positive.And.Not.EqualTo(entry.Metadata.TargetActorId), directory);
+                Assert.That(hit.CreatedFrame, Is.EqualTo(detonation.CreatedFrame).And.GreaterThan(entry.CreatedFrame), directory);
+                Assert.That(activations[90031011].Single().StartFrame, Is.InRange(entry.CreatedFrame, entry.CreatedFrame + 4), directory);
+                Assert.That(activations[90013018].Single().StartFrame, Is.InRange(hit.CreatedFrame, hit.CreatedFrame + 4), directory);
             }
             Debug.Log($"[SkillScenarioCapture] {caseId}: {directory}; {launches.Length} rendered throws.");
         }
@@ -680,8 +852,21 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             yield return new EnterPlayMode();
             yield return CapturePlayback("gragas-r", 30050501, 32050501, 90035012,
                 new CastPresentationProbe("Gragas_Model_SpellR", flightVfxId: 90035013,
-                    impactBranch: "BeerShockwave_1", impactPosition: new Vector2(7f, 2f)),
+                    impactBranch: "BeerShockwave_1", impactPosition: new Vector2(7f, 2f), expectFlightArc: true),
                 0, 5, 9, 12, 16, 20, 24, 28, 32, 37, 45, 60, 90);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator GragasR_TwoTargetsFromScenario_RendersOneFullShockwave()
+        {
+            const string caseId = "gragas-r-two-targets";
+            PrepareCapture(caseId);
+            yield return new EnterPlayMode();
+            yield return CapturePlayback(caseId, 30050501, 32050501, 90035012,
+                new CastPresentationProbe("Gragas_Model_SpellR", flightVfxId: 90035013,
+                    impactBranch: "BeerShockwave_1", impactPosition: new Vector2(7f, -3f),
+                    minImpactBranchFrames: 36, expectFlightArc: true),
+                0, 8, 16, 20, 24, 32, 40, 48, 51, 54, 58, 65, 90);
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
@@ -717,14 +902,21 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             Assert.That(result.RequestFrames, Has.Count.EqualTo(1), result.Directory);
             Assert.That(result.CastingClips, Does.Contain("Gragas_Model_SpellW"));
             Assert.That(result.CastingClips, Does.Contain("Gragas_Model_AutoAttack_2"));
+            Assert.That(result.CastingClips, Does.Contain("Gragas_Model_AutoAttack"));
             var empowered = result.FindFrame(MobaExecutionKind.SkillCast, 30050701);
             var contact = result.FindFrame(MobaExecutionKind.DamageApply, 30050701);
             var normal = result.FindFrame(MobaExecutionKind.SkillCast, 30050101);
+            var splashHits = result.FindTargets(MobaExecutionKind.DamageApply, 30050701);
+            Assert.That(splashHits.Select(hit => hit.Target).Distinct().Count(), Is.EqualTo(2), result.Directory);
+            Assert.That(splashHits.Select(hit => hit.Target), Is.All.GreaterThan(0), result.Directory);
+            Assert.That(splashHits.Select(hit => hit.Frame), Is.EqualTo(new[] { contact, contact }), result.Directory);
             Assert.That(empowered, Is.GreaterThan(drink.FirstFrame));
             Assert.That(contact, Is.GreaterThan(empowered));
             Assert.That(normal, Is.GreaterThan(impact.FirstFrame));
             Assert.That(result.FindFrame(MobaExecutionKind.DamageApply, 30050101, afterFrame: normal), Is.GreaterThan(normal));
             Assert.That(impact.FirstFrame, Is.GreaterThanOrEqualTo(contact));
+            Assert.That(Vector2.Distance(new Vector2(impact.StartPosition.x, impact.StartPosition.z), new Vector2(7f, -3f)),
+                Is.LessThan(0.15f), result.Directory);
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
@@ -763,7 +955,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             Assert.That(result.CastingClips, Does.Contain("Jinx_Model_SpellE"), result.Directory);
             for (var index = 0; index < sides.Length; index++)
             {
-                var center = new Vector3(5f + index * 2f, 0f, 1f);
+                var center = new Vector3(9f + index * 2f, 0f, 1f);
                 var enter = result.FindFrame(MobaExecutionKind.AreaEnter, trapIds[index]);
                 var impact = result.FindFrame(MobaExecutionKind.AreaSpawn, hitIds[index]);
                 deploy[index].AssertPlayed(result.Directory);
@@ -790,17 +982,119 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
         [UnityTest, Category("SkillPresentationCapture")]
         public IEnumerator JinxR_FromScenario_CapturesPresentation()
         {
-            PrepareCapture("jinx-r");
+            const string caseId = "jinx-r";
+            PrepareCapture(caseId, previewOnly: true);
             yield return new EnterPlayMode();
-            yield return CapturePlayback("jinx-r", 30020401, 32020403, 90032026, 0, 6, 10, 13, 14, 15, 16, 17, 18, 20, 23, 33, 48, 90);
+            yield return CaptureJinxRocket(caseId);
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
-        public IEnumerator JinxW_FromScenario_RendersTravelBolt()
+        public IEnumerator JinxR_CloseImpact_RendersMuzzleAfterSameFrameHit()
         {
-            PrepareCapture("jinx-w");
+            const string caseId = "jinx-r-close-impact";
+            PrepareCapture(caseId, previewOnly: true);
             yield return new EnterPlayMode();
-            yield return CaptureTravel("jinx-w", 90032027);
+            yield return CaptureJinxRocket(caseId, closeImpact: true);
+        }
+
+        private static IEnumerator CaptureJinxRocket(string caseId, bool closeImpact = false)
+        {
+            var muzzle = new PreviewEffectSample("rocket-muzzle", "Jinx_R_Cast", 90032028);
+            var flight = new PreviewEffectSample("rocket-flight", "R_Projectile", 90032025);
+            var impact = new PreviewEffectSample("rocket-impact", "Jinx_R_Hit", 90032026);
+            var playback = new AttachedEffectPlayback(caseId, muzzle.AssetId);
+            yield return playback.Observe(muzzle, flight, impact);
+
+            var launch = playback.FindFrame(MobaExecutionKind.ProjectileLaunch, 32020403);
+            var spawn = playback.FindFrame(MobaExecutionKind.EffectExecution, 30020404);
+            var hit = playback.FindFrame(MobaExecutionKind.ProjectileHit, 32020403);
+            var firstMuzzleAlignment = Vector3.Dot(muzzle.StartForward, Vector3.right);
+            File.AppendAllText(Path.Combine(playback.Directory, "samples.txt"),
+                System.FormattableString.Invariant($"launchRequest={launch}; spawn={spawn}; hit={hit}; muzzleFirstToAimDot={firstMuzzleAlignment:F4}\n"));
+            Assert.That(launch, Is.GreaterThanOrEqualTo(0), playback.Directory);
+            Assert.That(spawn, Is.GreaterThanOrEqualTo(launch), playback.Directory);
+            if (closeImpact) Assert.That(hit, Is.EqualTo(spawn), playback.Directory);
+            else Assert.That(hit, Is.GreaterThan(spawn), playback.Directory);
+            Assert.That(playback.CastingClips, Does.Contain("Jinx_Model_SpellR"), playback.Directory);
+            Assert.That(muzzle.ObservedInstances, Is.EqualTo(1), playback.Directory);
+            Assert.That(muzzle.FirstFrame, Is.InRange(spawn, spawn + 4), playback.Directory);
+            Assert.That(DistanceOnGround(muzzle.StartPosition, new Vector3(-4f, 0f, -6f)), Is.LessThan(.5f), playback.Directory);
+            Assert.That(firstMuzzleAlignment, Is.GreaterThan(.99f), playback.Directory);
+            Assert.That(muzzle.Moved, Is.False, playback.Directory);
+            Assert.That(muzzle.LastFrame, Is.GreaterThan(muzzle.FirstFrame), playback.Directory);
+            if (!closeImpact)
+            {
+                Assert.That(Vector3.Dot(muzzle.StartForward, flight.StartForward), Is.GreaterThan(.99f), playback.Directory);
+                Assert.That(flight.Moved, Is.True, playback.Directory);
+                flight.AssertPlayed(playback.Directory);
+            }
+            Assert.That(impact.FirstFrame, Is.InRange(hit, hit + 4), playback.Directory);
+            muzzle.AssertPlayed(playback.Directory);
+            impact.AssertPlayed(playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator JinxW_FromScenario_RendersTravelBoltAndImpact()
+        {
+            const string caseId = "jinx-w";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureJinxW(caseId, interrupted: false);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator JinxW_Interrupted_RemovesWindupWithoutLaunching()
+        {
+            const string caseId = "jinx-w-interrupted";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureJinxW(caseId, interrupted: true);
+        }
+
+        private static IEnumerator CaptureJinxW(string caseId, bool interrupted)
+        {
+            const int projectileId = 32020203;
+            var flight = new PreviewEffectSample("w-travel", "W_Projectile", 90032027);
+            var impact = new PreviewEffectSample("w-impact", "Jinx_W_Hit", 90032024);
+            var windup = new PreviewEffectSample("w-windup", "W_ZapRange", 90032030,
+                filter: node => node.Find("ZapRange")?.GetComponent<MeshRenderer>()?.enabled == true);
+            var playback = new AttachedEffectPlayback(caseId, impact.AssetId);
+            var widths = new SortedDictionary<int, float>();
+            yield return playback.ObserveWithContext(context =>
+            {
+                var line = GameObject.Find("W_ZapRange(Clone)/ZapRange");
+                if (line != null && line.GetComponent<MeshRenderer>().enabled)
+                    widths[context.LastFrame] = line.transform.localScale.x;
+            }, windup, flight, impact);
+
+            windup.AssertPlayed(playback.Directory);
+            Assert.That(windup.ObservedInstances, Is.EqualTo(1), playback.Directory);
+            Assert.That(Vector3.Dot(windup.StartForward, Vector3.forward), Is.GreaterThan(.99f), playback.Directory);
+            File.WriteAllLines(Path.Combine(playback.Directory, "windup-widths.txt"),
+                widths.Select(sample => $"{sample.Key}: {sample.Value:F4}"));
+            Assert.That(widths.Count, Is.GreaterThanOrEqualTo(3), playback.Directory);
+            Assert.That(widths.Last().Value, Is.LessThan(widths.First().Value * .85f), playback.Directory);
+            var launch = playback.FindFrame(MobaExecutionKind.ProjectileLaunch, projectileId);
+            if (interrupted)
+            {
+                Assert.That(launch, Is.EqualTo(-1), playback.Directory);
+                var cast = playback.FindFrame(MobaExecutionKind.SkillCast, 30020201);
+                Assert.That(cast, Is.GreaterThanOrEqualTo(0), playback.Directory);
+                Assert.That(windup.LastFrame, Is.InRange(cast, cast + 8), playback.Directory);
+                Assert.That(flight.ObservedInstances, Is.Zero, playback.Directory);
+                Assert.That(impact.ObservedInstances, Is.Zero, playback.Directory);
+                yield break;
+            }
+            var hit = playback.FindFrame(MobaExecutionKind.ProjectileHit, projectileId);
+            Assert.That(launch, Is.GreaterThanOrEqualTo(0), playback.Directory);
+            Assert.That(windup.LastFrame, Is.LessThanOrEqualTo(launch), playback.Directory);
+            Assert.That(flight.FirstFrame, Is.GreaterThan(windup.LastFrame), playback.Directory);
+            Assert.That(hit, Is.GreaterThan(launch), playback.Directory);
+            Assert.That(Vector3.Distance(flight.StartPosition, flight.EndPosition), Is.GreaterThan(1f), playback.Directory);
+            Assert.That(impact.FirstFrame, Is.InRange(hit, hit + 4), playback.Directory);
+            Assert.That(impact.ObservedInstances, Is.EqualTo(1), playback.Directory);
+            flight.AssertPlayed(playback.Directory);
+            impact.AssertPlayed(playback.Directory);
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
@@ -809,6 +1103,20 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             const string caseId = "annie-q";
             PrepareCapture(caseId, previewOnly: true);
             yield return new EnterPlayMode();
+            yield return CaptureAnnieQ(caseId, primed: false);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator AnnieQ_PrimedScenario_RendersOneImpactAndStunsTheHitTarget()
+        {
+            const string caseId = "annie-q-primed";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureAnnieQ(caseId, primed: true);
+        }
+
+        private static IEnumerator CaptureAnnieQ(string caseId, bool primed)
+        {
             var capture = new AttachedEffectPlayback(caseId, 90033018);
             var release = new PreviewEffectSample("q-throw", "Void_Annie_Q_Cast", 90033010);
             var flight = new PreviewEffectSample("q-missile", "Void_Annie_Q_Projectile", 90033001);
@@ -816,9 +1124,15 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             yield return capture.Observe(release, flight, impact);
 
             var launch = capture.FindFrame(MobaExecutionKind.ProjectileLaunch, 32030101);
-            var hit = capture.FindFrame(MobaExecutionKind.DamageApply, 30030201);
+            var hit = capture.FindTargets(MobaExecutionKind.DamageApply, 30030201).Single();
+            var stuns = capture.FindTargets(MobaExecutionKind.BuffApply, 30030211);
             Assert.That(launch, Is.GreaterThanOrEqualTo(0), capture.Directory);
-            Assert.That(hit, Is.GreaterThan(launch), capture.Directory);
+            Assert.That(hit.Frame, Is.GreaterThan(launch), capture.Directory);
+            Assert.That(hit.Target, Is.Positive, capture.Directory);
+            if (primed)
+                Assert.That(stuns, Is.EqualTo(new[] { hit }), capture.Directory);
+            else
+                Assert.That(stuns, Is.Empty, capture.Directory);
             Assert.That(capture.CastingClips, Does.Contain("Void_Annie_Model_SpellQ"), capture.Directory);
             Assert.That(release.FirstFrame, Is.InRange(launch - 4, launch + 4), capture.Directory);
             Assert.That(Vector2.Distance(new Vector2(7f, -4f), new Vector2(release.StartPosition.x, release.StartPosition.z)),
@@ -827,7 +1141,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             flight.AssertVisible(capture.Directory);
             Assert.That(flight.Moved, Is.True, capture.Directory);
             Assert.That(capture.RequestFrames, Has.Count.EqualTo(1), capture.Directory);
-            Assert.That(impact.FirstFrame, Is.InRange(hit, hit + 4), capture.Directory);
+            Assert.That(impact.FirstFrame, Is.InRange(hit.Frame, hit.Frame + 4), capture.Directory);
             Assert.That(Vector2.Distance(new Vector2(7f, 0f), new Vector2(impact.StartPosition.x, impact.StartPosition.z)),
                 Is.LessThan(.25f), capture.Directory);
             impact.AssertPlayed(capture.Directory);
@@ -931,6 +1245,15 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator AnnieR_OwnerDeath_RendersAttacksFromTheSameEnragedSummon()
+        {
+            const string caseId = "annie-r";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureAnnieSummon(caseId, expectAttack: true, expectEnrage: true);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
         public IEnumerator AnnieR_TargetRetention_RecordsTurnsAndReturnsToOwner()
         {
             const string caseId = "annie-r-tibbers-target-retention";
@@ -939,10 +1262,80 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             yield return CaptureTibbersTurns(caseId);
         }
 
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator AnnieR_NoEnemy_FollowsOwnerAndSettles()
+        {
+            const string caseId = "annie-r-tibbers-follow";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureTibbersFollow(caseId);
+        }
+
+        private static IEnumerator CaptureTibbersFollow(string caseId)
+        {
+            var directory = CreatePreviewEvidenceDirectory(caseId);
+            var samples = new List<string>();
+            var summons = new List<int>();
+            var lastFrame = -1;
+            var positions = new List<Vector3>();
+            var followFrames = new List<(int Frame, Vector3 Owner, Vector3 Pet, long ActionId, string Clip)>();
+            yield return WaitForPlayback(caseId, () =>
+            {
+                if (!TryGetPreviewContext(lastFrame, out var context) || !context.Session.TryGetWorld(out var world)) return;
+                if (!world.Services.Resolve<MobaSummonService>().TryGetSummons(context.LocalActorId, summons, 30030502)) return;
+                var registry = world.Services.Resolve<MobaActorRegistry>();
+                if (summons.Count != 1 || !registry.TryGet(summons[0], out var pet) ||
+                    !registry.TryGet(context.LocalActorId, out var owner)) return;
+                var shell = GameObject.Find($"Shell_Summon_30030502_{summons[0]}")?.transform;
+                if (shell == null || !pet.hasCharacterHfsm) return;
+                var animator = shell.GetComponentInChildren<Animator>();
+                var pose = pet.transform.Value;
+                positions.Add(new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z));
+                lastFrame = context.LastFrame;
+                var action = pet.characterHfsm.Runtime.Action;
+                var move = pet.hasMoveInput ? $"{pet.moveInput.Dx:F3}/{pet.moveInput.Dz:F3}" : "none";
+                var clip = animator?.GetCurrentAnimatorClipInfo(0).FirstOrDefault().clip;
+                var ownerPos = owner.transform.Value.Position;
+                followFrames.Add((lastFrame, new Vector3(ownerPos.X, 0f, ownerPos.Z), positions[positions.Count - 1],
+                    action.InstanceId, clip?.name));
+                samples.Add($"{lastFrame}: owner={owner.transform.Value.Position} pet={pose.Position} rotation={pose.Rotation} " +
+                    $"move={move} view={shell.position} yaw={shell.eulerAngles.y:F2} " +
+                    $"action={action.InstanceId}/{action.SkillId} clip={clip?.name} time={animator?.GetCurrentAnimatorStateInfo(0).normalizedTime:F3}");
+            }, previewOnly: true);
+            File.WriteAllLines(Path.Combine(directory, "follow-samples.txt"), samples);
+            Assert.That(positions, Has.Count.GreaterThan(20), directory);
+            Assert.That(positions.Min(position => position.z), Is.LessThan(positions[0].z - 2f), directory);
+            Assert.That(positions[positions.Count - 1].x, Is.GreaterThan(positions[0].x + 2f), directory);
+
+            var movingSouth = followFrames.Where(sample => sample.Owner.z < -5f && sample.Owner.z > -9.8f).ToArray();
+            var movingEast = followFrames.Where(sample => sample.Owner.x > 10f && sample.Owner.x < 13.8f).ToArray();
+            var settled = followFrames.Where(sample => sample.Owner.x > 14f).Skip(8).ToArray();
+            Assert.That(movingSouth.Length, Is.GreaterThan(20), directory);
+            Assert.That(movingEast.Length, Is.GreaterThan(15), directory);
+            Assert.That(settled.Length, Is.GreaterThan(10), directory);
+            Assert.That(movingSouth.Select(sample => sample.ActionId).Distinct().Count(), Is.EqualTo(1),
+                $"The follower repeatedly changed locomotion while the owner was moving south: {directory}");
+            Assert.That(movingEast.Select(sample => sample.ActionId).Distinct().Count(), Is.LessThanOrEqualTo(2), directory);
+            Assert.That(movingSouth.Count(sample => sample.Clip?.EndsWith("_Run") == true),
+                Is.GreaterThan(movingSouth.Length * 0.9f), directory);
+            for (var index = 1; index < movingSouth.Length; index++)
+            {
+                Assert.That(movingSouth[index - 1].Pet.z - movingSouth[index].Pet.z,
+                    Is.GreaterThan(0.04f), $"Follower stalled at {movingSouth[index].Frame}: {directory}");
+                Assert.That(Vector3.Distance(movingSouth[index].Owner, movingSouth[index].Pet),
+                    Is.InRange(4.8f, 5.25f), directory);
+            }
+            Assert.That(settled.Select(sample => sample.ActionId).Distinct().Count(), Is.EqualTo(1), directory);
+            Assert.That(settled.All(sample => sample.Clip?.EndsWith("_Idle") == true &&
+                Vector3.Distance(sample.Pet, settled[0].Pet) < 0.001f &&
+                Vector3.Distance(sample.Owner, sample.Pet) <= 5.01f), Is.True, directory);
+        }
+
         private static IEnumerator CaptureTibbersTurns(string caseId)
         {
             var directory = CreatePreviewEvidenceDirectory(caseId);
             var samples = new List<string>();
+            var attacks = new TibbersAttackContinuity();
             var summons = new List<int>();
             var lastFrame = -1;
             var lastSharpTurn = -100;
@@ -961,6 +1354,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 petId = summons[0];
                 var shell = GameObject.Find($"Shell_Summon_30030502_{petId}")?.transform;
                 if (shell == null || !world.Services.Resolve<MobaActorRegistry>().TryGet(petId, out var pet)) return;
+                attacks.Observe(pet, shell.GetComponentInChildren<Animator>(), context.LastFrame);
                 subscription ??= world.Services.Resolve<IEventBus>().Subscribe(
                     new EventKey<DamageResult>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply)), result =>
                     {
@@ -982,7 +1376,9 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 samples.Add($"{lastFrame}: authority={pose.Position}/{pose.Rotation} view={shell.position} yaw={yaw:F2}");
             }, () => subscription?.Dispose(), previewOnly: true);
             samples.Add($"startZ={startZ:F2} peakZ={peakZ:F2} finalZ={finalZ:F2} rapidReversals={quickReversals}");
+            attacks.WriteEvidence(directory);
             File.WriteAllLines(Path.Combine(directory, "samples.txt"), samples);
+            attacks.AssertContinuous(directory, expectEnrage: false);
             Assert.That(peakZ, Is.GreaterThan(startZ + 0.5f), directory);
             Assert.That(finalZ, Is.LessThan(peakZ - 1f), directory);
             Assert.That(quickReversals, Is.Zero, directory);
@@ -1017,6 +1413,113 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             Assert.That(Vector2.Distance(new Vector2(7f, 0f), new Vector2(impact.StartPosition.x, impact.StartPosition.z)),
                 Is.LessThan(.15f), capture.Directory);
             impact.AssertPlayed(capture.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator KarthusBasicAttack_FromScenario_RendersWindupMissileAndImpact()
+        {
+            const string caseId = "karthus-basic-attack";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            var impact = new PreviewEffectSample("aa-impact", "Karthus_Project_AA_Hit", 90036001);
+            var flight = new PreviewEffectSample("aa-flight", "AA_Projectile", 90036002);
+            var playback = new AttachedEffectPlayback(caseId, impact.AssetId);
+            yield return playback.Observe(flight, impact);
+            AssertBasicAttackPlayback(playback, flight, impact, 30060101, 32060101, "Karthus_Model_AutoAttack");
+            Assert.That(playback.RequestFrames, Has.Count.EqualTo(1), playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator GragasBasicAttack_FromScenario_RendersOnlyNormalImpact()
+        {
+            const string caseId = "gragas-basic-attack";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            var impact = new PreviewEffectSample("aa-impact", "Gragas_StarGuardian_AA_Hit", 90035001);
+            var empoweredImpact = new PreviewEffectSample("unexpected-empowered-impact", "Gragas_StarGuardian_AA_Impact", 90035002);
+            var playback = new AttachedEffectPlayback(caseId, impact.AssetId);
+            yield return playback.Observe(impact, empoweredImpact);
+            var cast = playback.FindFrame(MobaExecutionKind.SkillCast, 30050101);
+            var contact = playback.FindFrame(MobaExecutionKind.DamageApply, 30050101);
+            Assert.That(cast, Is.GreaterThanOrEqualTo(0), playback.Directory);
+            Assert.That(contact, Is.GreaterThan(cast), playback.Directory);
+            Assert.That(playback.CastingClips, Does.Contain("Gragas_Model_AutoAttack"), playback.Directory);
+            Assert.That(playback.CastingClips, Does.Not.Contain("Gragas_Model_AutoAttack_2"), playback.Directory);
+            Assert.That(impact.FirstFrame, Is.InRange(contact, contact + 4), playback.Directory);
+            Assert.That(playback.RequestFrames, Has.Count.EqualTo(1), playback.Directory);
+            Assert.That(empoweredImpact.FirstFrame, Is.EqualTo(-1), playback.Directory);
+            impact.AssertPlayed(playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator VeigarBasicAttack_FromScenario_RendersWindupMissileAndImpact()
+        {
+            const string caseId = "veigar-basic-attack";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            var playback = new AttachedEffectPlayback(caseId, 90034002);
+            var flight = new PreviewEffectSample("aa-flight", "AA_Projectile", 90034001);
+            var impact = new PreviewEffectSample("aa-impact", "Veigar_Hextech_AA_Hit", 90034002);
+            yield return playback.Observe(flight, impact);
+            AssertBasicAttackPlayback(playback, flight, impact, 30040101, 32040011, "Veigar_Model_AA");
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator LuxBasicAttack_FromScenario_RendersMissileWithoutPassiveBurst()
+        {
+            const string caseId = "lux-basic-attack";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            var playback = new AttachedEffectPlayback(caseId, 90037007);
+            var flight = new PreviewEffectSample("aa-flight", "Lux_DarkStar_AA_Projectile", 90037002);
+            var impact = new PreviewEffectSample("aa-impact", "Lux_DarkStar_AA_Hit", 90037001);
+            var burst = new PreviewEffectSample("passive-burst", "Passive_Hit", 90037007);
+            yield return playback.Observe(flight, impact, burst);
+            AssertBasicAttackPlayback(playback, flight, impact, 30070101, 32070101, "Lux_Model_AutoAttack");
+            Assert.That(burst.FirstFrame, Is.EqualTo(-1), playback.Directory);
+            Assert.That(playback.RequestFrames, Is.Empty, playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator LuxPassive_FromScenario_RendersMarkUntilAttackConsumesIt()
+        {
+            const string caseId = "lux-passive-illumination";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            var playback = new AttachedEffectPlayback(caseId, 90037007);
+            var mark = new PreviewEffectSample("passive-mark", "Passive_Mark", 90037008);
+            var flight = new PreviewEffectSample("aa-flight", "Lux_DarkStar_AA_Projectile", 90037002);
+            var impact = new PreviewEffectSample("aa-impact", "Lux_DarkStar_AA_Hit", 90037001);
+            var burst = new PreviewEffectSample("passive-burst", "Passive_Hit", 90037007);
+            yield return playback.Observe(mark, flight, impact, burst);
+            AssertBasicAttackPlayback(playback, flight, impact, 30070101, 32070101, "Lux_Model_AutoAttack");
+            mark.AssertPlayed(playback.Directory);
+            burst.AssertPlayed(playback.Directory);
+            var contact = playback.FindFrame(MobaExecutionKind.DamageApply, 30070101);
+            Assert.That(mark.FirstFrame, Is.LessThan(flight.FirstFrame), playback.Directory);
+            Assert.That(mark.LastFrame, Is.InRange(contact - 2, contact + 3), playback.Directory);
+            Assert.That(burst.FirstFrame, Is.InRange(contact, contact + 4), playback.Directory);
+            Assert.That(playback.FindTargets(MobaExecutionKind.DamageApply, 30070000), Has.Count.EqualTo(1), playback.Directory);
+            Assert.That(playback.RequestFrames, Has.Count.EqualTo(1), playback.Directory);
+            Assert.That(Vector2.Distance(new Vector2(mark.StartPosition.x, mark.StartPosition.z),
+                new Vector2(burst.StartPosition.x, burst.StartPosition.z)), Is.LessThan(.15f), playback.Directory);
+        }
+
+        private static void AssertBasicAttackPlayback(AttachedEffectPlayback playback, PreviewEffectSample flight,
+            PreviewEffectSample impact, int skillId, int projectileId, string clip)
+        {
+            var cast = playback.FindFrame(MobaExecutionKind.SkillCast, skillId);
+            var launch = playback.FindFrame(MobaExecutionKind.ProjectileLaunch, projectileId);
+            var contact = playback.FindFrame(MobaExecutionKind.DamageApply, skillId);
+            Assert.That(cast, Is.GreaterThanOrEqualTo(0), playback.Directory);
+            Assert.That(launch - cast, Is.InRange(6, 9), playback.Directory);
+            Assert.That(contact, Is.GreaterThan(launch), playback.Directory);
+            Assert.That(playback.CastingClips, Does.Contain(clip), playback.Directory);
+            Assert.That(flight.FirstFrame, Is.InRange(launch, launch + 4), playback.Directory);
+            Assert.That(flight.Moved, Is.True, flight.Summary);
+            Assert.That(impact.FirstFrame, Is.InRange(contact, contact + 4), playback.Directory);
+            flight.AssertPlayed(playback.Directory);
+            impact.AssertPlayed(playback.Directory);
         }
 
         [UnityTest, Category("SkillPresentationCapture")]
@@ -1170,14 +1673,17 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             yield return CaptureVeigarArea("veigar-e", 42040402, 90034017, "Warning", "Boundary");
         }
 
-        private static IEnumerator CaptureAnnieSummon(string caseId, bool expectAttack)
+        private static IEnumerator CaptureAnnieSummon(string caseId, bool expectAttack, bool expectEnrage = false)
         {
             const int summonId = 30030502;
+            const int enrageBuff = 30030503;
             var directory = CreatePreviewEvidenceDirectory(caseId);
             var samples = new List<string>();
+            var attacks = new TibbersAttackContinuity();
             var summons = new List<int>();
             var landing = new PreviewEffectSample("landing", "Void_Annie_Tibbers_Spawn", 90033006);
             var impact = new PreviewEffectSample("tibbers-impact", "Void_Annie_Tibbers_Hit", TibbersHitVfxId);
+            var enragedImpact = new PreviewEffectSample("tibbers-enraged-impact", "Void_Annie_Tibbers_Hit", TibbersHitVfxId);
             var impactRequests = new List<(int frame, int source, int target)>();
             var damageResults = new List<(int frame, int source, int target)>();
             var subscriptions = new List<System.IDisposable>();
@@ -1187,6 +1693,9 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             var lastFrame = -1;
             var castPose = -1;
             var attackPose = -1;
+            var enragedPose = -1;
+            var firstEnragedCast = -1;
+            var lethalApplied = false;
             var despawnFrame = -1;
             yield return WaitForPlayback(caseId, () =>
             {
@@ -1216,6 +1725,10 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                     "The showcase bear must not overlap the real summon.");
                 landing.Observe(active, lastFrame, directory, samples);
                 impact.Observe(active, lastFrame, directory, samples);
+                if (expectEnrage && firstEnragedCast < 0)
+                    firstEnragedCast = TraceFrames(trace, MobaExecutionKind.SkillCast, TibbersEnragedAttackSkillId).DefaultIfEmpty(-1).First();
+                if (firstEnragedCast >= 0)
+                    enragedImpact.Observe(active, lastFrame, directory, samples);
                 if (castPose < 0 && Object.FindObjectsOfType<Animator>().Any(animator => animator.isInitialized &&
                     animator.GetCurrentAnimatorStateInfo(0).shortNameHash == Animator.StringToHash("Void_Annie_Model_SpellR")))
                 {
@@ -1230,6 +1743,22 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                     Assert.That(petId, Is.EqualTo(0).Or.EqualTo(summons[0]), directory);
                     petId = summons[0];
                 }
+                if (expectEnrage && !lethalApplied && damageResults.Count >= 3)
+                {
+                    var lethal = new AttackInfo
+                    {
+                        AttackerActorId = damageResults[0].target,
+                        TargetActorId = context.LocalActorId,
+                        DamageType = DamageType.Physical,
+                        CritType = CritType.None,
+                        ReasonKind = DamageReasonKind.Environment
+                    };
+                    lethal.BaseDamage.BaseValue = 1000000f;
+                    Assert.IsNotNull(world.Services.Resolve<DamagePipelineService>().Execute(lethal), directory);
+                    Assert.IsTrue(world.Services.Resolve<MobaActorRegistry>().TryGet(context.LocalActorId, out var owner), directory);
+                    Assert.That(new MobaAttrs(owner).Hp, Is.Zero, directory);
+                    lethalApplied = true;
+                }
                 if (petId == 0) return;
                 var shell = active.FirstOrDefault(node => node.name == $"Shell_Summon_{summonId}_{petId}");
                 if (!alive && shell == null && despawnFrame < 0) despawnFrame = lastFrame;
@@ -1238,11 +1767,21 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                     petPixels = System.Math.Max(petPixels, Capture(directory, "tibbers-model", lastFrame,
                         samples, previousBest: petPixels, isolatedBranch: shell));
                 var petAnimator = shell.GetComponentInChildren<Animator>();
-                if (attackPose < 0 && petAnimator != null && petAnimator.isInitialized &&
+                if (world.Services.Resolve<MobaActorRegistry>().TryGet(petId, out var pet))
+                    attacks.Observe(pet, petAnimator, lastFrame);
+                if ((attackPose < 0 || (firstEnragedCast >= 0 && enragedPose < 0)) && petAnimator != null && petAnimator.isInitialized &&
                     petAnimator.GetCurrentAnimatorClipInfo(0).Any(clip => clip.clip.name.Contains("Attack")))
                 {
-                    attackPose = lastFrame;
-                    Capture(directory, "tibbers-first-attack", lastFrame, samples);
+                    if (firstEnragedCast < 0)
+                    {
+                        attackPose = lastFrame;
+                        Capture(directory, "tibbers-first-attack", lastFrame, samples);
+                    }
+                    else
+                    {
+                        enragedPose = lastFrame;
+                        Capture(directory, "tibbers-enraged-attack", lastFrame, samples);
+                    }
                 }
             }, () => subscriptions.ForEach(subscription => subscription.Dispose()), previewOnly: true);
 
@@ -1253,6 +1792,11 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 $"attackPose={attackPose} hits=[{string.Join(",", hits)}] despawn={despawnFrame} modelPixels={petPixels}");
             samples.Add(landing.Summary);
             samples.Add(impact.Summary);
+            if (expectEnrage)
+            {
+                samples.Add($"firstEnragedCast={firstEnragedCast} enragedPose={enragedPose}");
+                samples.Add(enragedImpact.Summary);
+            }
             samples.Add($"impact requests=[{string.Join(",", impactRequests)}]");
             File.WriteAllLines(Path.Combine(directory, "samples.txt"), samples);
             Assert.That(TraceFrames(trace, MobaExecutionKind.SkillCast, 30030501), Has.Length.EqualTo(1), directory);
@@ -1268,10 +1812,28 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             Assert.That(damageResults, Has.Count.EqualTo(hits.Length), directory);
             if (expectAttack)
             {
+                attacks.WriteEvidence(directory);
+                attacks.AssertContinuous(directory, expectEnrage);
                 Assert.That(attackPose, Is.GreaterThanOrEqualTo(spawn[0]), directory);
                 Assert.That(hits.Length, Is.GreaterThanOrEqualTo(2), directory);
                 Assert.That(hits[0], Is.InRange(spawn[0], attackPose + 24), directory);
-                Assert.That(hits.Skip(1).Select((frame, index) => frame - hits[index]), Is.All.EqualTo(24), directory);
+                if (expectEnrage)
+                {
+                    var enragedAt = TraceFrames(trace, MobaExecutionKind.BuffApply, enrageBuff).Single();
+                    var normalHits = hits.Where(frame => frame < enragedAt).ToArray();
+                    var enragedHits = hits.Where(frame => frame >= enragedAt).ToArray();
+                    Assert.That(normalHits.Length, Is.GreaterThanOrEqualTo(2), directory);
+                    Assert.That(enragedHits.Length, Is.GreaterThanOrEqualTo(2), directory);
+                    Assert.That(normalHits.Skip(1).Select((frame, index) => frame - normalHits[index]), Is.All.EqualTo(24), directory);
+                    Assert.That(enragedHits.Skip(1).Select((frame, index) => frame - enragedHits[index]), Is.All.EqualTo(18), directory);
+                    Assert.That(firstEnragedCast, Is.EqualTo(normalHits.Last() + 24).And.EqualTo(enragedHits[0]), directory);
+                    Assert.That(enragedPose, Is.InRange(firstEnragedCast, firstEnragedCast + 18), directory);
+                    Assert.That(damageResults.Select(hit => hit.target).Distinct().Count(), Is.EqualTo(1), directory);
+                    enragedImpact.AssertVisible(directory);
+                    Assert.That(enragedImpact.FirstFrame, Is.InRange(enragedHits[0], enragedHits[0] + 4), directory);
+                }
+                else
+                    Assert.That(hits.Skip(1).Select((frame, index) => frame - hits[index]), Is.All.EqualTo(24), directory);
                 impact.AssertVisible(directory);
                 Assert.That(impact.FirstFrame, Is.InRange(hits[0], hits[0] + 4), directory);
                 Assert.That(Vector2.Distance(new Vector2(7f, 1f), new Vector2(impact.StartPosition.x, impact.StartPosition.z)),
@@ -1285,6 +1847,63 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 Assert.That(impact.FirstFrame, Is.EqualTo(-1), directory);
                 Assert.That(TraceFrames(trace, MobaExecutionKind.SummonDeath, summonId), Is.Empty, directory);
                 Assert.That(despawnFrame - spawn[0], Is.InRange(420, 424), directory);
+            }
+        }
+
+        private sealed class TibbersAttackContinuity
+        {
+            private readonly Dictionary<long, long> _actions = new();
+            private readonly Dictionary<int, HashSet<long>> _seen = new();
+            private readonly Dictionary<int, float> _peak = new();
+            private readonly List<string> _samples = new();
+            private readonly List<string> _violations = new();
+            private long _lastCast;
+            private float _lastProgress;
+
+            public void Observe(ActorEntity pet, Animator animator, int frame)
+            {
+                if (!pet.hasCharacterHfsm) return;
+                var action = pet.characterHfsm.Runtime.Action;
+                var skill = action.SkillId;
+                if (action.CastInstanceId <= 0 || (skill != TibbersBasicAttackSkillId && skill != TibbersEnragedAttackSkillId))
+                {
+                    _lastCast = 0;
+                    return;
+                }
+
+                if (_actions.TryGetValue(action.CastInstanceId, out var initial) && initial != action.InstanceId)
+                    _violations.Add($"{frame}: cast {action.CastInstanceId} restarted action {initial} -> {action.InstanceId}");
+                else
+                    _actions[action.CastInstanceId] = action.InstanceId;
+
+                if (animator == null || !animator.isInitialized || !animator.GetCurrentAnimatorClipInfo(0)
+                        .Any(item => item.clip.name == "Void_Annie_Tibbers_Attack1")) return;
+                if (!_seen.TryGetValue(skill, out var casts)) _seen[skill] = casts = new HashSet<long>();
+                casts.Add(action.CastInstanceId);
+                var progress = animator.GetCurrentAnimatorStateInfo(0).normalizedTime;
+                if (_lastCast == action.CastInstanceId && progress < _lastProgress - .002f)
+                    _violations.Add($"{frame}: cast {action.CastInstanceId} rewound {_lastProgress:F4} -> {progress:F4}");
+                if (skill == TibbersEnragedAttackSkillId && Mathf.Abs(animator.speed - 1f) > .001f)
+                    _violations.Add($"{frame}: unexpected Animator rate {animator.speed} during HFSM-owned attack");
+                _peak[skill] = Mathf.Max(_peak.TryGetValue(skill, out var peak) ? peak : 0f, progress);
+                _lastCast = action.CastInstanceId;
+                _lastProgress = progress;
+                _samples.Add($"{frame}: skill={skill} cast={action.CastInstanceId} action={action.InstanceId} progress={progress:F4}");
+            }
+
+            public void WriteEvidence(string directory) =>
+                File.WriteAllLines(Path.Combine(directory, "attack-continuity.txt"), _samples.Concat(_violations));
+
+            public void AssertContinuous(string directory, bool expectEnrage)
+            {
+                Assert.That(_violations.Take(6), Is.Empty, directory);
+                Assert.That(_seen[TibbersBasicAttackSkillId], Has.Count.GreaterThanOrEqualTo(2), directory);
+                Assert.That(_peak[TibbersBasicAttackSkillId], Is.GreaterThan(.35f), directory);
+                if (expectEnrage)
+                {
+                    Assert.That(_seen[TibbersEnragedAttackSkillId], Has.Count.GreaterThanOrEqualTo(2), directory);
+                    Assert.That(_peak[TibbersEnragedAttackSkillId], Is.GreaterThan(.55f), directory);
+                }
             }
         }
 
@@ -1467,6 +2086,93 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             yield return VerifyWallCrossing();
         }
 
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator KarthusW_RankOne_RendersWallAndOnlyDebuffsTheInsideTarget()
+        {
+            const string caseId = "karthus-w-rank-one-edge";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureKarthusWallEdge(caseId, 1, 8f);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator KarthusW_RankFive_RendersLongerWallAndDebuffsBothTargets()
+        {
+            const string caseId = "karthus-w-rank-one-edge";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureKarthusWallEdge(caseId, 5, 12f);
+        }
+
+        private static IEnumerator CaptureKarthusWallEdge(string caseId, int rank, float expectedLength)
+        {
+            const int wallTemplate = 42060301;
+            var wallDebuff = 30060390 + rank;
+            var wall = new PreviewEffectSample("wall", "W_Area", 90036015, minimumAgeFrames: 18);
+            var playback = new AttachedEffectPlayback(caseId, 0);
+            var inside = 0;
+            var outside = 0;
+            var contacts = new Dictionary<int, int>();
+            var rankSet = false;
+            var measuredLength = 0f;
+            yield return playback.ObserveWithContext(context =>
+            {
+                if (!context.Session.TryGetWorld(out var world)) return;
+                var registry = world.Services.Resolve<MobaActorRegistry>();
+                if (!rankSet && registry.TryGet(context.LocalActorId, out var caster))
+                {
+                    var skill = caster.skillLoadout.ActiveSkills[1];
+                    Assert.That(skill.SkillId, Is.EqualTo(30060301));
+                    skill.Level = rank;
+                    rankSet = true;
+                }
+                if (inside == 0 || outside == 0)
+                {
+                    var actors = world.Services.Resolve<MobaPlayerActorMapService>();
+                    actors.TryGetActorId(new PlayerId("preview_inside"), out inside);
+                    actors.TryGetActorId(new PlayerId("preview_rank_five_only"), out outside);
+                }
+                RecordContact(inside);
+                RecordContact(outside);
+
+                void RecordContact(int actorId)
+                {
+                    if (actorId > 0 && !contacts.ContainsKey(actorId) && registry.TryGet(actorId, out var target) &&
+                        target.hasBuffs && target.buffs.Active != null &&
+                        target.buffs.Active.Any(buff => buff != null && buff.BuffId == wallDebuff))
+                        contacts.Add(actorId, context.LastFrame);
+                }
+
+                if (measuredLength > 0f) return;
+                var visual = Object.FindObjectsOfType<Transform>().FirstOrDefault(wall.Matches);
+                if (visual == null) return;
+                var endPillars = visual.GetComponentsInChildren<Transform>(true)
+                    .Where(node => node.name == "pCylinder8").ToArray();
+                Assert.That(endPillars.Length, Is.EqualTo(2), playback.Directory);
+                var endOffsets = endPillars.Select(node => node.position.x - visual.position.x).OrderBy(value => value).ToArray();
+                Assert.That(endOffsets[0], Is.EqualTo(-expectedLength / 2f).Within(.03f), playback.Directory);
+                Assert.That(endOffsets[1], Is.EqualTo(expectedLength / 2f).Within(.03f), playback.Directory);
+                Assert.That(visual.lossyScale.x, Is.EqualTo(6f).Within(.01f), playback.Directory);
+                Assert.That(visual.lossyScale.y, Is.EqualTo(6f).Within(.01f), playback.Directory);
+                measuredLength = endOffsets[1] - endOffsets[0];
+            }, wall);
+
+            var spawn = playback.FindFrame(MobaExecutionKind.AreaSpawn, wallTemplate);
+            var expire = playback.FindFrame(MobaExecutionKind.AreaExpire, wallTemplate);
+            Assert.That(inside, Is.Positive, playback.Directory);
+            Assert.That(outside, Is.Positive.And.Not.EqualTo(inside), playback.Directory);
+            Assert.That(measuredLength, Is.EqualTo(expectedLength).Within(.05f), playback.Directory);
+            Assert.That(contacts.Keys, Is.EquivalentTo(rank == 1
+                ? new[] { inside } : new[] { inside, outside }), playback.Directory);
+            Assert.That(contacts.Values, Is.All.InRange(spawn, expire - 1), playback.Directory);
+            Assert.That(expire - spawn, Is.EqualTo(150).Within(1), playback.Directory);
+            Assert.That(playback.CastingClips.Any(clip => clip.Contains("SpellW")), Is.True, playback.Directory);
+            wall.AssertPlayed(playback.Directory);
+            Assert.That(wall.FirstFrame, Is.InRange(spawn, spawn + 4), playback.Directory);
+            Assert.That(wall.LastFrame, Is.InRange(expire - 4, expire + 4), playback.Directory);
+            Assert.That(DistanceOnGround(wall.StartPosition, new Vector3(7f, 0f, 1f)), Is.LessThan(.15f), playback.Directory);
+        }
+
         private static IEnumerator VerifyWallCrossing()
         {
             const int wallTemplate = 42060301;
@@ -1560,36 +2266,6 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             static bool IsWallVfxActive() => Object.FindObjectsOfType<BattleVfxPoolableTag>()
                 .Any(tag => tag.VfxId == wallVfxId && tag.gameObject.activeInHierarchy);
         }
-        private static IEnumerator CaptureTravel(string caseId, int flightVfxId)
-        {
-            var directory = Path.GetFullPath(Path.Combine(Application.dataPath,
-                "../../local/Logs/moba-presentation-scenarios",
-                System.DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff"), caseId));
-            Directory.CreateDirectory(directory);
-            var samples = new List<string>();
-            var lastFrame = -1;
-            var peakPixels = 0;
-            var firstPosition = (Vector3?)null;
-            var traveled = false;
-            yield return WaitForPlayback(caseId, () =>
-            {
-                if (Camera.main == null || !GameEntry.IsInitialized ||
-                    !GameEntry.Instance.TryGet(out BattleContext context) || context.LastFrame == lastFrame) return;
-                lastFrame = context.LastFrame;
-                var flight = Object.FindObjectsOfType<BattleVfxPoolableTag>()
-                    .FirstOrDefault(tag => tag.VfxId == flightVfxId && tag.gameObject.activeInHierarchy);
-                if (flight == null) return;
-
-                firstPosition ??= flight.transform.position;
-                traveled |= (flight.transform.position - firstPosition.Value).sqrMagnitude > 1f;
-                peakPixels = System.Math.Max(peakPixels, Capture(directory, "w-travel", lastFrame,
-                    samples, new[] { flight }, previousBest: peakPixels));
-            });
-            File.WriteAllLines(Path.Combine(directory, "samples.txt"), samples);
-            Assert.IsTrue(traveled, $"The configured bolt did not travel. See {directory}.");
-            Assert.Greater(peakPixels, 20, $"The bolt rendered no visible pixels. See {directory}.");
-            Debug.Log($"[SkillScenarioCapture] {caseId}: {directory}; travel={peakPixels} px");
-        }
 
         [UnityTest, Category("SkillPresentationCapture")]
         public IEnumerator LuxR_FromScenario_CapturesPresentation()
@@ -1597,6 +2273,81 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             PrepareCapture("lux-r");
             yield return new EnterPlayMode();
             yield return CapturePlayback("lux-r", 30070501, 42070501, 90037015, 0, 5, 15, 24, 29, 30, 31, 33, 38, 45, 60, 75, 90);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator LuxR_MarkRefresh_RendersBeamAndOnlyConsumesTheExistingMark()
+        {
+            const string caseId = "lux-r-mark-refresh";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureLuxRMarkRefresh(caseId);
+        }
+
+        private static IEnumerator CaptureLuxRMarkRefresh(string caseId)
+        {
+            const int markId = 30070090, markImpactId = 90037007, markVfxId = 90037008;
+            const int qSkill = 30070201, rSkill = 30070501, passiveSkill = 30070000;
+            var origin = new Vector3(7f, 0f, -4f);
+            var markedPosition = new Vector3(6.3f, 0f, -.5f);
+            var unmarkedPosition = new Vector3(7.6f, 0f, 3.5f);
+            var oldMarkView = new PreviewEffectSample("marked-target", "Passive_Mark", markVfxId,
+                filter: node => DistanceOnGround(node.position, markedPosition) < .5f);
+            var newMarkView = new PreviewEffectSample("newly-marked-target", "Passive_Mark", markVfxId,
+                filter: node => DistanceOnGround(node.position, unmarkedPosition) < .5f);
+            var burst = new PreviewEffectSample("mark-burst", "Passive_Hit", markImpactId);
+            var beam = new PreviewEffectSample("beam", "R_Channel", 90037014, minimumAgeFrames: 30);
+            var markedHit = new PreviewEffectSample("marked-hit", "R_Hit", 90037015,
+                filter: node => DistanceOnGround(node.position, markedPosition) < .5f);
+            var unmarkedHit = new PreviewEffectSample("unmarked-hit", "R_Hit", 90037015,
+                filter: node => DistanceOnGround(node.position, unmarkedPosition) < .5f);
+            var playback = new AttachedEffectPlayback(caseId, 0);
+            MobaSourceBuffToken oldMark = default, refreshedMark = default, newMark = default;
+            yield return playback.ObserveWithContext(context =>
+            {
+                var qHits = playback.FindTargets(MobaExecutionKind.DamageApply, qSkill);
+                if (qHits.Count != 1 || !context.Session.TryGetWorld(out var world)) return;
+                var buffs = world.Services.Resolve<MobaBuffService>();
+                var marked = (int)qHits[0].Target;
+                var rHits = playback.FindTargets(MobaExecutionKind.DamageApply, rSkill);
+                if (rHits.Count == 0)
+                    buffs.TryReadSourceBuff(marked, markId, context.LocalActorId, out oldMark);
+                else if (rHits.Count == 2 && rHits.Count(hit => hit.Target != marked) == 1)
+                {
+                    var unmarked = (int)rHits.Single(hit => hit.Target != marked).Target;
+                    buffs.TryReadSourceBuff(marked, markId, context.LocalActorId, out refreshedMark);
+                    buffs.TryReadSourceBuff(unmarked, markId, context.LocalActorId, out newMark);
+                }
+            }, oldMarkView, newMarkView, burst, beam, markedHit, unmarkedHit);
+
+            var impactFrame = playback.FindFrame(MobaExecutionKind.DamageApply, rSkill);
+            var hits = playback.FindTargets(MobaExecutionKind.DamageApply, rSkill);
+            var bursts = playback.FindTargets(MobaExecutionKind.DamageApply, passiveSkill);
+            Assert.That(hits.Select(hit => hit.Frame), Is.EqualTo(new[] { impactFrame, impactFrame }), playback.Directory);
+            Assert.That(oldMark.RuntimeContextId, Is.Positive, playback.Directory);
+            Assert.That(refreshedMark.RuntimeContextId, Is.Positive.And.Not.EqualTo(oldMark.RuntimeContextId), playback.Directory);
+            Assert.That(newMark.RuntimeContextId, Is.Positive, playback.Directory);
+            Assert.That(bursts, Is.EqualTo(new[] { (impactFrame, (long)oldMark.TargetActorId) }), playback.Directory);
+            Assert.That(hits.Select(hit => hit.Target), Is.EquivalentTo(new[] { (long)oldMark.TargetActorId, newMark.TargetActorId }), playback.Directory);
+            Assert.That(playback.CastingClips, Does.Contain("Lux_Model_SpellR"), playback.Directory);
+            oldMarkView.AssertVisible(playback.Directory);
+            newMarkView.AssertVisible(playback.Directory);
+            beam.AssertPlayed(playback.Directory);
+            markedHit.AssertPlayed(playback.Directory);
+            unmarkedHit.AssertPlayed(playback.Directory);
+            burst.AssertPlayed(playback.Directory);
+            Assert.That(burst.ObservedInstances, Is.EqualTo(1), playback.Directory);
+            Assert.That(oldMarkView.FirstFrame, Is.LessThan(impactFrame), playback.Directory);
+            Assert.That(oldMarkView.LastFrame, Is.GreaterThan(impactFrame), playback.Directory);
+            Assert.That(newMarkView.FirstFrame, Is.InRange(impactFrame, impactFrame + 4), playback.Directory);
+            Assert.That(burst.FirstFrame, Is.InRange(impactFrame, impactFrame + 4), playback.Directory);
+            Assert.That(DistanceOnGround(burst.StartPosition, markedPosition), Is.LessThan(.5f), playback.Directory);
+            Assert.That(markedHit.FirstFrame, Is.InRange(impactFrame, impactFrame + 4), playback.Directory);
+            Assert.That(unmarkedHit.FirstFrame, Is.InRange(impactFrame, impactFrame + 4), playback.Directory);
+            Assert.That(beam.FirstFrame, Is.LessThan(impactFrame), playback.Directory);
+            Assert.That(beam.SampleFrame, Is.InRange(impactFrame - 2, impactFrame + 15), playback.Directory);
+            Assert.That(DistanceOnGround(beam.StartPosition, origin), Is.LessThan(.15f), playback.Directory);
+            Assert.That(Vector3.Dot(beam.StartForward, Vector3.forward), Is.GreaterThan(.99f), playback.Directory);
         }
 
         [UnityTearDown]
@@ -1627,10 +2378,11 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
 
         private static void Prepare(string caseId, bool previewOnly = false)
         {
-            var file = Path.GetFullPath(Path.Combine(Application.dataPath, "../../src",
-                "AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/SkillPresentation", caseId + ".battlescenario"));
-            Assert.IsTrue(MobaBattleScenarioPreview.PreparePreview(file, previewOnly));
+            Assert.IsTrue(MobaBattleScenarioPreview.PreparePreview(GetSkillScenarioFile(caseId), previewOnly));
         }
+
+        private static string GetSkillScenarioFile(string caseId) => Path.GetFullPath(Path.Combine(Application.dataPath, "../../src",
+            "AbilityKit.Demo.Moba.BattleScenario.Runner/Flows/SkillPresentation", caseId + ".battlescenario"));
 
         private static void PrepareCapture(string caseId, bool previewOnly = false)
         {
@@ -1664,6 +2416,173 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             }
         }
 
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator KarthusQ_FromScenario_RendersDelayedIsolatedBlast()
+        {
+            const string caseId = "karthus-q";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureKarthusQ(caseId, 1);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator KarthusQ_FromScenario_RendersOneBlastForTwoTargets()
+        {
+            const string caseId = "karthus-q-two-targets";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureKarthusQ(caseId, 2);
+        }
+
+        private static IEnumerator CaptureKarthusQ(string caseId, int targets)
+        {
+            var warning = new PreviewEffectSample("q-warning", "Q_Warning", 90036006);
+            var explosion = new PreviewEffectSample("q-explosion", "Q_Explosion", 90036008);
+            var playback = new AttachedEffectPlayback(caseId, 0);
+            yield return playback.Observe(warning, explosion);
+            warning.AssertPlayed(playback.Directory);
+            explosion.AssertPlayed(playback.Directory);
+            Assert.That(playback.CastingClips, Does.Contain("Karthus_Model_SpellQ"), playback.Directory);
+            Assert.That(explosion.FirstFrame, Is.GreaterThan(warning.FirstFrame), playback.Directory);
+            Assert.That(Vector2.Distance(new Vector2(warning.StartPosition.x, warning.StartPosition.z),
+                new Vector2(explosion.StartPosition.x, explosion.StartPosition.z)), Is.LessThan(.15f), playback.Directory);
+            var blast = playback.FindFrame(MobaExecutionKind.AreaSpawn, 42060202);
+            var hits = playback.FindTargets(MobaExecutionKind.DamageApply, 30060201);
+            Assert.That(blast, Is.GreaterThan(playback.FindFrame(MobaExecutionKind.AreaSpawn, 42060201)), playback.Directory);
+            Assert.That(hits.Select(hit => hit.Target).Distinct().Count(), Is.EqualTo(targets), playback.Directory);
+            Assert.That(hits.Select(hit => hit.Frame), Is.EqualTo(Enumerable.Repeat(blast, targets)), playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator KarthusPassive_FromScenario_RendersSpiritUntilRespawnAndAllowsDeathQ()
+        {
+            const string caseId = "karthus-passive-respawn";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureKarthusPassive(caseId);
+        }
+
+        private static IEnumerator CaptureKarthusPassive(string caseId)
+        {
+            var spirit = new PreviewEffectSample("spirit", "Karthus_Project_Death", 90036003);
+            var lateSpirit = new PreviewEffectSample("spirit-after-q", "Karthus_Project_Death", 90036003, minimumAgeFrames: 75);
+            var aura = new PreviewEffectSample("death-e-aura", "E_Aura", 90036005);
+            var warning = new PreviewEffectSample("death-q-warning", "Q_Warning", 90036006);
+            var explosion = new PreviewEffectSample("death-q-impact", "Q_Explosion", 90036008);
+            var playback = new AttachedEffectPlayback(caseId, 0);
+            var deadFrame = -1;
+            var respawnFrame = -1;
+            yield return playback.ObserveWithContext(context =>
+            {
+                if (!context.Session.TryGetWorld(out var world)) return;
+                var rules = world.Services.Resolve<MobaCombatRulesService>();
+                if (!rules.TryGetActor(context.LocalActorId, out var actor)) return;
+                if (!rules.IsAlive(actor))
+                {
+                    if (deadFrame < 0) deadFrame = context.LastFrame;
+                    Assert.IsFalse(rules.CanAttack(context.LocalActorId));
+                    Assert.IsFalse(rules.CanMove(context.LocalActorId));
+                }
+                else if (deadFrame >= 0 && respawnFrame < 0)
+                {
+                    respawnFrame = context.LastFrame;
+                }
+            }, spirit, lateSpirit, aura, warning, explosion);
+
+            var deathCast = playback.FindFrame(MobaExecutionKind.SkillCast, 30060602);
+            var damage = playback.FindFrame(MobaExecutionKind.DamageApply, 30060201);
+            Assert.That(deadFrame, Is.GreaterThanOrEqualTo(0), playback.Directory);
+            Assert.That(spirit.FirstFrame, Is.InRange(deadFrame, deadFrame + 4), playback.Directory);
+            Assert.That(deathCast, Is.GreaterThan(spirit.FirstFrame), playback.Directory);
+            Assert.That(warning.FirstFrame, Is.GreaterThanOrEqualTo(deathCast), playback.Directory);
+            Assert.That(damage, Is.GreaterThan(warning.FirstFrame), playback.Directory);
+            Assert.That(explosion.FirstFrame, Is.InRange(damage, damage + 4), playback.Directory);
+            Assert.That(respawnFrame, Is.GreaterThan(damage), playback.Directory);
+            Assert.That(spirit.LastFrame, Is.InRange(respawnFrame - 4, respawnFrame + 4), playback.Directory);
+            Assert.That(spirit.Moved, Is.False, spirit.Summary);
+            Assert.That(aura.LastFrame, Is.InRange(respawnFrame - 4, respawnFrame + 4), playback.Directory);
+            Assert.That(aura.Moved, Is.False, aura.Summary);
+            Assert.That(playback.FindFrame(MobaExecutionKind.SkillCast, 30060101), Is.EqualTo(-1), playback.Directory);
+            Assert.That(playback.CastingClips, Does.Contain("Karthus_Model_SpellQ"), playback.Directory);
+            foreach (var effect in new[] { spirit, lateSpirit, aura, warning, explosion }) effect.AssertPlayed(playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator KarthusE_FromScenario_RendersStartFollowAndStop()
+        {
+            const string caseId = "karthus-e";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            var start = new PreviewEffectSample("e-start", "E_Activation", 90036017);
+            var aura = new PreviewEffectSample("e-aura", "E_Aura", 90036005);
+            var stop = new PreviewEffectSample("e-stop", "E_Deactivation", 90036018);
+            var playback = new AttachedEffectPlayback(caseId, 0);
+            yield return playback.Observe(start, aura, stop);
+            start.AssertPlayed(playback.Directory);
+            aura.AssertPlayed(playback.Directory);
+            stop.AssertPlayed(playback.Directory);
+            Assert.That(playback.CastingClips, Does.Contain("Karthus_Model_SpellE"), playback.Directory);
+            Assert.That(aura.Moved, Is.True, playback.Directory);
+            Assert.That(start.StartPosition.z, Is.LessThan(-2f), playback.Directory);
+            Assert.That(stop.StartPosition.z, Is.GreaterThan(2f), playback.Directory);
+            Assert.That(stop.FirstFrame, Is.GreaterThan(start.FirstFrame), playback.Directory);
+            Assert.That(aura.LastFrame, Is.InRange(stop.FirstFrame - 3, stop.FirstFrame), playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator KarthusE_ManaDepleted_RendersDeactivationAndReleasesAura()
+        {
+            const string caseId = "karthus-e-mana-depleted";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            var start = new PreviewEffectSample("e-start", "E_Activation", 90036017);
+            var aura = new PreviewEffectSample("e-aura", "E_Aura", 90036005);
+            var stop = new PreviewEffectSample("e-stop", "E_Deactivation", 90036018);
+            var playback = new AttachedEffectPlayback(caseId, 0);
+            yield return playback.Observe(start, aura, stop);
+
+            foreach (var effect in new[] { start, aura, stop }) effect.AssertPlayed(playback.Directory);
+            var damage = playback.FindFrame(MobaExecutionKind.DamageApply, 30060401);
+            Assert.That(playback.CastingClips, Does.Contain("Karthus_Model_SpellE"), playback.Directory);
+            Assert.That(damage, Is.GreaterThanOrEqualTo(aura.FirstFrame), playback.Directory);
+            Assert.That(stop.FirstFrame, Is.GreaterThan(damage), playback.Directory);
+            Assert.That(aura.LastFrame, Is.InRange(stop.FirstFrame - 3, stop.FirstFrame), playback.Directory);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator AnnieW_FromScenario_RendersDirectionalConeWithoutStuns()
+        {
+            const string caseId = "annie-w";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureAnnieW(caseId, false);
+        }
+
+        [UnityTest, Category("SkillPresentationCapture")]
+        public IEnumerator AnnieW_PrimedScenario_RendersDirectionalConeAndStunsBothTargets()
+        {
+            const string caseId = "annie-w-primed";
+            PrepareCapture(caseId, previewOnly: true);
+            yield return new EnterPlayMode();
+            yield return CaptureAnnieW(caseId, true);
+        }
+
+        private static IEnumerator CaptureAnnieW(string caseId, bool primed)
+        {
+            var cone = new PreviewEffectSample("w-cone", "Void_Annie_W_Area", 90033002,
+                filter: node => Vector3.Dot(node.forward, Vector3.forward) > .9f);
+            var playback = new AttachedEffectPlayback(caseId, 0);
+            yield return playback.Observe(cone);
+            cone.AssertPlayed(playback.Directory);
+            Assert.That(playback.CastingClips, Does.Contain("Void_Annie_Model_SpellW"), playback.Directory);
+            var hits = playback.FindTargets(MobaExecutionKind.DamageApply, 30030301);
+            var stuns = playback.FindTargets(MobaExecutionKind.BuffApply, 30030211);
+            Assert.That(hits.Count, Is.EqualTo(2), playback.Directory);
+            Assert.That(hits.Select(hit => hit.Target).Distinct().Count(), Is.EqualTo(2), playback.Directory);
+            if (primed) CollectionAssert.AreEquivalent(hits.Select(hit => hit.Target), stuns.Select(stun => stun.Target), playback.Directory);
+            else Assert.That(stuns, Is.Empty, playback.Directory);
+        }
+
         private sealed class AttachedEffectPlayback
         {
             private readonly string _caseId;
@@ -1685,6 +2604,10 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             public int FindFrame(MobaExecutionKind kind, int configId, int afterFrame = -1) => _trace.GetNodesByKind((int)kind)
                 .Where(node => node.Metadata?.ConfigId == configId && node.CreatedFrame > afterFrame)
                 .Select(node => node.CreatedFrame).DefaultIfEmpty(-1).Min();
+
+            public List<(int Frame, long Target)> FindTargets(MobaExecutionKind kind, int configId) => _trace.GetNodesByKind((int)kind)
+                .Where(node => node.Metadata?.ConfigId == configId)
+                .Select(node => (node.CreatedFrame, node.Metadata.TargetActorId)).ToList();
 
             public IEnumerator Observe(params PreviewEffectSample[] effects) => ObserveWithContext(null, effects);
 
@@ -1755,6 +2678,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             public int ObservedInstances => _instances.Count;
             public int SampleFrame => _sampleFrame;
             public Vector3 StartPosition => _start;
+            public Vector3 StartForward { get; private set; }
             public Vector3 EndPosition { get; private set; }
             public bool Moved { get; private set; }
             public string Summary => $"{_label} frames={FirstFrame}..{LastFrame} from={_start} to={EndPosition} pixels={_pixels} instances={_instances.Count} peak={_peakInstances} activeAtEnd={_activeCount}";
@@ -1775,12 +2699,18 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 {
                     FirstFrame = frame;
                     _start = instance.position;
+                    StartForward = instance.forward;
                 }
                 Moved |= (instance.position - _start).sqrMagnitude > 0.04f;
                 var age = frame - FirstFrame;
                 if (age < _minimumAgeFrames || age > _maximumAgeFrames ||
-                    _pixels > 20 || frame < _sampleFrame + 2 || !instance.GetComponentsInChildren<ParticleSystem>()
-                    .Any(system => system.particleCount > 0)) return;
+                    _pixels > 20 || frame < _sampleFrame + 2) return;
+                if (!instance.GetComponentsInChildren<ParticleSystem>().Any(system => system.particleCount > 0) &&
+                    !instance.GetComponentsInChildren<MeshRenderer>().Any(renderer => renderer.enabled))
+                {
+                    if (Application.isBatchMode) Camera.main.Render();
+                    return;
+                }
                 _sampleFrame = frame;
                 _pixels = System.Math.Max(_pixels, Capture(directory, _label, frame, samples,
                     previousBest: _pixels, isolatedBranch: instance));
@@ -1795,6 +2725,11 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             public void AssertPlayed(string directory)
             {
                 AssertVisible(directory);
+                AssertRetired(directory);
+            }
+
+            public void AssertRetired(string directory)
+            {
                 Assert.That(_peakInstances, Is.EqualTo(1), $"{Summary}. See {directory}.");
                 Assert.That(_activeCount, Is.Zero, $"{Summary}. See {directory}.");
             }
@@ -1918,6 +2853,10 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             private readonly string _detonationClip;
             private readonly string _impactBranch;
             private readonly Vector2? _impactPosition;
+            private readonly int _minImpactBranchFrames;
+            private readonly bool _expectFlightArc;
+            private readonly List<float> _flightHeights = new();
+            private int _peakFlightInstances;
             private int _cast = -1;
             private int _flight = -1;
             private int _ground = -1;
@@ -1936,11 +2875,13 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             private int _deployed = -1;
             private int _detonation = -1;
             private int _impactBranchPixels;
+            private int _impactBranchFrames;
             private int _lastImpactBranchSampleFrame = -1;
             private float _impactPositionError;
 
             public CastPresentationProbe(string castClip, int flightVfxId, int groundVfxId = 0, int chargeVfxId = 0,
-                string deployedClip = null, string detonationClip = null, string impactBranch = null, Vector2? impactPosition = null)
+                string deployedClip = null, string detonationClip = null, string impactBranch = null,
+                Vector2? impactPosition = null, int minImpactBranchFrames = 0, bool expectFlightArc = false)
             {
                 _castClip = castClip;
                 _flightVfxId = flightVfxId;
@@ -1950,6 +2891,8 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 _detonationClip = detonationClip;
                 _impactBranch = impactBranch;
                 _impactPosition = impactPosition;
+                _minImpactBranchFrames = minImpactBranchFrames;
+                _expectFlightArc = expectFlightArc;
             }
 
             public void Observe(int frame, int impactVfxId, string directory, List<string> captures)
@@ -1977,9 +2920,10 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                             _firstFlightInstance = tag.GetInstanceID();
                         }
                         _flightMoved |= (tag.transform.position - _flightStart).sqrMagnitude > 0.01f;
+                        _sameFlightInstance &= _firstFlightInstance == tag.GetInstanceID();
+                        if (_expectFlightArc) _flightHeights.Add(tag.transform.position.y);
                         if (_deployedClip != null)
                         {
-                            _sameFlightInstance &= _firstFlightInstance == tag.GetInstanceID();
                             foreach (var animator in tag.GetComponentsInChildren<Animator>().Where(candidate => candidate.isInitialized))
                             foreach (var clip in animator.GetCurrentAnimatorClipInfo(0))
                             {
@@ -2021,6 +2965,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                             if (branch != null)
                             {
                                 _lastImpactBranchSampleFrame = frame;
+                                _impactBranchFrames = frame - _impact + 1;
                                 _impactBranchPixels = System.Math.Max(_impactBranchPixels, Capture(directory, "impact-branch-visible", frame,
                                     captures, new[] { tag }, previousBest: _impactBranchPixels, isolatedBranch: branch));
                             }
@@ -2028,6 +2973,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                     }
                 }
                 _flightReturnedByEnd = _flight >= 0 && flightInstances == 0;
+                _peakFlightInstances = System.Math.Max(_peakFlightInstances, flightInstances);
                 _peakGroundInstances = System.Math.Max(_peakGroundInstances, groundInstances);
                 _groundRetiredDuringCharge |= chargeInstances.Count > 0 && groundInstances == 0;
                 _chargeReturnedByEnd = _charge >= 0 && chargeInstances.Count == 0;
@@ -2040,9 +2986,11 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
             public string Summarize(int impactPixels) =>
                 $"stages clip={_castClip} cast={_cast} flight={_flight} flightMoved={_flightMoved} " +
                 $"ground={_ground} peakGroundInstances={_peakGroundInstances} charge={_charge} chargePixels={_chargePixels} " +
+                $"peakFlightInstances={_peakFlightInstances} flightArcPeak={(_flightHeights.Count > 0 ? _flightHeights.Max() : 0f):F3} " +
                 $"groundRetiredDuringCharge={_groundRetiredDuringCharge} chargeReturnedByEnd={_chargeReturnedByEnd} " +
                 $"deployed={_deployed} detonation={_detonation} sameFlightInstance={_sameFlightInstance} flightReturned={_flightReturnedByEnd} " +
-                $"impact={_impact} impactPixels={impactPixels} impactBranchPixels={_impactBranchPixels} impactPositionError={_impactPositionError:F3}";
+                $"impact={_impact} impactPixels={impactPixels} impactBranchPixels={_impactBranchPixels} " +
+                $"impactBranchFrames={_impactBranchFrames} impactPositionError={_impactPositionError:F3}";
 
             public void AssertStages(string directory)
             {
@@ -2050,6 +2998,15 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                 Assert.IsTrue(_flight >= _cast && _flightMoved, $"No moving throw VFX after cast. See {directory}.");
                 Assert.Greater(_impact, _flight, $"No impact VFX after flight. See {directory}.");
                 Assert.IsTrue(_flightReturnedByEnd, $"Projectile VFX did not return to the pool. See {directory}.");
+                if (_expectFlightArc)
+                {
+                    Assert.AreEqual(1, _peakFlightInstances, directory);
+                    Assert.IsTrue(_sameFlightInstance, directory);
+                    var apex = _flightHeights.Max();
+                    Assert.That(apex, Is.InRange(1.15f, 1.26f), $"Barrel did not reach the configured apex. See {directory}.");
+                    Assert.Greater(apex - _flightHeights[0], 0.6f, $"Barrel did not rise. See {directory}.");
+                    Assert.Greater(apex - _flightHeights[^1], 0.6f, $"Barrel did not descend before impact. See {directory}.");
+                }
                 if (_deployedClip != null)
                 {
                     Assert.Greater(_deployed, _flight, $"Barrel never played {_deployedClip} after flight. See {directory}.");
@@ -2060,6 +3017,9 @@ namespace AbilityKit.Demo.Moba.Editor.BattleScenario.Tests
                     Assert.Less(_impactPositionError, 0.15f, $"Impact did not play at the landing position. See {directory}.");
                 if (_impactBranch != null)
                     Assert.Greater(_impactBranchPixels, 20, $"Impact branch {_impactBranch} contributed no visible pixels. See {directory}.");
+                if (_minImpactBranchFrames > 0)
+                    Assert.GreaterOrEqual(_impactBranchFrames, _minImpactBranchFrames,
+                        $"Impact branch {_impactBranch} was recycled too early. See {directory}.");
                 if (_groundVfxId == 0) return;
                 Assert.Greater(_ground, _flight, $"No grounded VFX after flight. See {directory}.");
                 Assert.Greater(_charge, _ground, $"No independent charge VFX after grounding. See {directory}.");

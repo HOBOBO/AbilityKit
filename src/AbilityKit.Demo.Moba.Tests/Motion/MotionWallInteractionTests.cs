@@ -345,6 +345,60 @@ public sealed class MotionWallInteractionTests
         Assert.InRange(state.Position.Z, 10.5f, 11.5f);
     }
 
+    [Theory]
+    [InlineData(false, false, 0f)]
+    [InlineData(false, false, 15f)]
+    [InlineData(false, false, 30f)]
+    [InlineData(false, false, 45f)]
+    [InlineData(false, true, 0f)]
+    [InlineData(false, true, 15f)]
+    [InlineData(false, true, 30f)]
+    [InlineData(false, true, 45f)]
+    [InlineData(true, false, 0f)]
+    [InlineData(true, true, 0f)]
+    public void Contact_keeps_sliding_with_inward_diagonal_input_without_reversing(bool capsule, bool grid, float yaw)
+    {
+        ICollisionWorld world = grid ? new GridCollisionWorld(cellSize: 4f, initialCapacity: 16) : new NaiveCollisionWorld();
+        var rotation = Quat.FromAxisAngle(Vec3.Up, yaw * (float)Math.PI / 180f);
+        var transform = new Transform3(new Vec3(0, 1.5f, 0), capsule ? Quat.Identity : rotation, Vec3.One);
+        var shape = capsule
+            ? ColliderShape.CreateCapsule(new Vec3(0, -.5f, 0), new Vec3(0, .5f, 0), 1f)
+            : ColliderShape.CreateObb(Vec3.Zero, Quat.Identity, new Vec3(1.5f, 1.5f, 3));
+        world.Add(in transform, in shape, MobaCollisionLayers.WorldId);
+        var adapter = new MobaMotionCollisionWorldAdapter(world, null);
+        var policy = new MotionCollisionConstraints(true, false, MotionEndOverlapPolicy.AllowInside,
+            .5f, 0, MobaCollisionLayers.WorldMask, 0, true, 2, 1f);
+        var solver = new ConfigurableMotionSolver(adapter, (_, in _, in _, _) => MotionConstraints.Disabled);
+
+        for (var side = 0; side < (capsule ? 16 : 4); side++)
+        foreach (var inward in new[] { .05f, .4f, 2f, 8f, 20f })
+        foreach (var sign in new[] { -1f, 1f })
+        foreach (var stepLength in new[] { .0333333f, .1f })
+        {
+            var angle = side * (capsule ? Math.PI / 8 : Math.PI / 2);
+            var outward = new Vec3((float)Math.Cos(angle), 0, (float)Math.Sin(angle));
+            if (!capsule) outward = rotation.Rotate(outward);
+            var position = outward * 5f;
+            for (var tick = 0; tick < 60; tick++)
+                position += solver.Resolve(1, position, -outward * .1f, policy).AppliedDelta;
+            var contact = position;
+            var tangent = new Vec3(-outward.Z, 0, outward.X) * sign;
+            var direction = (tangent - outward * inward).Normalized;
+            var first = solver.Resolve(1, position, direction * stepLength, policy);
+            Assert.True(Vec3.Dot(first.AppliedDelta, tangent) > stepLength * .25f,
+                $"贴边斜向输入首帧必须沿切线移动，capsule={capsule}, grid={grid}, side={side}, pos={position}, delta={first.AppliedDelta}, normal={first.Hit.Normal}");
+            for (var tick = 0; tick < 20; tick++)
+            {
+                var step = solver.Resolve(1, position, direction * stepLength, policy);
+                Assert.True(step.AppliedDelta.Magnitude > stepLength * .9f,
+                    $"持续斜向输入应接近正常速度，capsule={capsule}, grid={grid}, side={side}, inward={inward}, sign={sign}, tick={tick}, pos={position}, desired={direction * stepLength}, applied={step.AppliedDelta}, time={step.Hit.Time01}, normal={step.Hit.Normal}");
+                position += step.AppliedDelta;
+            }
+            Assert.True(Vec3.Dot(position - contact, tangent) > stepLength * 10f,
+                $"沿边移动应有持续进度，capsule={capsule}, grid={grid}, side={side}, pos={position}");
+        }
+    }
+
     private static MotionCollisionConstraints NoSlideConstraints() => new MotionCollisionConstraints(
         enable: true, allowPassThrough: false,
         endOverlapPolicy: MotionEndOverlapPolicy.AllowInside,

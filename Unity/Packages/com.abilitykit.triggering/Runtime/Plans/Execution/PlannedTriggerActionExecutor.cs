@@ -52,18 +52,17 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 固定本次注册的动作描述；回调执行时仍通过调用方提供的读取器获取上下文。
+        /// 绑定本次登记的动作描述和执行上下文；不读取后续触发的上下文。
         /// </summary>
-        internal Action<object, ITriggerDispatcherContext> CreateActionDelegate(int index, Func<ExecCtx<TCtx>> execCtxAccessor)
+        internal Action<object, ITriggerDispatcherContext> CreateActionDelegate(int index, in ExecCtx<TCtx> registrationContext)
         {
-            if (execCtxAccessor == null) throw new ArgumentNullException(nameof(execCtxAccessor));
             var call = _plan.Actions[index];
+            var boundContext = registrationContext;
 
             return (argsObj, _) =>
             {
                 var args = (TArgs)argsObj;
-                var ctx = execCtxAccessor();
-                _invoker.Execute(in args, in call, in ctx, in _bindings[index], index, index);
+                _invoker.Execute(in args, in call, in boundContext, in _bindings[index], index, index);
             };
         }
     }

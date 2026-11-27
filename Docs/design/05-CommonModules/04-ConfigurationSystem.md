@@ -1,6 +1,8 @@
 # 5.4 配置系统
 
-> 本文中的 `MiniTemplate`、`cfg.Tables` 和 `LubanGen` 内容只保留作历史背景，对应代码已清理。当前生产入口、业务规则扩展和发布顺序以 [MOBA Luban 配置管线](../../../LubanConfig/Moba/README.md) 为准。
+> 文档类型：Canonical 设计
+> 事实基线：2026-11-25 复核通用数据库、生产输入/发布与事件交接；相邻 Trigger/Schema、业务校验和多端装配细节沿用 2026-08-17 基线。
+> 核校状态：部分核校，范围见第 12 节。包的独立 API 与可运行示例见 [ConfigDatabase 使用指南](../../../Unity/Packages/com.abilitykit.ability/Documentation~/ConfigDatabase.md)；生产操作见 [MOBA Luban 管线](../../../LubanConfig/Moba/README.md)。
 
 > 基于真实源码说明 AbilityKit 的配置体系：通用 `AbilityKit.Ability.Config` 配置数据库，以及 MOBA 示例围绕它扩展的表目录、生成清单、Luban/JSON/字节加载、业务校验和多端接入。两者处于不同所有权层级，不能合并声明为框架默认应用套件。
 
@@ -66,7 +68,10 @@ AbilityKit 的配置系统不是一个单一的 `JsonConfigLoader`，而是一�
 
 | 文件 | 说明 |
 |------|------|
-| [ConfigDatabase.cs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Database/ConfigDatabase.cs) | 通用配置数据库，负责加载、反序列化、构表、提交、版本递增、热重载事件发布。 |
+| [ConfigDatabase.cs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Database/ConfigDatabase.cs) | 查询与增量重载；具体类型的扩展能力不全在 IConfigDatabase 上。 |
+| [ConfigDatabase.FullReload.cs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Database/ConfigDatabase.FullReload.cs)、[ConfigLoadInputs.cs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Database/ConfigLoadInputs.cs) | 六类全量输入、PreparedFullReload、输入优先级与 CommitFullReload。 |
+| [ConfigTableMaterializer.cs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Database/ConfigTableMaterializer.cs)、[PreparedIncrementalTableUpdate.cs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Database/PreparedIncrementalTableUpdate.cs) | 构表与反射 fallback、增量替换预检及提交。 |
+| [IConfigDatabase.cs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Core/IConfigDatabase.cs) | 通用结果与实际数据库总线：Config.ConfigReloadBus.OnPublished。 |
 | [IConfigTableRegistry.cs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Core/IConfigTableRegistry.cs) | 配置表元数据 `ConfigTableDefinition` 和注册器接口。 |
 | [IConfigSource.cs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Core/IConfigSource.cs) | 抽象文本/字节配置源。 |
 | [IConfigGroup.cs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Core/IConfigGroup.cs) | 抽象配置组、配置组加载器和配置组反序列化器。 |
@@ -80,6 +85,7 @@ AbilityKit 的配置系统不是一个单一的 `JsonConfigLoader`，而是一�
 | [MobaConfigRegistry.cs](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MobaConfigRegistry.cs) | 声明 MOBA 所有运行时表：角色、属性、技能、Buff、投射物、AOE、召唤、表现、Gameplay 等。 |
 | [MobaConfigLoadPipeline.cs](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/MobaConfigLoadPipeline.cs) | 将 Source、DTO Provider、Resources 三类加载入口统一成可注入 Pipeline。 |
 | [IMobaConfigLoadProfile.cs](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/IMobaConfigLoadProfile.cs) | 定义 Resources、Source、DTO Provider 三种加载 Profile。 |
+| [MobaLubanConfigGroups.cs](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/MobaLubanConfigGroups.cs) | 当前生产分组、JSON/bytes 适配与 LubanGroupsMobaConfigLoadProfile；skill_flows 仍由 Pipeline 提供。 |
 | [LubanConfigGroup.cs](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/LubanConfigGroup.cs) | 将 Luban 导出的配置组织为 `IConfigGroup`。 |
 | [LubanConfigGroupLoader.cs](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/LubanConfigGroupLoader.cs) | 通过 `ITextAssetLoader` 尝试多种路径格式加载 Luban JSON。 |
 | [LubanConfigGroupDeserializer.cs](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/LubanConfigGroupDeserializer.cs) | 将 Luban JSON 映射成 MOBA DTO，处理 `Code` 到 `Id` 等字段差异。 |
@@ -198,7 +204,7 @@ sequenceDiagram
         DB->>DB: CreateDtoTableFromDtos
         DB->>DB: CreateAndPopulateTable
     end
-    DB->>DB: CommitTables(nextTables, nextDtoTables)
+    DB->>DB: CommitFullReload(prepared)
     DB->>Bus: Publish(ConfigReloadResult.Success)
     DB-->>Caller: ConfigReloadResult
 ```
@@ -212,11 +218,11 @@ sequenceDiagram
 5. 写入 `IntKeyConfigTable<TEntry>`。
 6. 提交后递增 `Version` 并发布 `ConfigReloadResult`。
 
-`Reload` 的正常失败路径采用提交前构表策略：数据库在循环中先填充 `nextTables` 与 `nextDtoTables`，只有所有注册表都加载、反序列化和构表成功后才调用 `CommitTables(nextTables, nextDtoTables)`。strict 模式下任一表缺失会发布 `ConfigReloadResult.Fail` 并返回，此时旧 `_tables`、旧 `_dtoTables` 和旧 `Version` 都保持不变；非 strict 模式下缺失表会以空 DTO 数组补齐。
+`Reload` 的正常失败路径采用提交前构表策略：数据库在循环中通过 `PreparedFullReload.Add` 填充候选 EntryTables 与 DtoTables，只有所有注册表都加载、反序列化和构表成功后才调用 `CommitFullReload(prepared)`。strict 模式下任一表缺失会发布 `ConfigReloadResult.Fail` 并返回，此时旧 `_tables`、旧 `_dtoTables` 和旧 `Version` 都保持不变；非 strict 模式下缺失表会以空 DTO 数组补齐。
 
 这里的“失败结果”不能扩大成“不抛异常”。表 factory、MO 构造函数、`Add` 和其他未被当前分支捕获的异常可以在提交前直接向调用方传播，并且不会统一转换为 `ConfigReloadResult.Fail`，也不会统一发布失败事件。候选表仍保护了旧库状态，但调用方必须同时处理返回结果和异常两条失败通道。
 
-`TryLoadFromSource` 的查找顺序是 bytes、fullPath text、原始 `definition.FilePath` text。这个 fallback 让 `basePath` 和裸表名两种资源组织方式可以共存，但也意味着同一张表在多个路径同时存在时，bytes 优先级最高，随后才是带 `basePath` 的文本。
+`ConfigLoadInputs.TryReadSource` 按完整路径 bytes、完整路径 text、原始表路径 text 尝试，解析异常可继续下一候选；strict 为 false 时最终不可读可建空表。Mixed 字典入口不同：选中的 bytes 解析失败就失败，不再回退文本。不能把非 strict 当作 schema 或业务宽松校验；默认 JsonNet 适配器还会对非数组根返回空数组、跳过转换失败的单行。详细输入/异常矩阵以包内使用指南为准。
 
 ### 4.4 支持的加载模式
 
@@ -295,13 +301,15 @@ flowchart TB
     O --> P
 ```
 
-`MobaConfigDatabase` 的每个 `Reload*` 成功或失败后都会发布 MOBA 级 `ConfigReloadResult`，配置 Key 固定为 `moba.config`，用于运行时监听配置变化。
+`MobaConfigDatabase` 在正常取得内部结果后，通过 HotReload 通道包装发布 `moba.config`；内部调用、构表或通用通知抛错时，MOBA 包装发布可能尚未执行。包装成功固定为 `fullReload=true`、`changedIds=null`，不能从包装结果恢复内层完整增量信息。
 
 ---
 
 ## 6. Luban 与多源加载
 
 ### 6.1 Luban 配置组
+
+本节的 `LubanConfigGroup` / `LubanConfigGroupDeserializer` 描述保留的 JSON 适配路径，不等于当前完整生产默认。当前生产使用 `MobaLubanConfigGroups`：按所选表分 bytes 与 Luban JSON 组，`skill_flows` 固定由 Pipeline JSON 加载；默认 `LubanGroupsMobaConfigLoadProfile` 为其余运行时表选择 bytes。
 
 `LubanConfigGroup` 将 Luban 导出的 JSON 包装成 `IConfigGroup`：
 
@@ -336,27 +344,31 @@ flowchart TB
 
 ### 6.3 权威源、离线生成与发布边界
 
-生产 MOBA JSON 的唯一权威源是 `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources` 下的 `moba` 与 `ability` 目录。Unity 直接消费 package 资源；Console、纯 .NET 测试、训练器和 ET 示例消费 `src/AbilityKit.Demo.Moba.Console/Configs` 下的发布副本。禁止把 Console 副本或 `Unity/Assets/Resources` 当成生产内容源。
+内容编辑主源是 `LubanConfig/Moba/Production/Datas`、Defines 与规则，以及各自的 Flow、Timeline、Trigger 和状态机 authoring 源。Unity Resources 和 Console Configs 是受发布器管理的消费产物，不能把“package 是兼容副本同步的来源”误写成“生产 JSON 是数值内容编辑主源”。
 
 ```mermaid
 flowchart LR
-    Excel["Luban Excel / conf"] --> Export["export_moba_configs.ps1"]
-    Export --> Candidate[".generated/json review candidate"]
-    Export --> Code["C# cfg.Tables code stage"]
-    Candidate --> Review["人工/工具审查并合入权威 JSON"]
-    Review --> Package["Package Resources/moba + ability"]
-    Package --> UnityRuntime["Unity Runtime"]
-    Package --> Publish["sync_moba_json_configs.ps1"]
-    Publish --> ConsoleCfg["Console Configs replica"]
-    ConsoleCfg --> DotNetRuntime["Console / tests / training / ET"]
-    Code --> LubanGen["Runtime LubanGen"]
+    A[Production Excel / Defines / rules] --> E[export_pipeline.py]
+    E --> S[同批 JSON / bin / C# staging]
+    S --> V[规则、引用与发布计划校验]
+    Author[编辑器各自 authoring 源] --> Published[Flow / Trigger / 状态机发布产物]
+    Published --> V
+    V --> Check[check-published 比对]
+    V --> Apply[显式 apply]
+    Apply --> U[Unity Resources]
+    Apply --> C[Console Configs]
+    Apply --> Code[Runtime LubanBinaryGen]
+    U --> Unity[Unity 运行时]
+    C --> Console[Console / 测试消费者]
 ```
 
-`export_moba_configs.ps1` 读取 `MiniTemplate/luban.conf`，对 `all` target 运行 Luban JSON 导出和 `cs-newtonsoft-json` 代码生成。由于当前 `MiniTemplate` 不能覆盖完整生产内容，JSON 只生成到 `.generated/json` 候选区，不直接双写 package 或 Console；评审后的数据必须先进入 package 权威目录。生成的 C# 代码仍复制到 runtime package 的 `LubanGen`。
+现行 `export_moba_configs.ps1` 是 Python 管线的薄包装，传播原生退出码；不会再读取 MiniTemplate 或写旧 `.generated`。`export_pipeline.py` 先清 staging，三次 Luban 调用均检查退出码；完成校验后由 PublicationPlan 统一计划两端资源及生成 C#。默认只验证并生成候选/报告，`--check-published` 重建后比较，显式 `--apply` 才完整发布；`--apply-prerequisites` 是另一个有写入副作用的前置发布入口，不能作为完整验收。
 
-`tools/sync_moba_json_configs.ps1` 只拥有 `moba` 与 `ability` 两个发布面，默认或 `-Check` 只做语义 JSON 漂移审计，`-DryRun` 展示变更，只有显式 `-Apply` 才发布 package 到 Console。`-DeleteExtra` 也只作用于上述目录，因此不会删除 Console 独有配置。脚本拒绝非 package 权威源以及任何指向 Unity 的副本目标。
+发布器检查目标归属、重复 owner 和差异，逐文件写入失败会尝试恢复；这不是跨文件系统原子事务，恢复也可能失败。来源/输出报告有哈希，但未包含全部规则源码和编辑器源输入。完整限制与本次只读验证见 [CodeGen 与 Luban 生产链](07-CodeGenAndLubanProductionPipeline.md)，日常命令由导表 README 维护。
 
-旧的 Trigger JSON 转换与分拆脚本已经退役。当前触发器在 Trigger Authoring 中编辑并由其发布器生成聚合运行时配置，详见 [MobaTriggerAuthoring](../../MobaTriggerAuthoring.md)。
+`tools/sync_moba_json_configs.ps1` 保留为 package → Console 的 `moba`/`ability` JSON 兼容同步，默认 Check，仅显式 Apply 写入。它不覆盖 Luban bytes/C#，不是现行生产发布器的等价替代。Flow、Trigger、状态机仍需各自编辑器 Check；Python 验证已发布副本并不能证明原始 Unity 资产同步。
+
+---
 
 ### 6.4 多源选择策略
 
@@ -380,7 +392,7 @@ flowchart LR
 - 测试环境可以使用 DTO Provider。
 - ET 或服务端可以传入自己的 `IConfigSource`。
 
-Console 端通过 `MobaLubanConfigGroups` 装配生产 JSON 与二进制，并由 `MobaConfigDatabase` 提供业务读取入口。旧 `cfg.Tables` 加载器已删除。
+Console 端通过 `MobaLubanConfigGroups` 与 `LubanGroupsMobaConfigLoadProfile` 装配生产配置。默认 profile 为非 skill_flows 运行时表选择 bytes，剩余表可用 Luban JSON；显式 `useLubanJsonForRemaining:false` 才走旧 JSON 兼容路径，不能将旧副本当作当前 Excel 的发布结果。
 
 ---
 
@@ -588,15 +600,15 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    A["Reload 请求"] --> B["构建 nextTables / nextDtoTables"]
+    A["Reload 请求"] --> B["PreparedFullReload 构建候选表"]
     B --> C{"任一表失败?"}
     C -->|是| D["发布 ConfigReloadResult.Fail"]
-    C -->|否| E["CommitTables"]
+    C -->|否| E["CommitFullReload"]
     E --> F["Version++"]
     F --> G["发布 ConfigReloadResult.Success(fullReload=true)"]
 ```
 
-这避免了正常构表失败时运行时读到半更新状态，但不是完整事务保证：候选表创建期间的外部副作用不受数据库回滚；`CommitTables` 之后的同步通知异常发生时，表集合与 `Version` 已经更新，方法却可能没有正常返回成功结果。
+这避免了正常构表失败时运行时读到半更新状态，但不是完整事务保证：候选表创建期间的外部副作用不受数据库回滚；`CommitFullReload` 提交之后的同步通知异常发生时，表集合与 `Version` 已经更新，方法却可能没有正常返回成功结果。
 
 ### 10.2 增量重载
 
@@ -610,11 +622,11 @@ flowchart TB
 
 一次增量请求中的所有 change 会先构建候选 DTO/Entry 表并完成验证，只有整个 change batch 成功才提交替换。任一被结构化处理的转换或验证失败时保留旧表和旧版本；“按表增量”不等于逐表立即写入。
 
-增量提交会把候选内容逐张替换进现有表实例，从而尽量保留已缓存的 `IConfigTable` 引用；全量提交则替换表对象。两种模式的对象身份语义不同。增量替换也不是不可失败的原子指针交换：若某张表的替换意外抛错，前面已经替换的表没有统一回滚。`All()` 暴露的还是字典 values live view，数据库本身没有读写锁，宿主必须把 reload 与读取串行化。
+增量对已有且满足替换契约的表原位换内容、保留表身份，不保留行对象身份；它是指定表完整替换，未包含的旧行会消失。ChangedIds 仅收集输入 DTO 的键，不含消失旧行，不分表且不保证顺序。空变更列表不增版本、不发布；非空但仅跳过不存在表删除的请求仍可增加版本。自定义表需实现 `IConfigTableContentReplacer`，候选与旧表实际类型一致。全量提交则替换表对象。两种模式的对象身份语义不同。增量替换也不是不可失败的原子指针交换：若某张表的替换意外抛错，前面已经替换的表没有统一回滚。`All()` 暴露的还是字典 values live view，数据库本身没有读写锁，宿主必须把 reload 与读取串行化。
 
 ### 10.3 重载事件
 
-通用库使用 `AbilityKit.Ability.HotReload.ConfigReloadBus.Publish(result)` 发布结果，MOBA 门面会将内部结果转换为 `moba.config` 的业务级结果。仓库中还存在 `AbilityKit.Ability.Config` 命名空间下的同名 `ConfigReloadResult` / `ConfigReloadBus`，它们不是同一个事件通道；接入方必须确认引用的具体类型，不能只按短类名订阅。
+通用库发布到 **`AbilityKit.Ability.Config.ConfigReloadBus.OnPublished`**，结果 Key 为 `config`。MOBA 门面随后将其包装并发布到 **`AbilityKit.Ability.HotReload.ConfigReloadBus.Reloaded`**，Key 为 `moba.config`。两处是不同结果类型与静态通道，接入方应使用完整命名空间，不存在自动转发订阅。
 
 发布是同步且没有订阅者异常隔离。成功全量重载的实际顺序是“提交表与版本 -> 发布通用 `config` 成功 -> MOBA 门面发布 `moba.config` 成功”。如果通用订阅者抛错，调用方会在状态已经提交后收到异常，MOBA 包装通知也可能根本没有机会发布。因此 Reload 事件适合做失效提示，不应承担提交事务、跨缓存回滚或强一致广播。
 
@@ -669,15 +681,21 @@ flowchart TB
 
 ## 12. 验证证据与已知限制
 
-| 证据 | 等级与结论 |
-|------|------------|
-| Ability Config 与 MOBA Runtime 源码 | E0：可确认 factory-first、反射 fallback、候选构建和提交语义 |
-| MOBA Console、ET、Unity 消费者 | E2：证明项目配置门面已经进入多端接入路径，不等于通用内核所有模式均被验收 |
-| `MobaConfigTableManifestTests.cs` | E3：虽寄宿在 MOBA 测试工程，但直接覆盖 factory 成对约束、生成清单、反射 fallback、增量批次全成全败、版本递增和 deletion/full-reload 边界 |
-| `MobaSkillConfigurationContractTests.cs` 等 | E3：覆盖部分 MOBA 业务配置和消费者契约；不能替代其他加载源、全量 reload、事件和并发边界测试 |
-| 生产导表与 gate | 部分 E5 配置存在，是否自动触发及引用目标必须逐 gate 核对，不能由脚本存在外推为持续阻断 |
+本批复核通用数据库及输入/构表拆分、MOBA 包装通知与 strict、生产分组、Luban 发布交接；第 7–9 节相邻行为配置、业务验证和多端装配的细节仍沿用既有基线，不因本次导航更新视为重新验收。
 
-当前没有独立的通用 Config 测试工程，但不能据此忽略上述寄宿测试的直接契约价值。其余已知限制包括：反射 fallback 仍可能隐藏缺失生成器；资源路径优先级可能选择到旧副本；`MobaConfigDatabase.ReloadFromJsonTexts(..., strict)` 当前没有把 `strict` 下传，实际总是走内部 strict 文本重载；MOBA 成功包装结果固定为 `fullReload=true`、`changedIds=null`；TriggerPlan/ActionSchema 是相邻行为配置而非统一数据库；热重载后的项目缓存刷新和副作用补偿仍由消费者负责。MOBA 的强类型门面与校验器可作为高接入参考，但不会被提升为所有游戏的公共应用层。
+| 证据 | 等级与本次结果 |
+| --- | --- |
+| Ability 配置源码与 MOBA 门面/分组 | E0：确认工厂优先、兼容回退、候选构建、双通道、实际 strict 边界 |
+| Console、ET、Unity 消费入口 | E2 源码调用关系；本批不据此宣称三种宿主运行通过 |
+| [ConfigDatabaseFullReloadTests](../../../src/AbilityKit.Ability.Tests/ConfigDatabaseFullReloadTests.cs)、[ConfigDatabaseExtensionTests](../../../src/AbilityKit.Ability.Tests/ConfigDatabaseExtensionTests.cs) | 本次 .NET 10 共 17 项通过，局部 E3；覆盖六种全量入口提交、输入回退差异、提交通知时序、组查找及自定义表替换；通知抛错仅源码核校 |
+| [MobaConfigTableManifestTests](../../../src/AbilityKit.Demo.Moba.Tests/MobaConfigTableManifestTests.cs) 与业务配置 suite | 保留既有测试入口；本批未重跑，不沿用旧结果作本次证据 |
+| 包内最小 ConfigDatabase / Luban 例子 | 本次提取、编译运行，两例均返回 42；局部 E3 |
+| CodeGen / Luban 发布核对 | 19 项隔离 CodeGen、187 项 Python、实际只读发布一致性和所有权 SingleStep 均通过；具体范围见生产链专题 |
+| 完整 gate、Unity / IL2CPP / 独立安装 / CI | 本批未覆盖，不新增 E4/E5 |
+
+通用配置测试已由 `src/AbilityKit.Ability.Tests` 承载，不再写成“只有 MOBA 寄宿契约”。当前限制：非 strict 仅处理部分缺失输入；默认 JSON 可跳行/空表；Source 和 Mixed 的解析回退不同；返回失败与直接异常并存；成功通知抛错发生在提交后；自定义增量 Commit 不是无条件原子。GetTable 可创建未加载空表，RegisterTable 仍不真正修改 registry。使用细节以包内指南为唯一正文。
+
+MOBA `ReloadFromJsonTexts(..., strict)` 当前仍未下传 strict，实际使用内部始终严格的文本入口；包装成功固定 `fullReload=true`、`changedIds=null`。反射 fallback 受 AppContext 与编译条件限制，不能承诺非开发宿主总有兜底。TriggerPlan/Schema 是相邻行为配置，缓存失效、内容验证、状态同步或帧同步各自的恢复策略都不由配置库统一处理。
 
 ---
 
@@ -689,6 +707,6 @@ flowchart TB
 
 ---
 
-文档类型：Canonical 设计 | 事实基线：2026-08-17 | 证据等级：E0 通用内核与项目实现、E2 多端消费者、E3 寄宿式 ConfigDatabase/MOBA 配置契约；独立通用测试工程与 E4/E5 未完整闭环
+文档类型：Canonical 设计 | 事实基线：2026-11-25 通用数据库/生产交接；相邻行为配置与宿主装配沿 2026-08-17 | 证据等级：E0、E2 源码消费者、局部 E3；无新增 E4/E5
 
-*文档版本：v3.1 | 最后更新：2026-08-17*
+*文档版本：v3.2 | 最后更新：2026-11-25*

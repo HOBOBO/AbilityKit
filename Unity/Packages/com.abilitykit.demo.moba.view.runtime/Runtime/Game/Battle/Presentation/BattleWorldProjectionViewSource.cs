@@ -10,17 +10,20 @@ namespace AbilityKit.Game.Flow
     {
         private readonly Func<IWorld> _world;
         private readonly Func<int> _frame;
+        private readonly Func<IActorProjectionProducer> _resolveProjection;
         private readonly WorldId _worldId;
         private IWorld _lastWorld;
         private IActorProjectionProducer _producer;
         private long _epoch;
 
         internal BattleWorldProjectionViewSource(
-            WorldId worldId, Func<IWorld> world, Func<int> frame)
+            WorldId worldId, Func<IWorld> world, Func<int> frame,
+            Func<IActorProjectionProducer> resolveProjection = null)
         {
             _worldId = worldId;
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _frame = frame ?? throw new ArgumentNullException(nameof(frame));
+            _resolveProjection = resolveProjection;
         }
 
         public WorldId WorldId => _worldId;
@@ -40,7 +43,10 @@ namespace AbilityKit.Game.Flow
 
             frame = world != null ? _frame() : 0;
             if (world != null && _producer == null)
-                world.Services?.TryResolve(out _producer);
+            {
+                if (_resolveProjection != null) _producer = _resolveProjection();
+                else world.Services?.TryResolve(out _producer);
+            }
             producer = _producer;
             return producer != null;
         }

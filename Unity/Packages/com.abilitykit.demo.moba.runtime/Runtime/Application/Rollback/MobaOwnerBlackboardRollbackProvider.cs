@@ -90,7 +90,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 throw new InvalidOperationException($"Owner Blackboard snapshot export failed at frame={frame.Value}. {error}");
             if (!ValidateOwnerKeySources(snapshotSet, out error))
                 throw new InvalidOperationException($"Owner Blackboard snapshot export lifecycle check failed at frame={frame.Value}. {error}");
-            if (_actorSource == null) return Encoding.UTF8.GetBytes(snapshotSet.ToJson());
+            if (_actorSource == null) return Encoding.UTF8.GetBytes(BlackboardSnapshotJsonCodec.Serialize(snapshotSet));
             var state = new MobaOwnerBlackboardMembershipPayload
             {
                 Snapshot = snapshotSet,
@@ -130,7 +130,7 @@ namespace AbilityKit.Demo.Moba.Rollback
 
             try
             {
-                return BlackboardSnapshotSet.FromJson(Encoding.UTF8.GetString(payload));
+                return BlackboardSnapshotJsonCodec.DeserializeSet(Encoding.UTF8.GetString(payload));
             }
             catch (Exception ex)
             {

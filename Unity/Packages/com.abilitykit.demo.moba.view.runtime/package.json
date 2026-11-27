@@ -25,6 +25,7 @@
     "com.abilitykit.network.client": "0.1.0",
     "com.abilitykit.game.view.runtime": "0.1.0",
     "com.abilitykit.hfsm": "0.1.0",
+    "com.abilitykit.hfsm.core": "0.1.0",
     "com.abilitykit.host": "0.1.0",
     "com.abilitykit.host.extension": "0.1.0",
     "com.abilitykit.demo.moba.host": "0.0.1",

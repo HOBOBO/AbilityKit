@@ -27,7 +27,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             in BattlePresentationCueSpawnRequest request,
             IPresentationActorPlacementSource actors)
         {
-            if (actors == null) return 0;
+            if (actors == null || request.FixedLaunchPose) return 0;
 
             // Area cues are placed at their authoritative footprint and carry
             // their own cast direction. Attaching them to the source actor

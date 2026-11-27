@@ -56,7 +56,7 @@ namespace AbilityKit.Game.Flow.Battle.Replay
 
         public FrameRecordFile Load(string path)
         {
-            return FrameRecordCodecs.Current.Load(path);
+            return BattleRecordFiles.Load(path);
         }
 
         public IBattleReplaySessionRuntime Start(BattleStartPlan plan, FrameRecordFile file)

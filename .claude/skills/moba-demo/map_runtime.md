@@ -51,7 +51,13 @@
 
 ## 场景可视化
 
-Editor 的 `MobaMapSceneGenerator` 读 `battle_maps.json` → 生成 `Assets/Generated/Moba/BattleMap_1.prefab`（含 Ground / WalkableAreas / SpawnPoints / CollisionObjects 的视觉网格 + Unity Collider）→ 实例化进 `MobaDemoScene`。运行 `Tools/AbilityKit/MOBA Demo/Create Or Refresh Demo Scene` 刷新。
+地图工具统一从 `Tools/AbilityKit/Demos/Moba/Map` 进入，不与 Demo 场景装配或战斗调试混用：
+
+- 「校验地图与兵线（Map 1）」只读已发布的地图和兵线，不校验建筑、不刷新资源。
+- 「预检并刷新地图 Prefab（Map 1）」读取已发布地图、兵线和建筑，确认后写 `Assets/Generated/Moba/BattleMap_1.prefab`，替换活动场景的 `GeneratedBattleMap` 根对象，不自动保存场景。
+- 「编辑兵线与波次」和「编辑地图建筑」继续用独立窗口维护各自的权威源，确认后才写 Unity、Console 副本。路径见 [MOBA 玩法资源](../../../LubanConfig/Moba/Production/Gameplay/README.md)。
+
+自动化保留 `MobaMapSceneGenerator.ValidateMapAndMinionRoutesBatch`、`RegenerateMapPrefabBatch`；不要新增平行菜单或从交互入口绕过确认。
 
 ## 相关
 - 烘焙 → [navigation.md](navigation.md)

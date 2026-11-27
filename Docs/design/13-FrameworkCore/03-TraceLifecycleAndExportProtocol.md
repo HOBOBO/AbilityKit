@@ -10,7 +10,7 @@ Trace 包提供一棵按因果关系组织的运行时树。一个根节点代�
 
 本文讨论通用 Trace 注册表，不展开 MOBA 技能、Effect 和伤害的业务链路。MOBA 的生产接入与字段映射见 [MOBA Trace、Context 与 Effect 执行深潜](../09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md)。
 
-当前实现位于 `com.abilitykit.trace`，核心代码不依赖 UnityEngine。Editor 包提供树窗口和节点详情插件；通用 Trace 包不定义持久化协议。
+当前实现位于 `com.abilitykit.trace`。Runtime 禁止引用 Unity 引擎，只直接依赖 `com.abilitykit.context`（属性桥）；同包的 Editor 程序集提供树窗口和节点详情插件。通用 Trace 包不定义持久化协议。跨包边界见 [Context Flow、Snapshot 与 Trace 桥接](04-ContextFlowSnapshotAndTraceBridge.md)，MOBA 的观测字段和伤害结果归 [Runtime Context 设计](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Document/RuntimeContext运行时值与快照设计文档.md)。
 
 ## 二、核心模型
 
@@ -131,6 +131,10 @@ sequenceDiagram
 回收先删除整棵树的结构、父子索引、业务元数据和叶子数据，再按子节点先于父节点的顺序逐节点发布兼容事件 `RootPurged`。事件的 `ContextId` 标识被移除节点，`RootId` 标识实际所属根，诊断消费者可按 `ContextId` 淘汰自己的附加数据。
 
 回收时机由启用 Trace 的宿主决定；普通释放、读取或导出不会隐式清理，MOBA 适配器也不自动调度。宿主接入周期回收前，应明确诊断保留窗口及消费时机。回收只移除诊断投影，不删除 Context；后续 Context 对账仍可能重建投影。
+
+2026-11-26 限定核校：通过 .NET 的 MOBA 技能局部回滚 provider 导入检查点，确认对账会从权威 Context 重建仍已结束的旧树，并将回收窗口从对账帧重新计算；若检查点把旧根还原为活动，也能重新投影并阻止提前回收。另确认在旧父链已回收、仍存在于 Context 时，晚到子节点会被临时投影为根，后续对账会报告身份冲突；权威 Context 仍保持原父子关系。这是局部回滚与诊断适配证据，不覆盖 Unity 或两种同步模式的端到端行为。
+
+接入建议（待确认，未启用）：先在 MOBA Trace 适配器内区分历史淘汰与预测撤销。普通对账不重新纳入已淘汰且仍已结束的历史；恢复为活动的根可重新投影；新子节点需要已淘汰的父链时，应先从权威 Context 恢复所需祖先，再挂接子节点。修复验证后，才在显式开启回看窗口的交互诊断宿主里，于世界步进和诊断发布完成后低频调用 `Purge`，沿用该会话的逻辑帧时钟和现有活动状态／引用计数保护。全量取证不启用周期回收；查询、Editor 刷新和 Context 观察回调不触发回收。此方案不裁剪权威 Context、不修改同步及恢复语义。
 
 `Clear()` 是注册表级重置：清空全部树和归属数据，发布 `RegistryCleared`，不回绕内部 ID 分配器。`Dispose()` 先从 `TraceRegistryDirectory` 注销，再调用 `Clear()`。ID 只在注册表及会话语境内有意义，不能脱离会话持久化为全局身份。
 

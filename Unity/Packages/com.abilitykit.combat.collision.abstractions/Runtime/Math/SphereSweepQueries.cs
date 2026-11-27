@@ -8,11 +8,15 @@ namespace AbilityKit.Core.Mathematics
     /// “球心射线对该形状按 r 做 Minkowski 膨胀后做射线检测”。OBB / AABB / 球均精确——
     /// 其中 OBB 转到盒本地系后用 <see cref="OrientedBoxSweepQueries.RaycastExpandedAabbLocal"/>，
     /// 保留旋转（修复“旋转矩形按外接 AABB 拦截”的问题）；胶囊沿用 <see cref="CollisionQueries.Raycast(Ray3, Capsule)"/> 的既有近似。
-    /// 贴边/已穿透时按分离方向判定（远离不阻挡），与盒扫掠同源，避免反向卡墙。
+    /// 贴边/已穿透时按分离方向判定；数值接触带内的远离或切向移动不阻挡，避免反向与沿边卡墙。
     /// 调用方（碰撞世界）自行做最近命中取舍。
     /// </summary>
     public static class SphereSweepQueries
     {
+        /// <summary>
+        /// 沿单位方向扫掠球体，返回指定距离内的阻挡距离与世界法向。
+        /// 贴边时容忍 MathUtil.Epsilon 范围的接触距离及方向尾差；实际朝内运动仍报告阻挡。
+        /// </summary>
         public static bool SweepVsShape(
             in Vec3 start,
             in Vec3 direction,
@@ -86,7 +90,8 @@ namespace AbilityKit.Core.Mathematics
             var d = start - obstacle.Center;
             var distSq = d.SqrMagnitude;
 
-            if (distSq <= expandedRadius * expandedRadius)
+            var contactRadius = expandedRadius + MathUtil.Epsilon;
+            if (distSq <= contactRadius * contactRadius)
             {
                 // 贴边/已穿透：分离法向沿“障碍心→球心”（指向移动体）。开方/归一化走定点内核。
                 var dFixed = DeterministicMathBridge.ToFixed(d);
@@ -103,7 +108,7 @@ namespace AbilityKit.Core.Mathematics
 
                 var sep = DeterministicMathBridge.ToVec3(dFixed / len);
                 worldNormal = sep;
-                if (Vec3.Dot(direction, sep) >= 0f)
+                if (Vec3.Dot(direction, sep) >= -MathUtil.Epsilon)
                 {
                     distance = 0f;
                     return false;
@@ -134,7 +139,12 @@ namespace AbilityKit.Core.Mathematics
             var expandedRadius = obstacle.Radius + radius;
             var distSq = CollisionQueries.DistancePointSegmentSquared(start, obstacle.A, obstacle.B, out var t);
 
-            if (distSq <= expandedRadius * expandedRadius)
+            /*
+             * 扫掠命中点由浮点位置与定点距离换算得到，可能落在曲面外一个尾差。
+             * 将这层数值接触带纳入分离判断，避免切线射线误取极近的再次命中。
+             */
+            var contactRadius = expandedRadius + MathUtil.Epsilon;
+            if (distSq <= contactRadius * contactRadius)
             {
                 // 贴边/已穿透：分离法向沿“capsules 线段最近点→球心”。开方/归一化走定点内核。
                 var ab = obstacle.B - obstacle.A;
@@ -152,7 +162,11 @@ namespace AbilityKit.Core.Mathematics
 
                 var sep = DeterministicMathBridge.ToVec3(dFixed / len);
                 worldNormal = sep;
-                if (Vec3.Dot(direction, sep) >= 0f)
+                /*
+                 * 切向投影和法线归一化后的尾差不构成继续穿透，
+                 * 否则第二次扫掠会吞掉本应保留的沿边位移。
+                 */
+                if (Vec3.Dot(direction, sep) >= -MathUtil.Epsilon)
                 {
                     distance = 0f;
                     return false;
@@ -200,7 +214,7 @@ namespace AbilityKit.Core.Mathematics
              * 此时沿分离法向离开或作切向移动不构成阻挡；否则角色到达包围盒
              * 边界后，反向输入也会被同一个零距离命中锁住。
              */
-            if (distance <= MathUtil.Epsilon && Vec3.Dot(direction, n) >= 0f)
+            if (distance <= MathUtil.Epsilon && Vec3.Dot(direction, n) >= -MathUtil.Epsilon)
             {
                 worldNormal = Vec3.Zero;
                 return false;

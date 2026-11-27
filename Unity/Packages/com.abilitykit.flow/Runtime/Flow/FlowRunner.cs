@@ -1,7 +1,13 @@
+#nullable enable annotations
+
 using System;
+using System.Runtime.ExceptionServices;
 
 namespace AbilityKit.Ability.Flow
 {
+    /// <summary>
+    /// 串行推进一棵流程节点树，持有本次运行的上下文作用域；不提供跨线程同步。
+    /// </summary>
     public sealed class FlowRunner : IDisposable
     {
         private FlowContext _ctx;
@@ -25,15 +31,15 @@ namespace AbilityKit.Ability.Flow
 
         public int MaxPumpIterationsPerWake { get; set; } = 128;
 
-        private readonly FlowWakeUp _wakeUp;
+        private FlowWakeUp? _wakeUp;
         private bool _wakeRequested;
         private bool _pumping;
         private bool _stepping;
+        private bool _transitioning;
         private bool _disposed;
 
         internal FlowRunner()
         {
-            _wakeUp = new FlowWakeUp(Wake);
             _disposed = true;
         }
 
@@ -47,51 +53,77 @@ namespace AbilityKit.Ability.Flow
         public FlowStatus Status => _status;
         public FlowRuntimeDiagnostics Diagnostics => _diagnostics;
 
+        /// <summary>
+        /// 停止旧运行并同步启动根节点，初次推进使用零秒增量。
+        /// </summary>
         public void Start(IFlowNode root)
         {
             Start(root, null, null);
         }
 
+        /// <summary>
+        /// 停止旧运行并启动根节点。状态与完成通知在调用线程同步派发，不能重入生命周期操作。
+        /// </summary>
         public void Start(IFlowNode root, Action<FlowStatus> onFinished, Action<FlowStatus, FlowStatus> onStatusChanged)
         {
             ThrowIfDisposed();
+            EnsureLifecycleIdle();
             if (root == null) throw new ArgumentNullException(nameof(root));
 
-            Stop();
-            _root = root;
+            _transitioning = true;
+            try
+            {
+                FinishRun(FlowStatus.Canceled, interrupt: true, rethrowCleanupError: true);
+                _rootScope = _ctx.BeginRunScope();
+                _root = root;
+                _onFinished = onFinished;
+                _onStatusChanged = onStatusChanged;
+                _wakeUp = new FlowWakeUp(this);
+                _ctx.Set(_wakeUp);
+                _diagnostics = new FlowRuntimeDiagnostics(Observer, TraceRecorder);
+                _ctx.Set(_diagnostics);
 
-            _onFinished = onFinished;
-            _onStatusChanged = onStatusChanged;
+                SetStatus(FlowStatus.Running);
+                _diagnostics.Statistics.RunsStarted++;
+                _diagnostics.Observer.OnRunStarted(_diagnostics.RunId, root, _ctx);
+                _diagnostics.Record(FlowTraceEventType.RunStarted, root, _status, 0f, 0L);
+            }
+            catch (Exception exception)
+            {
+                if (_root != null)
+                {
+                    HandleUnhandledException(exception);
+                    FinishRun(FlowStatus.Failed, interrupt: true);
+                }
 
-            _rootScope?.Dispose();
-            _rootScope = _ctx.BeginScope();
-            _ctx.Set(_wakeUp);
-            _diagnostics = new FlowRuntimeDiagnostics(Observer, TraceRecorder);
-            _ctx.Set(_diagnostics);
-            _wakeRequested = false;
+                throw;
+            }
+            finally
+            {
+                _transitioning = false;
+                _wakeRequested = false;
+            }
 
-            SetStatus(FlowStatus.Running);
-            _entered = false;
-            _diagnostics.Statistics.RunsStarted++;
-            _diagnostics.Observer.OnRunStarted(_diagnostics.RunId, _root, _ctx);
-            _diagnostics.Record(FlowTraceEventType.RunStarted, _root, _status, 0f, 0L);
-
-            // Prime once so Enter() runs and nodes can subscribe to events immediately.
-            // After this, event callbacks can call FlowWakeUp.Wake() to progress without continuous Step() calls.
             Step(0f);
         }
 
+        /// <summary>
+        /// 推进指定秒数；回调中的重入推进只登记唤醒，不执行嵌套的节点遍历。
+        /// </summary>
         public FlowStatus Step(float deltaTime)
         {
             ThrowIfDisposed();
-            if (_stepping)
+            if (_stepping || _transitioning || _pumping)
             {
-                // 重入（节点回调里再触发 Wake/Step）：登记唤醒，由外层步进结束后统一推进，
-                // 避免对外层尚未完成 Enter 的节点树发起嵌套 Tick/重复 Enter。
                 _wakeRequested = true;
                 return _status;
             }
 
+            return Advance(deltaTime);
+        }
+
+        private FlowStatus Advance(float deltaTime)
+        {
             _stepping = true;
             try
             {
@@ -116,85 +148,68 @@ namespace AbilityKit.Ability.Flow
             {
                 if (!_entered)
                 {
-                    FlowDiagnostics.Enter(_ctx, _root);
                     _entered = true;
+                    FlowDiagnostics.Enter(_ctx, _root);
                 }
 
                 var s = FlowDiagnostics.Tick(_ctx, _root, deltaTime);
                 if (s == FlowStatus.Running) return _status;
 
-                SetStatus(s);
-
-                var finishedRoot = _root;
-                try
-                {
-                    FlowDiagnostics.Exit(_ctx, finishedRoot, _status);
-                }
-                catch (Exception exitEx)
-                {
-                    // 根节点 Exit 抛异常不改变已达成的终态：按二级异常上报，
-                    // 收尾流程（清理 ctx/rootScope、NotifyFinished）照常完成。
-                    HandleUnhandledException(exitEx);
-                }
-                finally
-                {
-                    _root = null;
-                }
-
-                _ctx.Remove<FlowWakeUp>();
-                _ctx.Remove<FlowRuntimeDiagnostics>();
-                _rootScope?.Dispose();
-                _rootScope = null;
-                NotifyFinished(finishedRoot);
+                FinishRun(s, interrupt: false);
                 return _status;
             }
             catch (Exception ex)
             {
                 HandleUnhandledException(ex);
-                AbortDueToException();
+                FinishRun(FlowStatus.Failed, interrupt: true);
                 return _status;
             }
         }
 
-        private void AbortDueToException()
+        private void FinishRun(FlowStatus status, bool interrupt, bool rethrowCleanupError = false)
         {
             if (_root == null) return;
 
             var finishedRoot = _root;
+            _wakeUp?.Invalidate();
+            _wakeUp = null;
             try
             {
-                try
+                if (interrupt)
                 {
-                    FlowDiagnostics.Interrupt(_ctx, finishedRoot, FlowStatus.Failed);
+                    if (_entered) FlowDiagnostics.Interrupt(_ctx, finishedRoot, status);
                 }
-                catch (Exception ex)
+                else
                 {
-                    HandleUnhandledException(ex);
+                    PublishTerminalStatus(status);
+                    FlowDiagnostics.Exit(_ctx, finishedRoot, status);
                 }
+            }
+            catch (Exception exception)
+            {
+                HandleUnhandledException(exception);
+                if (rethrowCleanupError) throw;
             }
             finally
             {
+                if (interrupt) PublishTerminalStatus(status);
                 _root = null;
                 _entered = false;
-                if (_status == FlowStatus.Running)
-                {
-                    SetStatus(FlowStatus.Failed);
-                }
+                _wakeRequested = false;
 
-                _ctx.Remove<FlowWakeUp>();
-                _ctx.Remove<FlowRuntimeDiagnostics>();
-                _rootScope?.Dispose();
+                var scope = _rootScope;
                 _rootScope = null;
+                scope?.Dispose();
                 NotifyFinished(finishedRoot);
             }
         }
 
-        private void Wake()
+        internal void Wake()
         {
             if (_disposed) return;
             if (_status != FlowStatus.Running) return;
             _wakeRequested = true;
-            if (_pumping || _stepping) return;
+            if (_pumping || _stepping || _transitioning) return;
 
             Pump();
         }
@@ -213,14 +228,22 @@ namespace AbilityKit.Ability.Flow
                     _pumpIterations++;
                     if (MaxPumpIterationsPerWake > 0 && _pumpIterations > MaxPumpIterationsPerWake)
                     {
-                        _diagnostics?.Record(FlowTraceEventType.PumpLimitExceeded, _root, _status, 0f, 0L, $"FlowRunner pump iteration limit exceeded: limit={MaxPumpIterationsPerWake}");
-                        HandleUnhandledException(new InvalidOperationException($"FlowRunner pump iteration limit exceeded: limit={MaxPumpIterationsPerWake}"));
-                        AbortDueToException();
+                        var message = $"FlowRunner pump iteration limit exceeded: limit={MaxPumpIterationsPerWake}";
+                        try
+                        {
+                            _diagnostics?.Record(FlowTraceEventType.PumpLimitExceeded, _root, _status, 0f, 0L, message);
+                        }
+                        catch (Exception exception)
+                        {
+                            HandleUnhandledException(exception);
+                        }
+                        HandleUnhandledException(new InvalidOperationException(message));
+                        FinishRun(FlowStatus.Failed, interrupt: true);
                         return;
                     }
 
                     _wakeRequested = false;
-                    Step(0f);
+                    Advance(0f);
                 }
             }
             finally
@@ -231,6 +254,9 @@ namespace AbilityKit.Ability.Flow
 
         private void HandleUnhandledException(Exception ex)
         {
+            /*
+             * 各上报渠道隔离；二次异常不能盖过原始错误或阻断收尾。
+             */
             try
             {
                 if (_diagnostics != null)
@@ -239,13 +265,13 @@ namespace AbilityKit.Ability.Flow
                     _diagnostics.Observer.OnUnhandledException(_diagnostics.RunId, ex, _ctx);
                     _diagnostics.Record(FlowTraceEventType.UnhandledException, _root, _status, 0f, 0L, ex.Message, ex);
                 }
-
-                ExceptionHandler?.Invoke(ex);
             }
             catch
             {
-                // Swallow secondary exceptions from user handlers.
             }
+
+            try { ExceptionHandler?.Invoke(ex); }
+            catch { }
 
             try
             {
@@ -253,37 +279,33 @@ namespace AbilityKit.Ability.Flow
             }
             catch
             {
-                // Swallow secondary exceptions from user handlers.
             }
         }
 
+        /// <summary>
+        /// 中断当前运行并释放其作用域；根节点中断异常在完成收尾后向调用方传播。
+        /// </summary>
         public void Stop()
         {
             ThrowIfDisposed();
             if (_root == null) return;
+            EnsureLifecycleIdle();
 
-            var finishedRoot = _root;
+            _transitioning = true;
             try
             {
-                FlowDiagnostics.Interrupt(_ctx, finishedRoot, FlowStatus.Canceled);
+                FinishRun(FlowStatus.Canceled, interrupt: true, rethrowCleanupError: true);
             }
             finally
             {
-                _root = null;
-                _entered = false;
-                if (_status == FlowStatus.Running)
-                {
-                    SetStatus(FlowStatus.Canceled);
-                }
-
-                _ctx.Remove<FlowWakeUp>();
-                _ctx.Remove<FlowRuntimeDiagnostics>();
-
-                _rootScope?.Dispose();
-                _rootScope = null;
-
-                NotifyFinished(finishedRoot);
+                _transitioning = false;
             }
+        }
+
+        private void PublishTerminalStatus(FlowStatus status)
+        {
+            try { SetStatus(status); }
+            catch (Exception exception) { HandleUnhandledException(exception); }
         }
 
         private void SetStatus(FlowStatus next)
@@ -304,27 +326,40 @@ namespace AbilityKit.Ability.Flow
         {
             if (_status == FlowStatus.Running || _status == FlowStatus.NotStarted) return;
 
-            if (_diagnostics != null)
-            {
-                _diagnostics.Statistics.RunsFinished++;
-                _diagnostics.Observer.OnRunFinished(_diagnostics.RunId, _status, _ctx);
-                _diagnostics.Record(FlowTraceEventType.RunFinished, finishedRoot, _status, 0f, 0L);
-            }
-
-            var cb = _onFinished;
+            var callback = _onFinished;
             _onFinished = null;
             _onStatusChanged = null;
-            cb?.Invoke(_status);
+
+            try
+            {
+                if (_diagnostics != null)
+                {
+                    _diagnostics.Statistics.RunsFinished++;
+                    _diagnostics.Observer.OnRunFinished(_diagnostics.RunId, _status, _ctx);
+                    _diagnostics.Record(FlowTraceEventType.RunFinished, finishedRoot, _status, 0f, 0L);
+                }
+            }
+            catch (Exception exception) { HandleUnhandledException(exception); }
+
+            try { callback?.Invoke(_status); }
+            catch (Exception exception) { HandleUnhandledException(exception); }
         }
 
+        /// <summary>
+        /// 停止运行并清空上下文；即使中断抛出异常也会解除持有。
+        /// </summary>
         public void Dispose()
         {
             if (_disposed) return;
-            Stop();
-            ResetCallbacks();
-            _ctx?.Clear();
-            _ctx = null;
-            _disposed = true;
+            EnsureLifecycleIdle();
+            try { Stop(); }
+            finally
+            {
+                ResetCallbacks();
+                _ctx?.Clear();
+                _ctx = null;
+                _disposed = true;
+            }
         }
 
         internal void ResetForRent(FlowContext context)
@@ -347,11 +382,23 @@ namespace AbilityKit.Ability.Flow
             _disposed = false;
         }
 
-        internal FlowContext ResetForRelease()
+        internal FlowContext? ResetForRelease(out ExceptionDispatchInfo? cleanupError)
         {
+            EnsureLifecycleIdle();
+            cleanupError = null;
             if (!_disposed)
             {
-                Stop();
+                try
+                {
+                    Stop();
+                }
+                catch (Exception exception)
+                {
+                    /*
+                     * 保留清理异常，归还方完成入池后再抛出。重入拒绝不走清理路径。
+                     */
+                    cleanupError = ExceptionDispatchInfo.Capture(exception);
+                }
             }
 
             ResetCallbacks();
@@ -385,6 +432,14 @@ namespace AbilityKit.Ability.Flow
         private void ThrowIfDisposed()
         {
             if (_disposed) throw new ObjectDisposedException(nameof(FlowRunner));
+        }
+
+        internal void EnsureLifecycleIdle()
+        {
+            if (_transitioning || _stepping || _pumping)
+            {
+                throw new InvalidOperationException("A flow callback cannot change the lifecycle of its active runner.");
+            }
         }
     }
 }

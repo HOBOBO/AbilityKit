@@ -1206,6 +1206,30 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void ExactAttributeEvidence_SeparatesFrameZeroFromLatestAndDoesNotQueryModifiers()
+        {
+            var session = new RecordingSession { ReturnAttributes = true, AttributeFrame = 6 };
+            var viewModel = new BattleDebugDiagnosticAttributesViewModel();
+            viewModel.RefreshIfNeeded(session, 11);
+            Assert.That(viewModel.Attributes[0].Frame, Is.EqualTo(6));
+
+            viewModel.RefreshIfNeeded(session, 11, 0, exactEvidence: true);
+            Assert.That(viewModel.Attributes, Is.Empty);
+            Assert.That(viewModel.AttributeQueryStatus.Availability, Is.EqualTo(BattleDiagnosticDataAvailability.NotCaptured));
+            viewModel.RefreshIfNeeded(session, 11, 0, exactEvidence: true);
+            Assert.That(session.AttributeQueryCount, Is.EqualTo(2));
+            Assert.That(session.ModifierQueryCount, Is.EqualTo(1));
+
+            viewModel.RefreshIfNeeded(session, 11, 6, exactEvidence: true);
+            Assert.That(viewModel.Attributes[0].Frame, Is.EqualTo(6));
+            session.AttributeFrame = 0;
+            session.ActorAttributeStoreRevision++;
+            viewModel.RefreshIfNeeded(session, 11, 0, exactEvidence: true);
+            Assert.That(viewModel.Attributes[0].Frame, Is.Zero);
+            Assert.That(session.ModifierQueryCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public void AttributeCurve_RecordsFramesAndReplacesSameFrameWithoutDuplicatingRevision()
         {
             var session = new RecordingSession { ReturnAttributes = true };
@@ -1720,6 +1744,28 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void TraceTimelineEventQuery_IsRootScopedBoundedAndCachedByEventRevision()
+        {
+            var session = new RecordingSession { EventStoreRevision = 12 };
+            var timeline = new BattleDebugTraceTimelineEvents();
+            timeline.Refresh(session, 100);
+            timeline.Refresh(session, 100);
+            session.TraceStoreRevision++;
+            timeline.Refresh(session, 100);
+            Assert.That(session.EventQueryCount, Is.EqualTo(1));
+            Assert.That(session.LastEventQuery.Filter.RootContextId, Is.EqualTo(100));
+            Assert.That(session.LastEventQuery.Page.Limit, Is.EqualTo(200));
+            Assert.That(session.LastEventQuery.Page.StoreRevision, Is.EqualTo(12));
+            Assert.That(session.LastEventQuery.NewestFirst, Is.False);
+            timeline.Refresh(session, 101);
+            Assert.That(session.LastEventQuery.Filter.RootContextId, Is.EqualTo(101));
+            session.EventStoreRevision++;
+            timeline.Refresh(session, 101);
+            Assert.That(session.EventQueryCount, Is.EqualTo(3));
+            Assert.That(session.LastEventQuery.Page.StoreRevision, Is.EqualTo(13));
+        }
+
+        [Test]
         public void TraceCacheKey_IncludesScopeRevisionAndRootButIgnoresOtherRevisions()
         {
             var session = new RecordingSession { TraceNodes = new[] { TraceNode(100, 100, 0, "Root") } };
@@ -2185,6 +2231,54 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(viewModel.PinnedContextId, Is.EqualTo(110));
             Assert.That(viewModel.IsPinnedContextAvailable, Is.False);
             Assert.That(viewModel.SelectPinned(), Is.False);
+        }
+
+        [Test]
+        public void TraceEvidenceLink_RequiresExactNodeInTheLoadedScopeAndRoot()
+        {
+            var scope = RecordingSession.Scope;
+            var session = new RecordingSession
+            {
+                TraceNodes = new[] { TraceNode(100, 100, 0, "Root"), TraceNode(100, 110, 100, "EffectAction") }
+            };
+            var model = new BattleDebugDiagnosticTraceViewModel();
+            model.RefreshIfNeeded(session, 100);
+
+            Assert.That(model.TryGetLinkedNode(scope, 100, 110, out var node), Is.True);
+            Assert.That(node.ContextId, Is.EqualTo(110));
+            Assert.That(model.TryGetLinkedNode(scope, 100, 100, out _), Is.True);
+            Assert.That(model.TryGetLinkedNode(scope, 100, 0, out _), Is.False);
+            Assert.That(model.TryGetLinkedNode(scope, 100, 111, out _), Is.False);
+            Assert.That(model.TryGetLinkedNode(scope, 200, 110, out _), Is.False);
+            Assert.That(model.TryGetLinkedNode(default, 100, 110, out _), Is.False);
+            Assert.That(model.SelectedContextId, Is.EqualTo(100));
+        }
+
+        [Test]
+        public void TraceEvidenceLink_RevealsHiddenSelectionWithoutResettingUnrelatedBranches()
+        {
+            var session = new RecordingSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(100, 100, 0, "Root"), TraceNode(100, 110, 100, "LinkedBranch"),
+                    TraceNode(100, 111, 110, "EffectAction"), TraceNode(100, 120, 100, "OtherBranch"),
+                    TraceNode(100, 121, 120, "OtherChild")
+                }
+            };
+            var model = new BattleDebugDiagnosticTraceViewModel();
+            model.RefreshIfNeeded(session, 100);
+            model.ToggleCollapsed(110);
+            model.ToggleCollapsed(120);
+            model.SetViewMode(BattleDebugTraceViewMode.Issues);
+            model.SetSearchText("no match");
+            Assert.That(model.SelectContext(111), Is.True);
+            Assert.That(model.GetVisibleRowIndex(111), Is.EqualTo(-1));
+            model.RevealSelection();
+            Assert.That(model.GetVisibleRowIndex(111), Is.GreaterThanOrEqualTo(0));
+            Assert.That(model.SearchText, Is.Empty);
+            Assert.That(model.ViewMode, Is.EqualTo(BattleDebugTraceViewMode.Flow));
+            Assert.That(model.IsCollapsed(120), Is.True);
         }
 
         [Test]

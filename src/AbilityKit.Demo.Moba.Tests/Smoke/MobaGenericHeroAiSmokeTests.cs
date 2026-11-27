@@ -8,6 +8,7 @@ using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.Behavior.BTree;
+using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -70,10 +71,93 @@ public sealed class MobaGenericHeroAiSmokeTests
         }
     }
 
-    [Fact]
-    public void Generic_hero_ai_chases_casts_respects_cooldown_and_can_be_disabled()
+    [Theory]
+    [Trait("Gate", "MobaConsoleSmoke")]
+    [InlineData(ShareSyncMode.Lockstep)]
+    [InlineData(ShareSyncMode.SnapshotAuthority)]
+    public void Console_enemy_ai_stops_at_basic_attack_range_and_lands_a_hit(ShareSyncMode syncMode)
+    {
+        const int basicAttackId = 30050101;
+        var enemyConfig = new PlayerConfig
+        {
+            PlayerId = "p2", TeamId = 2, HeroId = 3005, AttributeTemplateId = 3005, Level = 1,
+            MainType = 1, UnitSubType = 1, PositionX = 6f, BrainId = 100, EnableBrainOnSpawn = false,
+            BasicAttackSkillId = basicAttackId, SkillIds = new List<int> { 30050201, 30050301, 30050401, 30050501 }
+        };
+        var startConfig = new BattleStartConfig
+        {
+            PlayerId = "p1",
+            SyncMode = syncMode,
+            Players = new List<PlayerConfig>
+            {
+                new()
+                {
+                    PlayerId = "p1", TeamId = 1, HeroId = 3001, AttributeTemplateId = 3001, Level = 1,
+                    MainType = 1, UnitSubType = 1, BasicAttackSkillId = 30010601,
+                    SkillIds = new List<int> { 30010101, 30010201, 30010301, 30010401 }
+                },
+                enemyConfig
+            }
+        };
+        using var battle = new ConsoleBattleBootstrapper(startConfig);
+        var fixedDelta = 1f / startConfig.TickRate;
+        battle.Initialize();
+        battle.Start();
+        for (var frame = 0; frame < 8 && battle.Context.EcsWorld == null; frame++) battle.Tick(fixedDelta);
+        battle.SetupBattle();
+        Assert.Equal("InMatch", battle.Flow.CurrentPhase);
+
+        var services = Assert.IsAssignableFrom<AbilityKit.Ability.World.DI.IWorldResolver>(battle.RuntimeServices);
+        var players = services.Resolve<MobaPlayerActorMapService>();
+        var actors = services.Resolve<MobaActorRegistry>();
+        var config = services.Resolve<MobaConfigDatabase>();
+        var brains = services.Resolve<MobaBrainService>();
+        Assert.True(players.TryGetActorId(new PlayerId("p1"), out var targetId));
+        Assert.True(players.TryGetActorId(new PlayerId(enemyConfig.PlayerId), out var enemyId));
+        Assert.True(actors.TryGet(targetId, out var target));
+        Assert.True(actors.TryGet(enemyId, out var enemy));
+        Assert.False(enemy.hasActorBrain);
+
+        Assert.True(config.TryGetSkill(basicAttackId, out var attack));
+        var attackRange = attack.Range;
+        Assert.True(attackRange > 0f && Distance() > attackRange);
+        Assert.Single(enemy.skillLoadout.ActiveSkills, skill => skill != null && skill.SkillId == basicAttackId);
+        var hasZeroRangeSkill = false;
+        foreach (var runtime in enemy.skillLoadout.ActiveSkills)
+        {
+            if (runtime == null || runtime.SkillId == basicAttackId) continue;
+            Assert.True(config.TryGetSkill(runtime.SkillId, out var skill));
+            if (skill.Range > 0f) runtime.CooldownEndTimeMs = long.MaxValue;
+            else hasZeroRangeSkill = true;
+        }
+        Assert.True(hasZeroRangeSkill);
+
+        var hpBefore = target.GetMobaAttrs().Hp;
+        Assert.True(brains.ActivateBrain(enemy, enemyConfig.BrainId, MobaBrainSourceKinds.BattleTemplate, sourceId: 2));
+        Assert.True(brains.TryGetBehavior(enemy.actorBrain.BehaviorInstanceId, out var behavior));
+        battle.Tick(fixedDelta);
+        Assert.Equal(attackRange, MobaBrainIntentReader.Read(behavior).MoveStopRange, 3);
+
+        for (var frame = 0; frame < 300 && target.GetMobaAttrs().Hp >= hpBefore; frame++) battle.Tick(fixedDelta);
+        Assert.True(target.GetMobaAttrs().Hp < hpBefore, "Enemy did not land a basic attack in range.");
+        Assert.InRange(Distance(), attackRange - 0.5f, attackRange + 0.01f);
+        Assert.True(brains.DeactivateBrain(enemy));
+        Assert.False(enemy.hasActorBrain);
+
+        float Distance()
+        {
+            var delta = target.transform.Value.Position - enemy.transform.Value.Position;
+            return MathF.Sqrt(delta.X * delta.X + delta.Z * delta.Z);
+        }
+    }
+
+    [Theory]
+    [InlineData(ShareSyncMode.Lockstep)]
+    [InlineData(ShareSyncMode.SnapshotAuthority)]
+    public void Generic_hero_ai_chases_casts_respects_cooldown_and_can_be_disabled(ShareSyncMode syncMode)
     {
         var battleTemplate = BattleStartConfig.CreateDefault();
+        battleTemplate.SyncMode = syncMode;
         foreach (var player in battleTemplate.Players)
         {
             if (player.PlayerId == "player_2") player.BrainId = 100;

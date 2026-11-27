@@ -82,6 +82,7 @@ namespace AbilityKit.Demo.Moba.Services
             { 2000092, new ModifierDefinitionEntry(2000092, "ExactCastRange30040301", 2, 0, 0, 2, 1) },
             { 2000093, new ModifierDefinitionEntry(2000093, "ExactCastRange30040401", 2, 0, 0, 2, 1) },
             { 2000094, new ModifierDefinitionEntry(2000094, "ExactCastRange30040501", 2, 0, 0, 2, 1) },
+            { 2000095, new ModifierDefinitionEntry(2000095, "TibbersEnragedAttackSlot", 2, 0, 0, 2, 1) },
             { 2005001, new ModifierDefinitionEntry(2005001, "GragasBarrelRecastSlot", 2, 0, 0, 2, 1) },
             { 2005011, new ModifierDefinitionEntry(2005011, "GragasEmpoweredSlot1", 2, 0, 0, 2, 1) },
             { 2005012, new ModifierDefinitionEntry(2005012, "GragasEmpoweredSlot2", 2, 0, 0, 2, 1) },

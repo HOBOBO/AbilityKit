@@ -744,6 +744,16 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         }
 
         /// <summary>
+        /// 在复活已提交后同步存活事实，让原有死亡态退出动作在换位前执行，不推进状态机时钟。
+        /// </summary>
+        internal void OnRespawnCommitted()
+        {
+            if (_facts.Alive) return;
+            _facts.Alive = true;
+            ReevaluateCurrentFrame();
+        }
+
+        /// <summary>
         /// Re-evaluates parameter-driven transitions at the current simulation frame.
         /// Gameplay effects may commit after the regular character HFSM tick; this
         /// keeps state-owned logic actions and slot projections observable immediately

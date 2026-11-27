@@ -502,8 +502,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         private static AnalysisBattleDiagnosticWorld ToDto(BattleDiagnosticWorldSummary x) => new AnalysisBattleDiagnosticWorld { Frame = x.Frame, MonotonicTimestamp = x.MonotonicTimestamp, ActorCount = x.ActorCount, ActiveSkillRuntimeCount = x.ActiveSkillRuntimeCount, ActiveExecutionRootCount = x.ActiveExecutionRootCount, StateHash = x.StateHash };
         private static BattleDiagnosticWorldSummary FromDto(AnalysisBattleDiagnosticWorld x, BattleDiagnosticSessionScope s) => new BattleDiagnosticWorldSummary(s, x.Frame, x.MonotonicTimestamp, x.ActorCount, x.ActiveSkillRuntimeCount, x.ActiveExecutionRootCount, x.StateHash);
-        private static AnalysisBattleDiagnosticActor ToDto(BattleDiagnosticActorSummary x) => new AnalysisBattleDiagnosticActor { Frame = x.Frame, ActorId = x.ActorId, Kind = (int)x.Kind, ConfigId = x.ConfigId, TeamId = x.TeamId, PositionX = x.PositionX, PositionY = x.PositionY, PositionZ = x.PositionZ, Health = x.Health, MaximumHealth = x.MaximumHealth, IsAlive = x.IsAlive, DisplayName = x.DisplayName };
-        private static BattleDiagnosticActorSummary FromDto(AnalysisBattleDiagnosticActor x, BattleDiagnosticSessionScope s) => new BattleDiagnosticActorSummary(s, x.Frame, x.ActorId, (BattleDiagnosticActorKind)x.Kind, x.ConfigId, x.TeamId, x.PositionX, x.PositionY, x.PositionZ, x.Health, x.MaximumHealth, x.IsAlive, x.DisplayName);
+        private static AnalysisBattleDiagnosticActor ToDto(BattleDiagnosticActorSummary x) => new AnalysisBattleDiagnosticActor { Frame = x.Frame, ActorId = x.ActorId, Generation = x.Generation, Kind = (int)x.Kind, ConfigId = x.ConfigId, TeamId = x.TeamId, PositionX = x.PositionX, PositionY = x.PositionY, PositionZ = x.PositionZ, Health = x.Health, MaximumHealth = x.MaximumHealth, IsAlive = x.IsAlive, DisplayName = x.DisplayName };
+        private static BattleDiagnosticActorSummary FromDto(AnalysisBattleDiagnosticActor x, BattleDiagnosticSessionScope s) => new BattleDiagnosticActorSummary(s, x.Frame, x.ActorId, (BattleDiagnosticActorKind)x.Kind, x.ConfigId, x.TeamId, x.PositionX, x.PositionY, x.PositionZ, x.Health, x.MaximumHealth, x.IsAlive, x.DisplayName, x.Generation);
         private static AnalysisBattleDiagnosticTraceNode ToDto(BattleDiagnosticTraceNodeSummary x)
         {
             return new AnalysisBattleDiagnosticTraceNode
@@ -782,8 +782,36 @@ namespace AbilityKit.Demo.Moba.Services
         private static BattleDiagnosticActorBuff FromDto(AnalysisBattleDiagnosticBuff x, BattleDiagnosticSessionScope s) => new BattleDiagnosticActorBuff(s, x.Frame, x.ActorId, x.BuffId, x.SourceActorId, x.StackCount, x.RemainingSeconds, x.IntervalRemainingSeconds, x.SourceContextId, x.RuntimeContextId, x.RuntimeContextVersion, new BattleDiagnosticRuntimeHandle(x.SkillRuntimeId, x.SkillRuntimeGeneration), x.RootContextId, x.ModifierBindingCount, x.MaxStacks, x.Name, x.ModifierSourceId);
         private static AnalysisBattleDiagnosticTag ToDto(BattleDiagnosticActorTag x) => new AnalysisBattleDiagnosticTag { Frame = x.Frame, ActorId = x.ActorId, TagId = x.TagId, Name = x.Name };
         private static BattleDiagnosticActorTag FromDto(AnalysisBattleDiagnosticTag x, BattleDiagnosticSessionScope s) => new BattleDiagnosticActorTag(s, x.Frame, x.ActorId, x.TagId, x.Name);
-        private static AnalysisBattleDiagnosticEffect ToDto(BattleDiagnosticActorEffect x) => new AnalysisBattleDiagnosticEffect { Frame = x.Frame, ActorId = x.ActorId, InstanceId = x.InstanceId, DurationPolicy = (int)x.DurationPolicy, StackCount = x.StackCount, ElapsedSeconds = x.ElapsedSeconds, RemainingSeconds = x.RemainingSeconds, HasRemainingTime = x.HasRemainingTime, NextTickInSeconds = x.NextTickInSeconds, HasPeriodicTick = x.HasPeriodicTick, DurationSeconds = x.DurationSeconds, PeriodSeconds = x.PeriodSeconds, ComponentCount = x.ComponentCount, ExecutePeriodicOnApply = x.ExecutePeriodicOnApply };
-        private static BattleDiagnosticActorEffect FromDto(AnalysisBattleDiagnosticEffect x, BattleDiagnosticSessionScope s) => new BattleDiagnosticActorEffect(s, x.Frame, x.ActorId, x.InstanceId, (BattleDiagnosticEffectDurationPolicy)x.DurationPolicy, x.StackCount, x.ElapsedSeconds, x.RemainingSeconds, x.HasRemainingTime, x.NextTickInSeconds, x.HasPeriodicTick, x.DurationSeconds, x.PeriodSeconds, x.ComponentCount, x.ExecutePeriodicOnApply);
+        private static AnalysisBattleDiagnosticEffect ToDto(BattleDiagnosticActorEffect effect) => new AnalysisBattleDiagnosticEffect
+        {
+            Frame = effect.Frame, ActorId = effect.ActorId, InstanceId = effect.InstanceId,
+            DurationPolicy = (int)effect.DurationPolicy, StackCount = effect.StackCount,
+            ElapsedSeconds = effect.ElapsedSeconds, RemainingSeconds = effect.RemainingSeconds,
+            HasRemainingTime = effect.HasRemainingTime, NextTickInSeconds = effect.NextTickInSeconds,
+            HasPeriodicTick = effect.HasPeriodicTick, DurationSeconds = effect.DurationSeconds,
+            PeriodSeconds = effect.PeriodSeconds, ComponentCount = effect.ComponentCount,
+            ExecutePeriodicOnApply = effect.ExecutePeriodicOnApply,
+            ApplicationFrame = effect.Application.IsCaptured ? effect.Application.Frame : BattleDiagnosticFrames.Invalid,
+            SourceActorId = effect.Application.SourceActor.RuntimeId,
+            SourceActorGeneration = effect.Application.SourceActor.Generation,
+            SourceContextId = effect.Application.SourceContextId,
+            SourceRootContextId = effect.Application.SourceRootContextId
+        };
+
+        private static BattleDiagnosticActorEffect FromDto(AnalysisBattleDiagnosticEffect effect, BattleDiagnosticSessionScope scope)
+        {
+            var application = effect.ApplicationFrame >= 0 && effect.ApplicationFrame <= effect.Frame
+                ? new BattleDiagnosticEffectApplication(effect.ApplicationFrame,
+                    BattleDiagnosticRuntimeObjectReference.Create(BattleDiagnosticRuntimeObjectKind.Actor,
+                        effect.SourceActorId, effect.SourceActorGeneration), effect.SourceContextId,
+                    effect.SourceRootContextId)
+                : default;
+            return new BattleDiagnosticActorEffect(scope, effect.Frame, effect.ActorId, effect.InstanceId,
+                (BattleDiagnosticEffectDurationPolicy)effect.DurationPolicy, effect.StackCount, effect.ElapsedSeconds,
+                effect.RemainingSeconds, effect.HasRemainingTime, effect.NextTickInSeconds, effect.HasPeriodicTick,
+                effect.DurationSeconds, effect.PeriodSeconds, effect.ComponentCount, effect.ExecutePeriodicOnApply,
+                application);
+        }
         private static AnalysisBattleDiagnosticMetricProfile ToDto(
             BattleDiagnosticResolvedMetricProfile profile)
         {
@@ -817,10 +845,10 @@ namespace AbilityKit.Demo.Moba.Services
         }
         private static AnalysisBattleDiagnosticMetricSample ToDto(BattleDiagnosticMetricSample x) => new AnalysisBattleDiagnosticMetricSample { Sequence = x.Sequence, Frame = x.Frame, MonotonicTimestamp = x.MonotonicTimestamp, Category = (int)x.Category, ValueKind = (int)x.ValueKind, Metric = x.Metric, Value = x.Value, Dimension = x.Dimension };
         private static BattleDiagnosticMetricSample FromDto(AnalysisBattleDiagnosticMetricSample x, BattleDiagnosticSessionScope s) => new BattleDiagnosticMetricSample(s, x.Sequence, x.Frame, x.MonotonicTimestamp, (BattleDiagnosticMetricCategory)x.Category, (BattleDiagnosticMetricValueKind)x.ValueKind, x.Metric, x.Value, x.Dimension);
-        private static AnalysisBattleDiagnosticRuntimeObject ToDto(BattleDiagnosticRuntimeObject x) => new AnalysisBattleDiagnosticRuntimeObject { Kind = (int)x.Kind, RuntimeId = x.RuntimeId, Generation = x.Generation, DefinitionKind = (int)x.DefinitionKind, DefinitionId = x.DefinitionId, RelatedActorId = x.RelatedActorId, OwnerActorId = x.OwnerActorId, SourceActorId = x.SourceActorId, TargetActorId = x.TargetActorId, CreatedFrame = x.CreatedFrame, DestroyedFrame = x.DestroyedFrame, RootContextId = x.RootContextId, ContextId = x.ContextId, State = (int)x.State, EndReason = x.EndReason, DisplayName = x.DisplayName, DiscoveryKind = (int)x.DiscoveryKind, BackfilledFrame = x.BackfilledFrame, Completeness = (int)x.Completeness };
+        private static AnalysisBattleDiagnosticRuntimeObject ToDto(BattleDiagnosticRuntimeObject x) => new AnalysisBattleDiagnosticRuntimeObject { Kind = (int)x.Kind, ActorKind = (int)x.ActorKind, RuntimeId = x.RuntimeId, Generation = x.Generation, DefinitionKind = (int)x.DefinitionKind, DefinitionId = x.DefinitionId, RelatedActorId = x.RelatedActorId, OwnerActorId = x.OwnerActorId, SourceActorId = x.SourceActorId, TargetActorId = x.TargetActorId, CreatedFrame = x.CreatedFrame, DestroyedFrame = x.DestroyedFrame, RootContextId = x.RootContextId, ContextId = x.ContextId, State = (int)x.State, EndReason = x.EndReason, DisplayName = x.DisplayName, DiscoveryKind = (int)x.DiscoveryKind, BackfilledFrame = x.BackfilledFrame, Completeness = (int)x.Completeness };
         private static AnalysisBattleDiagnosticObjectSummary ToDto(BattleDiagnosticRuntimeObjectCatalogSummary x) => new AnalysisBattleDiagnosticObjectSummary { TotalCount = x.TotalCount, CompleteCount = x.CompleteCount, PartialCount = x.PartialCount, UnreliableCount = x.UnreliableCount, ActiveCount = x.ActiveCount, EndedCount = x.EndedCount, Completeness = (int)x.Completeness, Truncated = x.Truncated, BackfillAttemptCount = x.BackfillAttemptCount, BackfillFailureCount = x.BackfillFailureCount, LastBackfillFrame = x.LastBackfillFrame };
         private static AnalysisBattleDiagnosticObjectEventCoverage ToDto(BattleDiagnosticRuntimeObjectEventCoverageSummary x) => new AnalysisBattleDiagnosticObjectEventCoverage { EventCount = x.EventCount, ReferencedEventCount = x.ReferencedEventCount, CompleteEventCount = x.CompleteEventCount, PartialEventCount = x.PartialEventCount, UnreliableEventCount = x.UnreliableEventCount, TotalReferenceCount = x.TotalReferenceCount, ResolvedReferenceCount = x.ResolvedReferenceCount, UnresolvedReferenceCount = x.UnresolvedReferenceCount, ResolvedReferenceRatio = x.ResolvedReferenceRatio };
-        private static BattleDiagnosticRuntimeObject FromDto(AnalysisBattleDiagnosticRuntimeObject x) => new BattleDiagnosticRuntimeObject((BattleDiagnosticRuntimeObjectKind)x.Kind, x.RuntimeId, x.Generation, (BattleDiagnosticDefinitionKind)x.DefinitionKind, x.DefinitionId, x.RelatedActorId, x.OwnerActorId, x.SourceActorId, x.TargetActorId, x.CreatedFrame, x.DestroyedFrame, x.RootContextId, x.ContextId, (BattleDiagnosticRuntimeObjectState)x.State, x.EndReason, x.DisplayName, (BattleDiagnosticRuntimeObjectDiscoveryKind)x.DiscoveryKind, x.BackfilledFrame);
+        private static BattleDiagnosticRuntimeObject FromDto(AnalysisBattleDiagnosticRuntimeObject x) => new BattleDiagnosticRuntimeObject((BattleDiagnosticRuntimeObjectKind)x.Kind, x.RuntimeId, x.Generation, (BattleDiagnosticDefinitionKind)x.DefinitionKind, x.DefinitionId, x.RelatedActorId, x.OwnerActorId, x.SourceActorId, x.TargetActorId, x.CreatedFrame, x.DestroyedFrame, x.RootContextId, x.ContextId, (BattleDiagnosticRuntimeObjectState)x.State, x.EndReason, x.DisplayName, (BattleDiagnosticRuntimeObjectDiscoveryKind)x.DiscoveryKind, x.BackfilledFrame, (BattleDiagnosticActorKind)x.ActorKind);
         private static AnalysisBattleDiagnosticDefinition ToDto(BattleDiagnosticDefinition x)
         {
             var result = new AnalysisBattleDiagnosticDefinition

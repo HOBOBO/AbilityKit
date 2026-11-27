@@ -1,6 +1,8 @@
 # 协议目录与网络流量可观测性
 
-状态：基础能力已实现，2026-08-21
+> 文档类型：Canonical 设计
+> 事实基线：原专题 2026-08-21；2026-11-25 局部核校协议工具流程摘要及第 2.1 节的入口、读写边界与验证摘要
+> 核校状态：部分核校；流量观测、解码器覆盖和真实协议兼容未在本批重新验收
 
 ## 1. 范围与决策
 
@@ -12,19 +14,7 @@
 - 可复用的客户端单元是 `NetworkSdkClient`，它持有一个 `IConnection` 和一个请求客户端。原始 `IConnection` 实例不得在职责无关的角色间池化或共享。
 - 数据包观测基于中间件，与 TCP、WebSocket、KCP 或未来新增的传输协议无关。
 
-目标源码流如下：
-
-```text
-*.wire.yaml / 外部 IDL              *.protocol.yaml
-              |                            |
-              +------- 编译器/编辑器 -------+
-                          |
-                 项目 MemoryPack 导出
-                protocol-manifest.json
-               BuiltInProtocolCatalogs.g.cs
-                          |
-           运行时查找 / 解码器注册 / 可视化
-```
+源定义经编译器校验，分别供仓库目录生成和项目载荷导出消费；两条路径的输入输出见[第 2.1 节](#21-协议编辑器与编译器交接)。生成目录用于运行时查找，解码器注册和可视化另由消费者装配。
 
 ## 2. 仓库职责归属
 
@@ -40,6 +30,27 @@
 | `tools/AbilityKit.Protocol.CatalogCompiler` | 构建工具 | 严格且确定性的编译器 |
 
 目录文件可以按项目和领域拆分。应使用 `<organization>.<project>.<domain>` 形式的全局唯一 ID，例如 `abilitykit.moba.battle`。共享领域可以使用 `abilitykit.room`，并配置共享的 `projectId`。
+
+### 2.1 协议编辑器与编译器交接
+
+[Protocol Editor 使用指南](../../../Unity/Packages/com.abilitykit.protocol.editor/Documentation~/Usage.md)维护窗口的环境、操作和副作用契约；[协议源格式](../../../Protocols/README.md)维护仓库 YAML 分组与生成工作流，[网络 API 生成指南](../../ProtocolNetworkCodegenGuide.md)维护跨包接入步骤。本专题负责两类源定义与运行时目录、诊断的交接，不再维护另一套窗口教程。
+
+```mermaid
+flowchart LR
+    Workspace[Unity Protocol Workspace] --> Bridge[ProtocolCompilerBridge]
+    Bridge --> Compiler[CatalogCompiler]
+    Compiler --> YAML[目录及 Wire YAML]
+    YAML --> CatalogBuild[仓库目录编译]
+    CatalogBuild --> CatalogOutputs[Manifest 和 Catalog/API 生成物]
+    YAML --> ProjectExport[项目 MemoryPack 导出]
+    ProjectExport --> ProjectOutputs[DTO 和项目目录源码]
+```
+
+当前窗口实现及桥接位于 [ProtocolEditorWindow.cs](../../../Unity/Packages/com.abilitykit.protocol.editor/Editor/ProtocolEditor/UI/ProtocolEditorWindow.cs)，编译器位于 [CatalogCompiler](../../../tools/AbilityKit.Protocol.CatalogCompiler/Program.cs)。加载使用工作区投影，不改 YAML；保存写源文件；“编译协议目录”调用正式脚本更新仓库生成物；项目导出写选定目录。两条生成路径服务不同消费者，不应把 MemoryPack 导出等同于仓库 manifest 已更新，也不能以加载成功推断工作区诊断为空。
+
+这仍是依赖仓库布局和外部进程的编辑器工具；`package.json` 声明与 asmdef 的完整依赖闭包有差异，独立安装及 Unity GUI 尚未验收。旧 `ProtocolDefinition` ScriptableObject 为 FROZEN / superseded，只保留只读 Schema 和 `Migrate Legacy ProtocolDefinition (one-time)`；旧生成器已删除。[冻结资料](../../../Unity/Packages/com.abilitykit.protocol.editor/Document/ProtocolEditor协议编辑器模块开发设计文档.md)保留历史路径，不能复活为并行定义入口。
+
+本批执行只读源输入的 workspace projection、既有编译器及协议测试；结果和基线差异见[第 12 批记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#12-d3-协议工具与会话协调契约核校记录2026-11-25)。本批没有修改协议源、生成物、兼容基线或 decoder，也不把这些局部 E3 提升为真实通信或跨版本兼容结论。
 
 ## 3. 协议目录契约
 
@@ -330,3 +341,6 @@ Room、MOBA 和 Shooter 示例客户端仅在编辑器或开发版本的可观�
 - 使用项目级覆盖扩展目录感知采样器，以支持传输层提供了公共包头标志无法表达的数据包类型信号的场景。
 - 根据目录载荷元数据生成或校验解码器模块注册存根，同时将编解码实现保留在协议包内。
 - 在 `INetworkTrafficBatchSink` 之上增加用于 HTTP 接入和持续集成构件文件的远程或持续集成接收端实现；SDK 仍刻意将凭据、重试和构件路径交由宿主集成层管理。
+
+文档类型：Canonical 设计 | 事实基线：2026-08-21；第 2.1 节为 2026-11-25 | 证据等级：第 2.1 节 E0 与局部 E3，其余沿原专题范围
+*文档版本：v1.0（补齐治理元数据）| 最后更新：2026-11-25（流程摘要、第 2.1 节及导航）*

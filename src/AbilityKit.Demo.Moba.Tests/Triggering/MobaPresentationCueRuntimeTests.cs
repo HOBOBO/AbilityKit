@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Triggering.Cue;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Triggering;
 using AbilityKit.Protocol.Moba;
@@ -14,6 +15,54 @@ namespace AbilityKit.Demo.Moba.Tests.Triggering;
 
 public sealed class MobaPresentationCueRuntimeTests
 {
+    [Theory]
+    [InlineData(true, 11)]
+    [InlineData(false, 22)]
+    public void Presentation_request_snapshot_uses_selected_actor_before_combat_context(bool selectsActor, int expectedActor)
+    {
+        var phase = new MobaLogicWorldRunGateService();
+        phase.SetInGame("presentation request target test");
+        var snapshots = new MobaPresentationCueSnapshotService(phase);
+        var request = new PresentationEventArgs
+        {
+            TemplateId = 123,
+            SourceActorId = 11,
+            TargetActorId = 22,
+            Targets = selectsActor ? new[] { 11 } : null,
+        };
+
+        MobaPresentationRequestReporter.ReportPlay(snapshots, null, request);
+
+        Assert.True(snapshots.TryGetSnapshot(new FrameIndex(29), out var snapshot));
+        var cue = Assert.Single(MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload));
+        Assert.Equal(expectedActor, cue.TargetActorId);
+        Assert.Equal(22, request.TargetActorId);
+    }
+
+    [Fact]
+    public void Launch_pose_round_trips_as_a_transient_world_space_cue()
+    {
+        var phase = new MobaLogicWorldRunGateService();
+        phase.SetInGame("launch pose test");
+        var snapshots = new MobaPresentationCueSnapshotService(phase);
+        var request = new PresentationEventArgs
+        {
+            TemplateId = 123,
+            SourceActorId = 11,
+            Positions = new[] { new Vec3(3, 1, -2) },
+            LaunchForward = new Vec3(1, 0, 0),
+        };
+
+        MobaPresentationRequestReporter.ReportPlay(snapshots, null, request);
+
+        Assert.True(snapshots.TryGetSnapshot(new FrameIndex(29), out var snapshot));
+        var cue = Assert.Single(MobaPresentationCueSnapshotCodec.Deserialize(snapshot.Payload));
+        Assert.Equal((int)PresentationCueLifetime.TransientEvent, cue.Lifetime);
+        Assert.Equal(new float[] { 3, 1, -2 }, cue.Positions);
+        Assert.Equal(CueParameterBag.Vector3(PresentationCueParameterKeys.ProjectileLaunchForward, 1, 0, 0),
+            Assert.Single(cue.Parameters));
+    }
+
     [Fact]
     public void Registry_and_resolver_merge_registered_definition_with_descriptor_overrides_and_fallback_to_descriptor()
     {

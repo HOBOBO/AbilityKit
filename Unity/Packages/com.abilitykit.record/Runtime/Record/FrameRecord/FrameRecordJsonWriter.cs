@@ -19,7 +19,7 @@ namespace AbilityKit.Core.Recording.FrameRecord
 
         public FrameRecordJsonWriter(string outputPath, FrameRecordMeta meta)
         {
-            _outputPath = ResolvePath(outputPath);
+            _outputPath = RecordPathResolver.Resolve(string.IsNullOrEmpty(outputPath) ? "battle_record.json" : outputPath);
             _meta = meta;
         }
 
@@ -200,19 +200,5 @@ namespace AbilityKit.Core.Recording.FrameRecord
             return list.Count > 0 ? list : null;
         }
 
-        private static string ResolvePath(string path)
-        {
-            if (string.IsNullOrEmpty(path)) path = "battle_record.json";
-
-            if (Path.IsPathRooted(path)) return path;
-
-#if UNITY_2020_3_OR_NEWER
-            var baseDir = UnityEngine.Application.persistentDataPath;
-            if (string.IsNullOrEmpty(baseDir)) baseDir = UnityEngine.Application.dataPath;
-#else
-            var baseDir = Environment.CurrentDirectory;
-#endif
-            return Path.Combine(baseDir, path);
-        }
     }
 }

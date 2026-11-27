@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Timing;
 
@@ -10,33 +9,36 @@ namespace AbilityKit.Triggering.Runtime
     /// </remarks>
     public sealed partial class TriggerRunner<TCtx>
     {
-        private void Dispatch<TArgs>(EventKey<TArgs> key, in TArgs args, ExecutionControl control, Dictionary<EventKey<TArgs>, List<TriggerRunnerEntry<TArgs, TCtx>>> list)
+        private void Dispatch<TArgs>(EventKey<TArgs> key, in TArgs args, ExecutionControl control, TriggerRunnerEntryList<TArgs, TCtx> registrations)
         {
-            if (!list.TryGetValue(key, out var triggers) || triggers.Count == 0) return;
+            var candidates = registrations.Capture();
+            if (candidates.Length == 0) return;
 
             _lifecycle.OnEventDispatching(key, in args);
 
             control = PrepareDispatchControl(control);
             var execCtx = CreateExecCtx(control);
-            _currentTraceScope = _tracer.BeginTrace(key, in args);
+            var traceScope = TryBeginTrace(key, in args);
 
             int executedCount = 0;
             int shortCircuitedCount = 0;
 
             try
             {
-                for (int i = 0; i < triggers.Count; i++)
+                for (int index = 0; index < candidates.Length; index++)
                 {
-                    control.ClearActionRejection();
-                    var entry = triggers[i];
+                    var entry = candidates[index];
+                    if (!entry.IsActive) continue;
 
-                    if (TryHandlePriorityBlock(key, in args, in entry, control, in execCtx))
+                    control.ClearActionRejection();
+
+                    if (TryHandlePriorityBlock(key, in args, entry, control, in execCtx, in traceScope))
                     {
                         shortCircuitedCount++;
                         continue;
                     }
 
-                    var evaluation = EvaluateEntry(key, in args, in entry, control, in execCtx);
+                    var evaluation = EvaluateEntry(key, in args, entry, control, in execCtx, in traceScope);
                     if (evaluation == DispatchEvaluationResult.FailedByException)
                     {
                         break;
@@ -45,7 +47,7 @@ namespace AbilityKit.Triggering.Runtime
                     if (evaluation == DispatchEvaluationResult.ConditionFailed)
                     {
                         shortCircuitedCount++;
-                        if (HandleConditionRejected(key, in args, in entry, control, in execCtx))
+                        if (HandleConditionRejected(key, in args, entry, control, in execCtx, in traceScope))
                         {
                             break;
                         }
@@ -53,7 +55,7 @@ namespace AbilityKit.Triggering.Runtime
                         continue;
                     }
 
-                    if (ExecuteEntry(key, in args, in entry, control, in execCtx, out var wasInterrupted))
+                    if (ExecuteEntry(key, in args, entry, control, in execCtx, in traceScope, out var wasInterrupted))
                     {
                         executedCount++;
                     }
@@ -67,11 +69,10 @@ namespace AbilityKit.Triggering.Runtime
             }
             finally
             {
-                _tracer.EndTrace(_currentTraceScope);
-                _currentTraceScope = default;
+                TryEndTrace(key, in traceScope);
             }
 
-            _lifecycle.OnEventDispatched(key, in args, executedCount, shortCircuitedCount);
+            NotifyEventDispatched(key, in args, executedCount, shortCircuitedCount);
         }
 
         private static ExecutionControl PrepareDispatchControl(ExecutionControl control)
@@ -84,7 +85,7 @@ namespace AbilityKit.Triggering.Runtime
         private ExecCtx<TCtx> CreateExecCtx(ExecutionControl control)
         {
             var ctx = _contextSource != null ? _contextSource.GetContext() : default;
-            return _runtimeServices.CreateExecCtx(ctx, control, _actionSchedulerManager);
+            return _runtimeServices.CreateExecCtx(ctx, control, _flatActionScheduler);
         }
 
         /// <summary>
@@ -93,9 +94,10 @@ namespace AbilityKit.Triggering.Runtime
         private bool TryHandlePriorityBlock<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in TriggerRunnerEntry<TArgs, TCtx> entry,
+            TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
-            in ExecCtx<TCtx> execCtx)
+            in ExecCtx<TCtx> execCtx,
+            in TraceScope? traceScope)
         {
             if (!control.ShouldBlock(entry.Phase, entry.Priority))
             {
@@ -109,9 +111,10 @@ namespace AbilityKit.Triggering.Runtime
             NotifyShortCircuit(
                 key,
                 in args,
-                in entry,
+                entry,
                 control,
                 in execCtx,
+                in traceScope,
                 reason,
                 control.InterruptSourceName,
                 control.InterruptTriggerId,
@@ -126,9 +129,10 @@ namespace AbilityKit.Triggering.Runtime
         private DispatchEvaluationResult EvaluateEntry<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in TriggerRunnerEntry<TArgs, TCtx> entry,
+            TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
-            in ExecCtx<TCtx> execCtx)
+            in ExecCtx<TCtx> execCtx,
+            in TraceScope? traceScope)
         {
             _lifecycle.OnBeforeEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order);
             _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, false, in execCtx);
@@ -139,25 +143,24 @@ namespace AbilityKit.Triggering.Runtime
             {
                 ok = entry.Trigger.Evaluate(in args, in execCtx);
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                RecordTrace(key, in entry, TriggerRecordKind.Evaluated, false, null, MonotonicTime.GetTimestamp() - startTicks);
-                NotifyEvaluationException(key, in args, in entry, control, in execCtx, ex);
+                NotifyEvaluationException(key, in args, entry, control, in execCtx, in traceScope, exception, MonotonicTime.GetTimestamp() - startTicks);
                 return DispatchEvaluationResult.FailedByException;
             }
 
             var elapsedTicks = MonotonicTime.GetTimestamp() - startTicks;
             _lifecycle.OnAfterEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok);
             _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok, in execCtx);
-            RecordTrace(key, in entry, TriggerRecordKind.Evaluated, ok, null, elapsedTicks);
+            TryRecordTrace(key, entry, in traceScope, TriggerRecordKind.Evaluated, ok, null, elapsedTicks);
 
             if (!ok)
             {
-                NotifyConditionFailed(key, in args, in entry, control, in execCtx);
+                NotifyConditionFailed(key, in args, entry, control, in execCtx);
                 return DispatchEvaluationResult.ConditionFailed;
             }
 
-            NotifyConditionPassed(key, in args, in entry, control, in execCtx);
+            NotifyConditionPassed(key, in args, entry, control, in execCtx);
             return DispatchEvaluationResult.ConditionPassed;
         }
 
@@ -167,9 +170,10 @@ namespace AbilityKit.Triggering.Runtime
         private bool HandleConditionRejected<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in TriggerRunnerEntry<TArgs, TCtx> entry,
+            TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
-            in ExecCtx<TCtx> execCtx)
+            in ExecCtx<TCtx> execCtx,
+            in TraceScope? traceScope)
         {
             if (_interruptPolicy != EInterruptPolicy.Strict)
             {
@@ -179,9 +183,10 @@ namespace AbilityKit.Triggering.Runtime
             NotifyShortCircuit(
                 key,
                 in args,
-                in entry,
+                entry,
                 control,
                 in execCtx,
+                in traceScope,
                 ShortCircuitReason.ConditionFailed,
                 null,
                 0,
@@ -196,9 +201,10 @@ namespace AbilityKit.Triggering.Runtime
         private bool ExecuteEntry<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in TriggerRunnerEntry<TArgs, TCtx> entry,
+            TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
             in ExecCtx<TCtx> execCtx,
+            in TraceScope? traceScope,
             out bool wasInterrupted)
         {
             wasInterrupted = false;
@@ -227,8 +233,8 @@ namespace AbilityKit.Triggering.Runtime
                 cue.OnBeforeAction(in executeCtx, 0);
             }
 
-            var actionExecuted = TryExecuteTrigger(key, in args, in entry, in execCtx);
-            if (TryHandleHardStop(key, in args, in entry, control, in execCtx))
+            var actionExecuted = TryExecuteTrigger(key, in args, entry, in execCtx, in traceScope);
+            if (TryHandleHardStop(key, in args, entry, control, in execCtx, in traceScope))
             {
                 wasInterrupted = true;
                 _lifecycle.OnActionExecuted(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, true);
@@ -270,29 +276,44 @@ namespace AbilityKit.Triggering.Runtime
             return true;
         }
 
-        private bool TryExecuteTrigger<TArgs>(EventKey<TArgs> key, in TArgs args, in TriggerRunnerEntry<TArgs, TCtx> entry, in ExecCtx<TCtx> execCtx)
+        private bool TryExecuteTrigger<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            TriggerRunnerEntry<TArgs, TCtx> entry,
+            in ExecCtx<TCtx> execCtx,
+            in TraceScope? traceScope)
         {
             var startTicks = MonotonicTime.GetTimestamp();
+            Exception actionFailure = null;
             try
             {
                 entry.Trigger.Execute(in args, in execCtx);
-                RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, MonotonicTime.GetTimestamp() - startTicks);
+            }
+            catch (Exception exception)
+            {
+                actionFailure = exception;
+            }
+
+            /*
+             * 执行结果只由触发器本身决定；诊断不可改变结果或阻断后续硬停止判定。
+             */
+            TryRecordTrace(key, entry, in traceScope, TriggerRecordKind.Executed, null, null, MonotonicTime.GetTimestamp() - startTicks);
+            if (actionFailure == null)
+            {
                 return true;
             }
-            catch (Exception ex)
-            {
-                RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, MonotonicTime.GetTimestamp() - startTicks);
-                NotifyActionFailed(key, in args, in entry, in execCtx, entry.Trigger.GetType().Name, 0, 1, ex.Message);
-                return false;
-            }
+
+            NotifyActionFailed(key, in args, entry, in execCtx, entry.Trigger.GetType().Name, 0, 1, actionFailure.Message);
+            return false;
         }
 
         private bool TryHandleHardStop<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in TriggerRunnerEntry<TArgs, TCtx> entry,
+            TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
-            in ExecCtx<TCtx> execCtx)
+            in ExecCtx<TCtx> execCtx,
+            in TraceScope? traceScope)
         {
             if (!control.IsHardStopped)
             {
@@ -303,9 +324,10 @@ namespace AbilityKit.Triggering.Runtime
             NotifyShortCircuit(
                 key,
                 in args,
-                in entry,
+                entry,
                 control,
                 in execCtx,
+                in traceScope,
                 reason,
                 control.InterruptSourceName ?? entry.Trigger.GetType().Name,
                 control.InterruptTriggerId,

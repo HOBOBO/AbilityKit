@@ -1674,5 +1674,23 @@
     "AllowCastWithoutTarget": true,
     "Uninterruptible": false,
     "ExecutionBlockedResultMask": 0
+  },
+  {
+    "Id": 30030103,
+    "CastFlowId": 30030103,
+    "Category": 10,
+    "CooldownMs": 600,
+    "IconId": 1001,
+    "LevelTableId": 0,
+    "Name": "Tibbers Enraged Basic Attack",
+    "PreCastFlowId": 0,
+    "Range": 2,
+    "SkillButtonTemplateId": 31,
+    "SkillType": 1,
+    "Tags": [],
+    "PreviewVfxId": 0,
+    "AllowCastWithoutTarget": false,
+    "Uninterruptible": false,
+    "ExecutionBlockedResultMask": 128
   }
 ]

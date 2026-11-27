@@ -18,6 +18,7 @@ namespace AbilityKit.Game.Editor
             _offlineSnapshot?.State.Actors ?? Array.Empty<BattleDiagnosticActorSummary>();
         public int LatestCompleteFrame =>
             _offlineSnapshot?.State.Frame ?? BattleDiagnosticFrames.Invalid;
+        public bool HasEvents => _offlineSnapshot?.Events.Events.Count > 0;
         public BattleDiagnosticHealthSnapshot? HealthSnapshot =>
             _offlineSnapshot == null
                 ? (BattleDiagnosticHealthSnapshot?)null
@@ -39,6 +40,31 @@ namespace AbilityKit.Game.Editor
         public string DisplayName => string.IsNullOrEmpty(_offlineFilePath)
             ? string.Empty
             : Path.GetFileName(_offlineFilePath);
+
+        /// <summary>
+        /// 优先建议已记录的技能施放；同类候选沿用根目录的证据排序。
+        /// </summary>
+        public bool TryGetSuggestedTrace(out BattleDiagnosticTraceRootSummary root)
+        {
+            root = default;
+            if (_offlineSession == null ||
+                !_offlineSession.SessionInfo.Supports(BattleDiagnosticCapabilities.Trace)) return false;
+
+            var roots = BattleDiagnosticTraceRootProjection.Project(_offlineSnapshot.Trace.Nodes);
+            if (roots.Count == 0) return false;
+            root = roots[0];
+            for (var index = 0; index < roots.Count; index++)
+            {
+                var candidate = roots[index];
+                if (candidate.Root.ContextId == candidate.RootContextId &&
+                    string.Equals(candidate.Root.Kind, "SkillCast", StringComparison.Ordinal))
+                {
+                    root = candidate;
+                    break;
+                }
+            }
+            return true;
+        }
 
         private static BattleDiagnosticEventChannel ResolveCapturedChannels(
             IReadOnlyList<BattleDiagnosticEvent> events)

@@ -78,6 +78,81 @@ public sealed class FramePacketProtocolCharacterizationTests
         Assert.Equal(1L, buffer.FilledDefaultCount);
     }
 
+    [Fact]
+    public void SnapshotDrain_PrefersBatchAndKeepsProviderOrderAndPayloadReferences()
+    {
+        var firstPayload = new byte[] { 1 };
+        var secondPayload = new byte[] { 2 };
+        using var provider = new BatchProvider(
+            new WorldStateSnapshot(20, firstPayload), new WorldStateSnapshot(10, secondPayload));
+        var packets = new List<FramePacket>();
+
+        Assert.Equal(2, SnapshotProviderDrain.DrainSnapshots(provider, World, Frame, 3, packets.Add));
+
+        Assert.Equal(new[] { (Frame, 3) }, provider.Requests);
+        Assert.Collection(packets,
+            packet => AssertSnapshotPacket(packet, 20, firstPayload),
+            packet => AssertSnapshotPacket(packet, 10, secondPayload));
+    }
+
+    [Theory]
+    [InlineData(1, 1, 1)]
+    [InlineData(3, 2, 3)]
+    public void SnapshotDrain_FallbackStopsOnBudgetOrProviderExhaustion(int budget, int expectedPackets, int expectedQueries)
+    {
+        var payload = new byte[] { 3 };
+        var snapshot = new WorldStateSnapshot(30, payload);
+        using var provider = new SingleProvider(snapshot, snapshot);
+        var packets = new List<FramePacket>();
+
+        Assert.Equal(expectedPackets, SnapshotProviderDrain.DrainSnapshots(provider, World, Frame, budget, packets.Add));
+
+        Assert.Equal(Enumerable.Repeat(Frame, expectedQueries), provider.RequestedFrames);
+        Assert.Equal(expectedPackets, packets.Count);
+        Assert.All(packets, packet => AssertSnapshotPacket(packet, 30, payload));
+    }
+
+    private static void AssertSnapshotPacket(FramePacket packet, int opcode, byte[] payload)
+    {
+        Assert.Equal(World, packet.WorldId);
+        Assert.Equal(Frame, packet.Frame);
+        Assert.Empty(packet.Inputs);
+        Assert.True(packet.Snapshot.HasValue);
+        Assert.Equal(opcode, packet.Snapshot.Value.OpCode);
+        Assert.Same(payload, packet.Snapshot.Value.Payload);
+    }
+
+    private sealed class BatchProvider(params WorldStateSnapshot[] source) : IWorldStateSnapshotBatchProvider
+    {
+        public List<(FrameIndex Frame, int Budget)> Requests { get; } = new();
+
+        public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots)
+        {
+            Requests.Add((frame, maxSnapshots));
+            foreach (var snapshot in source.Take(maxSnapshots)) snapshots.Add(snapshot);
+            return snapshots.Count;
+        }
+
+        public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot) =>
+            throw new InvalidOperationException("批量提供者不应走逐条读取路径。");
+
+        public void Dispose() { }
+    }
+
+    private sealed class SingleProvider(params WorldStateSnapshot[] source) : IWorldStateSnapshotProvider
+    {
+        private readonly Queue<WorldStateSnapshot> _remaining = new(source);
+        public List<FrameIndex> RequestedFrames { get; } = new();
+
+        public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
+        {
+            RequestedFrames.Add(frame);
+            return _remaining.TryDequeue(out snapshot);
+        }
+
+        public void Dispose() { }
+    }
+
     private static PlayerInputCommand Command(int opcode) =>
         new(Frame, new PlayerId("player"), opcode, new byte[] { 1 });
 }

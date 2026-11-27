@@ -1,5 +1,8 @@
 # Ability-Kit Context 上下文注册与快照模块开发设计文档
 
+> 文档类型：包内局部设计说明
+> 核校状态：部分核校；历史主体基线保留为 2026-09-17，2026-11-25 仅核正入口与 Trace 属性归属。受管快照、身份代次和操作契约以[使用指南](../Documentation~/Usage.md)为准；不据此刷新全部正文。
+>
 > **阅读对象**：需要理解 Ability-Kit 上下文数据容器、流程上下文、实体属性注册、快照存取机制的框架开发者。
 >
 > **文档目标**：说明 Context 模块解决什么问题、边界在哪里、核心类型如何协作，以及后续接入 Triggering、Trace、Combat、FrameSync 等模块时应注意哪些约束。
@@ -17,7 +20,7 @@
 | Trace | 谁派生了谁、节点是否结束 | 实时属性仓库 |
 | MOBA Runtime Context | 如何通过独立 ID 读取 Buff 实时值或最终快照 | Trace ID、技能 runtime handle、逐帧历史 |
 
-关联阅读：[Trace 设计](../../com.abilitykit.trace/Document/Trace溯源树模块开发设计文档.md)、[MOBA 整体上下文指南](../../com.abilitykit.demo.moba.runtime/Runtime/Docs/MobaCombatContextDesignGuide.md)、[Runtime Context 设计](../../com.abilitykit.demo.moba.runtime/Document/RuntimeContext运行时值与快照设计文档.md)。
+跨包 Trace 桥接与 MOBA 上下文设计由仓库设计索引导航，不属于本包依赖。包内操作从[使用指南](../Documentation~/Usage.md)进入。
 
 ## 一、设计理念：为什么需要 Context 模块
 
@@ -47,7 +50,7 @@ Context 模块提供轻量的运行时上下文注册中心。它不试图替代
 - 通过属性类型查询实体集合，并维护增量索引。
 - 在属性、实体、flow 生命周期变化时派发事件。
 - 保存实体快照，并按 `SourceEntityId`、`OwnerEntityId` 建立反向索引。
-- 提供可选 `TraceContextProperty`，让业务把 trace root/context id 挂到 context entity 上。
+- 提供 IProperty 扩展点；可选 Trace 包实现 `TraceContextProperty` 并保存 trace root/context id，本包不提供该具体属性。
 
 ### 2.2 Context 不负责什么
 
@@ -65,7 +68,7 @@ Context 模块提供轻量的运行时上下文注册中心。它不试图替代
 | 路径 | 职责 |
 |------|------|
 | `Runtime/Context/FlowContext.cs` | 流程上下文、流程阶段和作用域封装 |
-| `Runtime/Context/TraceContextProperty.cs` | Trace id 弱关联属性和扩展方法 |
+| 可选 Trace 包的 `TraceContextProperty`（包外） | Trace id 弱关联属性和扩展方法，不在本包 Runtime 内 |
 | `Runtime/Registry/ContextRegistry.cs` | 上下文实体、属性、flow 的注册中心 |
 | `Runtime/Property/IProperty.cs` | 属性对象的基础标记接口 |
 | `Runtime/Property/PropertyType.cs` | 属性类型描述和类型 ID 注册表 |
@@ -250,7 +253,7 @@ using (var flow = registry.BeginFlow("SkillCast", ownerEntityId: casterId))
 
 - 新增上下文属性：实现 `IProperty`，直接挂载到实体。
 - 新增流程语义：在业务层封装 `BeginFlow`，约定 flow name、owner 和 phase。
-- 新增快照类型：实现 `IContextSnapshot`，需要版本/帧号时实现 `IVersionedContextSnapshot`。
+- 新增受管快照类型：实现 `IImmutableContextSnapshot` 并显式注册、采集；仅兼容最新视图使用 `IContextSnapshot` / `IVersionedContextSnapshot`，两条路径不可混同。
 - 订阅变更：通过 `Subscribe(handler)` 监听全局变化，或 `Subscribe(entityId, handler)` 监听指定实体。
 - Trace 桥接：通过 `TraceContextProperty` 保存 trace id，不让 Context 直接依赖 Trace。
 
@@ -272,7 +275,7 @@ using (var flow = registry.BeginFlow("SkillCast", ownerEntityId: casterId))
 
 ## 八、最小接入示例
 
-实体引用安全、纯实时读取和非法回滚预检的回归用例见 [ContextEntityReferenceTests](../../../../src/AbilityKit.Context.Tests/ContextEntityReferenceTests.cs)。
+实体引用安全、纯实时读取和非法回滚预检的仓库测试证据由仓库设计及 D4 核校记录维护；包内接入见[使用指南](../Documentation~/Usage.md)。测试工程不作为本包独立消费的路径依赖。
 
 ```csharp
 public sealed class BusinessCategoryProperty : IProperty
@@ -285,7 +288,6 @@ public sealed class BusinessCategoryProperty : IProperty
 var registry = new ContextRegistry();
 using var flow = registry.BeginFlow("skill-effect", ownerEntityId: casterId);
 var entityId = flow.Create()
-    .WithTrace(rootTraceId, traceContextId)
     .With(new BusinessCategoryProperty("buff"))
     .Build();
 

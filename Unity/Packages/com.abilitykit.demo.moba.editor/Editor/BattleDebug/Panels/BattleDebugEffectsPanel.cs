@@ -65,7 +65,7 @@ namespace AbilityKit.Game.Editor
             {
                 for (var i = 0; i < effects.Count; i++)
                 {
-                    DrawEffect(effects[i]);
+                    DrawEffect(in ctx, effects[i]);
                 }
             }
             EditorGUILayout.EndScrollView();
@@ -101,7 +101,7 @@ namespace AbilityKit.Game.Editor
                 EditorStyles.miniLabel);
         }
 
-        private static void DrawEffect(in BattleDiagnosticActorEffect effect)
+        private static void DrawEffect(in BattleDebugContext ctx, in BattleDiagnosticActorEffect effect)
         {
             var remaining = effect.HasRemainingTime
                 ? effect.RemainingSeconds.ToString("0.###")
@@ -121,6 +121,23 @@ namespace AbilityKit.Game.Editor
                 $"时长={effect.DurationSeconds:0.###} 周期={effect.PeriodSeconds:0.###} " +
                 $"组件数={effect.ComponentCount} 应用时执行周期={BattleDebugDisplayText.Bool(effect.ExecutePeriodicOnApply)}",
                 EditorStyles.miniLabel);
+            BattleDebugOfflineRelations.DrawActor(in ctx, effect.Scope, "宿主", effect.ActorId, effect.Frame);
+            var application = effect.Application;
+            if (!application.IsCaptured)
+            {
+                EditorGUILayout.LabelField("来源：此效果实例未采集应用证据。", EditorStyles.wordWrappedMiniLabel);
+            }
+            else
+            {
+                EditorGUILayout.LabelField($"应用帧 F{application.Frame} · 来源上下文 #{application.SourceContextId}",
+                    EditorStyles.wordWrappedMiniLabel);
+                if (!BattleDebugOfflineRelations.Draw(in ctx, effect.Scope, "施加来源", application.SourceActor, application.Frame))
+                    EditorGUILayout.LabelField(application.SourceActor.HasRuntimeId ? $"施加来源：{application.SourceActor}" :
+                        "施加来源：未记录实体引用。", EditorStyles.wordWrappedMiniLabel);
+                if (application.SourceRootContextId > 0 && ctx.OpenTrace != null &&
+                    GUILayout.Button("定位来源上下文", GUILayout.Width(110)))
+                    ctx.OpenTrace.Invoke(application.SourceRootContextId, application.SourceContextId);
+            }
             EditorGUILayout.EndVertical();
         }
     }

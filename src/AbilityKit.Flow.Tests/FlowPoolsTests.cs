@@ -123,6 +123,112 @@ public sealed class FlowPoolsTests
     }
 
     [Fact]
+    public void ReleaseRunner_returns_runner_and_context_when_interrupt_throws()
+    {
+        var runner = FlowPools.RentRunner();
+        var context = runner.Context;
+        var error = new InvalidOperationException("interrupt");
+        var root = new RecordingNode(FlowStatus.Running) { OnInterrupt = _ => throw error };
+        context.Set(new object());
+        runner.Start(root);
+        var previousWake = context.Get<FlowWakeUp>();
+
+        Assert.Same(error, Assert.Throws<InvalidOperationException>(() => FlowPools.ReleaseRunner(runner)));
+        Assert.Equal(1, root.InterruptCount);
+        Assert.Null(runner.Context);
+        Assert.Throws<ObjectDisposedException>(() => runner.Step(0f));
+
+        var rented = FlowPools.RentRunner();
+        try
+        {
+            Assert.Same(runner, rented);
+            Assert.Same(context, rented.Context);
+            Assert.Equal(FlowStatus.NotStarted, rented.Status);
+            Assert.False(rented.Context.TryGet<object>(out _));
+            var next = new RecordingNode(FlowStatus.Running, FlowStatus.Succeeded);
+            rented.Start(next);
+            previousWake.Wake();
+            Assert.Equal(1, next.TickCount);
+            rented.Context.Get<FlowWakeUp>().Wake();
+            Assert.Equal(FlowStatus.Succeeded, rented.Status);
+        }
+        finally
+        {
+            FlowPools.ReleaseRunner(rented);
+        }
+    }
+
+    [Fact]
+    public void ReleaseSession_rejects_reentry_without_clearing_callbacks()
+    {
+        var session = FlowPools.RentSession();
+        try
+        {
+            var context = session.Context;
+            var observer = new RecordingObserver();
+            session.Observer = observer;
+            Exception? reentry = null;
+            FlowStatus? finished = null;
+            session.Finished += status => finished = status;
+            session.Start(new RecordingNode(FlowStatus.Running)
+            {
+                OnEnter = _ => reentry = Record.Exception(() => FlowPools.ReleaseSession(session))
+            });
+
+            Assert.IsType<InvalidOperationException>(reentry);
+            Assert.Same(context, session.Context);
+            Assert.Same(observer, session.Observer);
+            Assert.Equal(FlowStatus.Running, session.Status);
+            session.Stop();
+            Assert.Equal(FlowStatus.Canceled, finished);
+        }
+        finally
+        {
+            FlowPools.ReleaseSession(session);
+        }
+    }
+
+    [Fact]
+    public void ReleaseHost_returns_entire_chain_when_interrupt_throws()
+    {
+        var error = new InvalidOperationException("interrupt");
+        Exception? reentry = null;
+        var root = new RecordingNode(FlowStatus.Running);
+        var host = FlowPools.RentHost(new DelegateRootProvider<PooledHostArgs>(_ => root));
+        root.OnInterrupt = _ =>
+        {
+            reentry = Record.Exception(() => FlowPools.ReleaseHost(host));
+            throw error;
+        };
+        var context = host.Context;
+        context.Set(new object());
+        var finishedCalls = 0;
+        host.Finished += _ => finishedCalls++;
+        host.Start(new PooledHostArgs());
+
+        Assert.Same(error, Assert.Throws<InvalidOperationException>(() => FlowPools.ReleaseHost(host)));
+        Assert.IsType<InvalidOperationException>(reentry);
+        Assert.Throws<ObjectDisposedException>(() => _ = host.Status);
+
+        var replacement = new RecordingNode(FlowStatus.Succeeded);
+        var rented = FlowPools.RentHost(new DelegateRootProvider<PooledHostArgs>(_ => replacement));
+        try
+        {
+            Assert.Same(host, rented);
+            Assert.Same(context, rented.Context);
+            Assert.False(rented.Context.TryGet<object>(out _));
+            rented.Start(new PooledHostArgs());
+            Assert.Equal(1, root.InterruptCount);
+            Assert.Equal(1, replacement.EnterCount);
+            Assert.Equal(0, finishedCalls);
+        }
+        finally
+        {
+            FlowPools.ReleaseHost(rented);
+        }
+    }
+
+    [Fact]
     public void Double_release_of_same_runner_throws()
     {
         // collectionCheck=true：重复释放会被对象池拒绝。

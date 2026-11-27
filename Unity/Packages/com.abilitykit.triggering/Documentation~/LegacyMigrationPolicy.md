@@ -13,28 +13,29 @@
 
 ## 集中归档与发布剔除边界
 
-`Runtime/LegacyCompatibility/` 存放兼容实现，不复用 `Runtime/Compatibility/`：后者是根目录占位治理清单，仍被现有校验门面引用。首批迁移保留同一运行时程序集、命名空间、公开成员及原 `.meta`；仍随包编译，不引入发布开关。
+`Runtime/Compatibility/` 是根目录占位治理清单，仍被现有校验门面引用，不放执行器。保留的 `QueuedActionExecutor` 随默认调度归 `com.abilitykit.triggering.actionscheduling` 的 `Runtime/Compatibility/`，保留命名空间，在扩展运行时程序集编译，不引入发布开关。
 
 | 分组 | 当前范围与处理 |
 | --- | --- |
-| `LegacyCompatibility/Optional/Dispatcher/` | 旧派发器和旧上下文适配器已迁入。主线的 `ITriggerDispatcherContext` 与 `TriggerPredicate<TArgs>` 留在原位。 |
-| `LegacyCompatibility/Optional/ActionSynchronization/` | `TriggerWaitHandle`、`TriggerMutex` 和 `SynchronizedActionExecutor` 已迁入。三者按组管理，避免单独剔除公开签名中的依赖类型。 |
-| `LegacyCompatibility/Optional/PlanRegistration/` | `TriggerPlanJsonDatabase.RegisterAll` 的两个重载在同程序集的分部文件内归档，数据库原脚本及 `.meta` 不变；裁剪此组会减少两个公开方法，不会移除数据库类型。 |
-| `LegacyCompatibility/Required/` | `QueuedActionExecutor` 已拆为独立文件。调度工厂、实例策略检查和对象池仍引用它，不能随 `Optional/` 排除；只移除该实现不能维持 `Queued` 配置的既有行为。校验门面、.NET 类型转发与其他待核对的兼容 API 保持原位。 |
+| `LegacyCompatibility/Optional/Dispatcher/`（原） | 已移除旧派发器和上下文适配器及对应 `.meta`。正式派发使用 `EventBus` + `TriggerRunner`；主线的 `ITriggerDispatcherContext` 与 `TriggerPredicate<TArgs>` 保留。 |
+| `LegacyCompatibility/Optional/ActionSynchronization/`（原） | 已移除 `TriggerWaitHandle`、`TriggerMutex`、`SynchronizedActionExecutor` 及对应 `.meta`。仓库自有源码和受检非发布 Unity 资产未发现实际调用或组外 GUID 引用；`Queued` 并不是旧等待信号和互斥所有权的替代。 |
+| `LegacyCompatibility/Optional/PlanRegistration/`（原） | 已移除 `TriggerPlanJsonDatabase.RegisterAll` 的两个重载及对应 `.meta`，保留原数据库类型及其加载、查询和合并。改由宿主显式校验并选择扁平或执行树路径，持有注册句柄。 |
+| `Scheduling/Actions/Compatibility/` | 原 `LegacyCompatibility/Required/` 的 `QueuedActionExecutor` 由调度工厂、实例策略检查和对象池引用，保留 `Queued` 配置的既有防重入行为。校验门面、.NET 类型转发与其他待核对的兼容 API 保持原位。 |
+
+**首发源码现状。** 原三个 `Optional/` 组均已退役，随最后一组移除目录与专用 MSBuild 裁剪探针。现在由默认构建断言退役入口不再公开、必需类型仍保留，不再维护空裁剪分支。此次只核对仓库源码与非发布资源，不涉及制品生成、发布或安装。
 
 **源码依赖验证（2026-11-24）。** 默认构建通过 85 项 .NET 测试；隔离构建仅排除 `Optional/` 的运行时源码和两个旧批量入口专用测试，83 项通过。两种构建均通过即时消费样例。反射探针核对旧派发、同步的 9 个公开类型及 `RegisterAll` 的 2 个公开重载随 `Optional` 消失；数据库类型、主线上下文和 `QueuedActionExecutor` 保留。10 个可选组及文件的 `.meta` GUID 在受检 Unity 源码和非发布资源中只匹配各自声明。该结果不涵盖 Unity 导入、Player、发布文件或外部消费者。
 
-在仓库根目录可重复运行裁剪探针。将 `RestoreSources` 限制为现有本地 NuGet 缓存，不解析已发布的 Triggering 包；缓存缺少依赖时此探针直接报错。测试目标只通过命令显式导入，不改变默认编译或发布配置。
+### 首发范围复核（2026-11-25）
 
-```powershell
-$probe = (Resolve-Path 'src/AbilityKit.Triggering.Tests/OptionalCompatibilityProbe.targets').Path
-$cache = ((dotnet nuget locals global-packages --list) -replace '^global-packages: ', '').TrimEnd('\')
-dotnet test src/AbilityKit.Triggering.Tests/AbilityKit.Triggering.Tests.csproj `
-    --artifacts-path local/triggering-optional-probe `
-    "-p:CustomAfterMicrosoftCommonTargets=$probe" "-p:RestoreSources=$cache" -p:NuGetAudit=false
-```
+| 范围 | 结论 |
+| --- | --- |
+| 正式入口与样例 | 保留[正式 API 清单](FormalApiBoundary.md)及 `package.json` 声明的两份样例：即时主线（含嵌套派发）、队列事件。Triggering .NET 测试直接编译并运行两份样例源码；不要求装配 Timer。样例可选导入不等于运行时程序集可选裁剪。 |
+| 首发源码清理 | 已下线 `Optional/Dispatcher` 与 `Optional/PlanRegistration`。本轮核对仓库自有源码和非发布 Unity 资源，未发现实际消费者或五个对应脚本、目录 GUID 的外部引用。反射测试防止六个已下线类型及两个旧重载重新进入默认程序集。 |
+| 必须保留或另行评审 | `QueuedActionExecutor` 仍被内置动作调度、实例检查和池引用，不能按目录名删除。`Optional/` 探针不涵盖层级运行器、历史注册表、校验门面、类型转发等其他入口，不据此判定它们可移除。 |
+| 首发候选计划 | 当前包源码声明版本为 `0.1.0`。Triggering 和三个上游包已列入[首发候选批次](ProductAcceptanceGuide.md#源码依赖与批次)，不代表依赖已可安装。源码依赖闭包不含 Analyzer 或旧内嵌 Unsafe；World DI 声明依赖 MemoryPack 与外部 Unsafe。此处没有核验仓库外注册表或已发布文件。 |
 
-**首发裁剪门槛。** 正式主线不得反向依赖 `Optional/`。先核查当前仓库消费方、Unity GUID、程序集引用和配置；再分别验证完整与排除兼容组的构建、UPM 与 .NET 的公开 API 差异和干净消费项目。确定首发范围后，在待发布源码中成组移除对应实现和 `.meta`，不在打包时临时删文件。当前发布工具按完整包子树核对输入，目录分隔本身不会改变发布内容。
+移除前，默认源码构建通过 **188/188**，排除当时全部三组 `Optional/` 源码和两项旧批量入口测试后通过 **186/186**。历史 Unity EditMode **99/99** 是移除前的源码回归，不是干净安装。上述裁剪对照只作为历史证据；当前验收运行默认源码构建，不在打包时临时删文件。
 
 ## 干净 Unity 消费核验（2026-11-22）
 

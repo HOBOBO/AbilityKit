@@ -121,7 +121,7 @@ namespace AbilityKit.Triggering.Tests
                 }
             }
 
-            Assert.That(violations, Is.Empty, "Package-external code must use TriggerRunner, TriggerPlan, ActionScheduler/RuleScheduler, and generic ExecCtx numeric resolution instead of historical compatibility entries.");
+            Assert.That(violations, Is.Empty, "Package-external code must use TriggerRunner, TriggerPlan, the supported action or execution-tree scheduler, and generic ExecCtx numeric resolution instead of historical compatibility entries.");
         }
 
         private static string FindPackagesRoot()

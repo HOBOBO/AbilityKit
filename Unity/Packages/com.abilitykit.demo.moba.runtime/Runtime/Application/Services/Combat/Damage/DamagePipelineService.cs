@@ -124,12 +124,16 @@ namespace AbilityKit.Demo.Moba.Services
                     return null;
                 }
 
-                if (target.hasAttributeGroup && target.hasResourceContainer)
+                if (!MobaCombatRulesService.HasCombatHealth(target))
                 {
-                    var targetAttributes = new MobaAttrs(target);
-                    attack.TargetHp = targetAttributes.Hp;
-                    attack.TargetMaxHp = targetAttributes.MaxHp;
+                    TryCollectDamageCalculation(attack, null, BattleDiagnosticDamageStage.InvalidRequest, 0f,
+                        "target_has_no_combat_health");
+                    return null;
                 }
+
+                var targetAttributes = new MobaAttrs(target);
+                attack.TargetHp = targetAttributes.Hp;
+                attack.TargetMaxHp = targetAttributes.MaxHp;
 
                 Publish(DamagePipelineEvents.AttackCreated, attack);
                 Publish(DamagePipelineEvents.BeforeCalc, attack);

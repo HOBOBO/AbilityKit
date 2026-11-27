@@ -1,3 +1,7 @@
+> 文档类型：历史设计记录；现行使用契约已取代本文。
+> 状态说明（2026-11-25）：以下正文保留原路径与历史方案，未作为当前 API 教程继续维护。旧命名空间、无依赖声明、`game.battle.transport.runtime`/StateSyncAdapter 关系及“struct 即零 GC”等描述不适用于当前实现。
+> 当前入口：[包首页](../README.md)、[文档索引](../Documentation~/README.md)、[使用指南](../Documentation~/Usage.md)。本文不构成新增机制或恢复退役接口的依据。
+
 # com.abilitykit.game.battle：战斗传输层
 
 > **阅读对象**：希望了解战斗逻辑传输层如何设计的开发者

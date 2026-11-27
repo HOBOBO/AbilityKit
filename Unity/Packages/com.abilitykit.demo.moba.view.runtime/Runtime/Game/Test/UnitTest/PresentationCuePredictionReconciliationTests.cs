@@ -88,15 +88,15 @@ namespace AbilityKit.Game.Test.UnitTest
             }));
             var handler = new BattlePresentationCueViewEventHandler(world, null, vfx, in root);
             var predicted = CreateCue(
-                requestKey: "client-cast-q",
+                requestKey: "client-projectile",
                 predictionKey: 87,
                 predictionState: PresentationCuePredictionState.Predicted,
-                confirmedFrame: 0);
+                confirmedFrame: 0, cueKind: "projectile");
             var confirmed = CreateCue(
-                requestKey: "server-cast-q",
+                requestKey: "server-projectile",
                 predictionKey: 87,
                 predictionState: PresentationCuePredictionState.ServerConfirmed,
-                confirmedFrame: 121);
+                confirmedFrame: 121, cueKind: "projectile");
             var key = BattlePresentationCueRequestKey.From(in predicted);
 
             try
@@ -205,9 +205,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsTrue(world.IsAlive(firstId));
                 handler.HandleSnapshot(new[] { CreateBaselineEnd(55, 7) });
                 var secondId = GetActiveEntityId(handler, secondKey);
-                Assert.IsFalse(world.IsAlive(firstId));
+                Assert.IsTrue(world.IsAlive(firstId), "Both chunks are part of the same baseline.");
 
                 handler.HandleSnapshot(new[] { second, CreateBaselineEnd(55, 7) });
+                Assert.IsFalse(world.IsAlive(firstId), "A new completed baseline removes absent cues.");
                 Assert.AreEqual(secondId, GetActiveEntityId(handler, secondKey));
             }
             finally
@@ -224,11 +225,12 @@ namespace AbilityKit.Game.Test.UnitTest
             PresentationCueSnapshotKind snapshotKind = PresentationCueSnapshotKind.EventDelta,
             PresentationCueLifetime lifetime = PresentationCueLifetime.Unknown,
             long worldId = 0,
-            long generation = 0)
+            long generation = 0,
+            string cueKind = "skill.cast")
         {
             return new PresentationCueData(
                 stage: PresentationCueStage.Started,
-                cueKind: "skill.cast",
+                cueKind: cueKind,
                 cueVfxId: "",
                 cueSfxId: "",
                 templateId: 0,

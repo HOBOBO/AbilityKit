@@ -42,6 +42,38 @@ public sealed class TriggerPlanExecutionPathTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void Deterministic_policy_checks_action_registration_when_binding_both_paths(bool isDeterministic)
+    {
+        var actionId = new ActionId(18);
+        var call = new ActionCallPlan(actionId);
+        var flat = CreateTrigger(call);
+        var leaf = new ActionCallTriggerPlanExecutable(call);
+        var actions = new ActionRegistry();
+        var calls = 0;
+        actions.Register<NamedAction0<object, object, ObservingContext>>(
+            actionId, (_, _, _) => calls++, isDeterministic);
+        var context = CreateContext(actions, requireDeterministic: true);
+        var args = new object();
+
+        if (isDeterministic)
+        {
+            flat.Execute(args, in context);
+            Assert.True(leaf.Execute(args, in context).IsSuccess);
+            Assert.Equal(2, calls);
+        }
+        else
+        {
+            var flatError = Assert.Throws<InvalidOperationException>(() => flat.Execute(args, in context));
+            var treeError = Assert.Throws<InvalidOperationException>(() => { leaf.Execute(args, in context); });
+            Assert.Contains("Non-deterministic", flatError.Message);
+            Assert.Equal(flatError.Message, treeError.Message);
+            Assert.Equal(0, calls);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void Action_arguments_are_shared_but_binding_lifetimes_remain_distinct(bool named)
     {
         var actionId = new ActionId(21);

@@ -48,13 +48,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var frameTime = ResolveFrameTime(ctx, input.CasterActorId, skillId, skillSlot, args.CooldownMs);
             var now = MobaSkillRuntimeAccess.GetCurrentTimeMs(frameTime);
-            var cooldownEndTimeMs = now + args.CooldownMs;
-            if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, input.CasterActorId, skillSlot, skillId, cooldownEndTimeMs, args.CooldownMs))
+            var skip = ctx.Context.TryResolve<MobaSkillEconomyService>(out var economy) &&
+                economy.SkipsTrainingCooldown(input.CasterActorId, skillId);
+            var cooldownMs = skip ? 0 : args.CooldownMs;
+            var cooldownEndTimeMs = skip ? 0L : now + cooldownMs;
+            if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, input.CasterActorId, skillSlot, skillId, cooldownEndTimeMs, cooldownMs))
             {
                 throw new InvalidOperationException($"[Plan] start_cooldown failed: active skill not found. actorId={input.CasterActorId}, skillId={skillId}, slot={skillSlot}, cooldownMs={args.CooldownMs}");
             }
 
-            LogApplied(ctx, $"actorId={input.CasterActorId}, skillId={skillId}, slot={skillSlot}, cooldownMs={args.CooldownMs}, endMs={cooldownEndTimeMs}");
+            LogApplied(ctx, $"actorId={input.CasterActorId}, skillId={skillId}, slot={skillSlot}, cooldownMs={cooldownMs}, endMs={cooldownEndTimeMs}");
         }
 
         private static IFrameTime ResolveFrameTime(ExecCtx<IWorldResolver> ctx, int actorId, int skillId, int skillSlot, int cooldownMs)

@@ -33,6 +33,7 @@ namespace AbilityKit.Ability.Share.Effect
             }
 
             var inst = new EffectInstance(_nextId++, spec);
+            ObserveApplication(inst, in context);
 
             PublishDefaultEvent(context.EventBus, EffectTriggering.Events.Apply, in context, inst);
 
@@ -134,6 +135,21 @@ namespace AbilityKit.Ability.Share.Effect
                 {
                     RemoveAt(i, in context);
                 }
+            }
+        }
+
+        private static void ObserveApplication(EffectInstance instance, in EffectExecutionContext context)
+        {
+            if (context.Services == null) return;
+            try
+            {
+                if (context.Services.GetService(typeof(AbilityKit.Effect.IEffectApplicationObserver)) is
+                    AbilityKit.Effect.IEffectApplicationObserver observer)
+                    observer.OnApplication(instance, in context);
+            }
+            catch (Exception exception)
+            {
+                Log.Exception(exception, "[EffectContainer] application observation failed");
             }
         }
 

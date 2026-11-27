@@ -14,7 +14,6 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         public const string SourceAssetPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/moba-p1-skill-economy-flow.json";
         public const string TargetAssetPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/MobaSkillFlowAuthoring/Showcases/MobaP1SkillEconomyShowcase.asset";
 
-        [MenuItem("AbilityKit/Moba/Skill Flow/Sync P1 Economy Showcase")]
         public static void Sync()
         {
             var sourcePath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", SourceAssetPath));

@@ -79,6 +79,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 : 0;
         }
 
+        internal bool UsesFlightArcCue(int templateId) => _resources.TryGetProjectile(templateId)?.UsesFlightArcCue == true;
+
         public Vector3 ResolveSnapshotPosition(float x, float y, float z)
         {
             return ToUnityVector3(_resolver.ResolveSnapshotPosition(x, y, z));

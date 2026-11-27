@@ -4,7 +4,7 @@
 
 ## 排查范围与判定
 
-扫描 `Unity/Packages` 下直接包含 `package.json` 的 105 个包：22 个 `demo.*`、6 个 `thirdparty.*`、其余 77 个进入归属筛查。77 个包含示例集合、平台适配、项目协议和编辑器工具，**不是框架发布包数，也不是 77 个已确认有缺陷的包**。其中 30 个未见根目录 README、61 个未见根目录 CHANGELOG；这是补查线索，不是发版判定。当前[发布清单](../../../tools/publish/release-manifest.json)仅列七个 `candidate`；旧治理材料中的八包口径不作为本轮输入。
+扫描 `Unity/Packages` 下直接包含 `package.json` 的 105 个包：22 个 `demo.*`、6 个 `thirdparty.*`、其余 77 个进入归属筛查。77 个包含示例集合、平台适配、项目协议和编辑器工具，**不是框架发布包数，也不是 77 个已确认有缺陷的包**。其中 30 个未见根目录 README、61 个未见根目录 CHANGELOG；这是补查线索，不是发版判定。本轮盘点以 `batch-1-leaves` 的七个候选为基线；后续批次以[发布清单](../../../tools/publish/release-manifest.json)为准。
 
 逐包预筛包声明、程序集、目录、包内文档和 `.NET` 源码链接；对候选与已治理的包再核对专项记录和现有测试入口。本轮是 E0 静态盘点，引用的历史测试只对当时输入和环境有效；未重跑运行时、干净消费或发布验证。没有 `.NET` 镜像不等于 Unity 专用包有缺陷，`noEngineReferences: false` 也不是平台污染的充分证据。优先查有行为影响的错位和依赖闭包，再整理公开 API、生命周期、目录和注释；不为统一外观批量改命名空间、程序集或资源 GUID。
 
@@ -123,7 +123,7 @@
 | 客户端预测 | [PredictionWindowCalculator](../../../Unity/Packages/com.abilitykit.host.extension/Runtime/FrameSync/PredictionWindowCalculator.cs)独立计算积压、EWMA、延迟、硬上限及理想帧限制。保留浮点运算顺序、取整、窗口与停滞计数，驱动器继续拥有输入消费、世界推进及恢复调度。 |
 | 投射物 | [ProjectileCollisionQueries](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileCollisionQueries.cs)隔离碰撞端口、固定分段轨迹扫描、忽略碰撞重试和帧内时间估计。保持分段数、重试数、定点 epsilon、float 查询边界及命中返回顺序；世界仍拥有弹体、事件及恢复。 |
 | BehaviorTree | [TreeDebugProjection](../../../Unity/Packages/com.abilitykit.behaviortree/Runtime/Execution/TreeDebugProjection.cs)接管静态描述、动态调试全量／差量投影；移除已被 TreeTopology 替代且无调用的私有 Flatten／Visit／FindDefinition 旧链。运行栈、条件重评估、快照预检及恢复仍由原运行时负责。 |
-| HFSM | [StateMachineCompiler](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/Runtime/StateMachineCompiler.cs)接管定义深拷贝、绑定解析、迁移索引和排序，内部图及并行行为每次编译独立创建。沿用 RuntimeBindings 扩展入口，定义哈希、动作次序、并行退出与快照格式不变。 |
+| HFSM | [StateMachineCompiler](../../../Unity/Packages/com.abilitykit.hfsm.core/Runtime/Core/Runtime/StateMachineCompiler.cs)接管定义深拷贝、绑定解析、迁移索引和排序，内部图及并行行为每次编译独立创建。沿用 RuntimeBindings 扩展入口，定义哈希、动作次序、并行退出与快照格式不变。 |
 | 网络连接 | [KickPushDecoder](../../../Unity/Packages/com.abilitykit.network.runtime/Runtime/Network/Runtime/KickPushDecoder.cs)封装现有可选踢出载荷解码。保留精简解析器、未知转义及损坏字段的兼容行为；ConnectionManager 仍负责先发 Kicked 再关闭及普通推送透传。只使用本地自造载荷测试。 |
 
 Ability 的 `.NET` 镜像补充直接引用 `AbilityKit.Attributes`：其现有源码直接消费 AttributeContext／AttributeEffect，移除 World DI 的无关引用后不应再依赖传递引用。这是编译依赖闭包修复，不改变 Unity 已有的属性包依赖或领域行为。
@@ -188,6 +188,50 @@ Ability 的 `.NET` 镜像补充直接引用 `AbilityKit.Attributes`：其现有�
 
 未执行完整 core-stability、Unity Editor／Player、外部联机或发布制品消费，不提升为 E4／E5。结构严格检查仍报告原有三条 RVO2 计划断链和四项历史日志提醒，编码问题为零；本批不删除这些存量。下一项仍建议先拆 ProjectileWorld 的逐弹体推进职责，再评审配置加载流水线，保持同样的行为基线与回归要求。
 
-文档类型：工程审计与分批路线 | 事实基线：初始盘点 2026-11-24，预测拆分 2026-11-25 | 证据等级：全量分组为 E0；实施记录有本地契约证据 E3，不等同发布签核。
+## 下一批拆分实施：ProjectileWorld 单弹推进与碰撞响应
 
-*文档版本：v2.0 | 最后更新：2026-11-25*
+2026-11-25 按推荐顺序拆分投射物世界的逐弹推进。帧级 `Tick` 继续拥有活动列表遍历、swap-back 移除及对象池回收；逐弹处理负责返回／跟踪目标、速度与距离预算、生命周期及到达事件；碰撞处理负责分段扫描、命中过滤、身份去重、命中策略与反弹状态。新增协作类型和方法均为私有实现，不增加包外扩展 API、每帧委托或堆对象。
+
+本批只移动和分离既有处理职责。定点运算表达式及顺序、碰撞查询实现、命中与退出事件顺序、swap-back 遍历、池化所有权、快照字段与恢复契约均保持不变；未新增玩法特例、Provider 或恢复状态。
+
+| 对象 | 当前职责边界 |
+| --- | --- |
+| [`ProjectileWorld.Tick`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs) | 仅遍历活动弹体；逐弹处理要求移除时仍在原遍历位置交换删除并回收。`float` 入口仍转换为 `Fixed64` 后调用原重载。 |
+| [逐弹推进](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.TickProcessing.cs) | 处理目标丢失、返回与跟踪、定点位移、生命周期、周期事件和最大距离响应，并交由碰撞处理推进当前位置。 |
+| [碰撞与命中处理](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.Collision.cs) | 使用栈上值类型传递本帧扫描状态；沿用现有碰撞查询，负责穿透上限、忽略碰撞体、命中冷却、身份过滤、退出判定及反弹目标更新。 |
+
+本地 `.NET` Release 投射物测试为 **97/97 通过**；Release 包构建为 0 错误、8 个 NuGet 解析／目标框架兼容警告。另运行现有 `core-stability` 投射物单步时，Debug 构建在执行测试前被当前工作区 Diagnostics 包的编译错误阻断（`EditorProfiler` 的 `_scopes`／`_recordScope` 和 `fromProbe` 错误），这些文件不属于本批改动。故该门禁单步记录为失败，不把 Release 测试结果冒充为它已通过。
+
+测试日志和 TRX 保存在本机 `local/Logs/projectile-world-split/20261125/`。结构严格检查发现 0 项暂存本地文件问题、0 个编码问题；同时保留 3 条既有 RVO2 计划链接断链及 4 项历史日志产物提醒。本批未执行 Unity Editor／Player、线上联机或发布制品消费验证，不提升为 E4／E5。下一项建议再评审 `ConfigDatabase` 多输入加载入口的职责边界，并保持输入优先级、替换时机及失败语义不变。
+
+## 基础执行包实施：Dataflow 与 Compute
+
+- `dataflow` 是同步处理链，`combat.damage` 通过派生管线累计领域结果。移除 Runtime 未使用的 Core 程序集和 UPM 依赖，启用 `noEngineReferences`。处理器名称读取失败时保留原异常、当前索引及此前的完整输出，不把上一阶段的名称错记为失败来源。处理器顺序快照、异形输入处理和 Context 所有权不变。
+- `compute` 是应用显式装配的批处理后端链，不负责 Dataflow 调度。将可用性探测异常和执行异常统一记为 `Faulted`，保留配置顺序、观察通知与显式回退。验证器仍由调用方提供，失败不恢复调用方的输出缓冲。此次不改 `compute.unityjobs` 的作业图或原生缓冲契约。
+- 新用例在修复前分别复现了旧阶段名称串入和探测异常逃逸。修复后 `core-stability` 的 Dataflow 单步 **21/21**，Compute **7/7**，伤害管线 **5/5**；三包 UPM 依赖审计及 `instance2` Unity 2022.3.62f1 Editor 批处理编译通过。未运行 Unity Jobs 作业、Player、帧同步或状态同步端到端链，也未验证独立制品安装。
+
+## 配置库全量加载拆分
+
+[ConfigLoadInputs](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Database/ConfigLoadInputs.cs) 负责路径和候选来源选择；[ConfigDatabase.FullReload](../../../Unity/Packages/com.abilitykit.ability/Runtime/Ability/Config/Database/ConfigDatabase.FullReload.cs) 保留各入口的校验和异常边界，共用表暂存与提交。表转换仍由 `ConfigTableMaterializer` 承担，增量原位替换不变。
+
+| 入口 | 保留的选择和失败行为 |
+| --- | --- |
+| `IConfigSource` | 完整路径字节 → 完整路径文本 → 原始表路径文本；反序列化抛异常可继续下一个候选。 |
+| 文本／字节字典 | 文本优先完整路径的非空值；字节在完整键存在时不再查原始键，即使该值为空。选定输入后，解析失败不重试。 |
+| 混合字典 | 先选字节；没有非空字节才选文本。字节解析失败不回退到文本。 |
+| 配置组 | 当前组未找到时才按顺序查后续组；即使后续组供数，也由声明组解码，非空字节先于文本。重复声明按构建顺序覆盖。 |
+| DTO 数组 | 按 DTO 类型键查找，并检查数组元素类型；非严格模式接受缺失数组，不接受类型不符。 |
+
+`IConfigSource`、混合字典和 DTO 数组的非严格模式以空表替换缺失表，不合并旧表。全部表准备成功后才替换条目表和 DTO 表、递增一次版本，再通知订阅者；提交前失败保留旧表及版本。异常传播和失败通知仍依入口区分，不新增全局总线隔离，也不承诺表工厂副作用或订阅者异常的回滚。
+
+2026-11-25 本地验证：拆分前配置库契约 **17/17**；拆分后 Ability **21/21**、MOBA 配置专项 **21/21**（表清单及混合配置加载），`instance2` Unity 2022.3.62f1 Editor 批处理编译退出码 0。未运行 Unity 场景、独立 Player 或两条同步链端到端验证；未改变配置、玩法或同步契约。
+
+## HotReload 运行时与编辑器边界
+
+`AbilityKit.HotReload` 保持程序集名与热替换、清理、重入契约，仅直接引用 World.DI、World.Entitas 和 Entitas DLL，并禁止引擎引用。配置日志监听保留脚本 GUID 和 SubsystemRegistration 注册时机，移至仅 Editor 编译的 `AbilityKit.HotReload.Editor`。因此 Ability 和 Core 仍是完整 UPM 包的依赖，但不再是该 Runtime 程序集的直接引用。未改动 MOBA 宿主的程序集选择、配置重载总线或世界执行链。
+
+本地 `core-stability` HotReload 单步 **13/13**。使用 Unity 2022.3.62f1 编译器、已有 World 程序集与仓库 Entitas DLL 单独编译 Runtime，无引擎引用；隔离 Unity 工程以实际监听器、事件总线和日志源代码验证三次 Play Mode 进入（一次启用、两次禁用 Domain Reload），每次成功和失败通知各记录一次。`instance2` 正在使用，未重编完整工程；未验证独立 UPM 安装、DLL 装载场景或 Player。依赖审计通过 asmdef 检查，工具不识别 Entitas DLL 的所有者，已对照 `com.abilitykit.thirdparty.entitas` 中的实际文件和版本声明。
+
+文档类型：工程审计与分批路线 | 事实基线：初始盘点 2026-11-24，各实施批次见正文 | 证据等级：全量分组为 E0；实施记录有本地契约证据 E3，不等同发布签核。
+
+*文档版本：v2.1 | 最后更新：2026-11-25*

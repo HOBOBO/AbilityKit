@@ -3,6 +3,8 @@
 > **阅读对象**：需要把 Lockstep 输入记录序列化为 MemoryPack 二进制格式的开发者。
 >
 > **文档目标**：说明该包作为 record 包的可选 MemoryPack codec 后端的边界。
+>
+> **发布边界**：本包暂不纳入默认录制格式首发候选。保留现有显式接入入口，未验证独立 UPM 安装或 Unity Player。
 
 ---
 
@@ -23,16 +25,16 @@
 不负责：
 
 - 不定义输入记录业务模型。
-- 不负责文件写入和回放调度。
+- 不负责决定录制文件的保存时机、存档策略和回放调度；codec 本身读写其专有格式文件。
 - 不负责 MemoryPack 运行库安装。
 
 ---
 
 ## 三、注意事项
 
-- package.json 当前应与 asmdef 引用保持一致，按需组合时要确保 record 与 MemoryPack 都可用。
+- 独立发布前需补齐 `package.json` 直接依赖、核对 `asmdef` 中的 `AbilityKit.Protocol.MemoryPack` 引用归属，并验证序列化器/格式化器可用及 Unity Player 往返。
 - 记录格式变更会影响旧回放文件读取。
-- 安装器应在记录系统初始化前调用。
+- 安装器应在记录系统初始化前调用；它替换进程级 `FrameRecordCodecs.Current`，不保留默认按扩展名分派，也不转换既有录制文件。
 
 ---
 

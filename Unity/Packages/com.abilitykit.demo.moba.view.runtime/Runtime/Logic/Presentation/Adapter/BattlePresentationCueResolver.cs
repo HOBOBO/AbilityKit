@@ -34,7 +34,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             int shapeKind = 0,
             float halfAngleDeg = 0f,
             float width = 0f,
-            float length = 0f)
+            float length = 0f,
+            bool fixedLaunchPose = false,
+            float flightDistance = 0f,
+            float flightArcHeight = 0f)
         {
             RequestKey = requestKey;
             VfxId = vfxId;
@@ -57,6 +60,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             HalfAngleDeg = halfAngleDeg;
             Width = width;
             Length = length;
+            FixedLaunchPose = fixedLaunchPose;
+            FlightDistance = flightDistance;
+            FlightArcHeight = flightArcHeight;
         }
 
         public BattlePresentationCueRequestKey RequestKey { get; }
@@ -80,6 +86,15 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public float HalfAngleDeg { get; }
         public float Width { get; }
         public float Length { get; }
+
+        /// <summary>
+        /// 是否使用投射物的世界发射位姿，并独立于投射物生命周期播放。
+        /// </summary>
+        public bool FixedLaunchPose { get; }
+        public float FlightDistance { get; }
+        public float FlightArcHeight { get; }
+        public bool UsesProjectileFlight => HasExplicitPosition && TargetActorId > 0 &&
+            FlightArcHeight > 0f && !float.IsInfinity(FlightArcHeight);
  
         public bool IsEmpty => RequestKey.IsEmpty || VfxId <= 0;
     }
@@ -180,30 +195,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             in PresentationCueData data)
         {
             var vfxId = ResolveVfxId(in data);
-            if (requestKey.IsEmpty || vfxId <= 0) return default;
-
-            return new BattlePresentationCueSpawnRequest(
-                requestKey,
-                vfxId,
-                data.SourceActorId,
-                data.TargetActorId,
-                ResolveFirstTargetActorId(in data),
-                data.Positions != null && data.Positions.Count > 0,
-                data.Positions != null && data.Positions.Count > 0 ? data.Positions[0] : default,
-                new SnapshotVec3(data.OffsetX, data.OffsetY, data.OffsetZ),
-                data.DurationMsOverride,
-                data.Scale,
-                ResolveRadius(in data),
-                data.StackCount,
-                data.MaxStackCount,
-                data.ElapsedSeconds,
-                data.RemainingSeconds,
-                data.TemplateId,
-                ResolveVector3Parameter(in data, PresentationCueParameterKeys.AreaForward),
-                ResolveIntParameter(in data, PresentationCueParameterKeys.AreaShapeKind),
-                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaHalfAngleDeg),
-                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaWidth),
-                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaLength));
+            return CreateSpawnRequest(requestKey, in data, vfxId, data.DurationMsOverride);
         }
 
         public static BattlePresentationCueSpawnRequest CreateSpawnRequest(
@@ -213,6 +205,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             int durationMsOverride)
         {
             if (requestKey.IsEmpty || vfxId <= 0) return default;
+            var launchForward = ResolveVector3Parameter(in data, PresentationCueParameterKeys.ProjectileLaunchForward);
+            var fixedLaunchPose = data.Positions != null && data.Positions.Count > 0 &&
+                (launchForward.X != 0f || launchForward.Y != 0f || launchForward.Z != 0f);
             return new BattlePresentationCueSpawnRequest(
                 requestKey,
                 vfxId,
@@ -230,11 +225,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 data.ElapsedSeconds,
                 data.RemainingSeconds,
                 data.TemplateId,
-                ResolveVector3Parameter(in data, PresentationCueParameterKeys.AreaForward),
+                fixedLaunchPose ? launchForward : ResolveVector3Parameter(in data, PresentationCueParameterKeys.AreaForward),
                 ResolveIntParameter(in data, PresentationCueParameterKeys.AreaShapeKind),
                 ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaHalfAngleDeg),
                 ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaWidth),
-                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaLength));
+                ResolveFloatParameter(in data, PresentationCueParameterKeys.AreaLength),
+                fixedLaunchPose,
+                ResolveFloatParameter(in data, PresentationCueParameterKeys.ProjectileFlightDistance),
+                ResolveFloatParameter(in data, PresentationCueParameterKeys.ProjectileFlightArcHeight));
         }
 
         public static int ResolveFirstTargetActorId(in PresentationCueData data)

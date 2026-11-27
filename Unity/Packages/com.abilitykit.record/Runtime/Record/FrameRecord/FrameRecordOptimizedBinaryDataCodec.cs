@@ -131,7 +131,8 @@ namespace AbilityKit.Core.Recording.FrameRecord
             bool useCompression = true,
             CompressionLevel compressionLevel = CompressionLevel.Fastest)
         {
-            _outputPath = ResolvePath(outputPath);
+            _outputPath = RecordPathResolver.Resolve(
+                string.IsNullOrEmpty(outputPath) ? "battle_record.bin" : outputPath, persistentDataOnly: true);
             _meta = meta;
             _useCompression = useCompression;
             _compressionLevel = compressionLevel;
@@ -428,19 +429,6 @@ namespace AbilityKit.Core.Recording.FrameRecord
             }
         }
 
-        private static string ResolvePath(string path)
-        {
-            if (string.IsNullOrEmpty(path)) path = "battle_record.bin";
-
-            if (Path.IsPathRooted(path)) return path;
-
-#if UNITY_2020_3_OR_NEWER
-            var baseDir = UnityEngine.Application.persistentDataPath;
-#else
-            var baseDir = System.Environment.CurrentDirectory;
-#endif
-            return Path.Combine(baseDir, path);
-        }
     }
 
     /// <summary>
@@ -457,7 +445,7 @@ namespace AbilityKit.Core.Recording.FrameRecord
 
         public static FrameRecordBinaryData Load(string path)
         {
-            var resolved = ResolvePath(path);
+            var resolved = RecordPathResolver.Resolve(path, persistentDataOnly: true);
 
             using (var fs = new FileStream(resolved, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var br = new BinaryReader(fs))
@@ -667,17 +655,5 @@ namespace AbilityKit.Core.Recording.FrameRecord
             throw new InvalidDataException("Invalid varint in optimized frame record.");
         }
 
-        private static string ResolvePath(string path)
-        {
-            if (string.IsNullOrEmpty(path)) return path;
-            if (Path.IsPathRooted(path)) return path;
-
-#if UNITY_2020_3_OR_NEWER
-            var baseDir = UnityEngine.Application.persistentDataPath;
-#else
-            var baseDir = System.Environment.CurrentDirectory;
-#endif
-            return Path.Combine(baseDir, path);
-        }
     }
 }

@@ -13,7 +13,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
     {
         private readonly Func<TRecord, (int Id, ITriggerPlanExecutable? Root)> _describe;
         private readonly List<TRecord> _records = new List<TRecord>();
-        private readonly Dictionary<int, TRecord> _recordsById = new Dictionary<int, TRecord>();
+        private readonly Dictionary<int, int> _recordIndexes = new Dictionary<int, int>();
         private readonly Dictionary<int, ITriggerPlanExecutable> _rootsById = new Dictionary<int, ITriggerPlanExecutable>();
         private readonly Dictionary<int, string?> _strings = new Dictionary<int, string?>();
         private readonly List<BlackboardInitializationPlan> _blackboards;
@@ -37,7 +37,17 @@ namespace AbilityKit.Triggering.Runtime.Plan
         internal IReadOnlyList<TRecord> Records => _records;
         internal IReadOnlyList<BlackboardInitializationPlan> Blackboards => _blackboards;
 
-        internal bool TryGetRecord(int id, out TRecord record) => _recordsById.TryGetValue(id, out record);
+        internal bool TryGetRecord(int id, out TRecord record)
+        {
+            if (_recordIndexes.TryGetValue(id, out var index))
+            {
+                record = _records[index];
+                return true;
+            }
+
+            record = default;
+            return false;
+        }
 
         internal bool TryGetRoot(int id, out ITriggerPlanExecutable? root) => _rootsById.TryGetValue(id, out root);
 
@@ -62,8 +72,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             var (id, root) = _describe(record);
             if (id <= 0) return;
 
+            _recordIndexes[id] = _records.Count;
             _records.Add(record);
-            _recordsById[id] = record;
             if (root != null)
                 _rootsById[id] = root;
         }
@@ -71,36 +81,74 @@ namespace AbilityKit.Triggering.Runtime.Plan
         internal void AddRecord(in TRecord record, bool replaceExisting)
         {
             var (id, root) = _describe(record);
-            if (id <= 0) return;
+            if (id <= 0 || (!replaceExisting && _recordIndexes.ContainsKey(id))) return;
 
-            var index = 0;
-            for (; index < _records.Count; index++)
+            NormalizeRecords();
+            WriteEffectiveRecord(in record, id, root, replaceExisting);
+        }
+
+        private void WriteEffectiveRecord(in TRecord record, int id, ITriggerPlanExecutable? root, bool replaceExisting)
+        {
+            if (_recordIndexes.TryGetValue(id, out var index))
             {
-                if (_describe(_records[index]).Id == id) break;
+                if (!replaceExisting) return;
+                _records[index] = record;
+            }
+            else
+            {
+                _recordIndexes.Add(id, _records.Count);
+                _records.Add(record);
             }
 
-            if (index == _records.Count)
-                _records.Add(record);
-            else if (replaceExisting)
-                _records[index] = record;
-            else
-                return;
-
-            _recordsById[id] = record;
             if (root != null)
                 _rootsById[id] = root;
             else
                 _rootsById.Remove(id);
         }
 
-        internal void MergeFrom(TriggerPlanRecordStore<TRecord>? source, bool replaceExisting)
+        /// <summary>
+        /// 按 ID 首次出现的顺序枚举，每个 ID 只取最终生效的完整记录。
+        /// </summary>
+        private IEnumerable<TRecord> EnumerateEffectiveRecords()
         {
-            if (source == null) return;
+            if (_records.Count == _recordIndexes.Count)
+            {
+                foreach (var record in _records)
+                    yield return record;
+                yield break;
+            }
 
+            var seen = new HashSet<int>();
+            foreach (var record in _records)
+            {
+                var id = _describe(record).Id;
+                if (seen.Add(id))
+                    yield return _records[_recordIndexes[id]];
+            }
+        }
+
+        private void NormalizeRecords()
+        {
+            if (_records.Count == _recordIndexes.Count) return;
+
+            var effectiveRecords = new List<TRecord>(EnumerateEffectiveRecords());
+            _records.Clear();
+            _recordIndexes.Clear();
+            _rootsById.Clear();
+            foreach (var record in effectiveRecords)
+                Append(in record);
+        }
+
+        internal void MergeFrom(TriggerPlanRecordStore<TRecord> source, bool replaceExisting)
+        {
+            NormalizeRecords();
             foreach (var entry in source._strings)
                 AddString(entry.Key, entry.Value, replaceExisting);
-            for (var index = 0; index < source._records.Count; index++)
-                AddRecord(source._records[index], replaceExisting);
+            foreach (var record in source.EnumerateEffectiveRecords())
+            {
+                var (id, root) = _describe(record);
+                WriteEffectiveRecord(in record, id, root, replaceExisting);
+            }
             for (var index = 0; index < source._blackboards.Count; index++)
                 AddBlackboardInitialization(source._blackboards[index], replaceExisting);
         }

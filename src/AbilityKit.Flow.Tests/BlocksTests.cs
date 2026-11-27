@@ -9,6 +9,149 @@ namespace AbilityKit.Flow.Tests;
 
 public sealed class BlocksTests
 {
+    [Theory]
+    [InlineData("sequence")]
+    [InlineData("if")]
+    [InlineData("switch")]
+    [InlineData("timeout")]
+    [InlineData("try")]
+    [InlineData("finally")]
+    public void Single_branch_exit_error_fails_run_without_interrupting_exited_child(string kind)
+    {
+        using var runner = new FlowRunner(new FlowContext());
+        var error = new InvalidOperationException("exit");
+        var child = new RecordingNode { OnExit = _ => throw error };
+        var other = new RecordingNode();
+        var errors = new List<Exception>();
+        runner.UnhandledException += errors.Add;
+
+        runner.Start(WrapChild(kind, child, other));
+
+        Assert.Equal(FlowStatus.Failed, runner.Status);
+        Assert.Same(error, Assert.Single(errors));
+        Assert.Equal(1, child.ExitCount);
+        Assert.Equal(0, child.InterruptCount);
+        Assert.Equal(kind == "finally" ? 1 : 0, other.EnterCount);
+        Assert.Equal(0, other.InterruptCount);
+    }
+
+    [Theory]
+    [InlineData("sequence")]
+    [InlineData("if")]
+    [InlineData("switch")]
+    [InlineData("timeout")]
+    [InlineData("try")]
+    [InlineData("finally")]
+    public void Single_branch_enter_error_interrupts_partially_entered_child(string kind)
+    {
+        using var runner = new FlowRunner(new FlowContext());
+        var error = new InvalidOperationException("enter");
+        var child = new RecordingNode { OnEnter = _ => throw error };
+        var other = new RecordingNode();
+        var errors = new List<Exception>();
+        runner.UnhandledException += errors.Add;
+
+        runner.Start(WrapChild(kind, child, other));
+
+        Assert.Equal(FlowStatus.Failed, runner.Status);
+        Assert.Same(error, Assert.Single(errors));
+        Assert.Equal(1, child.InterruptCount);
+        Assert.Equal(0, child.TickCount);
+        Assert.Equal(kind == "finally" ? 1 : 0, other.EnterCount);
+        Assert.Equal(0, other.InterruptCount);
+    }
+
+    [Theory]
+    [InlineData("sequence", false)]
+    [InlineData("if", true)]
+    [InlineData("switch", false)]
+    [InlineData("timeout", true)]
+    [InlineData("try", false)]
+    [InlineData("finally", true)]
+    public void Single_branch_cleanup_error_consumes_child_and_wrapper_can_be_reused(string kind, bool interrupt)
+    {
+        var context = new FlowContext();
+        var error = new InvalidOperationException("cleanup");
+        var child = new RecordingNode(FlowStatus.Running);
+        var node = WrapChild(kind, child, new RecordingNode());
+        if (interrupt) child.OnInterrupt = _ => throw error;
+        else child.OnExit = _ => throw error;
+
+        node.Enter(context);
+        Assert.Equal(FlowStatus.Running, node.Tick(context, 0f));
+        Assert.Same(error, Assert.Throws<InvalidOperationException>(() =>
+        {
+            if (interrupt) node.Interrupt(context);
+            else node.Exit(context);
+        }));
+        node.Exit(context);
+        node.Interrupt(context);
+        Assert.Equal(interrupt ? 0 : 1, child.ExitCount);
+        Assert.Equal(interrupt ? 1 : 0, child.InterruptCount);
+
+        child.OnExit = null!;
+        child.OnInterrupt = null!;
+        child.Result = FlowStatus.Succeeded;
+        node.Enter(context);
+        Assert.Equal(FlowStatus.Succeeded, node.Tick(context, 0f));
+        node.Exit(context);
+        Assert.Equal(2, child.EnterCount);
+        Assert.Equal(interrupt ? 1 : 2, child.ExitCount);
+    }
+
+    [Fact]
+    public void Timeout_interrupt_error_does_not_retry_cleanup_during_runner_abort()
+    {
+        using var runner = new FlowRunner(new FlowContext());
+        var error = new InvalidOperationException("timeout interrupt");
+        var child = new RecordingNode(FlowStatus.Running) { OnInterrupt = _ => throw error };
+        var errors = new List<Exception>();
+        runner.UnhandledException += errors.Add;
+
+        runner.Start(new TimeoutNode(1f, child));
+        Assert.Equal(FlowStatus.Running, runner.Step(1f));
+        Assert.Equal(FlowStatus.Failed, runner.Step(0.1f));
+
+        Assert.Same(error, Assert.Single(errors));
+        Assert.Equal(1, child.InterruptCount);
+        Assert.Equal(2, child.TickCount);
+        Assert.Equal(0, child.ExitCount);
+    }
+
+    [Theory]
+    [InlineData("sequence")]
+    [InlineData("finally")]
+    public void Single_branch_enter_diagnostic_error_does_not_interrupt_unentered_child(string kind)
+    {
+        using var runner = new FlowRunner(new FlowContext());
+        var error = new InvalidOperationException("enter diagnostic");
+        var first = new RecordingNode();
+        var skipped = new RecordingNode();
+        var errors = new List<Exception>();
+        runner.TraceRecorder = new FailingSecondChildEnterTrace(error);
+        runner.UnhandledException += errors.Add;
+
+        runner.Start(kind == "sequence" ? new SequenceNode(first, skipped) : new FinallyNode(first, skipped));
+
+        Assert.Equal(FlowStatus.Failed, runner.Status);
+        Assert.Same(error, Assert.Single(errors));
+        Assert.Equal(1, first.ExitCount);
+        Assert.Equal(0, first.InterruptCount);
+        Assert.Equal(0, skipped.EnterCount);
+        Assert.Equal(0, skipped.InterruptCount);
+    }
+
+    private static IFlowNode WrapChild(string kind, RecordingNode child, RecordingNode other) => kind switch
+    {
+        "sequence" => new SequenceNode(child, other),
+        "if" => new IfNode(_ => true, child, other),
+        "switch" => new SwitchNode<int>(_ => 1, new Dictionary<int, IFlowNode> { [1] = child }, other),
+        "timeout" => new TimeoutNode(10f, child),
+        "try" => new FinallyNode(child, other),
+        "finally" => new FinallyNode(other, child),
+        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+    };
+
     // ---------- DoNode ----------
 
     [Fact]
@@ -253,6 +396,116 @@ public sealed class BlocksTests
         Assert.Throws<InvalidOperationException>(() => node.Enter(ctx));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Group_enter_failure_interrupts_only_children_whose_enter_was_attempted(bool race)
+    {
+        using var runner = new FlowRunner(new FlowContext());
+        var error = new InvalidOperationException("enter");
+        var first = new RecordingNode(FlowStatus.Running);
+        var failing = new RecordingNode { OnEnter = _ => throw error };
+        var notEntered = new RecordingNode();
+        IFlowNode group = race ? new RaceNode(first, failing, notEntered) : new ParallelAllNode(first, failing, notEntered);
+        var errors = new List<Exception>();
+        runner.UnhandledException += errors.Add;
+
+        runner.Start(group);
+
+        Assert.Equal(FlowStatus.Failed, runner.Status);
+        Assert.Same(error, Assert.Single(errors));
+        Assert.Equal(1, first.InterruptCount);
+        Assert.Equal(1, failing.InterruptCount);
+        Assert.Equal(0, notEntered.EnterCount);
+        Assert.Equal(0, notEntered.InterruptCount);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void Group_teardown_attempts_each_active_child_once_in_order(bool race, bool interrupt)
+    {
+        var context = new FlowContext();
+        var order = new List<int>();
+        var firstError = new InvalidOperationException("first");
+        var secondError = new InvalidOperationException("second");
+        var first = CreateChild(1, firstError);
+        var second = CreateChild(2, secondError);
+        var last = CreateChild(3, null);
+        IFlowNode group = race ? new RaceNode(first, second, last) : new ParallelAllNode(first, second, last);
+
+        group.Enter(context);
+        var caught = Record.Exception(Finish);
+
+        Assert.Equal(new[] { 1, 2, 3 }, order);
+        Assert.Equal(new Exception[] { firstError, secondError }, Assert.IsType<AggregateException>(caught).InnerExceptions);
+        Finish();
+        Assert.Equal(new[] { 1, 2, 3 }, order);
+
+        RecordingNode CreateChild(int position, Exception? error)
+        {
+            var child = new RecordingNode(FlowStatus.Running);
+            if (interrupt) child.OnInterrupt = Cleanup;
+            else child.OnExit = Cleanup;
+            return child;
+
+            void Cleanup(FlowContext _)
+            {
+                order.Add(position);
+                if (error != null) throw error;
+            }
+        }
+
+        void Finish()
+        {
+            if (interrupt) group.Interrupt(context);
+            else group.Exit(context);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Group_diagnostic_enter_failure_does_not_interrupt_unentered_child(bool race)
+    {
+        using var runner = new FlowRunner(new FlowContext());
+        var error = new InvalidOperationException("enter diagnostic");
+        var first = new RecordingNode(FlowStatus.Running);
+        var skipped = new RecordingNode(FlowStatus.Running);
+        var trace = new FailingSecondChildEnterTrace(error);
+        runner.TraceRecorder = trace;
+        var errors = new List<Exception>();
+        runner.UnhandledException += errors.Add;
+
+        runner.Start(race ? new RaceNode(first, skipped) : new ParallelAllNode(first, skipped));
+
+        Assert.Equal(FlowStatus.Failed, runner.Status);
+        Assert.Same(error, Assert.Single(errors));
+        Assert.Equal(1, first.InterruptCount);
+        Assert.Equal(0, skipped.EnterCount);
+        Assert.Equal(0, skipped.InterruptCount);
+    }
+
+    private sealed class FailingSecondChildEnterTrace : IFlowTraceRecorder
+    {
+        private readonly Exception _error;
+        private int _childEnters;
+
+        public FailingSecondChildEnterTrace(Exception error) => _error = error;
+        public bool IsEnabled => true;
+        public void Record(in FlowTraceData data)
+        {
+            if (data.Type == FlowTraceEventType.NodeEnter && data.NodeName == nameof(RecordingNode) && ++_childEnters == 2)
+            {
+                throw _error;
+            }
+        }
+        public IReadOnlyList<FlowTraceData> GetSnapshot() => Array.Empty<FlowTraceData>();
+        public void Clear() => _childEnters = 0;
+    }
+
     // ---------- RaceNode ----------
 
     [Fact]
@@ -311,6 +564,29 @@ public sealed class BlocksTests
         node.Enter(ctx);
 
         Assert.Equal(FlowStatus.Running, node.Tick(ctx, 0f));
+    }
+
+    [Fact]
+    public void Race_winner_exit_and_loser_interrupt_failures_do_not_block_other_losers()
+    {
+        using var runner = new FlowRunner(new FlowContext());
+        var winnerError = new InvalidOperationException("winner exit");
+        var loserError = new InvalidOperationException("loser interrupt");
+        var winner = new RecordingNode { OnExit = _ => throw winnerError };
+        var loser = new RecordingNode(FlowStatus.Running) { OnInterrupt = _ => throw loserError };
+        var last = new RecordingNode(FlowStatus.Running);
+        var errors = new List<Exception>();
+        runner.UnhandledException += errors.Add;
+
+        runner.Start(new RaceNode(winner, loser, last));
+
+        Assert.Equal(FlowStatus.Failed, runner.Status);
+        Assert.Equal(1, winner.ExitCount);
+        Assert.Equal(0, winner.InterruptCount);
+        Assert.Equal(1, loser.InterruptCount);
+        Assert.Equal(1, last.InterruptCount);
+        Assert.Equal(0, last.TickCount);
+        Assert.Equal(new Exception[] { winnerError, loserError }, Assert.IsType<AggregateException>(Assert.Single(errors)).InnerExceptions);
     }
 
     [Fact]
@@ -748,6 +1024,96 @@ public sealed class BlocksTests
         Assert.Equal(1, body.InterruptCount);
         Assert.Single(disposed, resource);
         Assert.False(ctx.TryGet<object>(out _));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UsingResource_releases_once_even_when_body_and_dispose_throw(bool interrupt)
+    {
+        var context = new FlowContext();
+        var resource = new object();
+        var bodyError = new InvalidOperationException("body");
+        var disposeError = new InvalidOperationException("dispose");
+        var disposeCount = 0;
+        var slotRemoved = false;
+        var body = new RecordingNode(FlowStatus.Running);
+        if (interrupt) body.OnInterrupt = _ => throw bodyError;
+        else body.OnExit = _ => throw bodyError;
+        var node = new UsingResourceNode<object>(_ => resource, value =>
+        {
+            Assert.Same(resource, value);
+            slotRemoved = !context.TryGet<object>(out _);
+            disposeCount++;
+            throw disposeError;
+        }, body);
+
+        node.Enter(context);
+        node.Tick(context, 0f);
+        var caught = Record.Exception(Finish);
+
+        Assert.Equal(1, disposeCount);
+        Assert.True(slotRemoved);
+        Assert.Equal(new Exception[] { bodyError, disposeError }, Assert.IsType<AggregateException>(caught).InnerExceptions);
+        Finish();
+        Assert.Equal(1, disposeCount);
+        Assert.Equal(1, body.ExitCount + body.InterruptCount);
+
+        void Finish()
+        {
+            if (interrupt) node.Interrupt(context);
+            else node.Exit(context);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UsingResource_runner_releases_body_and_resource_after_body_callback_failure(bool failDuringEnter)
+    {
+        using var runner = new FlowRunner(new FlowContext());
+        var resource = new object();
+        var error = new InvalidOperationException("body callback");
+        var body = new RecordingNode();
+        if (failDuringEnter) body.OnEnter = _ => throw error;
+        else body.OnExit = _ => throw error;
+        var errors = new List<Exception>();
+        var disposed = new List<object>();
+        runner.UnhandledException += errors.Add;
+
+        runner.Start(new UsingResourceNode<object>(_ => resource, disposed.Add, body));
+
+        Assert.Equal(FlowStatus.Failed, runner.Status);
+        Assert.Same(error, Assert.Single(errors));
+        Assert.Same(resource, Assert.Single(disposed));
+        Assert.Equal(failDuringEnter ? 1 : 0, body.InterruptCount);
+        Assert.Equal(failDuringEnter ? 0 : 1, body.ExitCount);
+    }
+
+    [Fact]
+    public void Stop_releases_resource_in_later_parallel_branch_before_rethrowing_original_error()
+    {
+        using var runner = new FlowRunner(new FlowContext());
+        var error = new InvalidOperationException("first branch interrupt");
+        var first = new RecordingNode(FlowStatus.Running) { OnInterrupt = _ => throw error };
+        var body = new RecordingNode(FlowStatus.Running);
+        var resource = new object();
+        var disposed = new List<object>();
+        var owner = new UsingResourceNode<object>(_ => resource, disposed.Add, body);
+        var group = new ParallelAllNode(first, owner);
+        runner.Start(group);
+
+        Assert.Same(error, Assert.Throws<InvalidOperationException>(runner.Stop));
+        Assert.Equal(FlowStatus.Canceled, runner.Status);
+        Assert.Equal(1, body.InterruptCount);
+        Assert.Same(resource, Assert.Single(disposed));
+        Assert.False(runner.Context.TryGet<object>(out _));
+
+        first.OnInterrupt = null!;
+        runner.Start(group);
+        runner.Stop();
+        Assert.Equal(2, body.InterruptCount);
+        Assert.Equal(new[] { resource, resource }, disposed);
     }
 
     // ---------- AwaitCompletionNode / RunUntilCompletionNode ----------

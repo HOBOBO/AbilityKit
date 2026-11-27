@@ -122,14 +122,14 @@ namespace AbilityKit.Samples.Logic.Samples.Triggering
             SampleTriggerContext context,
             ExecCtx<SampleTriggerContext> execCtx)
         {
-            if (!database.TryGetPlanByTriggerId(triggerId, out var plan))
+            if (!database.TryGetRecordByTriggerId(triggerId, out var record))
             {
                 Log($"未找到触发器: {triggerId}");
                 return;
             }
 
             var before = context.Effects.Count;
-            var trigger = new PlannedTrigger<object, SampleTriggerContext>(plan);
+            var trigger = new PlannedTrigger<object, SampleTriggerContext>(record.Plan);
             trigger.Execute(new SamplePayload(label), execCtx);
             var executed = context.Effects.Count - before;
             KeyValue(label, $"actions={executed}, total={context.TotalAmount:0.##}");
@@ -143,13 +143,13 @@ namespace AbilityKit.Samples.Logic.Samples.Triggering
             SampleTriggerContext context,
             ExecCtx<SampleTriggerContext> execCtx)
         {
-            if (!database.TryGetExecutionRootByTriggerId(triggerId, out var root))
+            if (!database.TryGetRecordByTriggerId(triggerId, out var record) || record.ExecutionRoot == null)
             {
                 Log($"未找到执行树: {triggerId}");
                 return;
             }
 
-            var result = root.Execute(new SamplePayload(label), execCtx);
+            var result = record.ExecutionRoot.Execute(new SamplePayload(label), execCtx);
             KeyValue(label, $"success={result.IsSuccess}, executed={result.ExecutedCount}, reason={result.Reason ?? string.Empty}");
             KeyValue($"TriggerConfig.Root[{label}]", $"success={result.IsSuccess}, executed={result.ExecutedCount}, reason={result.Reason ?? string.Empty}");
         }

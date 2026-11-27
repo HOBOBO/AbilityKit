@@ -213,6 +213,7 @@
         <var name="RequireHasPosition" value="517"/>
         <var name="RequireUnitSubType" value="518"/>
         <var name="RequireCasterTeam" value="519"/>
+        <var name="RequireCombatHealth" value="520"/>
         <var name="ExcludeCaster" value="769"/>
         <var name="ExcludeExplicitTarget" value="770"/>
         <var name="RectangleShape" value="771"/>

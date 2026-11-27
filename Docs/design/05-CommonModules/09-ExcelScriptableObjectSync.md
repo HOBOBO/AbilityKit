@@ -1,5 +1,11 @@
 # Excel 与 ScriptableObject 编辑器同步
 
+> 文档类型：Canonical 设计与 Editor 工作流
+>
+> 事实基线：2026-11-25；依据当前包源码、消费者和既有测试核校
+>
+> 核校状态：部分核校；更新包职责、baseline 刷新、批处理和验证入口；本轮另有 Unity 隔离工程局部调用证据，未重跑完整 gate
+
 > 本文描述 `com.abilitykit.excel-sync` 的 Unity Editor authoring 工具链：它负责 Excel 表与 ScriptableObject DataList 的导入、基线记录和安全导出，不是运行时配置数据库，也不属于 Luban 的候选晋升与发布链。
 
 ## 1. 能力定位
@@ -22,9 +28,9 @@ Excel Sync 面向“策划维护 Excel、Unity 编辑器维护 ScriptableObject�
 | 内容 | 路径 |
 |------|------|
 | 表模板与默认参数 | `Unity/Packages/com.abilitykit.excel-sync/Editor/Core/ExcelSyncTableTemplate.cs` |
-| 单资产同步核心 | `Unity/Packages/com.abilitykit.excel-sync/Editor/Core/ScriptableObjectExcelSync.cs` |
-| Baseline Asset | `Unity/Packages/com.abilitykit.excel-sync/Editor/Core/ExcelSoSyncBaselineAsset.cs` |
-| 模板与批处理服务 | `Unity/Packages/com.abilitykit.excel-sync/Editor/Core/ExcelSyncTemplateService.cs` |
+| 单资产同步核心 | [ScriptableObjectExcelSync](../../../Unity/Packages/com.abilitykit.excel-sync/Editor/Core/ScriptableObjectExcelSync.cs) |
+| Baseline Asset | [ExcelSoSyncBaselineAsset](../../../Unity/Packages/com.abilitykit.excel-sync/Editor/Core/ExcelSoSyncBaselineAsset.cs) |
+| 模板与批处理服务 | [ExcelSyncTemplateService](../../../Unity/Packages/com.abilitykit.excel-sync/Editor/Core/ExcelSyncTemplateService.cs) |
 | Codec registry | `Unity/Packages/com.abilitykit.excel-sync/Editor/Codecs/ExcelCodecRegistry.cs` |
 | EPPlus backend | `Unity/Packages/com.abilitykit.excel-sync/Editor/Backends/EpplusTableReaderWriter.cs` |
 | 类型命名（带类型表头） | `Unity/Packages/com.abilitykit.excel-sync/Editor/Core/IExcelTypeNameProvider.cs`、`DefaultExcelTypeNameProvider.cs` |
@@ -50,7 +56,7 @@ flowchart LR
     Merge --> Report[Conflict Report]
 ```
 
-Project Config 持有启用模板和默认路径；Template 持有单表参数及 Table Asset 引用；Table Asset 持有本地 DataList；Baseline Asset 保存最近一次导入时的 Excel 路径、sheet、headers 和按主键索引的字符串行。
+Project Config 持有启用模板和默认路径；Template 持有单表参数及 Table Asset 引用；Table Asset 持有本地 DataList；Baseline Asset 保存最近一次成功导入或成功导出刷新时的 Excel 路径、sheet、headers 和按主键索引的字符串行。
 
 Baseline 是导出比较依据，不是运行时配置或完整文件快照。它不带源文件 hash、mtime、schema version 或提交 ID。`BaselineStatus` 只检查资产是否存在，不能证明它与当前 Excel、schema、sheet、行列布局、主键或 Table Asset 对齐；Safe Export 在合并前也不会自动拒绝这些元数据漂移。
 
@@ -118,13 +124,15 @@ flowchart TD
 - 删除传播：Excel 与 baseline 都存在、但 Local 已缺失的行——Excel 侧未改（== baseline）时安全删除该行；Excel 侧已改时记录删除冲突。
 - Excel 里存在、但 baseline 没有且 Local 也没有的行（导入后在 Excel 新增）→ 记录“远端新增”冲突，不静默保留也不误删。
 - 只有 Local 相对 Base 改变的单元格才参与写入。
-- 成功保存后不刷新 baseline。
+- 成功保存 Excel 后，当前实现先释放 workbook，再重新读取 Excel 并刷新 baseline，使后续比较以刚提交的数据为 Base。若文件保存成功而 baseline 刷新失败，Excel 与 baseline 仍可能分叉；两者不是一个事务。
 
-删除传播在主循环之后自底向上 `DeleteRow`，先汇总冲突再决定是否 `package.Save()`；有冲突时同样不落盘。连续导出仍以最近一次 import 为 Base，比较语义会滞后。推荐成功导出并确认后重新导入；更完整的实现应在 Excel 保存成功后原子更新 baseline。
+删除传播在主循环之后自底向上 `DeleteRow`，先汇总冲突再决定是否 `package.Save()`；有冲突时同样不落盘。成功导出后重读更新 baseline，因此连续导出使用上次成功导出的远端内容作为 Base。导出保存与 baseline 刷新之间仍有失败窗口，不提供原子提交保证。
+
+导出不会把 Remote 的单边变更导入 SO：`Local == Base` 时保留 Remote，但随后 baseline 已按 Remote 刷新，Local 仍保留旧值。未重新导入便再次导出时，旧 Local 可能被当成相对新 Base 的修改而写回，覆盖先前保留的 Remote 值。因此成功导出后须比较 Local/Remote，保留本地待合并内容，再按项目工作流重新导入以对齐两侧；不能把“自动刷新 baseline”理解为自动同步 SO。Remote 行已删除而 Local 仍持有时，当前导出会重新插入该行，不把 Remote 删除自动应用到 SO。
 
 ## 7. 生成与批处理
 
-`GenerateCode` 创建输出目录，仅在缺失时生成 Row partial 壳类，每次重写 Table ScriptableObject 壳类；已绑定资产时还生成 partial raw 字段，然后 Refresh。Table 文件会直接覆盖，生成目录不能存放手写同名类；写入没有临时文件或批次回滚。
+`GenerateCode` 创建输出目录，仅在缺失时生成空 Row partial 壳类，每次重写 Table ScriptableObject 壳类；已绑定资产时还生成 partial raw 字段，然后 Refresh。首次须补齐 Row 字段并等编译，不能将空壳当作完整 schema 推导结果。Table 文件会直接覆盖，生成目录不能存放手写同名类；写入没有临时文件或批次回滚。
 
 `GenerateAllCode`、`ImportAll` 和 `ExportAll` 逐模板执行并汇总错误，不因单表失败停止其余模板。`ExportAll` 会跳过 baseline 缺失的模板；前面模板的成功修改不会因后续模板失败而回滚。
 
@@ -134,40 +142,46 @@ flowchart TD
 
 EPPlus reader 在 sheet 名为空时选择首个 sheet，指定 sheet 不存在时也回退首个 sheet，并支持读取合并单元格左上角值。writer 可创建缺失 sheet，但高层 safe export 仍要求文件存在。空 workbook、损坏文件和 IO 错误会抛异常。
 
+`ExportFromSingleAssetDataList` 的三方合并直接使用 EPPlus 打开 workbook，不委托给传入 factory 的 writer；该 factory 会用于导出后 baseline 重读。导入和部分其他写入入口可通过 reader/writer factory 扩展，但不能据此宣称 Safe Export 已支持任意后端格式。
+
 导出只有显式 Save 才提交。工具没有文件锁协议、并发写检测或原子 replace；应避免 Excel 客户端、版本控制合并工具和 Unity 同时写同一文件。Safe Export 只保证冲突时不调用 `package.Save()`，不保证 Excel、baseline、冲突报告和外部文件系统之间的整体原子性。
 
 单表模板服务捕获异常、记录 `Debug.LogException` 并返回失败结果；批处理通过 `BatchResult` 继续汇总。底层同步 API 多数直接抛异常。批量成功只表示步骤返回成功，不证明代码已编译、业务引用有效或运行时发布完成。
 
 ## 9. 测试与验证
 
-截至 2026-08-21：
+既有测试记录（2026-08-21，非本轮执行）：
 
-- EditMode 测试已具备：`com.abilitykit.demo.moba.editor/Tests/ConfigSync/AbilityKit.Demo.Moba.ConfigSync.Tests`，5 用例覆盖 CreateSkeleton 表头、Excel→SO 导入（含 `int[]`/`string[]`/复杂对象数组解码 + baseline 建立）、SO→Excel 三方合并写回、冲突中止 + `.conflicts.json`、删除传播、删除冲突、文件夹整表替换 + 孤儿清理；已在 Unity Editor Test Runner 全绿（5/5）。
+- EditMode suite 位于 `com.abilitykit.demo.moba.editor/Tests/ConfigSync/AbilityKit.Demo.Moba.ConfigSync.Tests`，当前源码包含 Buff 往返、冲突和删除场景；历史记录称 Unity Editor Test Runner 曾全绿（5/5），不代表本次版本重跑。
 - 已注册 gate：`tools/test-gates.json` 的 `moba-config-sync`（P1，`unity-editmode-test` 指向上述程序集）。
 - 已执行真实 Excel 往返：demo.moba Buff 表经 headless CLI 正式化（数组 JSON 27 条 → 逐条目文件夹 → SO → 带类型 Excel + baseline），四表示对齐。
-- 仍没有独立 `.NET` 镜像工程（核心依赖 UnityEditor、Odin、EPPlus）；E4 仅一次性手工冒烟、无可复现 artifact，E5 未接入 CI 阻断。
+- 包没有独立 `.NET` 镜像工程（实现依赖 Unity Editor、Odin、EPPlus）；E4/E5 状态需按当前实际 artifact 与 CI 工作流另行核对，不由历史记录外推。
 
-最低人工验证应使用临时表和临时资产：
+本轮补核（2026-11-25）：在 Windows / Unity 2022.3.62f1 新建隔离工程，复制该包 33 个 C# 文件并核对 SHA-256 相同，使用现有 Odin / Newtonsoft.Json 与包内 EPPlus；临时表和资产只写本地运行目录。导入、导出刷新、连续导出、冲突不保存、删除传播、注入 baseline 重读失败、重复主键及 Remote 单边变更边界由局部调用探针验证，结果见[本批记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#17-d4-excel-sync-核校记录2026-11-25)。这不是主工程的 `moba-config-sync` 完整 gate，也不构成干净 UPM 安装验证。
+
+后续完整人工/回归验证应使用临时表和临时资产：
 
 1. 导入合法表，核对 DataList 与 baseline。
 2. 分别只改 Local、只改 Remote，验证保留规则。
 3. 同一单元格同时修改，确认报告生成且 Excel hash 不变。
 4. 验证新增 Local 行、Remote-only 行和无 baseline 的 Remote 行。
 5. 构造重复主键并由外部 gate 阻断。
-6. 成功导出后再次导出，观察 baseline 滞后，再重新导入。
+6. 成功导出后检查 baseline 已从 Excel 重读刷新；另验证刷新失败时的恢复步骤。
 7. 首次生成新类型时分阶段等待 Unity 编译。
 
 优先自动化覆盖 schema 大小写与重复列、主键过滤/重复、codec round-trip、赋值前失败、三方合并真值表、冲突不保存、baseline 更新失败、连续导出和 batch 部分失败。
 
 ## 10. 生产工作流
 
-推荐顺序是：锁定目标 Excel 和生成目录；首次接入生成代码并等待编译；创建或绑定资产；导入并运行唯一主键及业务校验；编辑 Local；safe export；处理 conflict report；审查 Excel/资产 diff；重新导入刷新 baseline；最后再进入 ConfigDatabase、Luban 或项目打包链。
+推荐顺序是：锁定目标 Excel 和生成目录；首次接入生成壳代码并补齐字段，等待编译；创建或绑定资产；导入并运行唯一主键及业务校验；编辑 Local；safe export；处理 conflict report；审查 Excel/资产 diff 与自动刷新后的 baseline；确认保留本地待合并改动后重新导入以对齐 SO；最后再进入 ConfigDatabase、Luban 或项目打包链。
 
 Excel Sync 输出只是 authoring 资产。若运行时使用 ConfigDatabase 或 Luban，必须建立明确的下一阶段转换和门禁，不能让 Editor Table Asset 自动成为未经验证的线上权威源。
 
 ## 11. 采用结论
 
-Excel Sync 已具备模板、反射映射、codec（含 `T[]` 数组）、baseline、三方冲突检测与删除传播的完整编辑器工具面。冲突时不保存 EPPlus package 是有效保护；demo.moba 项目层还提供了 headless CLI（push-json / pull-excel / bootstrap / export-typed / seed-from-json）与带类型标注导出（`IExcelTypeNameProvider`，供 Luban 或自研管线下游解析列类型）。但重复主键、非事务导入、baseline 不刷新、无编译等待、批处理不回滚仍限制成熟度。
+Excel Sync 已具备模板、反射映射、codec（含 `T[]` 数组）、baseline、三方冲突检测与删除传播的编辑器工具面。冲突时不保存当前 EPPlus workbook；成功导出后刷新 baseline，但保存与刷新之间仍有失败窗口。demo.moba 项目层还提供 headless CLI（push-json / pull-excel / bootstrap / export-typed / seed-from-json）与带类型标注导出（`IExcelTypeNameProvider`，供下游解析列类型）。重复主键、非事务导入、baseline 元数据缺少源版本校验、首次生成不等待编译及批处理不回滚仍限制成熟度。
+
+包内接入步骤见 [`com.abilitykit.excel-sync` 使用指南](../../../Unity/Packages/com.abilitykit.excel-sync/Documentation~/Usage.md)；旧包文档保留为历史材料。
 
 生产声明应限定为“受版本控制和人工审查保护的 Unity Editor 双向同步工具”，不能称为无人值守配置发布系统或跨端运行时配置方案。
 
@@ -180,6 +194,6 @@ Excel Sync 已具备模板、反射映射、codec（含 `T[]` 数组）、baseli
 
 ---
 
-文档类型：Canonical 设计与 Editor 工作流 | 事实基线：2026-08-21 | 证据等级：E0 Editor 实现、E1 静态可审计、E2 authoring 接入、E3 自动测试（EditMode 5 用例 + `moba-config-sync` gate）；无 E4 可复现 artifact、无自动 E5
+文档类型：Canonical 设计与 Editor 工作流 | 事实基线：2026-11-25 | 证据等级：E0 源码与配置；E1–E2 MOBA authoring 消费路径；E3 本轮 Unity 隔离工程局部探针，既有 Buff EditMode gate 未重跑；本批未新增 E4/E5 结论
 
-*文档版本：v3.2 | 最后更新：2026-08-21*
+*文档版本：v3.3 | 最后更新：2026-11-25*

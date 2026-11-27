@@ -19,7 +19,7 @@
                         {
                             "type": "AbilityKit.ActionEditorImpl.ExecuteEffect",
                             "runtimeType": "logic",
-                            "start": 0.0,
+                            "start": 0.25,
                             "length": 0.0,
                             "blendIn": 0.0,
                             "blendOut": 0.0,

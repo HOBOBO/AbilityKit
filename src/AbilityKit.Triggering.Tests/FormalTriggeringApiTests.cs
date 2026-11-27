@@ -14,7 +14,10 @@ public sealed class FormalTriggeringApiTests
     public void Package_sample_executes_through_the_formal_path() => FormalTriggeringMainlineExample.RunOnce();
 
     [Fact]
-    public void Optional_rule_scheduling_sample_runs_independently() => RuleSchedulingExample.RunOnce();
+    public void Package_sample_shows_nested_dispatch_and_disposal() => FormalTriggeringMainlineExample.RunNestedDispatchOnce();
+
+    [Fact]
+    public void Queued_event_sample_runs_independently() => QueuedEventBusExample.RunOnce();
 
     [Theory]
     [InlineData(EEventDispatchMode.Immediate)]

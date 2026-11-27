@@ -28,8 +28,8 @@ namespace AbilityKit.Battle.SearchTarget
             collectionCheck: false);
 
         private static readonly ObjectPool<List<EntityId>> EntityIdListPool = Pools.GetPool(
-            createFunc: () => new List<EntityId>(EntityIdListInitialCapacity),
-            onRelease: l => ResetList(l, MaxRetainedEntityIdListCapacity, EntityIdListInitialCapacity),
+            createFunc: CreateEntityIdList,
+            onRelease: ResetEntityIdList,
             defaultCapacity: 32,
             maxSize: 1024,
             collectionCheck: false);
@@ -96,11 +96,17 @@ namespace AbilityKit.Battle.SearchTarget
             ContextPool.Release(context);
         }
 
+        /// <summary>
+        /// 租用一个空结果；使用完毕后由调用方释放或归还。
+        /// </summary>
         public static SearchResult RentResult()
         {
             return ResultPool.Get();
         }
 
+        /// <summary>
+        /// 归还当前结果并断开已取得的视图；空引用被忽略，不得再次使用已归还的对象引用。
+        /// </summary>
         public static void Release(SearchResult result)
         {
             if (result == null || !result.TryBeginPoolRelease()) return;
@@ -185,6 +191,11 @@ namespace AbilityKit.Battle.SearchTarget
             if (buffer == null) return;
             HitBufferPool.Release(buffer);
         }
+
+        internal static List<EntityId> CreateEntityIdList() => new List<EntityId>(EntityIdListInitialCapacity);
+
+        internal static void ResetEntityIdList(List<EntityId> list) =>
+            ResetList(list, MaxRetainedEntityIdListCapacity, EntityIdListInitialCapacity);
 
         private static void ResetList<T>(List<T> list, int maxRetainedCapacity, int initialCapacity)
         {

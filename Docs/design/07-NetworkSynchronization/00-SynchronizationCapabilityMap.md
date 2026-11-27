@@ -6,7 +6,7 @@
 >
 > **适用范围：** 同步 Profile、帧/状态同步、预测回滚、会话协调、可靠事件与回放能力的选型入口。
 
-> **局部核校：2026-11-25**，新增第 1.3 节的核心包消费路径并限定第 8.1 节的测试证据；其余业务拓扑和历史示例未在本批全篇重核。
+> **局部核校：2026-11-25**，第 1.3 节记录核心包消费路径，第 1.4 节记录网络接入/ECS 适配交接，第 1.5 节接通支撑契约及新版多人指南，第 8.1 节限定测试证据；其余业务拓扑和历史示例未全篇重核。
 
 > 本文从源码角度梳理 AbilityKit 的网络同步能力边界。它不是单一“帧同步类”或“状态同步类”，而是由输入帧、快照信封、阶段化 Room 控制面、业务数据面、Room/Battle 服务端 Grain、回放记录和 Demo 接入层共同组成。源码入口以 `Unity/Packages` 为准，`src` 中还包含 Console Demo 的实验性同步实现，不能反推为通用 Package 能力。
 
@@ -98,7 +98,49 @@ Room 侧把最终模板/Profile 的 `SyncCapabilities` 写入 commit、持久化
 
 两条同步链复用固定步长、实体生命周期和玩法执行能力。会话选择权威来源、输入路线和恢复策略；Snapshot ID、可靠事件水位、帧同步确认帧和状态同步输入终结互不代替。帧同步可附带状态推送，但不能据此让推送接管帧时钟。详细恢复设计仍由[帧/状态预测回滚专题](03.2-FrameStatePredictionRollback.md)持有。
 
-本轮只修正文档，没有改变共享世界或任何单链实现。两链均运行各自现有 .NET 选定测试，不能据此推导真实服务端/客户端组合或任意玩法 Provider 的完整恢复；范围、失败项和未覆盖环境见[D3 核心批次记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#9-d3-核心世界同步与网络包核校记录2026-11-25)。SDK、Room/Battle、服务端监听和可选传输适配留到后续 D3 批次。
+核心批次只修正文档，没有改变共享世界或任何单链实现。两链均运行各自现有 .NET 选定测试，不能据此推导真实服务端/客户端组合或任意玩法 Provider 的完整恢复；范围、失败项和未覆盖环境见[D3 核心批次记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#9-d3-核心世界同步与网络包核校记录2026-11-25)。后续网络接入与适配批次的结果见下一节。
+
+### 1.4 网络接入与 ECS 适配交接（2026-11-25）
+
+本节只定义跨包阅读与所有者交接，具体 API、默认值及失败契约由包内使用正文持有。
+
+```mermaid
+flowchart LR
+    App[应用组合根] --> Room[Room 控制面]
+    App --> Config[Battle 配置]
+    Config --> Battle[Battle 数据面]
+    Room --> SDK[各自 SDK 与单一请求链]
+    Battle --> SDK
+    SDK --> Conn[Connection 与 transport]
+    Conn --> Listener[服务端 listener 与 session]
+    Listener --> Bridge[Host 身份与请求桥]
+    Bridge --> Schedule[宿主调度与世界]
+    Battle --> Restore[所属同步链的恢复流程]
+    Restore --> Schedule
+    Schedule --> ECS[按组合选择 ECS 后端]
+```
+
+| 交接 | 消费入口 | 必须由上层保留的责任 |
+| --- | --- | --- |
+| Room 控制与 Battle 数据面 | [Room](../../../Unity/Packages/com.abilitykit.network.room/Documentation~/Usage.md)、[Battle](../../../Unity/Packages/com.abilitykit.network.battle/Documentation~/Usage.md)、[Config](../../../Unity/Packages/com.abilitykit.network.battle.config/Documentation~/Usage.md)、[Client](../../../Unity/Packages/com.abilitykit.network.client/Documentation~/Usage.md) | 选择会话与连接所有者；建连、鉴权、入房、开战、订阅及恢复提交分别确认。配置 Build 不验证完整会话；独占订阅槽，接收器尽量在 Connect 前就位 |
+| 请求链与 transport | [SDK](../../../Unity/Packages/com.abilitykit.network.sdk/Documentation~/Usage.md)、[InMemory](../../../Unity/Packages/com.abilitykit.network.transport.inmemory/Documentation~/Usage.md)、[KCP](../../../Unity/Packages/com.abilitykit.network.transport.kcp/Documentation~/Usage.md)、[LiteNet](../../../Unity/Packages/com.abilitykit.network.transport.litenet/Documentation~/Usage.md)、[WebSocket](../../../Unity/Packages/com.abilitykit.network.transport.websocket/Documentation~/Usage.md) | 匹配成帧和响应包络；每次重连新建 transport，协调借用 SDK 的 Tick/Close。dispatcher 不替代网络墙钟；Connected 不代表业务认证，KCP 甚至不证明远端接受 |
+| 服务端 session 到世界 | [NetworkHost](../../../Unity/Packages/com.abilitykit.network.host/Documentation~/Usage.md)、[Host Network](../../../Unity/Packages/com.abilitykit.host.network/Documentation~/Usage.md)、[KCP listener](../../../Unity/Packages/com.abilitykit.network.host.kcp/Documentation~/Usage.md) | 应用完成认证后绑定身份。按 session 串行不等于共享世界串行；宿主决定调度线和世界时钟。等待原停止任务，网络关闭不代替退房或世界销毁 |
+| ECS 后端 | [Entitas](../../../Unity/Packages/com.abilitykit.world.entitas/Documentation~/Usage.md)、[Svelto](../../../Unity/Packages/com.abilitykit.world.svelto/Documentation~/Usage.md) | Entitas 构造前提供 contexts factory 与服务；Svelto 模块只注册上下文，宿主负责引擎和提交安全点。后端类型不能决定同步模式或自动转换状态 |
+
+帧同步继续按权威输入和检查点重演；状态同步继续按权威基线重建、导入成功后提交。Room 恢复 generation、KCP ConversationId、Snapshot ID、可靠事件水位和输入确认各有语义，不能互代。一次请求成功或订阅响应不能证明世界已经恢复。共享玩法执行链不因 transport/ECS 后端不同复制。
+
+本批只改文档，未改共享世界、单链实现或业务协议。十二组网络测试 307/308 通过；一项 SDK catalog diagnostic 覆盖断言在写文档前已失败。Entitas/Svelto 镜像构建和九个最小示例不等同完整 ECS 生命周期测试。实际范围和缺口见[本批记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#10-d3-网络接入与ecs-适配核校记录2026-11-25)。本批当时未全篇重核旧业务集成指南；其后续修订见第 1.5 节。ECS 设计继续由[Entitas 专题](../06-ECSArchitecture/02-EntitasImplementation.md)及[Svelto 专题](../06-ECSArchitecture/04-SveltoImplementation.md)持有。
+
+### 1.5 协议与组合支撑契约（2026-11-25）
+
+| 交接 | 当前入口 | 必须保留的边界 |
+| --- | --- | --- |
+| Room 消息到会话 | [Room Protocol](../../../Unity/Packages/com.abilitykit.protocol.room/Documentation~/Usage.md) | DTO 编解码不提供认证、业务成功或世界恢复；固定基线信封与内层投影版本分开，重建和导入成功后再提交 |
+| 战斗定义到宿主 | [Game Battle Runtime](../../../Unity/Packages/com.abilitykit.game.battle.runtime/Documentation~/Usage.md) | 阶段图与贡献排序仅产出计划；执行、完成提交、异常补偿和系统释放由宿主承担 |
+| 外部通道到 SDK | [GameFramework Network](../../../Unity/Packages/com.abilitykit.gameframework.network/Documentation~/Usage.md) | manager 外部拥有并持续 Update；wrapper 独占 channel，Tick 仅观察状态，不桥接全部错误或提供自动重连 |
+| 跨包接入顺序 | [多人联网 SDK 接入指南](07-MultiplayerSdkIntegrationGuide.md) | 先固定协议/身份，再交接 Room/Battle、当前代际鉴权、单一订阅和所属同步链恢复；typed/raw 和 void/Task 不决定同步模式 |
+
+本批修订旧多人指南原路径，没有修改运行时、线上布局或两条同步链。选定测试 233/234、三个完整本地示例 3/3；唯一失败仍为 SDK Room diagnostic decoder 覆盖缺口。上述证据不能替代端到端开战、跨端恢复或部署验收，范围和日志见[支撑批次记录](../../../plans/2026-11-24-DocumentationSystemInventory.md#11-d3-支撑契约与多人接入指南核校记录2026-11-25)。
 
 ## 2. 同步能力分层
 
@@ -495,7 +537,7 @@ Room 维护成员身份、在线状态、准备、恢复、晚加入和开战入
 | E0 | 类型、配置或协议存在 | Profile、builder、codec、策略枚举 |
 | E1 | 有明确装配点或消费者 | Shooter/MOBA 同步 session builder，Console/Host 会话门面 |
 | E2 | 进入可运行的项目主链 | Room 能力声明、两连接数据面、业务预测/回滚控制器 |
-| E3 | 单元或契约测试 | 旧版所列数量属于历史局部运行，不代表当前全量通过。2026-11-25 核心包选定步骤、协议文档断言失败和未覆盖项见 D3 批次记录；SDK/Room 未在本批重跑 |
+| E3 | 单元或契约测试 | 旧版所列数量属于历史局部运行，不代表当前全量通过。2026-11-25 核心包与网络接入/适配批次分开记录；核心协议文档断言与 SDK diagnostic decoder 覆盖各有既有失败，详见第 1.3/1.4 节所引批次记录 |
 | E4 | 可留档的 Smoke/多进程 artifact | Shooter/MOBA/Console 对应 smoke 产物；需逐次核对日期与配置 |
 | E5 | CI 发布或合并门禁 | `tools/test-gates.json` 与 workflow 实际接线；不能由本地测试通过反推 |
 
@@ -513,6 +555,6 @@ Room 维护成员身份、在线状态、准备、恢复、晚加入和开战入
 
 ---
 
-文档类型：能力地图 | 事实基线：主体 2026-08-16，第 1.3/8.1 节局部核校 2026-11-25 | 证据等级：E0–E3 按具体范围，旧 Smoke/CI 不作为本轮结果。
+文档类型：能力地图 | 事实基线：主体 2026-08-16，第 1.3/1.4/8.1 节局部核校 2026-11-25 | 证据等级：E0–E3 按具体范围，旧 Smoke/CI 不作为本轮结果。
 
-*文档版本：v3.2 | 最后更新：2026-11-25 | 文档类型：能力地图*
+*文档版本：v3.4 | 最后更新：2026-11-25 | 文档类型：能力地图*

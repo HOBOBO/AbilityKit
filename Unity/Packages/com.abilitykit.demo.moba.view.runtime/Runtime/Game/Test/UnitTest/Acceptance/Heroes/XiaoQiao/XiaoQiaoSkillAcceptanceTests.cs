@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using AbilityKit.ActionSchema;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Flow.Battle.Presentation.Timeline;
@@ -7,6 +9,7 @@ using AbilityKit.Combat.Collision;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Services;
@@ -111,6 +114,62 @@ namespace AbilityKit.Game.Test.UnitTest
                 var resolver = new BattleProjectileVfxResolver();
                 Assert.AreEqual(90002001, resolver.ResolveSnapshotVfxId(entry.TemplateId, (ProjectilePresentationEventKind)entry.Kind), "Xiao Qiao skill 1 projectile spawn snapshot should resolve to the configured fan VFX instead of a placeholder.");
             }
+        }
+
+        [Test]
+        public void Skill10020101_DiagnosticArtifactConnectsEventTraceActorAndProjectile()
+        {
+            using var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10020101 },
+                heroId: 1002, attributeTemplateId: 1002);
+            var captureControl = harness.World.Services.Resolve<IMobaBattleDiagnosticCaptureControl>();
+            captureControl.CaptureMode = BattleDiagnosticCaptureMode.Full;
+            captureControl.EnabledChannels = BattleDiagnosticEventChannel.All;
+            captureControl.StateSampleIntervalFrames = 1;
+            harness.EnterGameAndWarmup(reason: "diagnostic artifact navigation evidence");
+            DrainSnapshots(harness);
+            var actorId = harness.AssertPlayerActorBound();
+            var cast = harness.World.Services.Resolve<SkillCastCoordinator>().TryCastBySlot(
+                actorId, slot: 1, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
+            Assert.That(cast.Success, Is.True, $"cast: {cast.FailReason}");
+            var launch = TickUntilProjectileSpawnSnapshot(harness, templateId: 30020101, maxTicks: 30);
+            harness.Tick(2);
+
+            var capture = harness.World.Services.Resolve<IMobaBattleDiagnosticSnapshotCapture>();
+            var snapshot = capture.CaptureSnapshot();
+            var json = MobaBattleDiagnosticArtifactCodec.ExportSnapshotToString(snapshot);
+            var output = System.Environment.GetEnvironmentVariable("ABILITYKIT_BATTLE_DEBUG_ARTIFACT_PATH");
+            if (!string.IsNullOrEmpty(output)) File.WriteAllText(output, json);
+
+            var restored = MobaBattleDiagnosticArtifactCodec.ImportSnapshot(json);
+            using var offline = new BattleDiagnosticOfflineSession(restored);
+            var projectile = restored.Objects.Items.Single(item =>
+                item.Kind == BattleDiagnosticRuntimeObjectKind.Projectile && item.RuntimeId == launch.ProjectileId);
+            Assert.That(projectile.RootContextId, Is.Positive);
+            var trace = offline.QueryTrace(1, projectile.RootContextId);
+            var traceIds = trace.Items.Select(node => node.ContextId).ToHashSet();
+            Assert.That(restored.Events.Events.Any(item => item.RootContextId == projectile.RootContextId &&
+                traceIds.Contains(item.ContextId)), Is.True, "expected a captured event linked to a retained trace node");
+            Assert.That(trace.Items.Any(node => node.ContextId == projectile.ContextId), Is.True);
+            var objects = offline.QueryRuntimeObjects(new BattleDiagnosticRuntimeObjectQuery(2,
+                new BattleDiagnosticRuntimeObjectFilter(rootContextId: projectile.RootContextId),
+                new BattleDiagnosticPageRequest(offline.RuntimeObjectStoreRevision, 0, 50)));
+            Assert.That(objects.Items.Any(item => item.Reference.Equals(projectile.Reference)), Is.True);
+            Assert.That(objects.Items.All(item => item.RootContextId == projectile.RootContextId), Is.True);
+            Assert.That(offline.QueryActors(3, restored.State.Frame).Items.Any(actor => actor.ActorId == actorId), Is.True);
+            var actor = restored.State.Actors.Single(item => item.ActorId == actorId);
+            Assert.That(actor.Generation, Is.Positive);
+            var owner = BattleDiagnosticRuntimeObjectReference.Create(BattleDiagnosticRuntimeObjectKind.Actor,
+                projectile.OwnerActorId, 0);
+            Assert.That(owner.RuntimeId, Is.EqualTo(actorId));
+            var ownerEvidence = offline.ResolveRelation(restored.SessionInfo.Scope, in owner, projectile.CreatedFrame);
+            Assert.That(ownerEvidence.CatalogEntry.Value.ActorKind, Is.EqualTo(BattleDiagnosticActorKind.Hero));
+            Assert.That(ownerEvidence.CatalogEntry.Value.Generation, Is.EqualTo(actor.Generation));
+            if (projectile.CreatedFrame != restored.State.Frame)
+                Assert.That(ownerEvidence.ActorSnapshot, Is.Null);
+            Assert.That(offline.QueryActorAttributes(4, restored.Attributes.Frame, actorId).Items.Count, Is.Positive);
+            if (trace.Items[0].StartFrame != restored.Attributes.Frame && trace.Items[0].StartFrame > 0)
+                Assert.That(offline.QueryActorAttributes(5, trace.Items[0].StartFrame, actorId).Status.Availability,
+                    Is.EqualTo(BattleDiagnosticDataAvailability.NotCaptured));
         }
 
         [Test]

@@ -1,3 +1,4 @@
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
@@ -56,6 +57,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             }
 
             handle = createdHandle;
+            if (payload.UsesProjectileFlight) _spawner.PlayProjectileSpawn(handle);
             return true;
         }
 
@@ -81,14 +83,16 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             request = default;
             if (payload.IsEmpty) return false;
             var position = BattlePresentationCuePlacementResolver.ResolvePosition(in payload, this);
-            var followActorId = BattlePresentationCuePlacementResolver.ResolveFollowActorId(in payload, this);
+            var followActorId = payload.UsesProjectileFlight ? payload.TargetActorId :
+                BattlePresentationCuePlacementResolver.ResolveFollowActorId(in payload, this);
             var attachment = followActorId > 0
                 ? new PresentationAttachment(
-                    PresentationAttachmentKind.Actor,
+                    payload.UsesProjectileFlight ? PresentationAttachmentKind.Projectile : PresentationAttachmentKind.Actor,
                     followActorId,
                     offset: new PresentationVector3(payload.Offset.X, payload.Offset.Y, payload.Offset.Z))
                 : default;
-            var parameters = new List<PresentationParameter>(8)
+            var isRectangle = payload.ShapeKind == (int)OverlapShapeKind.Rectangle;
+            var parameters = new List<PresentationParameter>(isRectangle ? 9 : 8)
             {
                 new PresentationParameter("stackCount", payload.StackCount),
                 new PresentationParameter("maxStackCount", payload.MaxStackCount),
@@ -99,6 +103,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 new PresentationParameter("areaWidth", payload.Width),
                 new PresentationParameter("areaLength", payload.Length),
             };
+            if (isRectangle)
+                parameters.Add(new PresentationParameter(BattleAreaLengthScaleBinding.RectangleLengthParameter, payload.Length));
+            if (payload.UsesProjectileFlight)
+            {
+                parameters.Add(new PresentationParameter(BattleVfxFollowController.FlightDistanceParameter, payload.FlightDistance));
+                parameters.Add(new PresentationParameter(BattleVfxFollowController.FlightArcHeightParameter, payload.FlightArcHeight));
+            }
             var rotation = ResolveRotation(payload.Forward);
             if (!_spawner.TryCreatePresentationRequest(
                     payload.VfxId,
@@ -126,7 +137,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 configured.AssetKind,
                 configured.Playback,
                 configured.Policy,
-                template != null ? template.Follow : configured.FollowAttachment,
+                payload.UsesProjectileFlight || (template != null ? template.Follow : configured.FollowAttachment),
                 template != null ? (PresentationParentScaleMode)template.ParentScaleMode : configured.ParentScaleMode,
                 ordering,
                 MobaPresentationTemplateResolver.ResolveLifecycle(template),
@@ -231,6 +242,12 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public bool IsAlive(EC.IEntityId id)
         {
             return id.IsValid && _world != null && _world.IsAlive(id);
+        }
+
+        internal void PlayProjectileSpawn(EC.IEntityId id)
+        {
+            if (IsAlive(id) && _world.Wrap(id).TryGetRef(out BattleViewGameObjectComponent view) && view?.GameObject != null)
+                BattleProjectileVfxSpawner.PlayProjectileSpawn(view.GameObject);
         }
 
         public bool CanUpdate(EC.IEntityId id) => IsAlive(id) &&
@@ -377,11 +394,12 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             int stackCount,
             int maxStackCount,
             float elapsedSeconds,
-            float remainingSeconds)
+            float remainingSeconds,
+            IReadOnlyList<PresentationParameter> parameters = null)
         {
             if (!id.IsValid) return;
 
-            ApplyPresentationScale(id, scale, radius);
+            ApplyPresentationScale(id, scale, radius, parameters);
             RefreshLifetime(id, durationMsOverride);
             ApplyCueState(id, stackCount, maxStackCount, elapsedSeconds, remainingSeconds);
         }
@@ -430,7 +448,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private static void ApplyPresentationScale(
             EC.IEntity entity,
             float scale,
-            float radius)
+            float radius,
+            IReadOnlyList<PresentationParameter> parameters = null)
         {
             if (!entity.IsValid) return;
             if (!entity.TryGetRef(out BattleViewGameObjectComponent goComp) ||
@@ -440,7 +459,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 return;
             }
 
-            BattlePresentationScaleState.ApplyCueScale(goComp.GameObject, scale, radius);
+            BattlePresentationScaleState.ApplyCueScale(goComp.GameObject, scale, radius, parameters);
         }
 
         private void RefreshLifetime(EC.IEntityId id, int durationMsOverride)
@@ -461,12 +480,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private void ApplyPresentationScale(
             EC.IEntityId id,
             float scale,
-            float radius)
+            float radius,
+            IReadOnlyList<PresentationParameter> parameters)
         {
             if (!id.IsValid || _world == null || !_world.IsAlive(id)) return;
 
             var entity = _world.Wrap(id);
-            ApplyPresentationScale(entity, scale, radius);
+            ApplyPresentationScale(entity, scale, radius, parameters);
         }
     }
 
@@ -541,7 +561,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 ReadInt(request.Parameters, "stackCount"),
                 ReadInt(request.Parameters, "maxStackCount"),
                 ReadFloat(request.Parameters, "elapsedSeconds"),
-                ReadFloat(request.Parameters, "remainingSeconds"));
+                ReadFloat(request.Parameters, "remainingSeconds"),
+                request.Parameters);
             var target = request.Attachment.ActorId > 0
                 ? _resolveTarget?.Invoke(request.Attachment.ActorId) ?? default
                 : default;

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3, "caseId": "karthus-q", "displayName": "Karthus Q",
+  "schemaVersion": 3, "caseId": "karthus-q", "displayName": "Karthus Q - delayed isolated blast",
   "tags": ["skill-presentation", "karthus"],
   "sections": {
     "settings": [
@@ -8,14 +8,17 @@
     ],
     "setup": [
       {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "caster", "heroId": 3006, "attributeTemplateId": 3006, "teamId": 1, "position": {"x": 7, "y": 0, "z": -4}, "playerId": "player_1"},
-      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": 0}}
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "target", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 7, "y": 0, "z": 0}},
+      {"$type": "AbilityKit.BattleScenario.SpawnActorBlock, AbilityKit.BattleScenario", "alias": "outside", "heroId": 1001, "attributeTemplateId": 1001, "teamId": 2, "position": {"x": 9.5, "y": 0, "z": 0}}
     ],
     "timeline": [
       {"$type": "AbilityKit.BattleScenario.TimelineStepBlock, AbilityKit.BattleScenario", "atMs": 600, "action": "cast_skill", "actorAlias": "caster", "slot": 1, "position": {"x": 7, "y": 0, "z": 0}, "direction": {"x": 0, "y": 0, "z": 1}}
     ],
     "assertions": [
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30060201},
-      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30060201}
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 30060201, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "DamageApply", "configId": 30060201, "minCount": 1, "maxCount": 1},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "target", "property": "hp", "comparator": "lt", "expectedValue": "50000"},
+      {"$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "outside", "property": "hp", "comparator": "eq", "expectedValue": "50000"}
     ]
   }
 }
